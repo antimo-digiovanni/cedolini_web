@@ -73,5 +73,4 @@ uncompyle6==3.9.2
 urllib3==2.3.0
 Werkzeug==3.1.6
 wsproto==1.2.0
-xdis==6.1.2
 zipp==3.23.0
