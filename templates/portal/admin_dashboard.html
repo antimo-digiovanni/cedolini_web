@@ -1,0 +1,12 @@
+{% extends "portal/base.html" %}
+{% block title %}Dashboard Admin{% endblock %}
+{% block content %}
+<div class="card card-custom p-4 text-center">
+  <h3>Dashboard Amministrazione</h3>
+  <p>Bentornato! Da qui puoi gestire i dipendenti e i cedolini.</p>
+  <div class="d-flex gap-2 justify-content-center mt-3">
+    <a href="{% url 'admin_upload_period_folder' %}" class="btn btn-primary">Carica Cedolini</a>
+    <a href="{% url 'admin_manage_employees' %}" class="btn btn-dark">Gestisci Dipendenti</a>
+  </div>
+</div>
+{% endblock %}
