@@ -10,9 +10,9 @@
 
   <style>
     body { background-color: #f4f6f9; }
-    .sidebar { height: 100vh; background-color: #1f2937; }
-    .sidebar a { color:#cbd5e1; text-decoration:none; padding:12px 20px; display:block; border-radius:8px; margin-bottom:6px; }
-    .sidebar a:hover { background-color:#374151; color:#fff; }
+    .sidebar { height: 100vh; background-color: #1f2937; position: sticky; top: 0; }
+    .sidebar a, .sidebar button { color:#cbd5e1; text-decoration:none; padding:12px 20px; display:block; border-radius:8px; margin-bottom:6px; width: 100%; text-align: left; border: none; background: transparent; }
+    .sidebar a:hover, .sidebar button:hover { background-color:#374151; color:#fff; }
     .navbar-custom { background-color:#111827; }
     .card-custom { border:none; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
     .logo-section { background: white; padding: 40px 0; border-bottom: 1px solid #e5e7eb; }
@@ -27,29 +27,31 @@
 <body>
 <div class="d-flex">
 
-  <!-- SIDEBAR -->
   <div class="sidebar p-3 text-white" style="width: 250px;">
     <div class="text-center mb-4"><strong>Menu</strong></div>
 
-    <a href="{% url 'home' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    <a href="{% url 'admin_dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
 
     {% if user.is_staff %}
     <a href="{% url 'admin_upload_period_folder' %}"><i class="bi bi-folder2-open"></i> Import Mese (Cartella)</a>
     <a href="{% url 'admin:index' %}"><i class="bi bi-gear"></i> Admin (Gestione)</a>
-    <a href="{% url 'admin_dashboard' %}"><i class="bi bi-graph-up"></i> Dashboard Admin</a>
     <a href="{% url 'admin_report' %}"><i class="bi bi-bar-chart"></i> Report Admin</a>
     <a href="{% url 'admin_manage_employees' %}"><i class="bi bi-people"></i> Gestione Cedolini</a>
     <a href="{% url 'admin_upload_payslip' %}"><i class="bi bi-upload"></i> Carica Cedolino</a>
     {% endif %}
 
     <a href="{% url 'password_change' %}"><i class="bi bi-key"></i> Cambia Password</a>
-    <a href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="sidebar-link">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </button>
+    </form>
   </div>
 
-  <!-- CONTENUTO -->
   <div class="flex-fill">
 
-    <!-- NAVBAR -->
     <nav class="navbar navbar-expand navbar-dark navbar-custom px-4">
       <span class="navbar-text text-white">
         Benvenuto/a
@@ -61,7 +63,6 @@
       </span>
     </nav>
 
-    <!-- LOGO -->
     <div class="logo-section text-center">
       <img src="{% static 'portal/logo.png' %}" alt="San Vincenzo Logo">
       <div class="mt-3">
@@ -70,7 +71,6 @@
       </div>
     </div>
 
-    <!-- CONTENUTO PAGINA -->
     <main class="container-fluid p-4">
       {% block content %}{% endblock %}
     </main>
