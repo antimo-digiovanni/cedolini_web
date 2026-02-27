@@ -85,12 +85,12 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Configurazione Login/Logout
+# --- CONFIGURAZIONE LOGIN/LOGOUT ---
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "admin_dashboard"  # Cambiato da 'home' a 'admin_dashboard'
 LOGOUT_REDIRECT_URL = "login"
 
-# ✅ CONFIGURAZIONE EMAIL ARUBA SICURA
+# --- CONFIGURAZIONE EMAIL ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtps.aruba.it"
 EMAIL_PORT = 465
@@ -104,8 +104,9 @@ DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <{EMAIL_HOST_USER}>"
 DEFAULT_DOMAIN = "cedolini-web.onrender.com"
 DEFAULT_PROTOCOL = "https"
 
-# Altri settings
+# --- SICUREZZA E PROXY ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 PENDING_UPLOAD_DIR = os.path.join(MEDIA_ROOT, "pending")
 
 CSRF_TRUSTED_ORIGINS = ['https://cedolini-web.onrender.com']
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
