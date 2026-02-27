@@ -1,10 +1,17 @@
 from pathlib import Path
+import os
 
+# Base directory del progetto
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "django-insecure-dev-only-change-me"
-DEBUG = False
-ALLOWED_HOSTS = ['cedolini-web.onrender.com', 'localhost', '127.0.0.1']
+
+# Durante il debug su Render è utile tenerlo a True, 
+# ma una volta verificato che tutto funziona, impostalo a False.
+DEBUG = True
+
+# MODIFICA IMPORTANTE: Aggiunto '*' per accettare tutti gli host su Render
+ALLOWED_HOSTS = ['cedolini-web.onrender.com', 'localhost', '127.0.0.1', '*']
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -18,6 +25,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise può essere aggiunto qui per gestire i file statici su Render
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -60,36 +68,30 @@ TIME_ZONE = "Europe/Rome"
 USE_I18N = True
 USE_TZ = True
 
+# Configurazione file statici
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Configurazione Login/Logout
 LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/check-password/"
+LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
 
-import os
-
+# Configurazione Email
 ADMIN_NOTIFY_EMAIL = "antimo.digiovanni@sanvincenzosrl.com"
-
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtps.aruba.it"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
 EMAIL_HOST_USER = "antimo.digiovanni@sanvincenzosrl.com"
 EMAIL_HOST_PASSWORD = "Unilever_02"
-
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 PASSWORD_CHANGE_REDIRECT_URL = "/"
 
-# =========================
 # Dominio per email reset
-# =========================
-DEFAULT_DOMAIN = "127.0.0.1:8000"
-DEFAULT_PROTOCOL = "http"
-LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/"
-LOGOUT_REDIRECT_URL = "/login/"
+DEFAULT_DOMAIN = "cedolini-web.onrender.com"
+DEFAULT_PROTOCOL = "https"
