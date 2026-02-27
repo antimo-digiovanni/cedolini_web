@@ -1,10 +1,15 @@
+from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.contrib.auth.views import LogoutView
 from django.contrib.auth import views as auth_views
-from . import views
+from portal import views  # <--- Modificato: ora importa correttamente dall'app portal
 
 urlpatterns = [
+    # Pannello di amministrazione Django
+    path("admin/", admin.site.urls),
+
+    # Home e logiche principali
     path("", views.home, name="home"),
     path("check-password/", views.force_password_change_if_needed, name="check_password"),
     path("p/<int:payslip_id>/", views.open_payslip, name="open_payslip"),
@@ -12,10 +17,10 @@ urlpatterns = [
     # ✅ Completa profilo
     path("complete-profile/", views.complete_profile, name="complete_profile"),
 
-    # ✅ Attivazione invito (se la usi)
+    # ✅ Attivazione invito
     path("activate/<uidb64>/<token>/", views.activate_account, name="activate_account"),
 
-    # Admin pages
+    # Admin pages (tue viste personalizzate)
     path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
     path("admin-report/", views.admin_report, name="admin_report"),
     path("admin-audit/", views.admin_audit_dashboard, name="admin_audit_dashboard"),
