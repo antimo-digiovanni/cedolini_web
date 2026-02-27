@@ -26,6 +26,7 @@ urlpatterns = [
     # Gestione Caricamenti
     path("admin-upload/", views.admin_upload_payslip, name="admin_upload_payslip"),
     path("admin-upload-folder-period/", views.admin_upload_period_folder, name="admin_upload_period_folder"),
+path("admin-confirm-import/", views.admin_confirm_import, name="admin_confirm_import"),
 
     # Gestione Cedolini e Dipendenti
     path("admin-manage/", views.admin_manage_employees, name="admin_manage_employees"),
