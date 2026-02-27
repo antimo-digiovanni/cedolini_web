@@ -1,26 +1,20 @@
 {% extends "portal/base.html" %}
-{% block title %}Importa Cedolini (Automatico){% endblock %}
+{% block title %}Importa Cedolini (Con Conferma){% endblock %}
 
 {% block content %}
 <div class="card card-custom p-4">
-  <h3 class="mb-1">Importa Cedolini (Automatico)</h3>
+  <h3 class="mb-1">Importa Cedolini (Con Conferma)</h3>
 
   <div class="text-muted mb-3">
-    Carica uno o più PDF con formato:
+    Carica PDF con formato:
     <br>
     <strong>COGNOME - NOME - MESE ANNO.pdf</strong>
     <br><br>
-    Esempio:
+    Se il dipendente esiste:
+    ✔️ Il cedolino viene salvato automaticamente
     <br>
-    <code>Di Giovanni - Antimo - Gennaio 2026.pdf</code>
-    <br><br>
-    Il sistema:
-    <ul class="mb-0">
-      <li>✔️ Legge automaticamente mese e anno</li>
-      <li>✔️ Crea il dipendente se non esiste</li>
-      <li>✔️ Collega il cedolino al dipendente</li>
-      <li>✔️ Aggiorna se il mese esiste già</li>
-    </ul>
+    Se il dipendente NON esiste:
+    ✔️ Ti verrà chiesto se crearlo oppure scartarlo
   </div>
 
   {% if messages %}
@@ -52,14 +46,12 @@
   </form>
 </div>
 
-
 <div class="card card-custom p-4 mt-4">
   <h5 class="mb-3">Report Import</h5>
 
   <ul class="mb-0">
-    <li><strong>Nuovi dipendenti creati:</strong> {{ report.employees_created }}</li>
-    <li><strong>Cedolini creati:</strong> {{ report.created }}</li>
-    <li><strong>Cedolini aggiornati:</strong> {{ report.updated }}</li>
+    <li><strong>Salvati dipendenti esistenti:</strong> {{ report.saved_existing }}</li>
+    <li><strong>Nuovi dipendenti trovati:</strong> {{ report.new_found }}</li>
     <li><strong>Errori:</strong> {{ report.errors }}</li>
   </ul>
 </div>
