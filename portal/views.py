@@ -48,10 +48,8 @@ def admin_dashboard(request):
 
 @login_required
 def admin_report(request):
-    """Aggiunta per risolvere errore AttributeError"""
     if not request.user.is_staff:
         return redirect("home")
-    # Logica base per visualizzare gli ultimi inserimenti
     latest_payslips = Payslip.objects.all().order_by("-id")[:50]
     return render(request, "portal/admin_report.html", {"payslips": latest_payslips})
 
@@ -85,4 +83,62 @@ def admin_upload_period_folder(request):
                 last_name, first_name = parts[0].strip(), parts[1].strip()
                 month_name, year = parts[2].strip().lower(), int(parts[3])
 
-                if month_name not in MONTHS_IT_REV
+                if month_name not in MONTHS_IT_REV:
+                    raise ValueError("Mese errato")
+
+                month = MONTHS_IT_REV[month_name]
+                full_name = f"{first_name} {last_name}".strip()
+                employee = Employee.objects.filter(full_name__iexact=full_name).first()
+
+                if not employee:
+                    report["new_found"] += 1
+                    continue
+
+                pending_path = os.path.join(pending_dir, filename)
+                with open(pending_path, "wb+") as dest:
+                    for chunk in f.chunks(): dest.write(chunk)
+
+                Payslip.objects.update_or_create(
+                    employee=employee, year=year, month=month,
+                    defaults={'pdf': pending_path}
+                )
+                report["saved_existing"] += 1
+            except Exception:
+                report["errors"] += 1
+
+        messages.success(request, f"Import: {report['saved_existing']} ok, {report['new_found']} mancanti.")
+
+    return render(request, "portal/admin_upload_period_folder.html", {"report": report})
+
+# ==========================================================
+# ✅ GESTIONE DIPENDENTI
+# ==========================================================
+@login_required
+def admin_manage_employees(request):
+    if not request.user.is_staff:
+        return redirect("home")
+    q = (request.GET.get("q") or "").strip()
+    employees = Employee.objects.all().order_by("full_name")
+    if q: employees = employees.filter(full_name__icontains=q)
+    return render(request, "portal/admin_manage_employees.html", {"employees": employees, "q": q})
+
+@login_required
+def admin_employee_payslips(request, employee_id):
+    if not request.user.is_staff:
+        return redirect("home")
+    employee = get_object_or_404(Employee, id=employee_id)
+    payslips = Payslip.objects.filter(employee=employee).order_by("-year", "-month")
+    return render(request, "portal/admin_employee_payslips.html", {"employee": employee, "payslips": payslips})
+
+# ==========================================================
+# ✅ VISUALIZZAZIONE PDF
+# ==========================================================
+@login_required
+def open_payslip(request, payslip_id):
+    if request.user.is_staff:
+        payslip = get_object_or_404(Payslip, id=payslip_id)
+    else:
+        payslip = get_object_or_404(Payslip, id=payslip_id, employee__user=request.user)
+    
+    if not payslip.pdf: raise Http404("PDF mancante.")
+    return FileResponse(payslip.pdf.open('rb'), content_type='application/pdf')
