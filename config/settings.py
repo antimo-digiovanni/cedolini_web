@@ -25,7 +25,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Fondamentale per la grafica
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Fondamentale per la grafica in produzione
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -78,7 +78,8 @@ USE_TZ = True
 # --- FILE STATICI (GRAFICA) ---
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-# WhiteNoise serve i file compressi per velocizzare il sito
+
+# Configurazione specifica per WhiteNoise 6.0+
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
@@ -90,9 +91,9 @@ LOGOUT_REDIRECT_URL = "login"
 
 # --- CONFIGURAZIONE EMAIL ARUBA ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtps.aruba.it"
-EMAIL_PORT = 465
-EMAIL_USE_SSL = True
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtps.aruba.it')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 465))
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'True') == 'True'
 EMAIL_USE_TLS = False
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'antimo.digiovanni@sanvincenzosrl.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD') 
