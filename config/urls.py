@@ -11,3 +11,10 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('test_email/', views.send_test_email, name='send_test_email'),
+]
