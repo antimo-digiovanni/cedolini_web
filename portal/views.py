@@ -4,6 +4,8 @@
 
 import os
 import uuid
+from django.contrib.auth.decorators import login_required
+
 
 @login_required
 def admin_upload_period_folder(request):
@@ -30,14 +32,12 @@ def admin_upload_period_folder(request):
 
         for f in files:
             try:
-                # Salva temporaneamente
                 pending_path = os.path.join(pending_dir, f.name)
 
                 with open(pending_path, "wb+") as destination:
                     for chunk in f.chunks():
                         destination.write(chunk)
 
-                # Parsing filename
                 name = f.name.rsplit(".", 1)[0]
                 parts = re.split(r"\s*[-–—]\s*", name)
 
@@ -60,10 +60,8 @@ def admin_upload_period_folder(request):
                 year = int(m.group(2))
 
                 full_name = f"{first_name} {last_name}".strip()
-
                 employee = Employee.objects.filter(full_name__iexact=full_name).first()
 
-                # Se esiste già → salva subito
                 if employee:
                     existing = Payslip.objects.filter(
                         employee=employee,
@@ -84,7 +82,6 @@ def admin_upload_period_folder(request):
 
                     report["saved_existing"] += 1
 
-                # Se non esiste → conferma
                 else:
                     new_employees.append({
                         "first_name": first_name,
@@ -133,7 +130,6 @@ def admin_confirm_import(request):
         for idx, data in enumerate(new_employees):
             file_path = data["file_path"]
 
-            # Se selezionato → crea utente
             if str(idx) in selected:
                 first_name = data["first_name"]
                 last_name = data["last_name"]
@@ -179,11 +175,9 @@ def admin_confirm_import(request):
                 _send_employee_month_notification(employee, month, year)
 
             else:
-                # Non selezionato → cancella file
                 if os.path.exists(file_path):
                     os.remove(file_path)
 
-        # Pulizia cartella
         if os.path.exists(pending_dir):
             try:
                 os.rmdir(pending_dir)

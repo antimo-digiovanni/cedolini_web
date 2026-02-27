@@ -105,3 +105,6 @@ DEFAULT_PROTOCOL = "https"
 
 # Altri settings
 PASSWORD_CHANGE_REDIRECT_URL = "/"
+
+# Cartella temporanea per import in attesa di conferma
+PENDING_UPLOAD_DIR = os.path.join(MEDIA_ROOT, "pending")
