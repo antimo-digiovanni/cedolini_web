@@ -13,3 +13,4 @@ PyPDF2
 pypdfium2
 requests
 python-telegram-bot
+python-dotenv
