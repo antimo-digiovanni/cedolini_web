@@ -641,26 +641,21 @@ def admin_upload_period_folder(request):
                     for chunk in f.chunks():
                         destination.write(chunk)
 
-                name = f.name.rsplit(".", 1)[0]
-                parts = re.split(r"\s*[-–—]\s*", name)
+                name = f.name.rsplit(".", 1)[0].strip()
+parts = name.split()
 
-                if len(parts) < 3:
-                    raise ValueError("Formato non valido")
+if len(parts) < 4:
+    raise ValueError("Formato non valido. Usa: COGNOME NOME MESE ANNO.pdf")
 
-                last_name = parts[0].strip()
-                first_name = parts[1].strip()
-                month_year = parts[2].strip()
+last_name = parts[0].strip()
+first_name = parts[1].strip()
+month_name = parts[2].strip().lower()
+year = int(parts[3])
 
-                m = re.match(
-                    r"^(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})$",
-                    month_year,
-                    flags=re.IGNORECASE,
-                )
-                if not m:
-                    raise ValueError("Mese/anno non valido")
+if month_name not in MONTHS_IT_REV:
+    raise ValueError("Mese non valido")
 
-                month = MONTHS_IT_REV[m.group(1).lower()]
-                year = int(m.group(2))
+month = MONTHS_IT_REV[month_name]
 
                 full_name = f"{first_name} {last_name}".strip()
                 employee = Employee.objects.filter(full_name__iexact=full_name).first()
