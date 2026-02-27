@@ -35,7 +35,8 @@ pdfminer.six==20251107
 pdfplumber==0.11.8
 pefile==2024.8.26
 pillow==10.4.0
-gunicorn==20.1.0
+gunicorn==22.0.0
+setuptools
 ping3==4.0.8
 pycparser==2.21
 Pygments==2.19.2
