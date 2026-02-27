@@ -92,7 +92,7 @@ LOGOUT_REDIRECT_URL = "/login/"
 # Configurazione Email
 ADMIN_NOTIFY_EMAIL = "antimo.digiovanni@sanvincenzosrl.com"
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtps.aruba.it"
+EMAIL_HOST = "smtp.aruba.it"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'antimo.digiovanni@sanvincenzosrl.com')
