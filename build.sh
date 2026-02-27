@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Assicurati di usare la versione di Python corretta
+# Assicurati che Python 3.10.13 sia installato
 pyenv install 3.10.13
 pyenv global 3.10.13
 
