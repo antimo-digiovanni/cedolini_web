@@ -69,3 +69,6 @@ wsproto==1.2.0
 zipp==3.23.0
 setuptools==82.0.0
 whitenoise[brotli]>=6.0.0
+dj-database-url
+psycopg2-binary
+whitenoise[brotli]
