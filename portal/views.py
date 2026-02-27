@@ -32,6 +32,11 @@ def complete_profile(request):
 def force_password_change_if_needed(request):
     return redirect("home")
 
+def activate_account(request, uidb64, token):
+    """Placeholder per attivazione account via email."""
+    messages.info(request, "Link di attivazione ricevuto.")
+    return redirect("login")
+
 # ==========================================================
 # ✅ DASHBOARD ADMIN
 # ==========================================================
@@ -39,11 +44,8 @@ def force_password_change_if_needed(request):
 def admin_dashboard(request):
     if not request.user.is_staff:
         return redirect("home")
-
     total_payslips = Payslip.objects.count()
-    return render(request, "portal/admin_dashboard.html", {
-        "total_payslips": total_payslips,
-    })
+    return render(request, "portal/admin_dashboard.html", {"total_payslips": total_payslips})
 
 # ==========================================================
 # ✅ IMPORT CARTELLA MESE
@@ -70,15 +72,12 @@ def admin_upload_period_folder(request):
                 filename = f.name
                 name = filename.rsplit(".", 1)[0].strip()
                 parts = name.split()
-
-                if len(parts) < 4:
-                    raise ValueError("Formato non valido")
+                if len(parts) < 4: raise ValueError("Formato non valido")
 
                 last_name, first_name = parts[0].strip(), parts[1].strip()
                 month_name, year = parts[2].strip().lower(), int(parts[3])
 
-                if month_name not in MONTHS_IT_REV:
-                    raise ValueError("Mese non valido")
+                if month_name not in MONTHS_IT_REV: raise ValueError("Mese non valido")
 
                 month = MONTHS_IT_REV[month_name]
                 full_name = f"{first_name} {last_name}".strip()
@@ -94,17 +93,14 @@ def admin_upload_period_folder(request):
                         destination.write(chunk)
 
                 Payslip.objects.update_or_create(
-                    employee=employee,
-                    year=year,
-                    month=month,
+                    employee=employee, year=year, month=month,
                     defaults={'pdf': pending_path}
                 )
                 report["saved_existing"] += 1
-
             except Exception:
                 report["errors"] += 1
 
-        messages.success(request, f"Salvati: {report['saved_existing']}, Nuovi non trovati: {report['new_found']}, Errori: {report['errors']}")
+        messages.success(request, f"Salvati: {report['saved_existing']}, Nuovi: {report['new_found']}, Errori: {report['errors']}")
 
     return render(request, "portal/admin_upload_period_folder.html", {"report": report})
 
@@ -115,19 +111,15 @@ def admin_upload_period_folder(request):
 def admin_manage_employees(request):
     if not request.user.is_staff:
         return redirect("home")
-
     q = (request.GET.get("q") or "").strip()
     employees = Employee.objects.all().order_by("full_name")
-    if q:
-        employees = employees.filter(full_name__icontains=q)
-
+    if q: employees = employees.filter(full_name__icontains=q)
     return render(request, "portal/admin_manage_employees.html", {"employees": employees, "q": q})
 
 @login_required
 def admin_employee_payslips(request, employee_id):
     if not request.user.is_staff:
         return redirect("home")
-
     employee = get_object_or_404(Employee, id=employee_id)
     payslips = Payslip.objects.filter(employee=employee).order_by("-year", "-month")
     return render(request, "portal/admin_employee_payslips.html", {"employee": employee, "payslips": payslips})
@@ -142,9 +134,7 @@ def open_payslip(request, payslip_id):
     else:
         payslip = get_object_or_404(Payslip, id=payslip_id, employee__user=request.user)
     
-    if not payslip.pdf:
-        raise Http404("File PDF non associato.")
-        
+    if not payslip.pdf: raise Http404("PDF mancante.")
     try:
         return FileResponse(payslip.pdf.open('rb'), content_type='application/pdf')
     except FileNotFoundError:
