@@ -107,3 +107,5 @@ DEFAULT_PROTOCOL = "https"
 # Altri settings
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 PENDING_UPLOAD_DIR = os.path.join(MEDIA_ROOT, "pending")
+
+CSRF_TRUSTED_ORIGINS = ['https://cedolini-web.onrender.com']
