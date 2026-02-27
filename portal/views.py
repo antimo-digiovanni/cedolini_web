@@ -614,7 +614,11 @@ def admin_upload_period_folder(request):
     if not (request.user.is_staff or request.user.is_superuser):
         return redirect("home")
 
-    report = {"created": 0, "updated": 0, "skipped": 0}
+    report = {
+        "saved_existing": 0,
+        "new_found": 0,
+        "errors": 0,
+    }
 
     if request.method == "POST":
         files = request.FILES.getlist("files")
@@ -622,67 +626,94 @@ def admin_upload_period_folder(request):
             messages.error(request, "Seleziona uno o più PDF.")
             return render(request, "portal/admin_upload_period_folder.html", {"report": report})
 
-        try:
-            month = int(request.POST.get("month") or 0)
-            year = int(request.POST.get("year") or 0)
-        except ValueError:
-            month, year = 0, 0
+        import uuid, os
+        batch_id = str(uuid.uuid4())
+        pending_dir = os.path.join(settings.PENDING_UPLOAD_DIR, batch_id)
+        os.makedirs(pending_dir, exist_ok=True)
 
-        if month not in range(1, 13) or year < 2000 or year > 2100:
-            messages.error(request, "Seleziona mese e anno validi.")
-            return render(request, "portal/admin_upload_period_folder.html", {"report": report})
-
-        affected_employees = set()
+        new_employees = []
 
         for f in files:
-            raw = (f.name or "").replace("\\", "/").strip()
-            employee = _employee_from_anything(raw)
+            try:
+                pending_path = os.path.join(pending_dir, f.name)
 
-            if not employee:
-                report["skipped"] += 1
-                continue
+                with open(pending_path, "wb+") as destination:
+                    for chunk in f.chunks():
+                        destination.write(chunk)
 
-            existing = Payslip.objects.filter(employee=employee, year=year, month=month).first()
+                name = f.name.rsplit(".", 1)[0]
+                parts = re.split(r"\s*[-–—]\s*", name)
 
-            if existing:
-                existing.pdf = f
-                existing.save()
+                if len(parts) < 3:
+                    raise ValueError("Formato non valido")
 
-                if hasattr(existing, "view"):
-                    existing.view.delete()
+                last_name = parts[0].strip()
+                first_name = parts[1].strip()
+                month_year = parts[2].strip()
 
-                report["updated"] += 1
-                _audit(request, action=AuditEvent.ACTION_UPDATED, employee=employee, payslip=existing, metadata={"source": "import"})
-            else:
-                created = Payslip.objects.create(employee=employee, year=year, month=month, pdf=f)
-                report["created"] += 1
-                _audit(request, action=AuditEvent.ACTION_UPLOADED, employee=employee, payslip=created, metadata={"source": "import"})
+                m = re.match(
+                    r"^(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})$",
+                    month_year,
+                    flags=re.IGNORECASE,
+                )
+                if not m:
+                    raise ValueError("Mese/anno non valido")
 
-            affected_employees.add(employee)
+                month = MONTHS_IT_REV[m.group(1).lower()]
+                year = int(m.group(2))
 
-        for emp in affected_employees:
-            _send_employee_month_notification(emp, month, year)
+                full_name = f"{first_name} {last_name}".strip()
+                employee = Employee.objects.filter(full_name__iexact=full_name).first()
 
-        messages.success(request, f"Import completato. Creati: {report['created']}, aggiornati: {report['updated']}, saltati: {report['skipped']}.")
+                # Se esiste già → salva direttamente
+                if employee:
+                    existing = Payslip.objects.filter(
+                        employee=employee,
+                        year=year,
+                        month=month
+                    ).first()
+
+                    if existing:
+                        existing.pdf.name = pending_path
+                        existing.save()
+                    else:
+                        Payslip.objects.create(
+                            employee=employee,
+                            year=year,
+                            month=month,
+                            pdf=pending_path,
+                        )
+
+                    report["saved_existing"] += 1
+
+                # Se NON esiste → metti in lista conferma
+                else:
+                    new_employees.append({
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "month": month,
+                        "year": year,
+                        "file_path": pending_path,
+                    })
+                    report["new_found"] += 1
+
+            except Exception:
+                report["errors"] += 1
+
+        request.session["pending_batch"] = batch_id
+        request.session["pending_new_employees"] = new_employees
+
+        if new_employees:
+            return redirect("admin_confirm_import")
+
+        messages.success(
+            request,
+            f"Import completato. Salvati: {report['saved_existing']}, Errori: {report['errors']}"
+        )
+
         return render(request, "portal/admin_upload_period_folder.html", {"report": report})
 
     return render(request, "portal/admin_upload_period_folder.html", {"report": report})
-
-
-# ==========================================================
-# ✅ Gestione cedolini (delete/reset view)
-# ==========================================================
-@login_required
-def admin_manage_employees(request):
-    if not (request.user.is_staff or request.user.is_superuser):
-        return redirect("home")
-
-    q = (request.GET.get("q") or "").strip()
-    employees = Employee.objects.all().order_by("full_name", "external_code", "id")
-    if q:
-        employees = employees.filter(full_name__icontains=q)
-
-    return render(request, "portal/admin_manage_employees.html", {"employees": employees, "q": q})
 
 
 @login_required
