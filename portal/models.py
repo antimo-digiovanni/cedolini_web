@@ -1,10 +1,13 @@
 from django.conf import settings
 from django.db import models
 
-
 class Employee(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=160)
+
+    # ✅ Campi per gestione email e inviti
+    email_invio = models.EmailField(max_length=255, blank=True, null=True, verbose_name="Email per invio credenziali")
+    invito_inviato = models.BooleanField(default=False, verbose_name="Invito già inviato")
 
     # ✅ per omonimi / _02 ecc.
     external_code = models.CharField(max_length=10, blank=True, null=True)
@@ -41,14 +44,6 @@ class PayslipView(models.Model):
 
 
 class AuditEvent(models.Model):
-    """
-    ✅ Log audit permanente:
-    - VIEWED: dipendente ha aperto il PDF
-    - UPLOADED/UPDATED: admin ha caricato/aggiornato
-    - DELETED: admin ha cancellato
-    - RESET_VIEW: admin ha resettato visualizzazione
-    """
-
     ACTION_VIEWED = "VIEWED"
     ACTION_UPLOADED = "UPLOADED"
     ACTION_UPDATED = "UPDATED"
@@ -66,20 +61,16 @@ class AuditEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES, db_index=True)
 
-    # Chi ha fatto l’azione (admin o dipendente loggato)
     actor_user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_events"
     )
 
-    # A chi si riferisce (dipendente/payslip)
     employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_events")
     payslip = models.ForeignKey(Payslip, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_events")
 
-    # Contesto tecnico (utile come prova)
     ip_address = models.CharField(max_length=64, blank=True, null=True)
     user_agent = models.TextField(blank=True, null=True)
 
-    # Extra info (es: "import", "single upload", note)
     metadata = models.JSONField(blank=True, null=True, default=dict)
 
     class Meta:
