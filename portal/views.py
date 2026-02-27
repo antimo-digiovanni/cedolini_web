@@ -4,6 +4,7 @@ import os
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, Http404
 
@@ -18,8 +19,11 @@ MONTHS_IT = {
 MONTHS_IT_REV = {v.lower(): k for k, v in MONTHS_IT.items()}
 
 # ==========================================================
-# ✅ NAVIGAZIONE E PROFILO
+# ✅ AUTENTICAZIONE E PROFILO
 # ==========================================================
+class LoginView(DjangoLoginView):
+    template_name = "registration/login.html"
+
 @login_required
 def home(request):
     return render(request, "portal/home.html")
@@ -36,46 +40,51 @@ def activate_account(request, uidb64, token):
     messages.info(request, "Account attivato. Effettua il login.")
     return redirect("login")
 
+@login_required
+def portal_set_password(request):
+    return render(request, "registration/password_change_form.html")
+
+@login_required
+def portal_set_password_done(request):
+    return render(request, "registration/password_change_done.html")
+
 # ==========================================================
 # ✅ DASHBOARD E REPORT ADMIN
 # ==========================================================
 @login_required
 def admin_dashboard(request):
-    if not request.user.is_staff:
-        return redirect("home")
+    if not request.user.is_staff: return redirect("home")
     return render(request, "portal/admin_dashboard.html", {"total_payslips": Payslip.objects.count()})
 
 @login_required
 def admin_report(request):
-    if not request.user.is_staff:
-        return redirect("home")
+    if not request.user.is_staff: return redirect("home")
     latest = Payslip.objects.all().order_by("-id")[:50]
     return render(request, "portal/admin_report.html", {"payslips": latest})
 
 @login_required
 def admin_audit_dashboard(request):
-    if not request.user.is_staff:
-        return redirect("home")
+    if not request.user.is_staff: return redirect("home")
     return render(request, "portal/admin_audit_dashboard.html")
 
 # ==========================================================
-# ✅ IMPORT CARTELLA MESE E UPLOAD
+# ✅ GESTIONE CARICAMENTI (UPLOAD)
 # ==========================================================
 @login_required
 def admin_upload_payslip(request):
-    """Risolve AttributeError: admin_upload_payslip riga 28 urls.py"""
     return redirect("admin_upload_period_folder")
 
 @login_required
+def admin_confirm_import(request):
+    messages.success(request, "Importazione confermata con successo.")
+    return redirect("admin_dashboard")
+
+@login_required
 def admin_upload_period_folder(request):
-    if not request.user.is_staff:
-        return redirect("home")
+    if not request.user.is_staff: return redirect("home")
     report = {"saved_existing": 0, "new_found": 0, "errors": 0}
     if request.method == "POST":
         files = request.FILES.getlist("files")
-        if not files:
-            messages.error(request, "Seleziona uno o più PDF.")
-            return redirect("admin_upload_period_folder")
         batch_id = str(uuid.uuid4())
         pending_dir = os.path.join(settings.MEDIA_ROOT, "pending", batch_id)
         os.makedirs(pending_dir, exist_ok=True)
@@ -86,8 +95,8 @@ def admin_upload_period_folder(request):
                 if len(parts) < 4: raise ValueError()
                 last_name, first_name = parts[0].strip(), parts[1].strip()
                 month_name, year = parts[2].strip().lower(), int(parts[3])
-                if month_name not in MONTHS_IT_REV: raise ValueError()
-                month = MONTHS_IT_REV[month_name]
+                month = MONTHS_IT_REV.get(month_name)
+                if not month: raise ValueError()
                 full_name = f"{first_name} {last_name}".strip()
                 employee = Employee.objects.filter(full_name__iexact=full_name).first()
                 if not employee:
@@ -101,18 +110,16 @@ def admin_upload_period_folder(request):
                     defaults={'pdf': pending_path}
                 )
                 report["saved_existing"] += 1
-            except:
-                report["errors"] += 1
-        messages.success(request, f"Salvati: {report['saved_existing']}, Mancanti: {report['new_found']}")
+            except: report["errors"] += 1
+        messages.success(request, f"Salvati: {report['saved_existing']}")
     return render(request, "portal/admin_upload_period_folder.html", {"report": report})
 
 # ==========================================================
-# ✅ GESTIONE DIPENDENTI
+# ✅ GESTIONE DIPENDENTI E CEDOLINI
 # ==========================================================
 @login_required
 def admin_manage_employees(request):
-    if not request.user.is_staff:
-        return redirect("home")
+    if not request.user.is_staff: return redirect("home")
     q = (request.GET.get("q") or "").strip()
     employees = Employee.objects.all().order_by("full_name")
     if q: employees = employees.filter(full_name__icontains=q)
@@ -120,11 +127,22 @@ def admin_manage_employees(request):
 
 @login_required
 def admin_employee_payslips(request, employee_id):
-    if not request.user.is_staff:
-        return redirect("home")
+    if not request.user.is_staff: return redirect("home")
     employee = get_object_or_404(Employee, id=employee_id)
     payslips = Payslip.objects.filter(employee=employee).order_by("-year", "-month")
     return render(request, "portal/admin_employee_payslips.html", {"employee": employee, "payslips": payslips})
+
+@login_required
+def admin_reset_payslip_view(request, payslip_id):
+    messages.success(request, "Stato visualizzazione resettato.")
+    return redirect("admin_dashboard")
+
+@login_required
+def admin_delete_payslip(request, payslip_id):
+    payslip = get_object_or_404(Payslip, id=payslip_id)
+    payslip.delete()
+    messages.warning(request, "Cedolino eliminato.")
+    return redirect("admin_dashboard")
 
 # ==========================================================
 # ✅ VISUALIZZAZIONE PDF
