@@ -157,6 +157,7 @@ def admin_employee_payslips(request, employee_id):
         "employee": employee,
         "payslips": payslips
     })
+
 @login_required
 def home(request):
     return render(request, "portal/home.html")
