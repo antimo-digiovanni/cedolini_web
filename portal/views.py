@@ -771,3 +771,27 @@ def admin_delete_payslip(request, payslip_id):
     payslip.delete()
     messages.success(request, "Cedolino cancellato.")
     return redirect("admin_employee_payslips", employee_id=employee_id)
+
+# ==========================================================
+# ✅ Gestione cedolini (delete/reset view)
+# ==========================================================
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from .models import Employee
+
+@login_required
+def admin_manage_employees(request):
+    if not (request.user.is_staff or request.user.is_superuser):
+        return redirect("home")
+
+    q = (request.GET.get("q") or "").strip()
+    employees = Employee.objects.all().order_by("full_name", "id")
+
+    if q:
+        employees = employees.filter(full_name__icontains=q)
+
+    return render(request, "portal/admin_manage_employees.html", {
+        "employees": employees,
+        "q": q
+    })
