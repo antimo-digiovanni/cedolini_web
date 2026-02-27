@@ -1,19 +1,17 @@
 from pathlib import Path
 import os
-import dj_database_url  # Importante: serve per leggere l'URL del database di Render
+import dj_database_url
 
 # Base directory del progetto
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# La chiave segreta (in produzione, usa una variabile d'ambiente)
+# Sicurezza
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-dev-only-change-me")
+DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-# Accetta l'host di Render e i locali
 ALLOWED_HOSTS = ['cedolini-web.onrender.com', 'localhost', '127.0.0.1']
 
-# Configurazione del debug (setta a False in produzione)
-DEBUG = True
-
+# Applicazioni
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -21,12 +19,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "portal",  # Assicurati che questa app sia configurata
+    "portal", 
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Per servire il logo e i CSS
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Per i file statici su Render
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -40,7 +38,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, 'templates')],  # Assicurati che la cartella templates esista
+        "DIRS": [os.path.join(BASE_DIR, 'templates')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -55,7 +53,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# CONFIGURAZIONE DATABASE POSTGRESQL
+# Database (PostgreSQL su Render, SQLite in locale)
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
@@ -69,42 +67,45 @@ if not DATABASES['default']:
         "NAME": BASE_DIR / "db.sqlite3",
     }
 
+# Validazione password (disabilitata per semplicità come nel tuo originale)
 AUTH_PASSWORD_VALIDATORS = []
 
+# Internazionalizzazione
 LANGUAGE_CODE = "it-it"
 TIME_ZONE = "Europe/Rome"
 USE_I18N = True
 USE_TZ = True
 
-# Configurazione file statici (Logo, CSS, JS)
+# File Statici (CSS, Logo)
 STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# File Media (I Cedolini PDF)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Configurazione Login/Logout
+# Configurazione Login
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
 
-# Configurazione Email
-ADMIN_NOTIFY_EMAIL = "antimo.digiovanni@sanvincenzosrl.com"
+# ✅ CONFIGURAZIONE EMAIL ARUBA (OTTIMIZZATA)
+# Usa la porta 465 con SSL per massima compatibilità con Aruba
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.aruba.it"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_HOST = "smtps.aruba.it"
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True   # Aruba richiede SSL sulla 465
+EMAIL_USE_TLS = False
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'antimo.digiovanni@sanvincenzosrl.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'Unilever_02')  # Cambia con una variabile d'ambiente
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'Unilever_02')
+DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <{EMAIL_HOST_USER}>"
 
-# Aggiungi l'indirizzo di default del dominio
+# Parametri per i link nelle email
 DEFAULT_DOMAIN = "cedolini-web.onrender.com"
 DEFAULT_PROTOCOL = "https"
 
 # Altri settings
 PASSWORD_CHANGE_REDIRECT_URL = "/"
-
-# Cartella temporanea per import in attesa di conferma
 PENDING_UPLOAD_DIR = os.path.join(MEDIA_ROOT, "pending")
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
