@@ -10,7 +10,7 @@ SECRET_KEY = "django-insecure-dev-only-change-me"
 # ma una volta verificato che tutto funziona, impostalo a False.
 DEBUG = True
 
-# MODIFICA IMPORTANTE: Aggiunto '*' per accettare tutti gli host su Render
+# Accetta tutti gli host su Render
 ALLOWED_HOSTS = ['cedolini-web.onrender.com', 'localhost', '127.0.0.1', '*']
 
 INSTALLED_APPS = [
@@ -25,7 +25,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # WhiteNoise può essere aggiunto qui per gestire i file statici su Render
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Per servire il logo e i CSS
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -39,7 +39,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, 'templates')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -68,12 +68,14 @@ TIME_ZONE = "Europe/Rome"
 USE_I18N = True
 USE_TZ = True
 
-# Configurazione file statici
+# Configurazione file statici (Logo, CSS, JS)
 STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# Forza l'uso di WhiteNoise per i file statici
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Configurazione Login/Logout
 LOGIN_URL = "/login/"
