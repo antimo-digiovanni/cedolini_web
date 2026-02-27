@@ -158,6 +158,12 @@ def admin_employee_payslips(request, employee_id):
         "payslips": payslips
     })
 
+
 @login_required
 def home(request):
     return render(request, "portal/home.html")
+
+
+@login_required
+def force_password_change_if_needed(request):
+    return redirect("home")
