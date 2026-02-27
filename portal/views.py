@@ -54,14 +54,18 @@ def admin_report(request):
 
 @login_required
 def admin_audit_dashboard(request):
-    """Aggiunta per risolvere AttributeError riga 25 urls.py"""
     if not request.user.is_staff:
         return redirect("home")
     return render(request, "portal/admin_audit_dashboard.html")
 
 # ==========================================================
-# ✅ IMPORT CARTELLA MESE
+# ✅ IMPORT CARTELLA MESE E UPLOAD
 # ==========================================================
+@login_required
+def admin_upload_payslip(request):
+    """Risolve AttributeError: admin_upload_payslip riga 28 urls.py"""
+    return redirect("admin_upload_period_folder")
+
 @login_required
 def admin_upload_period_folder(request):
     if not request.user.is_staff:
