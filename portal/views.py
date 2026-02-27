@@ -10,7 +10,7 @@ from django.http import FileResponse, Http404
 
 from .models import Employee, Payslip
 
-# Dizionario mesi per la conversione
+# Dizionario per la conversione mesi
 MONTHS_IT = {
     1: "Gennaio", 2: "Febbraio", 3: "Marzo", 4: "Aprile",
     5: "Maggio", 6: "Giugno", 7: "Luglio", 8: "Agosto",
@@ -88,30 +88,29 @@ def admin_upload_period_folder(request):
     
     if request.method == "POST":
         files = request.FILES.getlist("files")
-        # Cartella finale dove salvare i PDF
         upload_dir = os.path.join(settings.MEDIA_ROOT, "payslips")
         os.makedirs(upload_dir, exist_ok=True)
 
         for f in files:
             try:
-                # 1. Estrazione dati dal nome: "COGNOME NOME MESE ANNO.pdf"
+                # 1. Analisi nome file: "COGNOME NOME MESE ANNO.pdf"
                 name_part = f.name.rsplit(".", 1)[0].strip()
                 parts = name_part.split()
                 
-                if len(parts) < 4: raise ValueError("Formato nome file corto")
+                if len(parts) < 4: 
+                    raise ValueError("Formato nome file non valido (servono 4 parti)")
 
-                last_name = parts[0].strip()
-                first_name = parts[1].strip()
+                last_name = parts[0].strip().upper()
+                first_name = parts[1].strip().upper()
                 month_str = parts[2].strip().lower()
                 year = int(parts[3])
                 
                 month = MONTHS_IT_REV.get(month_str)
-                if not month: raise ValueError("Mese non valido")
+                if not month: raise ValueError(f"Mese '{month_str}' non riconosciuto")
 
-                # Formattiamo il nome completo per il database
-                full_name = f"{first_name} {last_name}".upper()
+                full_name = f"{first_name} {last_name}"
 
-                # 2. Cerca il dipendente. Se NON esiste, lo CREA automaticamente
+                # 2. AUTO-CREAZIONE DIPENDENTE
                 employee, created = Employee.objects.get_or_create(
                     full_name=full_name,
                     defaults={'email_sent': False}
@@ -122,16 +121,15 @@ def admin_upload_period_folder(request):
                 else:
                     report["saved_existing"] += 1
 
-                # 3. Salvataggio fisico del file
-                # Usiamo un nome file pulito per evitare problemi di caratteri speciali
+                # 3. Salvataggio File
                 safe_filename = f"{last_name}_{first_name}_{month}_{year}.pdf".replace(" ", "_")
                 file_path = os.path.join(upload_dir, safe_filename)
                 
                 with open(file_path, "wb+") as dest:
                     for chunk in f.chunks(): dest.write(chunk)
 
-                # 4. Creazione/Aggiornamento del record Cedolino
-                # Salviamo il percorso relativo nel DB
+                # 4. Registrazione Cedolino nel Database
+                # Salviamo il percorso relativo "payslips/file.pdf"
                 db_path = os.path.join("payslips", safe_filename)
                 Payslip.objects.update_or_create(
                     employee=employee, 
@@ -141,11 +139,10 @@ def admin_upload_period_folder(request):
                 )
 
             except Exception as e:
-                print(f"Errore file {f.name}: {e}")
+                print(f"Errore critico su file {f.name}: {e}")
                 report["errors"] += 1
         
-        msg = f"Processo completato! Creati: {report['new_created']}, Esistenti: {report['saved_existing']}, Errori: {report['errors']}"
-        messages.success(request, msg)
+        messages.success(request, f"Processo terminato. Creati: {report['new_created']}, Aggiornati: {report['saved_existing']}, Errori: {report['errors']}")
 
     return render(request, "portal/admin_upload_period_folder.html", {"report": report})
 
@@ -170,6 +167,7 @@ def admin_employee_payslips(request, employee_id):
 @login_required
 def admin_reset_payslip_view(request, payslip_id):
     if not request.user.is_staff: return redirect("home")
+    # Logica per resettare la data di visualizzazione se presente nel modello
     messages.success(request, "Stato visualizzazione resettato.")
     return redirect("admin_dashboard")
 
@@ -178,7 +176,7 @@ def admin_delete_payslip(request, payslip_id):
     if not request.user.is_staff: return redirect("home")
     payslip = get_object_or_404(Payslip, id=payslip_id)
     payslip.delete()
-    messages.warning(request, "Cedolino eliminato.")
+    messages.warning(request, "Cedolino eliminato con successo.")
     return redirect("admin_dashboard")
 
 # ==========================================================
@@ -189,15 +187,17 @@ def open_payslip(request, payslip_id):
     if request.user.is_staff:
         payslip = get_object_or_404(Payslip, id=payslip_id)
     else:
+        # Un utente normale vede solo i suoi
         payslip = get_object_or_404(Payslip, id=payslip_id, employee__user=request.user)
     
-    if not payslip.pdf: raise Http404()
+    if not payslip.pdf: raise Http404("File non associato al record.")
     
-    # Supporta sia percorsi assoluti che FileField di Django
     try:
+        # Tentativo di apertura tramite FileField di Django
         return FileResponse(payslip.pdf.open('rb'), content_type='application/pdf')
-    except:
-        # Fallback se il file è su disco ma il DB ha solo il percorso
-        if os.path.exists(payslip.pdf.path):
-            return FileResponse(open(payslip.pdf.path, 'rb'), content_type='application/pdf')
-        raise Http404("File fisico non trovato.")
+    except Exception:
+        # Fallback manuale se il percorso nel DB è testuale
+        full_path = os.path.join(settings.MEDIA_ROOT, str(payslip.pdf))
+        if os.path.exists(full_path):
+            return FileResponse(open(full_path, 'rb'), content_type='application/pdf')
+        raise Http404("File fisico non trovato sul server.")
