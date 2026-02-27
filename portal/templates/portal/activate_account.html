@@ -1,0 +1,55 @@
+{% extends "portal/base.html" %}
+{% block title %}Attiva account{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 560px;">
+  <div class="card card-custom p-4">
+    <h3 class="mb-2">Completa la registrazione</h3>
+    <p class="text-muted mb-3">
+      Username: <b>{{ username }}</b><br>
+      Email: <b>{{ email }}</b>
+    </p>
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <label class="form-label">{{ form.first_name.label }}</label>
+        {{ form.first_name }}
+        {% if form.first_name.errors %}<div class="text-danger">{{ form.first_name.errors }}</div>{% endif %}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">{{ form.last_name.label }}</label>
+        {{ form.last_name }}
+        {% if form.last_name.errors %}<div class="text-danger">{{ form.last_name.errors }}</div>{% endif %}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">{{ form.password1.label }}</label>
+        {{ form.password1 }}
+        {% if form.password1.errors %}<div class="text-danger">{{ form.password1.errors }}</div>{% endif %}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">{{ form.password2.label }}</label>
+        {{ form.password2 }}
+        {% if form.password2.errors %}<div class="text-danger">{{ form.password2.errors }}</div>{% endif %}
+      </div>
+
+      <button class="btn btn-dark w-100" type="submit">
+        Attiva e imposta password
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Bootstrap look for inputs
+  document.querySelectorAll("input").forEach(i => i.classList.add("form-control"));
+</script>
+{% endblock %}

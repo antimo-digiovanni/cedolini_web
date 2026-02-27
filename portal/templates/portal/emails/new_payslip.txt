@@ -1,0 +1,17 @@
+Ciao {{ employee_full_name }},
+
+{% if is_update %}
+Il tuo cedolino è stato aggiornato:
+{% else %}
+È disponibile un nuovo cedolino:
+{% endif %}
+
+{{ month_name }} {{ year }}
+
+Username: {{ username }}
+
+Accedi al portale:
+{{ portal_url }}
+
+--
+Sistema sviluppato da {{ signature_name }}

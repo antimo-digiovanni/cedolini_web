@@ -1,0 +1,53 @@
+{% extends "portal/base.html" %}
+{% block title %}Report Admin{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Report Visualizzazioni</h2>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card card-custom p-3">
+      <div class="text-muted">Cedolini totali</div>
+      <div class="fs-3 fw-bold">{{ total_payslips }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-custom p-3">
+      <div class="text-muted">Visualizzati</div>
+      <div class="fs-3 fw-bold">{{ viewed_payslips }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-custom p-3">
+      <div class="text-muted">Non visualizzati</div>
+      <div class="fs-3 fw-bold">{{ not_viewed_payslips }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card card-custom p-3">
+  <h5 class="mb-3">Per dipendente</h5>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>Dipendente</th>
+          <th class="text-center">Totali</th>
+          <th class="text-center">Visualizzati</th>
+          <th class="text-center">Non visualizzati</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in per_employee %}
+        <tr>
+          <td>{{ e.full_name }}</td>
+          <td class="text-center">{{ e.total }}</td>
+          <td class="text-center">{{ e.viewed }}</td>
+          <td class="text-center">{{ e.total|add:e.viewed|add:"-1"|add:"0" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

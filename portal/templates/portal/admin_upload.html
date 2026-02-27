@@ -1,0 +1,40 @@
+{% extends "portal/base.html" %}
+{% block title %}Carica Cedolino{% endblock %}
+
+{% block content %}
+<div class="card card-custom p-4">
+  <h3 class="mb-3">Carica Cedolino (singolo)</h3>
+
+  {% if messages %}
+    {% for m in messages %}
+      <div class="alert alert-{{ m.tags }} mb-2">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Dipendente</label>
+        {{ form.employee }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Mese</label>
+        {{ form.month }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Anno</label>
+        {{ form.year }}
+      </div>
+      <div class="col-12">
+        <label class="form-label">PDF</label>
+        {{ form.pdf }}
+      </div>
+    </div>
+
+    <button class="btn btn-primary mt-3" type="submit">
+      <i class="bi bi-upload"></i> Carica
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+Ciao {{ employee_full_name }},
+
+È disponibile il tuo cedolino di:
+
+{{ month_name }} {{ year }}
+
+Username: {{ username }}
+
+Accedi al portale:
+{{ portal_url }}
+
+--
+Sistema sviluppato da {{ signature_name }}

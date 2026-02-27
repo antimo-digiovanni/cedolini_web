@@ -1,0 +1,12 @@
+Ciao,
+
+il tuo accesso al Portale Cedolini è pronto.
+
+Username: {{ username }}
+Password temporanea: {{ temp_password }}
+
+Per completare la registrazione (Nome, Cognome e Password) apri questo link:
+{{ activate_url }}
+
+--
+Sistema sviluppato da {{ signature_name }}

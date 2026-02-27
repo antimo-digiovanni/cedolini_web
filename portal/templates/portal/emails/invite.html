@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="it">
+  <body style="font-family: Arial, Helvetica, sans-serif; background:#f4f6f9; padding:24px;">
+    <div style="max-width:640px; margin:0 auto; background:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,0.08);">
+      <div style="padding:22px; text-align:center; border-bottom:1px solid #eee;">
+        {% if logo_url %}
+          <img src="{{ logo_url }}" alt="Logo" style="max-height:90px;">
+        {% endif %}
+        <h2 style="margin:14px 0 0; color:#111827;">Portale Cedolini</h2>
+        <div style="color:#6b7280; font-size:14px;">San Vincenzo</div>
+      </div>
+
+      <div style="padding:22px; color:#111827;">
+        <p style="margin:0 0 12px;">Ciao,</p>
+
+        <p style="margin:0 0 14px;">
+          il tuo accesso al Portale Cedolini è pronto. Qui trovi le credenziali:
+        </p>
+
+        <div style="background:#f9fafb; border:1px solid #e5e7eb; padding:14px; border-radius:10px;">
+          <div><b>Username:</b> {{ username }}</div>
+          <div style="margin-top:6px;"><b>Password temporanea:</b> {{ temp_password }}</div>
+        </div>
+
+        <p style="margin:16px 0 10px;">
+          Per completare la registrazione (Nome, Cognome e Password) clicca qui:
+        </p>
+
+        <p style="margin:0 0 18px;">
+          <a href="{{ activate_url }}" style="display:inline-block; background:#111827; color:white; text-decoration:none; padding:10px 14px; border-radius:10px;">
+            Completa registrazione
+          </a>
+        </p>
+      </div>
+
+      <div style="padding:16px 22px; background:#f9fafb; border-top:1px solid #eee; color:#6b7280; font-size:13px;">
+        Sistema sviluppato da <b style="color:#111827;">{{ signature_name }}</b>
+      </div>
+    </div>
+  </body>
+</html>

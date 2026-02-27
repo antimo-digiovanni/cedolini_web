@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="it">
+  <body style="font-family: Arial, Helvetica, sans-serif; background:#f4f6f9; padding:24px;">
+    <div style="max-width:720px; margin:0 auto; background:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,0.08);">
+
+      <div style="padding:20px; text-align:center; border-bottom:1px solid #eee;">
+        <img src="cid:logo_cid" alt="Logo" style="max-height:80px;">
+        <h2 style="margin:12px 0 0; color:#111827;">Portale Cedolini</h2>
+        <div style="color:#6b7280; font-size:13px;">San Vincenzo</div>
+      </div>
+
+      <div style="padding:22px; color:#111827;">
+        <p style="margin:0 0 10px;">Ciao <b>{{ employee_full_name }}</b>,</p>
+
+        <p style="margin:0 0 14px;">È disponibile il tuo cedolino di:</p>
+
+        <div style="background:#f9fafb; border:1px solid #e5e7eb; padding:14px; border-radius:10px; line-height:1.6;">
+          <div><b>Cedolino:</b> {{ month_name }} {{ year }}</div>
+          <div><b>Username:</b> {{ username }}</div>
+        </div>
+
+        <p style="margin:16px 0 0;">
+          <a href="{{ portal_url }}" style="display:inline-block; padding:10px 14px; background:#111827; color:#fff; text-decoration:none; border-radius:8px;">
+            Accedi al portale
+          </a>
+        </p>
+
+        <p style="margin:14px 0 0; color:#6b7280; font-size:13px;">
+          Se non ricordi la password, usa “Password dimenticata” nella pagina di accesso.
+        </p>
+      </div>
+
+      <div style="padding:14px 22px; background:#f9fafb; border-top:1px solid #eee; color:#6b7280; font-size:12.5px;">
+        Sistema sviluppato da <b style="color:#111827;">{{ signature_name }}</b>
+      </div>
+
+    </div>
+  </body>
+</html>

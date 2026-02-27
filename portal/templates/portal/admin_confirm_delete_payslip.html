@@ -1,0 +1,13 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Conferma cancellazione</h2>
+  <p>Stai per cancellare il cedolino: <b>{{ payslip.employee.full_name }}</b> - <b>{{ payslip.month }}/{{ payslip.year }}</b></p>
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sì, cancella</button>
+    <a class="btn" href="{% url 'admin_employee_payslips' payslip.employee.id %}">Annulla</a>
+  </form>
+</div>
+{% endblock %}

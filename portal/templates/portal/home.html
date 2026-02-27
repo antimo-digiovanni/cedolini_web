@@ -1,0 +1,43 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<h2 class="mb-4">I tuoi Cedolini</h2>
+
+<div class="row g-4">
+    {% for payslip in payslips %}
+    <div class="col-md-4">
+        <div class="card card-custom p-3">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    {{ payslip.month_name }} {{ payslip.year }}
+                </h5>
+
+                {% if payslip.view %}
+                    <span class="badge bg-success">Visualizzato</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">Non visualizzato</span>
+                {% endif %}
+            </div>
+
+            <a href="{% url 'open_payslip' payslip.id %}"
+               target="_blank"
+               class="btn btn-dark w-100">
+                <i class="bi bi-file-earmark-pdf"></i> Apri Cedolino
+            </a>
+
+        </div>
+    </div>
+    {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                Nessun cedolino disponibile.
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

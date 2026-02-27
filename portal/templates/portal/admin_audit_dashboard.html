@@ -1,0 +1,93 @@
+{% extends "portal/base.html" %}
+{% block title %}Audit - Storico{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <h3 class="mb-0 me-3">Storico Audit</h3>
+
+    <div class="d-flex gap-2">
+      <div class="badge bg-dark">Letti: {{ totals.viewed }}</div>
+      <div class="badge bg-primary">Caricati: {{ totals.uploaded }}</div>
+      <div class="badge bg-warning text-dark">Aggiornati: {{ totals.updated }}</div>
+      <div class="badge bg-danger">Cancellati: {{ totals.deleted }}</div>
+      <div class="badge bg-secondary">Reset view: {{ totals.reset_view }}</div>
+    </div>
+  </div>
+
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-12 col-md-3">
+      <input class="form-control" name="q" placeholder="Cerca dipendente / username / ip..." value="{{ q }}">
+    </div>
+    <div class="col-12 col-md-3">
+      <select class="form-select" name="action">
+        <option value="">Tutte le azioni</option>
+        {% for val,label in actions %}
+          <option value="{{ val }}" {% if action == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-2">
+      <button class="btn btn-dark w-100" type="submit">Filtra</button>
+    </div>
+    <div class="col-12 col-md-2">
+      <a class="btn btn-outline-secondary w-100" href="{% url 'admin_audit_dashboard' %}">Reset</a>
+    </div>
+  </form>
+
+  <div class="card card-custom p-3">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Data/Ora</th>
+            <th>Azione</th>
+            <th>Dipendente</th>
+            <th>Cedolino</th>
+            <th>Attore</th>
+            <th>IP</th>
+            <th>Browser</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ev in page_obj.object_list %}
+          <tr>
+            <td>{{ ev.created_at|date:"d/m/Y H:i:s" }}</td>
+            <td><span class="badge bg-dark">{{ ev.get_action_display }}</span></td>
+            <td>{{ ev.employee.full_name|default:"-" }}</td>
+            <td>
+              {% if ev.payslip %}
+                {{ ev.payslip.month|add:"0" }}/{{ ev.payslip.year }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>{{ ev.actor_user.username|default:"-" }}</td>
+            <td>{{ ev.ip_address|default:"-" }}</td>
+            <td style="max-width:360px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              {{ ev.user_agent|default:"-" }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-muted">Nessun evento.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-2">
+      <div class="text-muted">Pagina {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</div>
+      <div class="d-flex gap-2">
+        {% if page_obj.has_previous %}
+          <a class="btn btn-sm btn-outline-secondary" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&action={{ action }}">Prev</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a class="btn btn-sm btn-outline-secondary" href="?page={{ page_obj.next_page_number }}&q={{ q }}&action={{ action }}">Next</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

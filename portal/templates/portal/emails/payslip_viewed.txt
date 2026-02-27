@@ -1,0 +1,11 @@
+Notifica lettura cedolino
+
+Dipendente: {{ employee_full_name }}
+Username: {{ username }}
+Email: {{ employee_email|default:"-" }}
+
+Cedolino: {{ month_name }} {{ year }}
+Letto il: {{ viewed_at }}
+
+--
+Sistema sviluppato da {{ signature_name }}

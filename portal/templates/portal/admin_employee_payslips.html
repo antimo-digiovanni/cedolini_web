@@ -1,0 +1,45 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Cedolini: {{ employee.full_name }} {% if employee.external_code %}({{ employee.external_code }}){% endif %}</h2>
+  <p><a href="{% url 'admin_manage_employees' %}">← Torna alla lista dipendenti</a></p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Periodo</th>
+        <th>Caricato</th>
+        <th>Stato</th>
+        <th>Azioni</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in payslips %}
+      <tr>
+        <td>{{ p.month_name }} {{ p.year }}</td>
+        <td>{{ p.uploaded_at }}</td>
+        <td>
+          {% if p.view %}✅ Visualizzato ({{ p.view.viewed_at }}){% else %}❌ Non visualizzato{% endif %}
+        </td>
+        <td style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a class="btn" href="{{ p.pdf.url }}" target="_blank">Scarica</a>
+
+          <form method="post" action="{% url 'admin_reset_payslip_view' p.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button class="btn" type="submit">Reset view</button>
+          </form>
+
+          <form method="post" action="{% url 'admin_delete_payslip' p.id %}" style="display:inline;"
+                onsubmit="return confirm('Confermi cancellazione del cedolino {{ p.month_name }} {{ p.year }}?');">
+            {% csrf_token %}
+            <button class="btn btn-danger" type="submit">Cancella</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">Nessun cedolino per questo dipendente.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
