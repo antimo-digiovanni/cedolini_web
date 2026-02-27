@@ -3,11 +3,17 @@ from django.dispatch import receiver
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import Employee
+import logging
+
+# Configurazione log per vedere gli errori su Render
+logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=Employee)
 def invia_invito_registrazione(sender, instance, created, **kwargs):
-    # Invia la mail solo se c'è un'email e l'invito non è ancora stato inviato
+    # Parte solo se l'email è presente e non è stata già inviata la notifica
     if instance.email_invio and not instance.invito_inviato:
+        print(f"--- Tentativo invio invito a: {instance.email_invio} ---")
+        
         subject = "Benvenuto nel Portale Cedolini - San Vincenzo"
         message = (
             f"Ciao {instance.full_name},\n\n"
@@ -24,8 +30,12 @@ def invia_invito_registrazione(sender, instance, created, **kwargs):
                 [instance.email_invio], 
                 fail_silently=False
             )
-            # Segna come inviato per non mandarlo all'infinito ad ogni modifica
+            
+            # Aggiorna il database per non inviare di nuovo
             Employee.objects.filter(pk=instance.pk).update(invito_inviato=True)
-            print(f"✅ Email di invito inviata a {instance.email_invio}")
+            print(f"✅ Successo: Email di invito inviata a {instance.email_invio}")
+            
         except Exception as e:
-            print(f"❌ Errore durante l'invio dell'invito: {e}")
+            # Questo stamperà l'errore specifico (es. errore autenticazione Aruba)
+            print(f"❌ ERRORE INVIO EMAIL: {type(e).__name__} - {str(e)}")
+            logger.error(f"Errore critico email: {e}")
