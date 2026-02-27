@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import FileResponse, Http404
 
 from .models import Employee, Payslip
 
@@ -167,3 +168,29 @@ def home(request):
 @login_required
 def force_password_change_if_needed(request):
     return redirect("home")
+
+
+# ==========================================================
+# ✅ APERTURA PDF CEDOLINO (AGGIUNTO)
+# ==========================================================
+@login_required
+def open_payslip(request, payslip_id):
+    """
+    Visualizza il PDF del cedolino.
+    Gli admin possono vedere tutto, i dipendenti solo il proprio.
+    """
+    if request.user.is_staff:
+        # Se è un admin, cerca il cedolino normalmente
+        payslip = get_object_or_404(Payslip, id=payslip_id)
+    else:
+        # Se è un utente normale, lo trova solo se collegato al suo account Employee
+        # Nota: assume che il modello Employee abbia un campo 'user'
+        payslip = get_object_or_404(Payslip, id=payslip_id, employee__user=request.user)
+    
+    if not payslip.pdf:
+        raise Http404("File PDF non associato a questo cedolino.")
+        
+    try:
+        return FileResponse(payslip.pdf.open('rb'), content_type='application/pdf')
+    except FileNotFoundError:
+        raise Http404("Il file fisico non esiste sul server.")
