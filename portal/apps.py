@@ -5,4 +5,5 @@ class PortalConfig(AppConfig):
     name = 'portal'
 
     def ready(self):
-        import portal.signals  # Collega i segnali all'avvio
+        # Importazione all'interno della funzione per evitare import circolari
+        import portal.signals
