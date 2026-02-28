@@ -3,15 +3,14 @@ from .models import Employee, Payslip, AuditEvent
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    # Aggiungiamo i campi alla lista e al modulo di modifica
-    list_display = ('full_name', 'external_code', 'email_invio', 'invito_inviato')
-    fields = ('user', 'full_name', 'external_code', 'email_invio', 'invito_inviato', 'must_change_password')
-    search_fields = ('full_name', 'external_code')
+    # Usiamo solo i campi base per essere sicuri che carichi
+    list_display = ('full_name', 'external_code')
+    fields = ('user', 'full_name', 'external_code', 'email_invio', 'invito_inviato')
 
 @admin.register(Payslip)
 class PayslipAdmin(admin.ModelAdmin):
-    list_display = ('employee', 'year', 'month', 'uploaded_at')
+    list_display = ('employee', 'year', 'month')
 
 @admin.register(AuditEvent)
 class AuditEventAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'action', 'actor_user', 'employee', 'ip_address')
+    list_display = ('created_at', 'action')
