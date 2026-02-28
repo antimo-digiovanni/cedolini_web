@@ -25,7 +25,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Fondamentale per la grafica in produzione
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -34,6 +34,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# CORRETTO: punta alla tua cartella 'config'
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
@@ -52,6 +53,7 @@ TEMPLATES = [
     },
 ]
 
+# CORRETTO: punta alla tua cartella 'config'
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
@@ -75,11 +77,9 @@ TIME_ZONE = "Europe/Rome"
 USE_I18N = True
 USE_TZ = True
 
-# --- FILE STATICI (GRAFICA) ---
+# --- FILE STATICI ---
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-# Configurazione specifica per WhiteNoise 6.0+
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
@@ -89,11 +89,12 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL GMAIL ---
+# --- CONFIGURAZIONE EMAIL GMAIL (PORTA 465 SSL) ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'maggiordomodifabbrica@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <{EMAIL_HOST_USER}>"
