@@ -11,71 +11,62 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=Employee)
 def invia_invito_registrazione(sender, instance, created, **kwargs):
     """
-    Invia l'email di benvenuto/registrazione usando l'email dell'Utente collegato.
+    Invia l'email di benvenuto prendendo l'indirizzo dall'Utente Django.
     """
-    # Recuperiamo l'email dall'oggetto User collegato all'Employee
-    email_destinatario = instance.user.email
-    
-    # Parte solo se l'email è presente e non è stata già inviata la notifica
-    if email_destinatario and not instance.invito_inviato:
-        print(f"--- Tentativo invio invito a: {email_destinatario} ---")
-        
-        subject = "Benvenuto nel Portale Cedolini - San Vincenzo"
-        message = (
-            f"Ciao {instance.full_name},\n\n"
-            f"Il tuo profilo è stato creato. Puoi registrarti al portale per scaricare i tuoi cedolini "
-            f"cliccando qui: {settings.DEFAULT_PROTOCOL}://{settings.DEFAULT_DOMAIN}/register/\n\n"
-            "Servizio San Vincenzo SRL"
-        )
-        
-        try:
-            send_mail(
-                subject, 
-                message, 
-                settings.EMAIL_HOST_USER, 
-                [email_destinatario], 
-                fail_silently=False
-            )
+    try:
+        # Verifichiamo se l'utente collegato ha una mail inserita
+        if instance.user and instance.user.email:
+            email_destinatario = instance.user.email
             
-            # Segna l'invio come effettuato nel database
-            Employee.objects.filter(pk=instance.pk).update(invito_inviato=True)
-            print(f"✅ Successo: Email di invito inviata a {email_destinatario}")
-            
-        except Exception as e:
-            print(f"❌ ERRORE INVIO EMAIL INVITO: {type(e).__name__} - {str(e)}")
-            logger.error(f"Errore critico email invito: {e}")
+            # Invia solo se non è già stato inviato in precedenza
+            if not instance.invito_inviato:
+                print(f"--- Tentativo invio invito a: {email_destinatario} ---")
+                
+                subject = "Benvenuto nel Portale Cedolini - San Vincenzo"
+                message = (
+                    f"Ciao {instance.full_name},\n\n"
+                    f"Il tuo profilo è stato creato. Puoi registrarti qui per scaricare i cedolini: "
+                    f"{settings.DEFAULT_PROTOCOL}://{settings.DEFAULT_DOMAIN}/register/\n\n"
+                    "Servizio San Vincenzo SRL"
+                )
+                
+                send_mail(
+                    subject, 
+                    message, 
+                    settings.EMAIL_HOST_USER, 
+                    [email_destinatario], 
+                    fail_silently=False
+                )
+                
+                # Segna l'invio come fatto per evitare duplicati
+                Employee.objects.filter(pk=instance.pk).update(invito_inviato=True)
+                print(f"✅ Successo: Email inviata a {email_destinatario}")
+        else:
+            print("⚠️ Attenzione: L'utente collegato non ha un indirizzo email.")
+
+    except Exception as e:
+        # Evita il crash del sito e scrive l'errore nei log
+        logger.error(f"❌ Errore critico invio email: {e}")
+        print(f"❌ ERRORE: {e}")
 
 
 @receiver(post_save, sender=Payslip)
 def notifica_nuovo_cedolino(sender, instance, created, **kwargs):
     """
-    Invia una notifica automatica quando viene caricato un nuovo PDF.
+    Notifica automatica quando carichi un PDF.
     """
     if created:
-        # Recuperiamo l'email dall'Utente collegato al dipendente
-        email_destinatario = instance.employee.user.email
-        
-        if email_destinatario:
-            print(f"--- Tentativo invio notifica cedolino a: {email_destinatario} ---")
-            
-            subject = f"Nuovo Cedolino Disponibile - {instance.month:02d}/{instance.year}"
-            message = (
-                f"Ciao {instance.employee.full_name},\n\n"
-                f"Ti informiamo che è stato caricato il tuo cedolino relativo a {instance.month:02d}/{instance.year}.\n\n"
-                f"Puoi visualizzarlo accedendo qui: "
-                f"{settings.DEFAULT_PROTOCOL}://{settings.DEFAULT_DOMAIN}/login/\n\n"
-                "Servizio San Vincenzo SRL"
-            )
-            
-            try:
+        try:
+            if instance.employee.user and instance.employee.user.email:
+                user_email = instance.employee.user.email
+                
                 send_mail(
-                    subject,
-                    message,
+                    f"Nuovo Cedolino Disponibile - {instance.month:02d}/{instance.year}",
+                    f"Ciao {instance.employee.full_name}, un nuovo cedolino è stato caricato sul portale.",
                     settings.EMAIL_HOST_USER,
-                    [email_destinatario],
+                    [user_email],
                     fail_silently=False
                 )
-                print(f"✅ Successo: Notifica cedolino inviata a {email_destinatario}")
-            except Exception as e:
-                print(f"❌ ERRORE INVIO NOTIFICA CEDOLINO: {type(e).__name__} - {str(e)}")
-                logger.error(f"Errore critico notifica cedolino: {e}")
+                print(f"✅ Notifica cedolino inviata a {user_email}")
+        except Exception as e:
+            logger.error(f"❌ Errore notifica cedolino: {e}")
