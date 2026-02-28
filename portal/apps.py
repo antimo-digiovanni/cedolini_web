@@ -5,7 +5,5 @@ class PortalConfig(AppConfig):
     name = 'portal'
 
     def ready(self):
-        try:
-            import portal.signals
-        except ImportError:
-            pass
+        # Importiamo i segnali quando l'app è pronta
+        import portal.signals
