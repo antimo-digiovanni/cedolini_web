@@ -34,6 +34,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# Punta alla tua cartella 'config'
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
@@ -52,9 +53,10 @@ TEMPLATES = [
     },
 ]
 
+# Punta alla tua cartella 'config'
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database
+# Database configurato per Render
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
@@ -87,21 +89,21 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL GMAIL (Porta 587 TLS) ---
+# --- CONFIGURAZIONE EMAIL GMAIL (Porta alternativa 2525) ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
+EMAIL_PORT = 2525
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 EMAIL_HOST_USER = "maggiordomodifabbrica@gmail.com"
-EMAIL_HOST_PASSWORD = "drmk wjon pbkv bfvm" 
+# Password per le app senza spazi:
+EMAIL_HOST_PASSWORD = "drmkwjonpbkvbfvm" 
 DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <maggiordomodifabbrica@gmail.com>"
 
-# --- SICUREZZA E DOMINIO (Richiesti da urls.py) ---
+# --- SICUREZZA E DOMINIO ---
 CSRF_TRUSTED_ORIGINS = ['https://cedolini-web.onrender.com']
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Queste sono le variabili che mancavano e causavano il Build Failed:
 DEFAULT_DOMAIN = "cedolini-web.onrender.com"
 DEFAULT_PROTOCOL = "https"
