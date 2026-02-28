@@ -87,14 +87,13 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL GMAIL (SSL PORTA 465) ---
+# --- CONFIGURAZIONE EMAIL GMAIL (PORTA 587 TLS) ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 465
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 EMAIL_HOST_USER = "maggiordomodifabbrica@gmail.com"
-# La tua nuova password per le app:
 EMAIL_HOST_PASSWORD = "drmk wjon pbkv bfvm" 
 DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <maggiordomodifabbrica@gmail.com>"
 
