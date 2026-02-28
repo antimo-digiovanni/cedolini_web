@@ -89,14 +89,13 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL ARUBA ---
+# --- CONFIGURAZIONE EMAIL GMAIL ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtps.aruba.it')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 465))
-EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'True') == 'True'
-EMAIL_USE_TLS = False
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'antimo.digiovanni@sanvincenzosrl.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD') 
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'maggiordomodifabbrica@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <{EMAIL_HOST_USER}>"
 
 # --- SICUREZZA PER RENDER ---
