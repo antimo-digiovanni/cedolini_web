@@ -5,11 +5,11 @@ class Employee(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=160)
 
-    # ✅ Campi per gestione email e inviti
+    # Campi per gestione email e inviti
     email_invio = models.EmailField(max_length=255, blank=True, null=True, verbose_name="Email per invio credenziali")
     invito_inviato = models.BooleanField(default=False, verbose_name="Invito già inviato")
 
-    # ✅ Codice esterno (es: 100)
+    # Codice identificativo (es: 100)
     external_code = models.CharField(max_length=10, blank=True, null=True)
     must_change_password = models.BooleanField(default=True)
 
@@ -67,7 +67,7 @@ class AuditEvent(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_events")
     payslip = models.ForeignKey(Payslip, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_events")
 
-    # ✅ Campi necessari per AuditEventAdmin
+    # Campi necessari per AuditEventAdmin (risolvono errore admin.E108)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True, null=True)
     metadata = models.JSONField(blank=True, null=True, default=dict)

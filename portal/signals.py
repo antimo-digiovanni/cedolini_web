@@ -8,7 +8,7 @@ from .models import Employee, Payslip
 def invia_invito_registrazione(sender, instance, created, **kwargs):
     """Invia email di benvenuto cercando l'email nel profilo o nell'utente."""
     try:
-        # Cerca email: 1. nel campo email_invio, 2. nell'utente Django
+        # Ricerca email: prioritario campo email_invio, poi utente Django
         email_dest = instance.email_invio or (instance.user.email if instance.user else None)
 
         if email_dest and not instance.invito_inviato:
@@ -22,29 +22,29 @@ def invia_invito_registrazione(sender, instance, created, **kwargs):
                 fail_silently=False
             )
             
-            # Segna come inviato usando update per evitare loop di segnali
+            # Aggiornamento database marcando l'invio come effettuato
             sender.objects.filter(pk=instance.pk).update(invito_inviato=True)
             print(f"✅ Email inviata con successo a {email_dest}")
         elif not email_dest:
-            print(f"⚠️ Nessun indirizzo trovato per {instance.full_name}")
+            print(f"⚠️ Nessun indirizzo email trovato per {instance.full_name}. Controlla il profilo.")
 
     except Exception as e:
         print(f"❌ ERRORE GMAIL: {e}")
 
 @receiver(post_save, sender=Payslip)
 def notifica_nuovo_cedolino(sender, instance, created, **kwargs):
-    """Notifica quando carichi un nuovo file PDF."""
+    """Notifica automatica al caricamento di un nuovo PDF."""
     if created:
         try:
             email = instance.employee.email_invio or (instance.employee.user.email if instance.employee.user else None)
             if email:
                 send_mail(
                     f"Nuovo Cedolino Disponibile - {instance.month:02d}/{instance.year}",
-                    f"Ciao {instance.employee.full_name}, un nuovo cedolino è stato caricato.",
+                    f"Ciao {instance.employee.full_name}, un nuovo cedolino è stato caricato sul portale.",
                     settings.EMAIL_HOST_USER,
                     [email],
                     fail_silently=False
                 )
                 print(f"✅ Notifica cedolino inviata a {email}")
         except Exception as e:
-            print(f"❌ Errore notifica cedolino: {e}")
+            print(f"❌ Errore invio notifica cedolino: {e}")
