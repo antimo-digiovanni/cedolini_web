@@ -7,8 +7,11 @@ from .models import Employee, Payslip
 @receiver(post_save, sender=Employee)
 def invia_invito_registrazione(sender, instance, created, **kwargs):
     try:
+        # Cerchiamo l'email (campo profilo o utente)
         email_dest = instance.email_invio or (instance.user.email if instance.user else None)
+        
         if email_dest and not instance.invito_inviato:
+            print(f"📧 --- Tentativo invio invito a: {email_dest} ---")
             send_mail(
                 "Benvenuto nel Portale Cedolini",
                 f"Ciao {instance.full_name}, il tuo profilo è pronto. Registrati qui: {settings.DEFAULT_PROTOCOL}://{settings.DEFAULT_DOMAIN}/register/",
@@ -16,10 +19,13 @@ def invia_invito_registrazione(sender, instance, created, **kwargs):
                 [email_dest],
                 fail_silently=False
             )
+            # Aggiorna senza far ripartire il segnale
             sender.objects.filter(pk=instance.pk).update(invito_inviato=True)
-            print(f"✅ Email inviata a {email_dest}")
+            print(f"✅ Email inviata con successo!")
+        elif not email_dest:
+            print(f"⚠️ Nessuna email trovata per {instance.full_name}")
     except Exception as e:
-        print(f"❌ Errore mail: {e}")
+        print(f"❌ Errore Gmail: {e}")
 
 @receiver(post_save, sender=Payslip)
 def notifica_nuovo_cedolino(sender, instance, created, **kwargs):
