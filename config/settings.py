@@ -34,7 +34,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# Punta alla tua cartella 'config'
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
@@ -53,10 +52,9 @@ TEMPLATES = [
     },
 ]
 
-# Punta alla tua cartella 'config'
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database
+# Database configurato per Render
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
@@ -89,14 +87,15 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL ARUBA ---
+# --- CONFIGURAZIONE EMAIL ARUBA (OTTIMIZZATA PER CLOUD) ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtps.aruba.it"
-EMAIL_PORT = 465
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True   # Spesso più compatibile della 465 su server esteri
+EMAIL_USE_SSL = False
 EMAIL_HOST_USER = "cedolini@sanvincenzosrl.com"
 EMAIL_HOST_PASSWORD = "Cedolini.01"
+EMAIL_TIMEOUT = 10     # Evita che il processo rimanga appeso se Render blocca la porta
 DEFAULT_FROM_EMAIL = "San Vincenzo SRL <cedolini@sanvincenzosrl.com>"
 
 # --- SICUREZZA E DOMINIO ---
