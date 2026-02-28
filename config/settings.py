@@ -94,8 +94,8 @@ EMAIL_PORT = 465
 EMAIL_USE_TLS = False
 EMAIL_USE_SSL = True
 EMAIL_HOST_USER = "maggiordomodifabbrica@gmail.com"
-# Sostituisci la riga sotto con le tue 16 lettere tra le virgolette
-EMAIL_HOST_PASSWORD = "qgjtatjvxxcgpfrb" 
+# La tua nuova password per le app:
+EMAIL_HOST_PASSWORD = "drmk wjon pbkv bfvm" 
 DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <maggiordomodifabbrica@gmail.com>"
 
 # --- SICUREZZA PER RENDER ---
