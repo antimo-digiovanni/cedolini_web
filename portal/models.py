@@ -5,16 +5,13 @@ from django.contrib.auth.models import User
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee')
     full_name = models.CharField(max_length=160)
-    
-    # QUESTI SONO I CAMPI CHE MANCANO NELLA TUA SCHERMATA
-    email_invio = models.EmailField(max_length=255, blank=True, null=True, verbose_name="Email per invio credenziali")
-    invito_inviato = models.BooleanField(default=False, verbose_name="Invito già inviato")
-    
+    email_invio = models.EmailField(max_length=255, blank=True, null=True)
+    invito_inviato = models.BooleanField(default=False)
     external_code = models.CharField(max_length=10, blank=True, null=True)
     must_change_password = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.full_name} ({self.external_code})" if self.external_code else self.full_name
+        return self.full_name
 
 class Payslip(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="payslips")
@@ -26,11 +23,8 @@ class Payslip(models.Model):
     class Meta:
         unique_together = [("employee", "year", "month")]
 
-    def __str__(self):
-        return f"Cedolino {self.month}/{self.year} - {self.employee.full_name}"
-
 class PayslipView(models.Model):
-    payslip = models.ForeignKey(Payslip, on_delete=models.CASCADE, related_name="views")
+    payslip = models.ForeignKey(Payslip, on_delete=models.CASCADE)
     viewed_at = models.DateTimeField(auto_now_add=True)
 
 class AuditEvent(models.Model):
@@ -40,3 +34,5 @@ class AuditEvent(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
     payslip = models.ForeignKey(Payslip, on_delete=models.SET_NULL, null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True, default=dict)

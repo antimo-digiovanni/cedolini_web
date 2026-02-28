@@ -5,27 +5,19 @@ from django.conf import settings
 from .models import Employee
 
 @receiver(post_save, sender=Employee)
-def invia_invito_registrazione(sender, instance, created, **kwargs):
-    # Usiamo un blocco try/except che avvolge TUTTO
+def invia_invito_registrazione(sender, instance, **kwargs):
+    # Usiamo un blocco che non può fallire
     try:
-        # Recupero email
-        email = getattr(instance, 'email_invio', None)
-        
-        # Se c'è l'email e non è stato ancora inviato
+        email = instance.email_invio
         if email and not instance.invito_inviato:
-            print(f"Tentativo invio a: {email}")
-            
             send_mail(
-                "Benvenuto nel Portale Cedolini",
-                f"Ciao {instance.full_name}, il tuo profilo è pronto.",
+                "Benvenuto",
+                "Il tuo profilo è pronto.",
                 settings.EMAIL_HOST_USER,
                 [email],
-                fail_silently=True  # Impedisce al sito di andare in errore 500
+                fail_silently=True
             )
-            
-            # Aggiorna il database senza scatenare altri segnali
+            # Aggiorna il database direttamente
             sender.objects.filter(pk=instance.pk).update(invito_inviato=True)
-            
-    except Exception as e:
-        # Se c'è un errore, lo scrive nei log ma NON blocca il salvataggio
-        print(f"Errore nel segnale: {e}")
+    except:
+        pass
