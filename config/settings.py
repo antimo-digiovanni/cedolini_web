@@ -56,7 +56,7 @@ TEMPLATES = [
 # Punta alla tua cartella 'config'
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database configurato per Render
+# Database
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
@@ -89,16 +89,15 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL GMAIL (Porta alternativa 2525) ---
+# --- CONFIGURAZIONE EMAIL ARUBA ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 2525
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
-EMAIL_HOST_USER = "maggiordomodifabbrica@gmail.com"
-# Password per le app senza spazi:
-EMAIL_HOST_PASSWORD = "drmkwjonpbkvbfvm" 
-DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <maggiordomodifabbrica@gmail.com>"
+EMAIL_HOST = "smtps.aruba.it"
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = "cedolini@sanvincenzosrl.com"
+EMAIL_HOST_PASSWORD = "Cedolini.01"
+DEFAULT_FROM_EMAIL = "San Vincenzo SRL <cedolini@sanvincenzosrl.com>"
 
 # --- SICUREZZA E DOMINIO ---
 CSRF_TRUSTED_ORIGINS = ['https://cedolini-web.onrender.com']
