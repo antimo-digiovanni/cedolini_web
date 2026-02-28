@@ -34,7 +34,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# CORRETTO: punta alla tua cartella 'config'
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
@@ -53,7 +52,6 @@ TEMPLATES = [
     },
 ]
 
-# CORRETTO: punta alla tua cartella 'config'
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
@@ -89,15 +87,16 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL GMAIL (PORTA 465 SSL) ---
+# --- CONFIGURAZIONE EMAIL GMAIL (SSL PORTA 465) ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 465
 EMAIL_USE_TLS = False
 EMAIL_USE_SSL = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'maggiordomodifabbrica@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <{EMAIL_HOST_USER}>"
+EMAIL_HOST_USER = "maggiordomodifabbrica@gmail.com"
+# Sostituisci la riga sotto con le tue 16 lettere tra le virgolette
+EMAIL_HOST_PASSWORD = "qgjtatjvxxcgpfrb" 
+DEFAULT_FROM_EMAIL = f"San Vincenzo SRL <maggiordomodifabbrica@gmail.com>"
 
 # --- SICUREZZA PER RENDER ---
 CSRF_TRUSTED_ORIGINS = ['https://cedolini-web.onrender.com']
