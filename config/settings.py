@@ -3,14 +3,10 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 
-# Carica variabili dal file .env se esiste
 load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-dev-only")
 DEBUG = os.environ.get("DEBUG", "False") == "True"
-
 ALLOWED_HOSTS = ['cedolini-web.onrender.com', 'localhost', '127.0.0.1']
 
 INSTALLED_APPS = [
@@ -35,7 +31,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
-
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -54,7 +49,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database configurato per Render
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
@@ -69,13 +63,11 @@ if not DATABASES.get('default'):
     }
 
 AUTH_PASSWORD_VALIDATORS = []
-
 LANGUAGE_CODE = "it-it"
 TIME_ZONE = "Europe/Rome"
 USE_I18N = True
 USE_TZ = True
 
-# --- FILE STATICI ---
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -87,21 +79,11 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
-# --- CONFIGURAZIONE EMAIL ARUBA (OTTIMIZZATA PER CLOUD) ---
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtps.aruba.it"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True   # Spesso più compatibile della 465 su server esteri
-EMAIL_USE_SSL = False
-EMAIL_HOST_USER = "cedolini@sanvincenzosrl.com"
-EMAIL_HOST_PASSWORD = "Cedolini.01"
-EMAIL_TIMEOUT = 10     # Evita che il processo rimanga appeso se Render blocca la porta
-DEFAULT_FROM_EMAIL = "San Vincenzo SRL <cedolini@sanvincenzosrl.com>"
+# --- EMAIL DISATTIVATA PER PIANO B ---
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-# --- SICUREZZA E DOMINIO ---
 CSRF_TRUSTED_ORIGINS = ['https://cedolini-web.onrender.com']
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 DEFAULT_DOMAIN = "cedolini-web.onrender.com"
 DEFAULT_PROTOCOL = "https"
