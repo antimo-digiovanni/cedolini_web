@@ -6,28 +6,26 @@ from .models import Employee
 
 @receiver(post_save, sender=Employee)
 def invia_invito_registrazione(sender, instance, created, **kwargs):
-    """
-    Riattiviamo l'invio. Se fallisce, il sito continuerà a funzionare
-    grazie a fail_silently=True.
-    """
+    # Usiamo un blocco try/except che avvolge TUTTO
     try:
-        # Usiamo il campo email_invio che abbiamo visto funzionare nell'Admin
-        email_dest = instance.email_invio
+        # Recupero email
+        email = getattr(instance, 'email_invio', None)
         
-        if email_dest and not instance.invito_inviato:
-            print(f"📧 Tentativo invio invito a: {email_dest}")
+        # Se c'è l'email e non è stato ancora inviato
+        if email and not instance.invito_inviato:
+            print(f"Tentativo invio a: {email}")
             
             send_mail(
                 "Benvenuto nel Portale Cedolini",
-                f"Ciao {instance.full_name}, il tuo profilo è pronto. Registrati qui: {settings.DEFAULT_PROTOCOL}://{settings.DEFAULT_DOMAIN}/register/",
+                f"Ciao {instance.full_name}, il tuo profilo è pronto.",
                 settings.EMAIL_HOST_USER,
-                [email_dest],
-                fail_silently=True  # <--- Fondamentale per evitare il crash
+                [email],
+                fail_silently=True  # Impedisce al sito di andare in errore 500
             )
             
-            # Segniamo come inviato
+            # Aggiorna il database senza scatenare altri segnali
             sender.objects.filter(pk=instance.pk).update(invito_inviato=True)
-            print(f"✅ Operazione conclusa per {email_dest}")
             
     except Exception as e:
-        print(f"⚠️ Errore durante l'esecuzione del segnale: {e}")
+        # Se c'è un errore, lo scrive nei log ma NON blocca il salvataggio
+        print(f"Errore nel segnale: {e}")
