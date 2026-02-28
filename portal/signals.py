@@ -11,11 +11,14 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=Employee)
 def invia_invito_registrazione(sender, instance, created, **kwargs):
     """
-    Invia l'email di benvenuto/registrazione quando viene inserita l'email nel profilo.
+    Invia l'email di benvenuto/registrazione usando l'email dell'Utente collegato.
     """
+    # Recuperiamo l'email dall'oggetto User collegato all'Employee
+    email_destinatario = instance.user.email
+    
     # Parte solo se l'email è presente e non è stata già inviata la notifica
-    if instance.email_invio and not instance.invito_inviato:
-        print(f"--- Tentativo invio invito a: {instance.email_invio} ---")
+    if email_destinatario and not instance.invito_inviato:
+        print(f"--- Tentativo invio invito a: {email_destinatario} ---")
         
         subject = "Benvenuto nel Portale Cedolini - San Vincenzo"
         message = (
@@ -30,13 +33,13 @@ def invia_invito_registrazione(sender, instance, created, **kwargs):
                 subject, 
                 message, 
                 settings.EMAIL_HOST_USER, 
-                [instance.email_invio], 
+                [email_destinatario], 
                 fail_silently=False
             )
             
-            # Aggiorna il database per non inviare di nuovo ad ogni modifica
+            # Segna l'invio come effettuato nel database
             Employee.objects.filter(pk=instance.pk).update(invito_inviato=True)
-            print(f"✅ Successo: Email di invito inviata a {instance.email_invio}")
+            print(f"✅ Successo: Email di invito inviata a {email_destinatario}")
             
         except Exception as e:
             print(f"❌ ERRORE INVIO EMAIL INVITO: {type(e).__name__} - {str(e)}")
@@ -46,19 +49,20 @@ def invia_invito_registrazione(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Payslip)
 def notifica_nuovo_cedolino(sender, instance, created, **kwargs):
     """
-    Invia una notifica automatica al dipendente quando viene caricato un nuovo PDF.
+    Invia una notifica automatica quando viene caricato un nuovo PDF.
     """
-    # Inviamo la mail solo se il cedolino è stato appena creato
     if created:
-        employee = instance.employee
-        if employee.email_invio:
-            print(f"--- Tentativo invio notifica cedolino a: {employee.email_invio} ---")
+        # Recuperiamo l'email dall'Utente collegato al dipendente
+        email_destinatario = instance.employee.user.email
+        
+        if email_destinatario:
+            print(f"--- Tentativo invio notifica cedolino a: {email_destinatario} ---")
             
             subject = f"Nuovo Cedolino Disponibile - {instance.month:02d}/{instance.year}"
             message = (
-                f"Ciao {employee.full_name},\n\n"
+                f"Ciao {instance.employee.full_name},\n\n"
                 f"Ti informiamo che è stato caricato il tuo cedolino relativo a {instance.month:02d}/{instance.year}.\n\n"
-                f"Puoi visualizzarlo ed effettuarne il download accedendo al portale qui: "
+                f"Puoi visualizzarlo accedendo qui: "
                 f"{settings.DEFAULT_PROTOCOL}://{settings.DEFAULT_DOMAIN}/login/\n\n"
                 "Servizio San Vincenzo SRL"
             )
@@ -68,10 +72,10 @@ def notifica_nuovo_cedolino(sender, instance, created, **kwargs):
                     subject,
                     message,
                     settings.EMAIL_HOST_USER,
-                    [employee.email_invio],
+                    [email_destinatario],
                     fail_silently=False
                 )
-                print(f"✅ Successo: Notifica cedolino inviata a {employee.email_invio}")
+                print(f"✅ Successo: Notifica cedolino inviata a {email_destinatario}")
             except Exception as e:
                 print(f"❌ ERRORE INVIO NOTIFICA CEDOLINO: {type(e).__name__} - {str(e)}")
                 logger.error(f"Errore critico notifica cedolino: {e}")
