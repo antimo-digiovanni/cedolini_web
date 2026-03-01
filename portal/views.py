@@ -1,11 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import HttpResponse
 from .models import Employee, Payslip
 
-# --- NAVIGAZIONE BASE ---
+# --- NAVIGAZIONE E DASHBOARD ---
 def home(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -26,7 +26,7 @@ def open_payslip(request, payslip_id):
     response['Content-Disposition'] = f'inline; filename="cedolino.pdf"'
     return response
 
-# --- REGISTRAZIONE PIANO B ---
+# --- REGISTRAZIONE MANUALE (PIANO B) ---
 def register_view(request, token):
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
@@ -38,11 +38,26 @@ def register_view(request, token):
             user_obj.save()
             employee.must_change_password = False
             employee.save()
-            messages.success(request, "Registrazione completata!")
+            messages.success(request, "Registrazione completata! Accedi ora.")
             return redirect('login')
+        messages.error(request, "Le password non coincidono.")
     return render(request, 'register.html', {'employee': employee})
 
-# --- FUNZIONI DI SUPPORTO (RICHIESTE DAL TUO URLS.PY) ---
+# --- FUNZIONI DI AMMINISTRAZIONE ---
+@login_required
+def admin_dashboard(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+    return render(request, 'admin_dashboard.html')
+
+@login_required
+def admin_report(request):
+    # Questa è la funzione che ha causato l'ultimo errore di build
+    if not request.user.is_staff:
+        return redirect('dashboard')
+    return render(request, 'admin_report.html')
+
+# --- FUNZIONI DI COMPATIBILITÀ (URLS.PY) ---
 @login_required
 def force_password_change_if_needed(request):
     return redirect('dashboard')
@@ -52,11 +67,4 @@ def complete_profile(request):
     return redirect('dashboard')
 
 def activate_account(request, uidb64, token):
-    # Questa è quella che ha fatto fallire l'ultimo deploy
     return redirect('login')
-
-@login_required
-def admin_dashboard(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
-    return render(request, 'admin_dashboard.html')
