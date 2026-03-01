@@ -18,12 +18,9 @@ def dashboard(request):
 
 @login_required
 def open_payslip(request, payslip_id):
-    # Questa è la funzione che mancava nell'ultimo errore
     payslip = get_object_or_404(Payslip, id=payslip_id)
-    # Controllo sicurezza: solo il proprietario può vederlo
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
-    
     response = HttpResponse(payslip.pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="cedolino_{payslip.year}_{payslip.month}.pdf"'
     return response
@@ -31,7 +28,6 @@ def open_payslip(request, payslip_id):
 def register_view(request, token):
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
-
     if request.method == 'POST':
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
@@ -40,14 +36,18 @@ def register_view(request, token):
             user_obj.save()
             employee.must_change_password = False
             employee.save()
-            messages.success(request, "Registrazione completata! Accedi.")
+            messages.success(request, "Registrazione completata!")
             return redirect('login')
-        else:
-            messages.error(request, "Le password non coincidono.")
+        messages.error(request, "Le password non coincidono.")
     return render(request, 'register.html', {'employee': employee})
 
 @login_required
 def force_password_change_if_needed(request):
+    return redirect('dashboard')
+
+@login_required
+def complete_profile(request):
+    # Funzione che mancava nell'ultimo errore
     return redirect('dashboard')
 
 @login_required
