@@ -5,38 +5,40 @@ from django.contrib import messages
 from .models import Employee, Payslip
 
 def home(request):
-    # Se l'utente è loggato va alla dashboard, altrimenti al login
     if request.user.is_authenticated:
-        return redirect('admin_dashboard' if request.user.is_staff else 'dashboard')
+        return redirect('dashboard')
     return redirect('login')
 
 @login_required
 def dashboard(request):
     employee = get_object_or_404(Employee, user=request.user)
-    payslips = employee.payslips.all().order_index('-year', '-month')
+    payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
     return render(request, 'dashboard.html', {'employee': employee, 'payslips': payslips})
 
 def register_view(request, token):
-    # Il "token" è lo username
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
 
     if request.method == 'POST':
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
-
-        if not password or password != confirm_password:
-            return render(request, 'register.html', {
-                'employee': employee,
-                'error': 'Le password non coincidono.'
-            })
-
-        user_obj.set_password(password)
-        user_obj.save()
-        employee.must_change_password = False
-        employee.save()
-        
-        messages.success(request, "Registrazione completata! Accedi ora.")
-        return redirect('login')
-
+        if password and password == confirm_password:
+            user_obj.set_password(password)
+            user_obj.save()
+            employee.must_change_password = False
+            employee.save()
+            messages.success(request, "Registrazione completata! Ora puoi accedere.")
+            return redirect('login')
+        else:
+            messages.error(request, "Le password non coincidono.")
     return render(request, 'register.html', {'employee': employee})
+
+@login_required
+def force_password_change_if_needed(request):
+    # Funzione richiesta dal tuo urls.py
+    employee = getattr(request.user, 'employee', None)
+    if employee and employee.must_change_password:
+        # Se deve cambiare password ma non abbiamo una pagina dedicata, 
+        # per ora lo mandiamo alla dashboard o dove preferisci
+        return redirect('dashboard')
+    return redirect('dashboard')
