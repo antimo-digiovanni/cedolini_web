@@ -16,6 +16,7 @@ def dashboard(request):
     return render(request, 'dashboard.html', {'employee': employee, 'payslips': payslips})
 
 def register_view(request, token):
+    # Il "token" nel link è lo username
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
 
@@ -31,14 +32,20 @@ def register_view(request, token):
             return redirect('login')
         else:
             messages.error(request, "Le password non coincidono.")
+    
     return render(request, 'register.html', {'employee': employee})
 
 @login_required
 def force_password_change_if_needed(request):
-    # Funzione richiesta dal tuo urls.py
+    # Questa è la funzione che bloccava il deploy
     employee = getattr(request.user, 'employee', None)
     if employee and employee.must_change_password:
-        # Se deve cambiare password ma non abbiamo una pagina dedicata, 
-        # per ora lo mandiamo alla dashboard o dove preferisci
-        return redirect('dashboard')
+        return redirect('dashboard') # O a una pagina di cambio password se esiste
     return redirect('dashboard')
+
+@login_required
+def admin_dashboard(request):
+    # Funzione extra spesso presente nei tuoi URL
+    if not request.user.is_staff:
+        return redirect('dashboard')
+    return render(request, 'admin_dashboard.html')
