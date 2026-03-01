@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from .models import Employee, Payslip
 
-# --- FUNZIONI DI NAVIGAZIONE ---
+# --- NAVIGAZIONE BASE ---
 def home(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -23,12 +23,11 @@ def open_payslip(request, payslip_id):
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
     response = HttpResponse(payslip.pdf, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="cedolino_{payslip.year}_{payslip.month}.pdf"'
+    response['Content-Disposition'] = f'inline; filename="cedolino.pdf"'
     return response
 
-# --- FUNZIONI DI REGISTRAZIONE (PIANO B) ---
+# --- REGISTRAZIONE PIANO B ---
 def register_view(request, token):
-    # Usiamo lo username come token
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
     if request.method == 'POST':
@@ -39,12 +38,11 @@ def register_view(request, token):
             user_obj.save()
             employee.must_change_password = False
             employee.save()
-            messages.success(request, "Registrazione completata! Accedi.")
+            messages.success(request, "Registrazione completata!")
             return redirect('login')
-        messages.error(request, "Le password non coincidono.")
     return render(request, 'register.html', {'employee': employee})
 
-# --- FUNZIONI "TAPPO" (Per evitare errori AttributeError) ---
+# --- FUNZIONI DI SUPPORTO (RICHIESTE DAL TUO URLS.PY) ---
 @login_required
 def force_password_change_if_needed(request):
     return redirect('dashboard')
@@ -54,8 +52,7 @@ def complete_profile(request):
     return redirect('dashboard')
 
 def activate_account(request, uidb64, token):
-    # Funzione richiesta dal tuo urls.py riga 20
-    messages.info(request, "Usa il link di registrazione manuale fornito dall'amministratore.")
+    # Questa è quella che ha fatto fallire l'ultimo deploy
     return redirect('login')
 
 @login_required
