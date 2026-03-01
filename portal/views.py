@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
 from .models import Employee, Payslip
@@ -38,26 +38,11 @@ def register_view(request, token):
             user_obj.save()
             employee.must_change_password = False
             employee.save()
-            messages.success(request, "Registrazione completata! Accedi ora.")
+            messages.success(request, "Registrazione completata!")
             return redirect('login')
-        messages.error(request, "Le password non coincidono.")
     return render(request, 'register.html', {'employee': employee})
 
-# --- FUNZIONI DI AMMINISTRAZIONE ---
-@login_required
-def admin_dashboard(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
-    return render(request, 'admin_dashboard.html')
-
-@login_required
-def admin_report(request):
-    # Questa è la funzione che ha causato l'ultimo errore di build
-    if not request.user.is_staff:
-        return redirect('dashboard')
-    return render(request, 'admin_report.html')
-
-# --- FUNZIONI DI COMPATIBILITÀ (URLS.PY) ---
+# --- FUNZIONI RICHIESTE DAL TUO URLS.PY (TAPPI DI SICUREZZA) ---
 @login_required
 def force_password_change_if_needed(request):
     return redirect('dashboard')
@@ -68,3 +53,16 @@ def complete_profile(request):
 
 def activate_account(request, uidb64, token):
     return redirect('login')
+
+@login_required
+def admin_dashboard(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+    return render(request, 'admin_dashboard.html')
+
+@login_required
+def admin_report(request):
+    # Questa è la funzione che ha bloccato l'ultimo deploy
+    if not request.user.is_staff:
+        return redirect('dashboard')
+    return render(request, 'admin_report.html')
