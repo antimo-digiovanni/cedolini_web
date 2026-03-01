@@ -4,6 +4,5 @@ from .models import Employee
 
 @receiver(post_save, sender=Employee)
 def invia_invito_registrazione(sender, instance, created, **kwargs):
-    # Non facciamo più nulla qui perché inviamo il link manualmente
-    # Questo evita i "timeout" di rete su Render
-    print(f"DEBUG: Dipendente {instance.full_name} salvato. Link pronto in Admin.")
+    # Nessun invio automatico, usiamo il link manuale dall'admin
+    pass
