@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import HttpResponse
 from .models import Employee, Payslip
 
 def home(request):
@@ -15,8 +16,19 @@ def dashboard(request):
     payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
     return render(request, 'dashboard.html', {'employee': employee, 'payslips': payslips})
 
+@login_required
+def open_payslip(request, payslip_id):
+    # Questa è la funzione che mancava nell'ultimo errore
+    payslip = get_object_or_404(Payslip, id=payslip_id)
+    # Controllo sicurezza: solo il proprietario può vederlo
+    if not request.user.is_staff and payslip.employee.user != request.user:
+        return HttpResponse("Non autorizzato", status=403)
+    
+    response = HttpResponse(payslip.pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="cedolino_{payslip.year}_{payslip.month}.pdf"'
+    return response
+
 def register_view(request, token):
-    # Il "token" nel link è lo username
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
 
@@ -28,24 +40,18 @@ def register_view(request, token):
             user_obj.save()
             employee.must_change_password = False
             employee.save()
-            messages.success(request, "Registrazione completata! Ora puoi accedere.")
+            messages.success(request, "Registrazione completata! Accedi.")
             return redirect('login')
         else:
             messages.error(request, "Le password non coincidono.")
-    
     return render(request, 'register.html', {'employee': employee})
 
 @login_required
 def force_password_change_if_needed(request):
-    # Questa è la funzione che bloccava il deploy
-    employee = getattr(request.user, 'employee', None)
-    if employee and employee.must_change_password:
-        return redirect('dashboard') # O a una pagina di cambio password se esiste
     return redirect('dashboard')
 
 @login_required
 def admin_dashboard(request):
-    # Funzione extra spesso presente nei tuoi URL
     if not request.user.is_staff:
         return redirect('dashboard')
     return render(request, 'admin_dashboard.html')

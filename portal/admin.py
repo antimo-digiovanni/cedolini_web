@@ -4,11 +4,10 @@ from .models import Employee, Payslip, AuditEvent
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'external_code', 'email_invio', 'link_manuale')
+    list_display = ('full_name', 'external_code', 'copia_invito')
     
-    def link_manuale(self, obj):
+    def copia_invito(self, obj):
         if obj.user:
-            # Crea il link usando lo username
             url = f"https://cedolini-web.onrender.com/register/{obj.user.username}/"
             return format_html(
                 '<button type="button" onclick="navigator.clipboard.writeText(\'{}\'); alert(\'Link Copiato!\')" '
@@ -16,8 +15,6 @@ class EmployeeAdmin(admin.ModelAdmin):
                 'Copia Link</button>', url
             )
         return "Nessun Utente"
-
-    link_manuale.short_description = "Invito Manuale"
 
 admin.site.register(Payslip)
 admin.site.register(AuditEvent)
