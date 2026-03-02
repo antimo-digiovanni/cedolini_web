@@ -1,4 +1,3 @@
-# TEST BUILD
 import os
 import calendar
 import datetime
@@ -56,7 +55,7 @@ def open_payslip(request, payslip_id):
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
 
-    # Registra visualizzazione (solo dipendente)
+    # Registra visualizzazione (una sola volta per cedolino)
     if not request.user.is_staff:
         if not PayslipView.objects.filter(payslip=payslip).exists():
             PayslipView.objects.create(payslip=payslip)
@@ -104,15 +103,14 @@ def admin_dashboard(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    total_employees = Employee.objects.count()
-    total_payslips = Payslip.objects.count()
+    totale_cedolini = Payslip.objects.count()
+    totale_dipendenti = Employee.objects.count()
 
-    # Cedolini visualizzati (1 volta sola per cedolino)
     visualizzati = Payslip.objects.filter(
         payslipview__isnull=False
     ).distinct().count()
 
-    non_visualizzati = total_payslips - visualizzati
+    non_visualizzati = totale_cedolini - visualizzati
 
     # Distribuzione mensile anno corrente
     current_year = datetime.date.today().year
@@ -133,8 +131,8 @@ def admin_dashboard(request):
         month_counts.append(m['total'])
 
     return render(request, "portal/admin_dashboard.html", {
-        "total_employees": total_employees,
-        "total_payslips": total_payslips,
+        "totale_cedolini": totale_cedolini,
+        "totale_dipendenti": totale_dipendenti,
         "visualizzati": visualizzati,
         "non_visualizzati": non_visualizzati,
         "month_labels": month_labels,
@@ -168,7 +166,6 @@ def admin_employee_detail(request, employee_id):
         return redirect('dashboard')
 
     employee = get_object_or_404(Employee, id=employee_id)
-
     payslips = employee.payslips.all().order_by('-year', '-month')
 
     grouped = {}
