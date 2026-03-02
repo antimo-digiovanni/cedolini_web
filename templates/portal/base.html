@@ -11,45 +11,86 @@
   <style>
     body { background-color: #f4f6f9; }
     .sidebar { height: 100vh; background-color: #1f2937; position: sticky; top: 0; }
-    .sidebar a, .sidebar button { color:#cbd5e1; text-decoration:none; padding:12px 20px; display:block; border-radius:8px; margin-bottom:6px; width: 100%; text-align: left; border: none; background: transparent; }
-    .sidebar a:hover, .sidebar button:hover { background-color:#374151; color:#fff; }
+    .sidebar a, .sidebar button {
+      color:#cbd5e1;
+      text-decoration:none;
+      padding:12px 20px;
+      display:block;
+      border-radius:8px;
+      margin-bottom:6px;
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+    }
+    .sidebar a:hover, .sidebar button:hover {
+      background-color:#374151;
+      color:#fff;
+    }
     .navbar-custom { background-color:#111827; }
     .card-custom { border:none; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
     .logo-section { background: white; padding: 40px 0; border-bottom: 1px solid #e5e7eb; }
     .logo-section img { max-height: 150px; }
     .brand-title { font-size: 2rem; font-weight: 700; }
     .brand-subtitle { font-size: 1rem; color: #6c757d; }
-    .custom-footer { position: fixed; bottom: 10px; right: 20px; font-size: 0.75rem; color: #6c757d; opacity: 0.7; z-index: 999; }
-    .custom-footer strong { color: #374151; font-weight: 600; }
+    .custom-footer {
+      position: fixed;
+      bottom: 10px;
+      right: 20px;
+      font-size: 0.75rem;
+      color: #6c757d;
+      opacity: 0.7;
+      z-index: 999;
+    }
+    .custom-footer strong {
+      color: #374151;
+      font-weight: 600;
+    }
   </style>
 </head>
 
 <body>
 <div class="d-flex">
 
+  <!-- SIDEBAR -->
   <div class="sidebar p-3 text-white" style="width: 250px;">
     <div class="text-center mb-4"><strong>Menu</strong></div>
 
-    <a href="{% url 'admin_dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    <a href="{% url 'admin_dashboard' %}">
+      <i class="bi bi-speedometer2"></i> Dashboard
+    </a>
 
     {% if user.is_staff %}
-    <a href="{% url 'admin_upload_period_folder' %}"><i class="bi bi-folder2-open"></i> Import Mese (Cartella)</a>
-    <a href="{% url 'admin:index' %}"><i class="bi bi-gear"></i> Admin (Gestione)</a>
-    <a href="{% url 'admin_report' %}"><i class="bi bi-bar-chart"></i> Report Admin</a>
-    <!-- <a href="{% url 'admin_manage_employees' %}"><i class="bi bi-people"></i> Gestione Cedolini</a> --><i class="bi bi-people"></i> Gestione Cedolini</a>
-    <a href="{% url 'admin_upload_payslip' %}"><i class="bi bi-upload"></i> Carica Cedolino</a>
+      <a href="{% url 'admin_upload_period_folder' %}">
+        <i class="bi bi-folder2-open"></i> Import Mese (Cartella)
+      </a>
+
+      <a href="{% url 'admin:index' %}">
+        <i class="bi bi-gear"></i> Admin (Gestione)
+      </a>
+
+      <a href="{% url 'admin_report' %}">
+        <i class="bi bi-bar-chart"></i> Report Admin
+      </a>
+
+      <a href="{% url 'admin_upload_payslip' %}">
+        <i class="bi bi-upload"></i> Carica Cedolino
+      </a>
     {% endif %}
 
-    <a href="{% url 'password_change' %}"><i class="bi bi-key"></i> Cambia Password</a>
+    <a href="{% url 'password_change' %}">
+      <i class="bi bi-key"></i> Cambia Password
+    </a>
 
     <form method="post" action="{% url 'logout' %}">
       {% csrf_token %}
-      <button type="submit" class="sidebar-link">
+      <button type="submit">
         <i class="bi bi-box-arrow-right"></i> Logout
       </button>
     </form>
   </div>
 
+  <!-- CONTENUTO -->
   <div class="flex-fill">
 
     <nav class="navbar navbar-expand navbar-dark navbar-custom px-4">
@@ -74,6 +115,7 @@
     <main class="container-fluid p-4">
       {% block content %}{% endblock %}
     </main>
+
   </div>
 </div>
 
