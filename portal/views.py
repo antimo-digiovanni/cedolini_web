@@ -9,7 +9,10 @@ from django.conf import settings
 from .models import Employee, Payslip
 
 
-# --- NAVIGAZIONE E DASHBOARD ---
+# -----------------------------
+# NAVIGAZIONE PRINCIPALE
+# -----------------------------
+
 def home(request):
     if request.user.is_authenticated:
         if request.user.is_staff:
@@ -22,6 +25,7 @@ def home(request):
 def dashboard(request):
     employee = get_object_or_404(Employee, user=request.user)
     payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
+
     return render(request, 'dashboard.html', {
         'employee': employee,
         'payslips': payslips
@@ -36,11 +40,14 @@ def open_payslip(request, payslip_id):
         return HttpResponse("Non autorizzato", status=403)
 
     response = HttpResponse(payslip.pdf, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="cedolino.pdf"'
+    response['Content-Disposition'] = 'inline; filename="cedolino.pdf"'
     return response
 
 
-# --- REGISTRAZIONE MANUALE (PIANO B) ---
+# -----------------------------
+# REGISTRAZIONE
+# -----------------------------
+
 def register_view(request, token):
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
@@ -62,7 +69,14 @@ def register_view(request, token):
     return render(request, 'register.html', {'employee': employee})
 
 
-# --- FUNZIONI AMMINISTRATIVE ---
+def activate_account(request, uidb64, token):
+    return redirect('login')
+
+
+# -----------------------------
+# AREA AMMINISTRATIVA
+# -----------------------------
+
 @login_required
 def admin_dashboard(request):
     if not request.user.is_staff:
@@ -75,6 +89,13 @@ def admin_upload_payslip(request):
     if not request.user.is_staff:
         return redirect('dashboard')
     return render(request, 'admin_upload.html')
+
+
+@login_required
+def admin_upload_period_folder(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+    return HttpResponse("Upload cartella periodo - in costruzione")
 
 
 @login_required
@@ -91,7 +112,10 @@ def admin_audit_dashboard(request):
     return render(request, 'admin_audit.html')
 
 
-# --- TEST EMAIL (SOLO ADMIN - TEMPORANEO) ---
+# -----------------------------
+# TEST EMAIL (SOLO ADMIN)
+# -----------------------------
+
 @login_required
 def test_email(request):
     if not request.user.is_staff:
@@ -112,7 +136,10 @@ def test_email(request):
         return HttpResponse(f"❌ Errore invio email: {str(e)}")
 
 
-# --- FUNZIONI TAPPO ---
+# -----------------------------
+# FUNZIONI TAPPO
+# -----------------------------
+
 @login_required
 def force_password_change_if_needed(request):
     return redirect('dashboard')
@@ -121,7 +148,3 @@ def force_password_change_if_needed(request):
 @login_required
 def complete_profile(request):
     return redirect('dashboard')
-
-
-def activate_account(request, uidb64, token):
-    return redirect('login')
