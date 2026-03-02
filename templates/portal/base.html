@@ -13,6 +13,20 @@
 body {
     background-color: #f1f5f9;
     font-family: 'Segoe UI', sans-serif;
+    position: relative;
+}
+
+/* WATERMARK LOGO */
+.background-logo {
+    position: fixed;
+    top: 50%;
+    left: 60%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    opacity: 0.05;
+    z-index: 0;
+    pointer-events: none;
+    user-select: none;
 }
 
 /* SIDEBAR */
@@ -22,10 +36,11 @@ body {
     position: sticky;
     top: 0;
     padding: 25px 15px;
+    z-index: 2;
 }
 
 .sidebar-title {
-    color: #cbd5e1;
+    color: #94a3b8;
     font-size: 0.8rem;
     letter-spacing: 1px;
     margin-bottom: 25px;
@@ -41,38 +56,35 @@ body {
     margin-bottom: 8px;
     border: none;
     background: transparent;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
 }
 
 .sidebar a:hover, .sidebar button:hover {
     background-color: #2563eb;
     color: #ffffff;
-    transform: translateX(4px);
+    transform: translateX(6px);
+}
+
+.sidebar a.active {
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    color: white;
+    box-shadow: 0 0 15px rgba(37, 99, 235, 0.5);
 }
 
 /* TOP BAR */
 .topbar {
     background: #0f172a;
-    padding: 12px 30px;
+    padding: 14px 30px;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-}
-
-.topbar-left {
-    display: flex;
     align-items: center;
-    gap: 12px;
-}
-
-.topbar img {
-    height: 38px;
+    z-index: 2;
+    position: relative;
 }
 
 .topbar-title {
     color: white;
     font-weight: 600;
-    font-size: 1rem;
 }
 
 .topbar-user {
@@ -87,6 +99,8 @@ body {
     box-shadow: 0 10px 25px rgba(0,0,0,0.06);
     padding: 25px;
     transition: 0.25s ease;
+    position: relative;
+    z-index: 2;
 }
 
 .card-modern:hover {
@@ -101,11 +115,21 @@ body {
     right: 20px;
     font-size: 0.75rem;
     color: #94a3b8;
+    z-index: 2;
+}
+
+/* MAIN */
+main {
+    position: relative;
+    z-index: 2;
 }
 </style>
 </head>
 
 <body>
+
+<!-- WATERMARK -->
+<img src="{% static 'portal/logo.png' %}" class="background-logo" alt="Background Logo">
 
 <div class="d-flex">
 
@@ -113,12 +137,12 @@ body {
     <div class="sidebar" style="width:260px;">
         <div class="sidebar-title">Menu</div>
 
-        <a href="{% url 'admin_dashboard' %}">
+        <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
             <i class="bi bi-speedometer2"></i> Dashboard
         </a>
 
         {% if user.is_staff %}
-        <a href="{% url 'admin_upload_period_folder' %}">
+        <a href="{% url 'admin_upload_period_folder' %}" class="{% if request.resolver_match.url_name == 'admin_upload_period_folder' %}active{% endif %}">
             <i class="bi bi-folder2-open"></i> Import Mese
         </a>
 
@@ -126,11 +150,11 @@ body {
             <i class="bi bi-gear"></i> Admin Django
         </a>
 
-        <a href="{% url 'admin_report' %}">
+        <a href="{% url 'admin_report' %}" class="{% if request.resolver_match.url_name == 'admin_report' %}active{% endif %}">
             <i class="bi bi-bar-chart"></i> Report
         </a>
 
-        <a href="{% url 'admin_upload_payslip' %}">
+        <a href="{% url 'admin_upload_payslip' %}" class="{% if request.resolver_match.url_name == 'admin_upload_payslip' %}active{% endif %}">
             <i class="bi bi-upload"></i> Carica Cedolino
         </a>
         {% endif %}
@@ -150,11 +174,9 @@ body {
     <!-- CONTENUTO -->
     <div class="flex-fill">
 
-        <!-- TOP BAR COMPATTA -->
         <div class="topbar">
-            <div class="topbar-left">
-                <img src="{% static 'portal/logo.png' %}" alt="Logo">
-                <div class="topbar-title">San Vincenzo - Area Cedolini</div>
+            <div class="topbar-title">
+                San Vincenzo - Area Cedolini
             </div>
 
             <div class="topbar-user">
