@@ -1,4 +1,6 @@
+# TEST BUILD
 import os
+import calendar
 import datetime
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -14,9 +16,9 @@ from django.db.models import Count
 from .models import Employee, Payslip, PayslipView
 
 
-# =============================
-# NAVIGAZIONE PRINCIPALE
-# =============================
+# =========================================================
+# HOME
+# =========================================================
 
 def home(request):
     if request.user.is_authenticated:
@@ -26,9 +28,9 @@ def home(request):
     return redirect('login')
 
 
-# =============================
+# =========================================================
 # AREA DIPENDENTE
-# =============================
+# =========================================================
 
 @login_required
 def dashboard(request):
@@ -37,7 +39,9 @@ def dashboard(request):
     if employee.must_change_password:
         return redirect('password_change')
 
-    payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
+    payslips = Payslip.objects.filter(
+        employee=employee
+    ).order_by('-year', '-month')
 
     return render(request, 'portal/dashboard.html', {
         'employee': employee,
@@ -52,18 +56,19 @@ def open_payslip(request, payslip_id):
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
 
-    # 🔥 REGISTRA VISUALIZZAZIONE
+    # Registra visualizzazione (solo dipendente)
     if not request.user.is_staff:
-        PayslipView.objects.create(payslip=payslip)
+        if not PayslipView.objects.filter(payslip=payslip).exists():
+            PayslipView.objects.create(payslip=payslip)
 
     response = HttpResponse(payslip.pdf, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="cedolino.pdf"'
     return response
 
 
-# =============================
+# =========================================================
 # REGISTRAZIONE
-# =============================
+# =========================================================
 
 def register_view(request, token):
     user_obj = get_object_or_404(User, username=token)
@@ -85,12 +90,14 @@ def register_view(request, token):
         else:
             messages.error(request, "Le password non coincidono.")
 
-    return render(request, 'portal/register.html', {'employee': employee})
+    return render(request, 'portal/register.html', {
+        'employee': employee
+    })
 
 
-# =============================
-# AREA AMMINISTRATIVA
-# =============================
+# =========================================================
+# ADMIN DASHBOARD
+# =========================================================
 
 @login_required
 def admin_dashboard(request):
@@ -100,19 +107,44 @@ def admin_dashboard(request):
     total_employees = Employee.objects.count()
     total_payslips = Payslip.objects.count()
 
+    # Cedolini visualizzati (1 volta sola per cedolino)
     visualizzati = Payslip.objects.filter(
         payslipview__isnull=False
     ).distinct().count()
 
     non_visualizzati = total_payslips - visualizzati
 
+    # Distribuzione mensile anno corrente
+    current_year = datetime.date.today().year
+
+    monthly_data = (
+        Payslip.objects
+        .filter(year=current_year)
+        .values('month')
+        .annotate(total=Count('id'))
+        .order_by('month')
+    )
+
+    month_labels = []
+    month_counts = []
+
+    for m in monthly_data:
+        month_labels.append(calendar.month_name[m['month']])
+        month_counts.append(m['total'])
+
     return render(request, "portal/admin_dashboard.html", {
         "total_employees": total_employees,
         "total_payslips": total_payslips,
         "visualizzati": visualizzati,
         "non_visualizzati": non_visualizzati,
+        "month_labels": month_labels,
+        "month_counts": month_counts,
     })
 
+
+# =========================================================
+# LISTA DIPENDENTI
+# =========================================================
 
 @login_required
 def admin_employees(request):
@@ -126,28 +158,45 @@ def admin_employees(request):
     })
 
 
+# =========================================================
+# DETTAGLIO DIPENDENTE
+# =========================================================
+
 @login_required
 def admin_employee_detail(request, employee_id):
     if not request.user.is_staff:
         return redirect('dashboard')
 
     employee = get_object_or_404(Employee, id=employee_id)
+
     payslips = employee.payslips.all().order_by('-year', '-month')
 
-    detailed = []
+    grouped = {}
 
     for p in payslips:
+        year = p.year
+        month_name = calendar.month_name[p.month]
+
         view = p.payslipview_set.order_by('-viewed_at').first()
-        detailed.append({
+
+        if year not in grouped:
+            grouped[year] = []
+
+        grouped[year].append({
             "payslip": p,
+            "month_name": month_name,
             "view": view
         })
 
     return render(request, "portal/admin_employee_detail.html", {
         "employee": employee,
-        "detailed": detailed
+        "grouped": grouped
     })
 
+
+# =========================================================
+# REPORT GENERALE
+# =========================================================
 
 @login_required
 def admin_report(request):
@@ -180,6 +229,10 @@ def admin_report(request):
     })
 
 
+# =========================================================
+# RESET PASSWORD
+# =========================================================
+
 @login_required
 def admin_reset_password(request, user_id):
     if not request.user.is_staff:
@@ -198,6 +251,10 @@ def admin_reset_password(request, user_id):
     return redirect("admin_employees")
 
 
+# =========================================================
+# GENERA LINK REGISTRAZIONE
+# =========================================================
+
 @login_required
 def admin_generate_link(request, user_id):
     if not request.user.is_staff:
@@ -212,6 +269,10 @@ def admin_generate_link(request, user_id):
     messages.success(request, f"Link registrazione: {link}")
     return redirect("admin_employees")
 
+
+# =========================================================
+# ALTRE PAGINE ADMIN
+# =========================================================
 
 @login_required
 def admin_upload_payslip(request):
