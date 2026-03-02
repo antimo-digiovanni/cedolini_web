@@ -81,7 +81,7 @@ def activate_account(request, uidb64, token):
 def admin_dashboard(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-    return render(request, 'admin_dashboard.html')
+    return render(request, "portal/admin_dashboard.html")
 
 
 @login_required
