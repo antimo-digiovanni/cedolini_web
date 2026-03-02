@@ -53,7 +53,7 @@ def open_payslip(request, payslip_id):
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
 
-    # registra visualizzazione una sola volta
+    # Registra visualizzazione una sola volta
     if not request.user.is_staff:
         if not PayslipView.objects.filter(payslip=payslip).exists():
             PayslipView.objects.create(payslip=payslip)
@@ -138,7 +138,57 @@ def admin_dashboard(request):
 
 
 # =========================================================
-# IMPORT CARTELLA PERIODO (QUI ERA IL PROBLEMA)
+# LISTA DIPENDENTI
+# =========================================================
+
+@login_required
+def admin_employees(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.select_related('user').all()
+
+    return render(request, "portal/admin_employees.html", {
+        "employees": employees
+    })
+
+
+# =========================================================
+# DETTAGLIO DIPENDENTE
+# =========================================================
+
+@login_required
+def admin_employee_detail(request, employee_id):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee, id=employee_id)
+    payslips = employee.payslips.all().order_by('-year', '-month')
+
+    grouped = {}
+
+    for p in payslips:
+        year = p.year
+        month_name = calendar.month_name[p.month]
+        view = p.payslipview_set.order_by('-viewed_at').first()
+
+        if year not in grouped:
+            grouped[year] = []
+
+        grouped[year].append({
+            "payslip": p,
+            "month_name": month_name,
+            "view": view
+        })
+
+    return render(request, "portal/admin_employee_detail.html", {
+        "employee": employee,
+        "grouped": grouped
+    })
+
+
+# =========================================================
+# IMPORT CARTELLA PERIODO
 # =========================================================
 
 @login_required
@@ -168,7 +218,6 @@ def admin_upload_period_folder(request):
         for f in files:
             base = os.path.basename(f.name)
             filename = os.path.splitext(base)[0].lower().strip()
-
             parts = filename.split()
 
             if len(parts) < 4:
@@ -195,7 +244,6 @@ def admin_upload_period_folder(request):
             employee = Employee.objects.filter(full_name=full_name).first()
 
             if not employee:
-
                 base_username = f"{nome.lower()}-{cognome.lower()}"
                 username = base_username
                 counter = 1
@@ -247,7 +295,7 @@ def admin_upload_period_folder(request):
 
 
 # =========================================================
-# ALTRE PAGINE
+# ALTRE PAGINE ADMIN
 # =========================================================
 
 @login_required
