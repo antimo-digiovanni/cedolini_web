@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from .models import Employee, Payslip
 
-# --- NAVIGAZIONE E DASHBOARD ---
+# --- NAVIGAZIONE BASE ---
 def home(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -26,7 +26,7 @@ def open_payslip(request, payslip_id):
     response['Content-Disposition'] = f'inline; filename="cedolino.pdf"'
     return response
 
-# --- REGISTRAZIONE MANUALE (PIANO B) ---
+# --- REGISTRAZIONE MANUALE ---
 def register_view(request, token):
     user_obj = get_object_or_404(User, username=token)
     employee = get_object_or_404(Employee, user=user_obj)
@@ -42,7 +42,23 @@ def register_view(request, token):
             return redirect('login')
     return render(request, 'register.html', {'employee': employee})
 
-# --- FUNZIONI RICHIESTE DAL TUO URLS.PY (TAPPI DI SICUREZZA) ---
+# --- FUNZIONI RICHIESTE DA URLS.PY (PER EVITARE ERRORI DI BUILD) ---
+@login_required
+def admin_dashboard(request):
+    if not request.user.is_staff: return redirect('dashboard')
+    return render(request, 'admin_dashboard.html')
+
+@login_required
+def admin_report(request):
+    if not request.user.is_staff: return redirect('dashboard')
+    return render(request, 'admin_report.html')
+
+@login_required
+def admin_audit_dashboard(request):
+    # Risolve l'errore: AttributeError: module 'portal.views' has no attribute 'admin_audit_dashboard'
+    if not request.user.is_staff: return redirect('dashboard')
+    return render(request, 'admin_audit.html')
+
 @login_required
 def force_password_change_if_needed(request):
     return redirect('dashboard')
@@ -53,16 +69,3 @@ def complete_profile(request):
 
 def activate_account(request, uidb64, token):
     return redirect('login')
-
-@login_required
-def admin_dashboard(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
-    return render(request, 'admin_dashboard.html')
-
-@login_required
-def admin_report(request):
-    # Questa è la funzione che ha bloccato l'ultimo deploy
-    if not request.user.is_staff:
-        return redirect('dashboard')
-    return render(request, 'admin_report.html')

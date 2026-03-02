@@ -56,12 +56,6 @@ DATABASES = {
     )
 }
 
-if not DATABASES.get('default'):
-    DATABASES['default'] = {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-
 AUTH_PASSWORD_VALIDATORS = []
 LANGUAGE_CODE = "it-it"
 TIME_ZONE = "Europe/Rome"
@@ -77,13 +71,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
-LOGOUT_REDIRECT_URL = "login"
 
-# --- EMAIL DISATTIVATA PER PIANO B ---
+# --- CONFIGURAZIONE PIANO B ---
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_DOMAIN = "cedolini-web.onrender.com"
+DEFAULT_PROTOCOL = "https"
 
 CSRF_TRUSTED_ORIGINS = ['https://cedolini-web.onrender.com']
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-DEFAULT_DOMAIN = "cedolini-web.onrender.com"
-DEFAULT_PROTOCOL = "https"
