@@ -1,3 +1,4 @@
+import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -24,6 +25,11 @@ def home(request):
 @login_required
 def dashboard(request):
     employee = get_object_or_404(Employee, user=request.user)
+
+    # 🔥 obbligo cambio password
+    if employee.must_change_password:
+        return redirect('password_change')
+
     payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
 
     return render(request, 'dashboard.html', {
@@ -65,15 +71,10 @@ def register_view(request, token):
 
             messages.success(request, "Registrazione completata!")
             return redirect('login')
-
         else:
             messages.error(request, "Le password non coincidono.")
 
     return render(request, 'register.html', {'employee': employee})
-
-
-def activate_account(request, uidb64, token):
-    return redirect('login')
 
 
 # =============================
@@ -86,13 +87,11 @@ def admin_dashboard(request):
         return redirect('dashboard')
 
     totale_cedolini = Payslip.objects.count()
-    visualizzati = 0
-    non_visualizzati = 0
 
     context = {
         "totale_cedolini": totale_cedolini,
-        "visualizzati": visualizzati,
-        "non_visualizzati": non_visualizzati,
+        "visualizzati": 0,
+        "non_visualizzati": 0,
     }
 
     return render(request, "portal/admin_dashboard.html", context)
@@ -112,18 +111,101 @@ def admin_upload_period_folder(request):
         return redirect('dashboard')
 
     if request.method == "POST":
+
         files = request.FILES.getlist("folder")
 
         if not files:
             messages.error(request, "Nessun file selezionato.")
             return redirect("admin_upload_period_folder")
 
-        upload_count = len(files)
+        created_users = 0
+        linked_payslips = 0
 
-        # 🔥 NON scriviamo su filesystem (Render è ephemeral)
-        # Qui in futuro potremo processare e salvare su DB
+        month_map = {
+            "gennaio": 1,
+            "febbraio": 2,
+            "marzo": 3,
+            "aprile": 4,
+            "maggio": 5,
+            "giugno": 6,
+            "luglio": 7,
+            "agosto": 8,
+            "settembre": 9,
+            "ottobre": 10,
+            "novembre": 11,
+            "dicembre": 12,
+        }
 
-        messages.success(request, f"{upload_count} file ricevuti correttamente.")
+        for file in files:
+
+            filename = os.path.splitext(file.name)[0].lower()
+            parts = filename.split()
+
+            if len(parts) < 4:
+                continue
+
+            cognome = parts[0].capitalize()
+            nome = parts[1].capitalize()
+            mese_str = parts[2].lower()
+
+            try:
+                anno = int(parts[3])
+            except:
+                continue
+
+            if mese_str not in month_map:
+                continue
+
+            mese = month_map[mese_str]
+
+            # 🔥 username intelligente
+            base_username = f"{nome.lower()}-{cognome.lower()}"
+            username = base_username
+            counter = 1
+
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            user = User.objects.filter(
+                first_name=nome,
+                last_name=cognome
+            ).first()
+
+            if not user:
+                user = User.objects.create(
+                    username=username,
+                    first_name=nome,
+                    last_name=cognome
+                )
+                user.set_password("cambiala")
+                user.save()
+
+                Employee.objects.create(
+                    user=user,
+                    full_name=f"{nome} {cognome}",
+                    must_change_password=True
+                )
+
+                created_users += 1
+
+            employee = user.employee
+
+            payslip, created = Payslip.objects.get_or_create(
+                employee=employee,
+                year=anno,
+                month=mese,
+                defaults={"pdf": file}
+            )
+
+            if created:
+                linked_payslips += 1
+
+        messages.success(
+            request,
+            f"{linked_payslips} cedolini caricati. "
+            f"{created_users} nuovi dipendenti creati."
+        )
 
         return redirect("admin_upload_period_folder")
 
@@ -147,7 +229,7 @@ def admin_audit_dashboard(request):
 
 
 # =============================
-# TEST EMAIL (SOLO ADMIN)
+# TEST EMAIL
 # =============================
 
 @login_required
@@ -164,21 +246,7 @@ def test_email(request):
             fail_silently=False
         )
 
-        return HttpResponse(f"✅ Email inviata correttamente! Risultato: {result}")
+        return HttpResponse(f"Email inviata correttamente! Risultato: {result}")
 
     except Exception as e:
-        return HttpResponse(f"❌ Errore invio email: {str(e)}")
-
-
-# =============================
-# FUNZIONI TAPPO
-# =============================
-
-@login_required
-def force_password_change_if_needed(request):
-    return redirect('dashboard')
-
-
-@login_required
-def complete_profile(request):
-    return redirect('dashboard')
+        return HttpResponse(f"Errore invio email: {str(e)}")
