@@ -9,9 +9,9 @@ from django.conf import settings
 from .models import Employee, Payslip
 
 
-# -----------------------------
+# =============================
 # NAVIGAZIONE PRINCIPALE
-# -----------------------------
+# =============================
 
 def home(request):
     if request.user.is_authenticated:
@@ -44,9 +44,9 @@ def open_payslip(request, payslip_id):
     return response
 
 
-# -----------------------------
+# =============================
 # REGISTRAZIONE
-# -----------------------------
+# =============================
 
 def register_view(request, token):
     user_obj = get_object_or_404(User, username=token)
@@ -66,6 +66,9 @@ def register_view(request, token):
             messages.success(request, "Registrazione completata!")
             return redirect('login')
 
+        else:
+            messages.error(request, "Le password non coincidono.")
+
     return render(request, 'register.html', {'employee': employee})
 
 
@@ -73,48 +76,79 @@ def activate_account(request, uidb64, token):
     return redirect('login')
 
 
-# -----------------------------
+# =============================
 # AREA AMMINISTRATIVA
-# -----------------------------
+# =============================
 
 @login_required
 def admin_dashboard(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-    return render(request, "portal/admin_dashboard.html")
+
+    totale_cedolini = Payslip.objects.count()
+    visualizzati = 0
+    non_visualizzati = 0
+
+    context = {
+        "totale_cedolini": totale_cedolini,
+        "visualizzati": visualizzati,
+        "non_visualizzati": non_visualizzati,
+    }
+
+    return render(request, "portal/admin_dashboard.html", context)
 
 
 @login_required
 def admin_upload_payslip(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-    return render(request, 'admin_upload.html')
+
+    return render(request, 'portal/admin_upload_payslip.html')
 
 
 @login_required
 def admin_upload_period_folder(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-    return HttpResponse("Upload cartella periodo - in costruzione")
+
+    if request.method == "POST":
+        files = request.FILES.getlist("folder")
+
+        if not files:
+            messages.error(request, "Nessun file selezionato.")
+            return redirect("admin_upload_period_folder")
+
+        upload_count = len(files)
+
+        # 🔥 NON scriviamo su filesystem (Render è ephemeral)
+        # Qui in futuro potremo processare e salvare su DB
+
+        messages.success(request, f"{upload_count} file ricevuti correttamente.")
+
+        return redirect("admin_upload_period_folder")
+
+    return render(request, "portal/admin_upload_period_folder.html")
 
 
 @login_required
 def admin_report(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-    return render(request, 'admin_report.html')
+
+    return render(request, 'portal/admin_report.html')
 
 
 @login_required
 def admin_audit_dashboard(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-    return render(request, 'admin_audit.html')
+
+    return render(request, 'portal/admin_audit.html')
 
 
-# -----------------------------
+# =============================
 # TEST EMAIL (SOLO ADMIN)
-# -----------------------------
+# =============================
 
 @login_required
 def test_email(request):
@@ -136,9 +170,9 @@ def test_email(request):
         return HttpResponse(f"❌ Errore invio email: {str(e)}")
 
 
-# -----------------------------
+# =============================
 # FUNZIONI TAPPO
-# -----------------------------
+# =============================
 
 @login_required
 def force_password_change_if_needed(request):
