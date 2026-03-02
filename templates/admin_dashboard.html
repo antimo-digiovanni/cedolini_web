@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+</head>
+<body>
+    <h1>Dashboard Amministratore</h1>
+
+    <p>Benvenuto {{ request.user.username }}</p>
+
+    <ul>
+        <li><a href="/portal/admin-upload/">Carica Cedolini</a></li>
+        <li><a href="/portal/admin-upload-folder-period/">Importa Cartella Periodo</a></li>
+        <li><a href="/portal/admin-report/">Report</a></li>
+        <li><a href="/portal/admin-audit/">Audit</a></li>
+        <li><a href="/portal/test-email/">Test Email</a></li>
+        <li>
+            <form method="post" action="/logout/">
+                {% csrf_token %}
+                <button type="submit">Logout</button>
+            </form>
+        </li>
+    </ul>
+</body>
+</html>
