@@ -1,45 +1,70 @@
 {% extends "portal/base.html" %}
+{% load static %}
+
 {% block content %}
 
-<h2 class="mb-4">Cedolini di {{ employee.full_name }}</h2>
+<h2 class="mb-4">{{ employee.full_name }}</h2>
 
-<div class="card-modern">
+{% regroup detailed by payslip.year as year_list %}
 
-<table class="table table-hover">
-    <thead>
-        <tr>
-            <th>Mese</th>
-            <th>Anno</th>
-            <th>Stato</th>
-            <th>Data visualizzazione</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for item in detailed %}
-        <tr>
-            <td>{{ item.payslip.month }}</td>
-            <td>{{ item.payslip.year }}</td>
+{% for year in year_list %}
 
-            <td>
-                {% if item.view %}
-                    <span class="badge bg-success">Visualizzato</span>
-                {% else %}
-                    <span class="badge bg-danger">Non visualizzato</span>
-                {% endif %}
-            </td>
+<div class="card-modern mb-4">
+    <h4 class="mb-3">Anno {{ year.grouper }}</h4>
 
-            <td>
-                {% if item.view %}
-                    {{ item.view.viewed_at|date:"d/m/Y H:i" }}
-                {% else %}
-                    -
-                {% endif %}
-            </td>
-        </tr>
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Mese</th>
+                <th>Stato</th>
+                <th>Data Visualizzazione</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        {% for item in year.list %}
+
+            <tr>
+                <td>
+                    {% if item.payslip.month == 1 %}Gennaio{% endif %}
+                    {% if item.payslip.month == 2 %}Febbraio{% endif %}
+                    {% if item.payslip.month == 3 %}Marzo{% endif %}
+                    {% if item.payslip.month == 4 %}Aprile{% endif %}
+                    {% if item.payslip.month == 5 %}Maggio{% endif %}
+                    {% if item.payslip.month == 6 %}Giugno{% endif %}
+                    {% if item.payslip.month == 7 %}Luglio{% endif %}
+                    {% if item.payslip.month == 8 %}Agosto{% endif %}
+                    {% if item.payslip.month == 9 %}Settembre{% endif %}
+                    {% if item.payslip.month == 10 %}Ottobre{% endif %}
+                    {% if item.payslip.month == 11 %}Novembre{% endif %}
+                    {% if item.payslip.month == 12 %}Dicembre{% endif %}
+                </td>
+
+                <td>
+                    {% if item.view %}
+                        <span class="badge bg-success">Visualizzato</span>
+                    {% else %}
+                        <span class="badge bg-danger">Non visualizzato</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if item.view %}
+                        {{ item.view.viewed_at|date:"d/m/Y H:i" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+
+            </tr>
+
         {% endfor %}
-    </tbody>
-</table>
+
+        </tbody>
+    </table>
 
 </div>
+
+{% endfor %}
 
 {% endblock %}

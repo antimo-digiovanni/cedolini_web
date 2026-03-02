@@ -1,0 +1,61 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="fade-in">
+
+    <h2 class="mb-4">I tuoi Cedolini</h2>
+
+    <div class="card-modern">
+
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Anno</th>
+                    <th>Mese</th>
+                    <th>Apri</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            {% for payslip in payslips %}
+                <tr>
+                    <td>{{ payslip.year }}</td>
+                    <td>
+                        {% if payslip.month == 1 %}Gennaio{% endif %}
+                        {% if payslip.month == 2 %}Febbraio{% endif %}
+                        {% if payslip.month == 3 %}Marzo{% endif %}
+                        {% if payslip.month == 4 %}Aprile{% endif %}
+                        {% if payslip.month == 5 %}Maggio{% endif %}
+                        {% if payslip.month == 6 %}Giugno{% endif %}
+                        {% if payslip.month == 7 %}Luglio{% endif %}
+                        {% if payslip.month == 8 %}Agosto{% endif %}
+                        {% if payslip.month == 9 %}Settembre{% endif %}
+                        {% if payslip.month == 10 %}Ottobre{% endif %}
+                        {% if payslip.month == 11 %}Novembre{% endif %}
+                        {% if payslip.month == 12 %}Dicembre{% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'open_payslip' payslip.id %}"
+                           class="btn btn-sm btn-primary">
+                           Apri PDF
+                        </a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted">
+                        Nessun cedolino disponibile
+                    </td>
+                </tr>
+            {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+</div>
+
+{% endblock %}
