@@ -1,0 +1,48 @@
+{% extends "portal/base.html" %}
+{% block content %}
+
+<div class="row g-4">
+
+    <div class="col-md-4">
+        <div class="card-modern text-center">
+            <h5>Dipendenti</h5>
+            <h2>{{ total_employees }}</h2>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card-modern text-center">
+            <h5>Cedolini Totali</h5>
+            <h2>{{ total_payslips }}</h2>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card-modern text-center">
+            <h5>Password da Cambiare</h5>
+            <h2>{{ must_change }}</h2>
+        </div>
+    </div>
+
+</div>
+
+<div class="card-modern mt-4">
+    <canvas id="chart"></canvas>
+</div>
+
+<script>
+const ctx = document.getElementById('chart');
+
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: {{ months|safe }},
+        datasets: [{
+            label: 'Cedolini per Mese',
+            data: {{ counts|safe }},
+        }]
+    }
+});
+</script>
+
+{% endblock %}

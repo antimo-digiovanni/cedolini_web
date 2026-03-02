@@ -1,4 +1,6 @@
 import os
+import datetime
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -6,6 +8,8 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.core.mail import send_mail
 from django.conf import settings
+from django.urls import reverse
+from django.db.models import Count
 
 from .models import Employee, Payslip
 
@@ -22,17 +26,21 @@ def home(request):
     return redirect('login')
 
 
+# =============================
+# AREA DIPENDENTE
+# =============================
+
 @login_required
 def dashboard(request):
     employee = get_object_or_404(Employee, user=request.user)
 
-    # 🔥 obbligo cambio password
+    # Obbligo cambio password
     if employee.must_change_password:
         return redirect('password_change')
 
     payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
 
-    return render(request, 'dashboard.html', {
+    return render(request, 'portal/dashboard.html', {
         'employee': employee,
         'payslips': payslips
     })
@@ -74,7 +82,7 @@ def register_view(request, token):
         else:
             messages.error(request, "Le password non coincidono.")
 
-    return render(request, 'register.html', {'employee': employee})
+    return render(request, 'portal/register.html', {'employee': employee})
 
 
 # =============================
@@ -86,15 +94,75 @@ def admin_dashboard(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    totale_cedolini = Payslip.objects.count()
+    total_employees = Employee.objects.count()
+    total_payslips = Payslip.objects.count()
+    must_change = Employee.objects.filter(must_change_password=True).count()
 
-    context = {
-        "totale_cedolini": totale_cedolini,
-        "visualizzati": 0,
-        "non_visualizzati": 0,
-    }
+    current_year = datetime.date.today().year
 
-    return render(request, "portal/admin_dashboard.html", context)
+    monthly_stats = (
+        Payslip.objects
+        .filter(year=current_year)
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+
+    months = [m['month'] for m in monthly_stats]
+    counts = [m['count'] for m in monthly_stats]
+
+    return render(request, "portal/admin_dashboard.html", {
+        "total_employees": total_employees,
+        "total_payslips": total_payslips,
+        "must_change": must_change,
+        "months": months,
+        "counts": counts,
+    })
+
+
+@login_required
+def admin_employees(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.select_related('user').all()
+
+    return render(request, "portal/admin_employees.html", {
+        "employees": employees
+    })
+
+
+@login_required
+def admin_reset_password(request, user_id):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    user = get_object_or_404(User, id=user_id)
+
+    user.set_password("cambiala")
+    user.save()
+
+    employee = user.employee
+    employee.must_change_password = True
+    employee.save()
+
+    messages.success(request, f"Password resettata per {employee.full_name}")
+    return redirect("admin_employees")
+
+
+@login_required
+def admin_generate_link(request, user_id):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    user = get_object_or_404(User, id=user_id)
+
+    link = request.build_absolute_uri(
+        reverse("register_view", args=[user.username])
+    )
+
+    messages.success(request, f"Link registrazione: {link}")
+    return redirect("admin_employees")
 
 
 @login_required
@@ -122,18 +190,10 @@ def admin_upload_period_folder(request):
         linked_payslips = 0
 
         month_map = {
-            "gennaio": 1,
-            "febbraio": 2,
-            "marzo": 3,
-            "aprile": 4,
-            "maggio": 5,
-            "giugno": 6,
-            "luglio": 7,
-            "agosto": 8,
-            "settembre": 9,
-            "ottobre": 10,
-            "novembre": 11,
-            "dicembre": 12,
+            "gennaio": 1, "febbraio": 2, "marzo": 3,
+            "aprile": 4, "maggio": 5, "giugno": 6,
+            "luglio": 7, "agosto": 8, "settembre": 9,
+            "ottobre": 10, "novembre": 11, "dicembre": 12,
         }
 
         for file in files:
@@ -158,21 +218,19 @@ def admin_upload_period_folder(request):
 
             mese = month_map[mese_str]
 
-            # 🔥 username intelligente
-            base_username = f"{nome.lower()}-{cognome.lower()}"
-            username = base_username
-            counter = 1
+            full_name = f"{nome} {cognome}"
+            employee = Employee.objects.filter(full_name=full_name).first()
 
-            while User.objects.filter(username=username).exists():
-                username = f"{base_username}{counter}"
-                counter += 1
+            if not employee:
 
-            user = User.objects.filter(
-                first_name=nome,
-                last_name=cognome
-            ).first()
+                base_username = f"{nome.lower()}-{cognome.lower()}"
+                username = base_username
+                counter = 1
 
-            if not user:
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+
                 user = User.objects.create(
                     username=username,
                     first_name=nome,
@@ -181,24 +239,27 @@ def admin_upload_period_folder(request):
                 user.set_password("cambiala")
                 user.save()
 
-                Employee.objects.create(
+                employee = Employee.objects.create(
                     user=user,
-                    full_name=f"{nome} {cognome}",
+                    full_name=full_name,
                     must_change_password=True
                 )
 
                 created_users += 1
 
-            employee = user.employee
-
-            payslip, created = Payslip.objects.get_or_create(
+            if not Payslip.objects.filter(
                 employee=employee,
                 year=anno,
-                month=mese,
-                defaults={"pdf": file}
-            )
+                month=mese
+            ).exists():
 
-            if created:
+                Payslip.objects.create(
+                    employee=employee,
+                    year=anno,
+                    month=mese,
+                    pdf=file
+                )
+
                 linked_payslips += 1
 
         messages.success(
