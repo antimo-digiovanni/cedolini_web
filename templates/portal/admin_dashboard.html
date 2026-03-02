@@ -5,65 +5,56 @@
 
 <div class="container">
 
+    <!-- TITOLO -->
     <div class="mb-4">
-        <h2>Dashboard Admin</h2>
+        <h2 class="fw-bold">Dashboard Admin</h2>
         <p class="text-muted">Monitoraggio completo del sistema</p>
     </div>
 
+    <!-- CARD STATISTICHE -->
     <div class="row g-4">
 
         <div class="col-md-4">
-            <div class="card-modern text-center bg-white">
-                <i class="bi bi-file-earmark-text" style="font-size:2rem; color:#2563eb;"></i>
-                <h3 class="mt-3 counter" data-target="{{ totale_cedolini }}">0</h3>
+            <div class="card-modern bg-white position-relative text-center">
+                <div class="position-absolute top-0 end-0 p-3">
+                    <i class="bi bi-file-earmark-text text-primary" style="font-size:1.4rem;"></i>
+                </div>
+                <h1 class="fw-bold mt-3 display-6">{{ totale_cedolini }}</h1>
                 <p class="text-muted mb-0">Totale Cedolini</p>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card-modern text-center bg-white">
-                <i class="bi bi-eye" style="font-size:2rem; color:#10b981;"></i>
-                <h3 class="mt-3 counter" data-target="{{ visualizzati }}">0</h3>
+            <div class="card-modern bg-white position-relative text-center">
+                <div class="position-absolute top-0 end-0 p-3">
+                    <i class="bi bi-eye text-success" style="font-size:1.4rem;"></i>
+                </div>
+                <h1 class="fw-bold mt-3 display-6">{{ visualizzati }}</h1>
                 <p class="text-muted mb-0">Visualizzati</p>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card-modern text-center bg-white">
-                <i class="bi bi-eye-slash" style="font-size:2rem; color:#ef4444;"></i>
-                <h3 class="mt-3 counter" data-target="{{ non_visualizzati }}">0</h3>
+            <div class="card-modern bg-white position-relative text-center">
+                <div class="position-absolute top-0 end-0 p-3">
+                    <i class="bi bi-eye-slash text-danger" style="font-size:1.4rem;"></i>
+                </div>
+                <h1 class="fw-bold mt-3 display-6">{{ non_visualizzati }}</h1>
                 <p class="text-muted mb-0">Non Visualizzati</p>
             </div>
         </div>
 
     </div>
 
-    <div class="mt-5 card-modern bg-white">
-        <h5 class="mb-4">Distribuzione Visualizzazioni</h5>
-        <canvas id="statsChart" height="100"></canvas>
+    <!-- GRAFICO -->
+    <div class="card-modern bg-white mt-5">
+        <h5 class="fw-semibold mb-4">Distribuzione Visualizzazioni</h5>
+        <canvas id="statsChart" height="90"></canvas>
     </div>
 
 </div>
 
 <script>
-const counters = document.querySelectorAll('.counter');
-
-counters.forEach(counter => {
-    const updateCount = () => {
-        const target = +counter.getAttribute('data-target');
-        const count = +counter.innerText;
-        const increment = target / 50;
-
-        if(count < target){
-            counter.innerText = Math.ceil(count + increment);
-            setTimeout(updateCount, 20);
-        } else {
-            counter.innerText = target;
-        }
-    };
-    updateCount();
-});
-
 const ctx = document.getElementById('statsChart');
 
 new Chart(ctx, {
@@ -84,7 +75,8 @@ new Chart(ctx, {
             legend: {
                 position: 'bottom'
             }
-        }
+        },
+        cutout: '65%'
     }
 });
 </script>
