@@ -4,9 +4,9 @@ from .models import Employee, Payslip, AuditEvent
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'external_code', 'copia_link_invito')
+    list_display = ('full_name', 'external_code', 'copia_invito')
     
-    def copia_link_invito(self, obj):
+    def copia_invito(self, obj):
         if obj.user:
             url = f"https://cedolini-web.onrender.com/register/{obj.user.username}/"
             return format_html(
