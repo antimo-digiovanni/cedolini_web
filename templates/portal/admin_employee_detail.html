@@ -1,0 +1,45 @@
+{% extends "portal/base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Cedolini di {{ employee.full_name }}</h2>
+
+<div class="card-modern">
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Mese</th>
+            <th>Anno</th>
+            <th>Stato</th>
+            <th>Data visualizzazione</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in detailed %}
+        <tr>
+            <td>{{ item.payslip.month }}</td>
+            <td>{{ item.payslip.year }}</td>
+
+            <td>
+                {% if item.view %}
+                    <span class="badge bg-success">Visualizzato</span>
+                {% else %}
+                    <span class="badge bg-danger">Non visualizzato</span>
+                {% endif %}
+            </td>
+
+            <td>
+                {% if item.view %}
+                    {{ item.view.viewed_at|date:"d/m/Y H:i" }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+</div>
+
+{% endblock %}

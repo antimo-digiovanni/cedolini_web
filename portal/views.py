@@ -11,7 +11,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.db.models import Count
 
-from .models import Employee, Payslip
+from .models import Employee, Payslip, PayslipView
 
 
 # =============================
@@ -34,7 +34,6 @@ def home(request):
 def dashboard(request):
     employee = get_object_or_404(Employee, user=request.user)
 
-    # Obbligo cambio password
     if employee.must_change_password:
         return redirect('password_change')
 
@@ -52,6 +51,10 @@ def open_payslip(request, payslip_id):
 
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
+
+    # 🔥 REGISTRA VISUALIZZAZIONE
+    if not request.user.is_staff:
+        PayslipView.objects.create(payslip=payslip)
 
     response = HttpResponse(payslip.pdf, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="cedolino.pdf"'
@@ -96,27 +99,18 @@ def admin_dashboard(request):
 
     total_employees = Employee.objects.count()
     total_payslips = Payslip.objects.count()
-    must_change = Employee.objects.filter(must_change_password=True).count()
 
-    current_year = datetime.date.today().year
+    visualizzati = Payslip.objects.filter(
+        payslipview__isnull=False
+    ).distinct().count()
 
-    monthly_stats = (
-        Payslip.objects
-        .filter(year=current_year)
-        .values('month')
-        .annotate(count=Count('id'))
-        .order_by('month')
-    )
-
-    months = [m['month'] for m in monthly_stats]
-    counts = [m['count'] for m in monthly_stats]
+    non_visualizzati = total_payslips - visualizzati
 
     return render(request, "portal/admin_dashboard.html", {
         "total_employees": total_employees,
         "total_payslips": total_payslips,
-        "must_change": must_change,
-        "months": months,
-        "counts": counts,
+        "visualizzati": visualizzati,
+        "non_visualizzati": non_visualizzati,
     })
 
 
@@ -129,6 +123,60 @@ def admin_employees(request):
 
     return render(request, "portal/admin_employees.html", {
         "employees": employees
+    })
+
+
+@login_required
+def admin_employee_detail(request, employee_id):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee, id=employee_id)
+    payslips = employee.payslips.all().order_by('-year', '-month')
+
+    detailed = []
+
+    for p in payslips:
+        view = p.payslipview_set.order_by('-viewed_at').first()
+        detailed.append({
+            "payslip": p,
+            "view": view
+        })
+
+    return render(request, "portal/admin_employee_detail.html", {
+        "employee": employee,
+        "detailed": detailed
+    })
+
+
+@login_required
+def admin_report(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.all()
+
+    report_data = []
+
+    for emp in employees:
+        total = emp.payslips.count()
+
+        visualizzati = Payslip.objects.filter(
+            employee=emp,
+            payslipview__isnull=False
+        ).distinct().count()
+
+        non_visualizzati = total - visualizzati
+
+        report_data.append({
+            "employee": emp,
+            "total": total,
+            "visualizzati": visualizzati,
+            "non_visualizzati": non_visualizzati,
+        })
+
+    return render(request, 'portal/admin_report.html', {
+        "report_data": report_data
     })
 
 
@@ -178,107 +226,7 @@ def admin_upload_period_folder(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    if request.method == "POST":
-
-        files = request.FILES.getlist("folder")
-
-        if not files:
-            messages.error(request, "Nessun file selezionato.")
-            return redirect("admin_upload_period_folder")
-
-        created_users = 0
-        linked_payslips = 0
-
-        month_map = {
-            "gennaio": 1, "febbraio": 2, "marzo": 3,
-            "aprile": 4, "maggio": 5, "giugno": 6,
-            "luglio": 7, "agosto": 8, "settembre": 9,
-            "ottobre": 10, "novembre": 11, "dicembre": 12,
-        }
-
-        for file in files:
-
-            filename = os.path.splitext(file.name)[0].lower()
-            parts = filename.split()
-
-            if len(parts) < 4:
-                continue
-
-            cognome = parts[0].capitalize()
-            nome = parts[1].capitalize()
-            mese_str = parts[2].lower()
-
-            try:
-                anno = int(parts[3])
-            except:
-                continue
-
-            if mese_str not in month_map:
-                continue
-
-            mese = month_map[mese_str]
-
-            full_name = f"{nome} {cognome}"
-            employee = Employee.objects.filter(full_name=full_name).first()
-
-            if not employee:
-
-                base_username = f"{nome.lower()}-{cognome.lower()}"
-                username = base_username
-                counter = 1
-
-                while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{counter}"
-                    counter += 1
-
-                user = User.objects.create(
-                    username=username,
-                    first_name=nome,
-                    last_name=cognome
-                )
-                user.set_password("cambiala")
-                user.save()
-
-                employee = Employee.objects.create(
-                    user=user,
-                    full_name=full_name,
-                    must_change_password=True
-                )
-
-                created_users += 1
-
-            if not Payslip.objects.filter(
-                employee=employee,
-                year=anno,
-                month=mese
-            ).exists():
-
-                Payslip.objects.create(
-                    employee=employee,
-                    year=anno,
-                    month=mese,
-                    pdf=file
-                )
-
-                linked_payslips += 1
-
-        messages.success(
-            request,
-            f"{linked_payslips} cedolini caricati. "
-            f"{created_users} nuovi dipendenti creati."
-        )
-
-        return redirect("admin_upload_period_folder")
-
     return render(request, "portal/admin_upload_period_folder.html")
-
-
-@login_required
-def admin_report(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
-
-    return render(request, 'portal/admin_report.html')
 
 
 @login_required
@@ -287,27 +235,3 @@ def admin_audit_dashboard(request):
         return redirect('dashboard')
 
     return render(request, 'portal/admin_audit.html')
-
-
-# =============================
-# TEST EMAIL
-# =============================
-
-@login_required
-def test_email(request):
-    if not request.user.is_staff:
-        return HttpResponse("Non autorizzato", status=403)
-
-    try:
-        result = send_mail(
-            subject='Test Gmail - Portale Cedolini',
-            message='Configurazione Gmail OK!',
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=['antimo.digiovanni@sanvincenzosrl.com'],
-            fail_silently=False
-        )
-
-        return HttpResponse(f"Email inviata correttamente! Risultato: {result}")
-
-    except Exception as e:
-        return HttpResponse(f"Errore invio email: {str(e)}")
