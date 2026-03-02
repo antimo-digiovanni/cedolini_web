@@ -79,7 +79,6 @@ def register_view(request, token):
             user_obj.save()
             employee.must_change_password = False
             employee.save()
-
             messages.success(request, "Registrazione completata!")
             return redirect('login')
         else:
@@ -113,6 +112,41 @@ def admin_dashboard(request):
         "totale_dipendenti": totale_dipendenti,
         "visualizzati": visualizzati,
         "non_visualizzati": non_visualizzati,
+    })
+
+
+# =========================================================
+# REPORT
+# =========================================================
+
+@login_required
+def admin_report(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.all()
+
+    report_data = []
+
+    for emp in employees:
+        totale = emp.payslips.count()
+
+        visualizzati = Payslip.objects.filter(
+            employee=emp,
+            payslipview__isnull=False
+        ).distinct().count()
+
+        non_visualizzati = totale - visualizzati
+
+        report_data.append({
+            "employee": emp,
+            "totale": totale,
+            "visualizzati": visualizzati,
+            "non_visualizzati": non_visualizzati,
+        })
+
+    return render(request, "portal/admin_report.html", {
+        "report_data": report_data
     })
 
 
@@ -158,16 +192,6 @@ def admin_employee_detail(request, employee_id):
 def admin_upload_period_folder(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-
-    if request.method == "POST":
-        files = request.FILES.getlist("folder")
-
-        if not files:
-            messages.error(request, "Nessun file selezionato.")
-            return redirect("admin_upload_period_folder")
-
-        messages.success(request, f"{len(files)} file ricevuti correttamente.")
-        return redirect("admin_upload_period_folder")
 
     return render(request, "portal/admin_upload_period_folder.html")
 
