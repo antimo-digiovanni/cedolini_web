@@ -7,8 +7,6 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
-from django.core.mail import send_mail
-from django.conf import settings
 from django.urls import reverse
 from django.db.models import Count
 
@@ -55,7 +53,7 @@ def open_payslip(request, payslip_id):
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
 
-    # Registra visualizzazione (una sola volta per cedolino)
+    # registra visualizzazione una sola volta
     if not request.user.is_staff:
         if not PayslipView.objects.filter(payslip=payslip).exists():
             PayslipView.objects.create(payslip=payslip)
@@ -112,7 +110,6 @@ def admin_dashboard(request):
 
     non_visualizzati = totale_cedolini - visualizzati
 
-    # Distribuzione mensile anno corrente
     current_year = datetime.date.today().year
 
     monthly_data = (
@@ -141,134 +138,116 @@ def admin_dashboard(request):
 
 
 # =========================================================
-# LISTA DIPENDENTI
+# IMPORT CARTELLA PERIODO (QUI ERA IL PROBLEMA)
 # =========================================================
 
 @login_required
-def admin_employees(request):
+def admin_upload_period_folder(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    employees = Employee.objects.select_related('user').all()
+    if request.method == "POST":
 
-    return render(request, "portal/admin_employees.html", {
-        "employees": employees
-    })
+        files = request.FILES.getlist("folder")
 
+        if not files:
+            messages.error(request, "Nessun file selezionato.")
+            return redirect("admin_upload_period_folder")
 
-# =========================================================
-# DETTAGLIO DIPENDENTE
-# =========================================================
+        month_map = {
+            "gennaio": 1, "febbraio": 2, "marzo": 3,
+            "aprile": 4, "maggio": 5, "giugno": 6,
+            "luglio": 7, "agosto": 8, "settembre": 9,
+            "ottobre": 10, "novembre": 11, "dicembre": 12,
+        }
 
-@login_required
-def admin_employee_detail(request, employee_id):
-    if not request.user.is_staff:
-        return redirect('dashboard')
+        created_users = 0
+        linked_payslips = 0
+        skipped = 0
 
-    employee = get_object_or_404(Employee, id=employee_id)
-    payslips = employee.payslips.all().order_by('-year', '-month')
+        for f in files:
+            base = os.path.basename(f.name)
+            filename = os.path.splitext(base)[0].lower().strip()
 
-    grouped = {}
+            parts = filename.split()
 
-    for p in payslips:
-        year = p.year
-        month_name = calendar.month_name[p.month]
+            if len(parts) < 4:
+                skipped += 1
+                continue
 
-        view = p.payslipview_set.order_by('-viewed_at').first()
+            cognome = parts[0].capitalize()
+            nome = parts[1].capitalize()
+            mese_str = parts[2].lower()
 
-        if year not in grouped:
-            grouped[year] = []
+            try:
+                anno = int(parts[3])
+            except:
+                skipped += 1
+                continue
 
-        grouped[year].append({
-            "payslip": p,
-            "month_name": month_name,
-            "view": view
-        })
+            if mese_str not in month_map:
+                skipped += 1
+                continue
 
-    return render(request, "portal/admin_employee_detail.html", {
-        "employee": employee,
-        "grouped": grouped
-    })
+            mese = month_map[mese_str]
+            full_name = f"{nome} {cognome}"
 
+            employee = Employee.objects.filter(full_name=full_name).first()
 
-# =========================================================
-# REPORT GENERALE
-# =========================================================
+            if not employee:
 
-@login_required
-def admin_report(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
+                base_username = f"{nome.lower()}-{cognome.lower()}"
+                username = base_username
+                counter = 1
 
-    employees = Employee.objects.all()
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
 
-    report_data = []
+                user = User.objects.create(
+                    username=username,
+                    first_name=nome,
+                    last_name=cognome
+                )
+                user.set_password("cambiala")
+                user.save()
 
-    for emp in employees:
-        total = emp.payslips.count()
+                employee = Employee.objects.create(
+                    user=user,
+                    full_name=full_name,
+                    must_change_password=True
+                )
 
-        visualizzati = Payslip.objects.filter(
-            employee=emp,
-            payslipview__isnull=False
-        ).distinct().count()
+                created_users += 1
 
-        non_visualizzati = total - visualizzati
+            if not Payslip.objects.filter(
+                employee=employee,
+                year=anno,
+                month=mese
+            ).exists():
 
-        report_data.append({
-            "employee": emp,
-            "total": total,
-            "visualizzati": visualizzati,
-            "non_visualizzati": non_visualizzati,
-        })
+                Payslip.objects.create(
+                    employee=employee,
+                    year=anno,
+                    month=mese,
+                    pdf=f
+                )
 
-    return render(request, 'portal/admin_report.html', {
-        "report_data": report_data
-    })
+                linked_payslips += 1
 
+        messages.success(
+            request,
+            f"Import completato ✅  Cedolini: {linked_payslips} | "
+            f"Nuovi utenti: {created_users} | Saltati: {skipped}"
+        )
 
-# =========================================================
-# RESET PASSWORD
-# =========================================================
+        return redirect("admin_upload_period_folder")
 
-@login_required
-def admin_reset_password(request, user_id):
-    if not request.user.is_staff:
-        return redirect('dashboard')
-
-    user = get_object_or_404(User, id=user_id)
-
-    user.set_password("cambiala")
-    user.save()
-
-    employee = user.employee
-    employee.must_change_password = True
-    employee.save()
-
-    messages.success(request, f"Password resettata per {employee.full_name}")
-    return redirect("admin_employees")
-
-
-# =========================================================
-# GENERA LINK REGISTRAZIONE
-# =========================================================
-
-@login_required
-def admin_generate_link(request, user_id):
-    if not request.user.is_staff:
-        return redirect('dashboard')
-
-    user = get_object_or_404(User, id=user_id)
-
-    link = request.build_absolute_uri(
-        reverse("register_view", args=[user.username])
-    )
-
-    messages.success(request, f"Link registrazione: {link}")
-    return redirect("admin_employees")
+    return render(request, "portal/admin_upload_period_folder.html")
 
 
 # =========================================================
-# ALTRE PAGINE ADMIN
+# ALTRE PAGINE
 # =========================================================
 
 @login_required
@@ -277,14 +256,6 @@ def admin_upload_payslip(request):
         return redirect('dashboard')
 
     return render(request, 'portal/admin_upload_payslip.html')
-
-
-@login_required
-def admin_upload_period_folder(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
-
-    return render(request, "portal/admin_upload_period_folder.html")
 
 
 @login_required
