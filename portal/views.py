@@ -98,10 +98,10 @@ def dashboard(request):
     grouped = {}
 
     for p in payslips:
-        viewed = p.payslipview_set.first()
+        viewed = p.payslipview_set.exists()
 
-        p.is_viewed = bool(viewed)
-        p.viewed_at = viewed.viewed_at if viewed else None
+        p.is_viewed = viewed
+        p.viewed_at = None
 
         if p.year not in grouped:
             grouped[p.year] = []
