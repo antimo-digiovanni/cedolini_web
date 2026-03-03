@@ -92,19 +92,23 @@ def send_invite_email(employee):
 
     register_url = f"https://cedolini-web.onrender.com/portal/register/{invite.token}/"
 
-    subject = "Accesso Portale Cedolini"
+    username = employee.user.username
+
+    subject = "Attivazione account - Portale Cedolini"
 
     text_content = f"""
 Gentile {employee.first_name or ''} {employee.last_name or ''},
 
 è stato creato il tuo accesso al Portale Cedolini.
 
-Username: {employee.user.username}
+USERNAME: {username}
 
-Clicca qui per completare la registrazione:
+Ti servirà questo username per effettuare l'accesso al portale.
+
+Clicca sul link seguente per attivare il tuo account e creare la password:
 {register_url}
 
-Il link scade tra 7 giorni.
+Il link è valido per 7 giorni.
 
 Cordiali saluti
 San Vincenzo Srl
@@ -115,16 +119,26 @@ San Vincenzo Srl
 
 <p>È stato creato il tuo accesso al <strong>Portale Cedolini</strong>.</p>
 
-<p><strong>Username:</strong> {employee.user.username}</p>
+<div style="background:#f3f4f6;padding:15px;border-radius:8px;margin:15px 0;">
+    <p style="margin:0;"><strong>Username:</strong></p>
+    <p style="font-size:18px;font-weight:bold;color:#1e3a8a;margin:5px 0;">
+        {username}
+    </p>
+    <p style="font-size:13px;color:#555;margin:0;">
+        Ti servirà questo username per effettuare il login.
+    </p>
+</div>
 
 <p>
 <a href="{register_url}" 
-style="display:inline-block;padding:12px 20px;background:#111827;color:white;text-decoration:none;border-radius:6px;">
-Completa registrazione
+style="display:inline-block;padding:12px 20px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:600;">
+Attiva il tuo account
 </a>
 </p>
 
-<p>Il link scade tra 7 giorni.</p>
+<p style="margin-top:20px;font-size:13px;color:#555;">
+Il link è valido per 7 giorni.
+</p>
 
 <p>Cordiali saluti<br>
 San Vincenzo Srl</p>
@@ -221,9 +235,7 @@ def admin_upload_period_folder(request):
         if not files:
             return JsonResponse({"error": "Nessun file"}, status=400)
 
-        job = ImportJob.objects.create(
-            total_files=len(files)
-        )
+        job = ImportJob.objects.create(total_files=len(files))
 
         month_map = {
             "gennaio": 1, "febbraio": 2, "marzo": 3,
@@ -240,9 +252,7 @@ def admin_upload_period_folder(request):
                     for e in Employee.objects.select_related("user")
                 }
 
-                usernames = set(
-                    User.objects.values_list("username", flat=True)
-                )
+                usernames = set(User.objects.values_list("username", flat=True))
 
                 existing_payslips = set(
                     Payslip.objects.values_list("employee_id", "year", "month")
