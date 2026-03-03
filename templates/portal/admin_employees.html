@@ -28,9 +28,9 @@
             <td>{{ emp.full_name }}</td>
             <td class="emp-email">{{ emp.email_invio }}</td>
             <td>
-                <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-outline-secondary btn-sm">
+                <button class="btn btn-outline-secondary btn-sm show-payslips-btn" data-emp-id="{{ emp.id }}">
                     {{ emp.payslip_count }}
-                </a>
+                </button>
             </td>
             <td>
                 {% if emp.invito_inviato %}
@@ -74,6 +74,43 @@
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     let currentEmployeeId = null;
+// Load payslips fragment when clicking the payslip count button
+document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.show-payslips-btn').forEach(btn => {
+        btn.addEventListener('click', async function(){
+            const empId = this.dataset.empId;
+            const tr = this.closest('tr');
+
+            // if already loaded, toggle
+            const next = tr.nextElementSibling;
+            if(next && next.classList.contains('employee-payslips-row')){
+                next.remove();
+                return;
+            }
+
+            try{
+                const urlTemplate = '{% url "admin_employee_payslips" 0 %}';
+                const url = urlTemplate.replace('/0/', `/${empId}/`);
+                const resp = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if(!resp.ok) throw new Error('Network');
+                const html = await resp.text();
+                const wrap = document.createElement('tr');
+                wrap.className = 'employee-payslips-row';
+                const td = document.createElement('td');
+                td.colSpan = 5;
+                td.innerHTML = html;
+                wrap.appendChild(td);
+                tr.parentNode.insertBefore(wrap, tr.nextSibling);
+            }catch(e){
+                console.error('Errore caricamento cedolini', e);
+                alert('Impossibile caricare i cedolini');
+            }
+        });
+    });
+});
+
     const modal = new bootstrap.Modal(document.getElementById('emailModal'));
 
     document.querySelectorAll('.send-invite-btn').forEach(btn => {

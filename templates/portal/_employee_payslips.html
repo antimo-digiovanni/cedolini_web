@@ -1,0 +1,37 @@
+<div class="employee-payslips card-modern mt-2 p-3">
+    <h6>Lista Cedolini per {{ employee.full_name }}</h6>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Anno</th>
+                    <th>Mese</th>
+                    <th>Stato</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payslips %}
+                <tr>
+                    <td>{{ p.year }}</td>
+                    <td>{{ p.month }}</td>
+                    <td>
+                        {% if p.payslipview_set.count > 0 %}
+                            <span class="badge bg-success">Visualizzato</span>
+                        {% else %}
+                            <span class="badge bg-danger">Non visualizzato</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'open_payslip' p.id %}" class="btn btn-sm btn-primary" target="_blank">Apri</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">Nessun cedolino trovato</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

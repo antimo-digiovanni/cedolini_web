@@ -224,6 +224,20 @@ def admin_employee_detail(request, emp_id):
 
 
 @login_required
+def admin_employee_payslips(request, emp_id):
+    if not request.user.is_staff:
+        return HttpResponse(status=403)
+
+    employee = get_object_or_404(Employee, id=emp_id)
+    payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
+
+    return render(request, 'portal/_employee_payslips.html', {
+        'payslips': payslips,
+        'employee': employee,
+    })
+
+
+@login_required
 def admin_send_invite(request):
     if not request.user.is_staff:
         return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
