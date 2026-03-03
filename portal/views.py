@@ -56,7 +56,7 @@ def open_payslip(request, payslip_id):
 
 
 # =========================================================
-# REGISTER VIEW
+# REGISTER
 # =========================================================
 
 def register_view(request, token):
@@ -179,7 +179,7 @@ def admin_report(request):
 
 
 # =========================================================
-# IMPORT CARTELLA PERIODO
+# IMPORT CARTELLA PERIODO (FUNZIONANTE)
 # =========================================================
 
 @login_required
@@ -187,11 +187,110 @@ def admin_upload_period_folder(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
+    if request.method == "POST":
+
+        files = request.FILES.getlist("folder")
+
+        if not files:
+            messages.error(request, "Nessun file selezionato.")
+            return redirect("admin_upload_period_folder")
+
+        month_map = {
+            "gennaio": 1, "febbraio": 2, "marzo": 3,
+            "aprile": 4, "maggio": 5, "giugno": 6,
+            "luglio": 7, "agosto": 8, "settembre": 9,
+            "ottobre": 10, "novembre": 11, "dicembre": 12,
+        }
+
+        created_users = 0
+        created_payslips = 0
+        skipped = 0
+
+        for file in files:
+
+            filename = os.path.splitext(file.name)[0].strip().lower()
+            parts = filename.split()
+
+            if len(parts) < 4:
+                skipped += 1
+                continue
+
+            cognome = parts[0].capitalize()
+            nome = parts[1].capitalize()
+            mese_str = parts[2]
+
+            try:
+                anno = int(parts[3])
+            except:
+                skipped += 1
+                continue
+
+            if mese_str not in month_map:
+                skipped += 1
+                continue
+
+            mese = month_map[mese_str]
+            full_name = f"{nome} {cognome}"
+
+            employee = Employee.objects.filter(
+                full_name__iexact=full_name
+            ).first()
+
+            if not employee:
+
+                base_username = f"{nome.lower()}-{cognome.lower()}"
+                username = base_username
+                counter = 1
+
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+
+                user = User.objects.create_user(
+                    username=username,
+                    password="cambiala",
+                    first_name=nome,
+                    last_name=cognome
+                )
+
+                employee = Employee.objects.create(
+                    user=user,
+                    full_name=full_name,
+                    must_change_password=True
+                )
+
+                created_users += 1
+
+            if not Payslip.objects.filter(
+                employee=employee,
+                year=anno,
+                month=mese
+            ).exists():
+
+                Payslip.objects.create(
+                    employee=employee,
+                    year=anno,
+                    month=mese,
+                    pdf=file
+                )
+
+                created_payslips += 1
+            else:
+                skipped += 1
+
+        messages.success(
+            request,
+            f"Import completato ✅ Cedolini: {created_payslips} | "
+            f"Nuovi utenti: {created_users} | Saltati: {skipped}"
+        )
+
+        return redirect("admin_upload_period_folder")
+
     return render(request, "portal/admin_upload_period_folder.html")
 
 
 # =========================================================
-# UPLOAD SINGOLO CEDOLINO
+# UPLOAD SINGOLO
 # =========================================================
 
 @login_required
@@ -199,7 +298,7 @@ def admin_upload_payslip(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    return render(request, 'portal/admin_upload_payslip.html')
+    return render(request, "portal/admin_upload_payslip.html")
 
 
 # =========================================================
@@ -211,4 +310,4 @@ def admin_audit_dashboard(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    return render(request, 'portal/admin_audit.html')
+    return render(request, "portal/admin_audit.html")
