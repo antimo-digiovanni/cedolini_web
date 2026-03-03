@@ -135,10 +135,6 @@ main {
         </a>
 
         {% if user.is_staff %}
-        <a href="{% url 'admin_upload_period_folder' %}" class="{% if request.resolver_match.url_name == 'admin_upload_period_folder' %}active{% endif %}">
-            <i class="bi bi-folder2-open"></i> Import Mese
-        </a>
-
         <a href="{% url 'admin:index' %}">
             <i class="bi bi-gear"></i> Admin Django
         </a>
