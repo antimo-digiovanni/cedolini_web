@@ -20,25 +20,24 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_filter = ('must_change_password', 'invito_inviato')
 
     def save_model(self, request, obj, form, change):
-    super().save_model(request, obj, form, change)
+        super().save_model(request, obj, form, change)
 
-    if obj.email_invio and not obj.invito_inviato:
+        if obj.email_invio and not obj.invito_inviato:
 
-        token = get_random_string(64)
+            token = get_random_string(64)
 
-        InviteToken.objects.create(
-            employee=obj,
-            token=token,
-            expires_at=timezone.now() + timedelta(days=7)
-        )
+            InviteToken.objects.create(
+                employee=obj,
+                token=token,
+                expires_at=timezone.now() + timedelta(days=7)
+            )
 
-        link = f"https://cedolini-web.onrender.com/portal/register/{token}/"
+            link = f"https://cedolini-web.onrender.com/portal/register/{token}/"
+            username = obj.user.username
 
-        username = obj.user.username
+            subject = "Attivazione account - Portale Cedolini"
 
-        subject = "Attivazione account - Portale Cedolini"
-
-        text_content = f"""
+            text_content = f"""
 Gentile {obj.first_name} {obj.last_name},
 
 è stato creato il tuo accesso al Portale Cedolini.
@@ -56,7 +55,7 @@ Cordiali saluti
 San Vincenzo Srl
 """
 
-        html_content = f"""
+            html_content = f"""
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial, sans-serif;">
@@ -126,19 +125,19 @@ San Vincenzo Srl
 </html>
 """
 
-        email = EmailMultiAlternatives(
-            subject,
-            text_content,
-            settings.DEFAULT_FROM_EMAIL,
-            [obj.email_invio],
-            cc=["cedolini@sanvincenzosrl.com"],
-        )
+            email = EmailMultiAlternatives(
+                subject,
+                text_content,
+                settings.DEFAULT_FROM_EMAIL,
+                [obj.email_invio],
+                cc=["cedolini@sanvincenzosrl.com"],
+            )
 
-        email.attach_alternative(html_content, "text/html")
-        email.send()
+            email.attach_alternative(html_content, "text/html")
+            email.send()
 
-        obj.invito_inviato = True
-        obj.save()
+            obj.invito_inviato = True
+            obj.save()
 
 
 @admin.register(Payslip)
