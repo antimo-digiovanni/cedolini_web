@@ -118,6 +118,14 @@ main {
     position: relative;
     z-index: 2;
 }
+
+/* Ensure Bootstrap modal appears above other page elements */
+.modal {
+    z-index: 2000 !important;
+}
+.modal-backdrop {
+    z-index: 1500 !important;
+}
 </style>
 </head>
 

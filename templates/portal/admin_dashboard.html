@@ -58,7 +58,9 @@
     <!-- GRAFICO -->
     <div class="card-modern bg-white mt-5">
         <h5 class="fw-semibold mb-4">Distribuzione Visualizzazioni</h5>
-        <canvas id="statsChart" height="90"></canvas>
+        <div style="height:320px; max-height:420px;">
+            <canvas id="statsChart"></canvas>
+        </div>
     </div>
 
 </div>
@@ -70,26 +72,23 @@ const ctx = document.getElementById('statsChart');
 
 if (ctx) {
     new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-        labels: ['Visualizzati', 'Non Visualizzati'],
-        datasets: [{
-            data: [{{ visualizzati }}, {{ non_visualizzati }}],
-            backgroundColor: [
-                '#10b981',
-                '#ef4444'
-            ],
-            borderWidth: 0
-        }]
-    },
-    options: {
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
+        type: 'doughnut',
+        data: {
+            labels: ['Visualizzati', 'Non Visualizzati'],
+            datasets: [{
+                data: [{{ visualizzati }}, {{ non_visualizzati }}],
+                backgroundColor: ['#10b981', '#ef4444'],
+                borderWidth: 0
+            }]
         },
-        cutout: '65%'
-    }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            cutout: '65%'
+        }
     });
 }
 </script>
