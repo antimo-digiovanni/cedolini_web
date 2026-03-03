@@ -16,7 +16,6 @@ body {
     position: relative;
 }
 
-/* WATERMARK LOGO */
 .background-logo {
     position: fixed;
     top: 50%;
@@ -29,7 +28,7 @@ body {
     pointer-events: none;
     user-select: none;
 }
-/* SIDEBAR */
+
 .sidebar {
     height: 100vh;
     background: linear-gradient(180deg, #0f172a, #1e293b);
@@ -71,7 +70,6 @@ body {
     box-shadow: 0 0 15px rgba(37, 99, 235, 0.5);
 }
 
-/* TOP BAR */
 .topbar {
     background: #0f172a;
     padding: 14px 30px;
@@ -92,7 +90,6 @@ body {
     font-size: 0.9rem;
 }
 
-/* CARD */
 .card-modern {
     border: none;
     border-radius: 16px;
@@ -108,7 +105,6 @@ body {
     box-shadow: 0 18px 40px rgba(0,0,0,0.12);
 }
 
-/* FOOTER */
 .custom-footer {
     position: fixed;
     bottom: 10px;
@@ -118,7 +114,6 @@ body {
     z-index: 2;
 }
 
-/* MAIN */
 main {
     position: relative;
     z-index: 2;
@@ -128,12 +123,10 @@ main {
 
 <body>
 
-<!-- WATERMARK -->
 <img src="{% static 'portal/logo.png' %}" class="background-logo" alt="Background Logo">
 
 <div class="d-flex">
 
-    <!-- SIDEBAR -->
     <div class="sidebar" style="width:260px;">
         <div class="sidebar-title">Menu</div>
 
@@ -149,14 +142,6 @@ main {
         <a href="{% url 'admin:index' %}">
             <i class="bi bi-gear"></i> Admin Django
         </a>
-
-        <a href="{% url 'admin_report' %}" class="{% if request.resolver_match.url_name == 'admin_report' %}active{% endif %}">
-            <i class="bi bi-bar-chart"></i> Report
-        </a>
-
-        <a href="{% url 'admin_upload_payslip' %}" class="{% if request.resolver_match.url_name == 'admin_upload_payslip' %}active{% endif %}">
-            <i class="bi bi-upload"></i> Carica Cedolino
-        </a>
         {% endif %}
 
         <a href="{% url 'password_change' %}">
@@ -171,7 +156,6 @@ main {
         </form>
     </div>
 
-    <!-- CONTENUTO -->
     <div class="flex-fill">
 
         <div class="topbar">
