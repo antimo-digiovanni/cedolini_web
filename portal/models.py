@@ -14,8 +14,19 @@ class Employee(models.Model):
     external_code = models.CharField(max_length=10, blank=True, null=True)
     must_change_password = models.BooleanField(default=True)
 
+    @property
+    def full_name(self):
+        parts = [p for p in (self.first_name, self.last_name) if p]
+        if parts:
+            return " ".join(parts)
+        # fallback to username if names missing
+        try:
+            return self.user.username
+        except Exception:
+            return ""
+
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return self.full_name
 
 
 class Payslip(models.Model):
