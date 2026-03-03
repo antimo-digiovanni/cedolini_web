@@ -7,14 +7,15 @@ import secrets
 
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee')
-    full_name = models.CharField(max_length=160)
+    first_name = models.CharField(max_length=80)
+    last_name = models.CharField(max_length=80)
     email_invio = models.EmailField(max_length=255, blank=True, null=True)
     invito_inviato = models.BooleanField(default=False)
     external_code = models.CharField(max_length=10, blank=True, null=True)
     must_change_password = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.full_name
+    return f"{self.first_name} {self.last_name}"
 
 
 class Payslip(models.Model):

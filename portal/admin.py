@@ -11,8 +11,8 @@ admin.site.index_title = "Pannello di Amministrazione"
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'external_code', 'must_change_password', 'invito_inviato')
-    search_fields = ('full_name', 'external_code')
+    list_display = ('first_name', 'last_name', 'external_code', 'must_change_password', 'invito_inviato')
+    search_fields = ('first_name', 'last_name', 'external_code')
     list_filter = ('must_change_password', 'invito_inviato')
 
     def save_model(self, request, obj, form, change):
@@ -25,7 +25,7 @@ class EmployeeAdmin(admin.ModelAdmin):
             subject = "Accesso Portale Cedolini"
 
             text_content = f"""
-Ciao {obj.full_name},
+Ciao {obj.first_name} {obj.last_name},
 
 Sei stato invitato ad accedere al Portale Cedolini.
 
@@ -61,7 +61,7 @@ Username: {obj.user.username}
 
     <tr>
         <td style="font-size:14px;color:#374151;padding-bottom:20px;">
-            Gentile <strong>{obj.full_name}</strong>,<br><br>
+            Gentile <strong>{obj.first_name} {obj.last_name}</strong>,<br><br>
             è stato creato il tuo accesso al portale aziendale.
         </td>
     </tr>
