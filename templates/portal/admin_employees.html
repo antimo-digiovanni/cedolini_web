@@ -3,6 +3,14 @@
 
 <h2 class="mb-4">Dipendenti</h2>
 
+{% if user.is_staff %}
+<div class="mb-3">
+    <button id="debugOverlayBtn" class="btn btn-sm btn-outline-danger">Debug Modal Overlay</button>
+    <button id="debugRestoreBtn" class="btn btn-sm btn-outline-secondary ms-2" style="display:none;">Restore Overlay</button>
+    <small class="text-muted ms-2">(clicca e poi apri il modal)</small>
+</div>
+{% endif %}
+
 <div class="card-modern">
 <table class="table table-hover">
     <thead>
@@ -122,6 +130,89 @@ function getCookie(name) {
     let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
     return v ? v[2] : null;
 }
+</script>
+
+<script>
+// Debug button behaviour: highlight element overlaying modal center
+(() => {
+    const dbg = document.getElementById('debugOverlayBtn');
+    const restoreBtn = document.getElementById('debugRestoreBtn');
+    let highlighted = null;
+    let infoBox = null;
+
+    function clearHighlight(){
+        if(highlighted){
+            highlighted.style.outline = highlighted.dataset._dbg_origOutline || '';
+            highlighted.style.pointerEvents = highlighted.dataset._dbg_origPointer || '';
+            delete highlighted.dataset._dbg_origOutline;
+            delete highlighted.dataset._dbg_origPointer;
+            highlighted = null;
+        }
+        if(infoBox && infoBox.parentNode){ infoBox.parentNode.removeChild(infoBox); infoBox = null; }
+        if(restoreBtn) restoreBtn.style.display = 'none';
+    }
+
+    function showInfo(el){
+        clearHighlight();
+        if(!el) return;
+        highlighted = el;
+        highlighted.dataset._dbg_origOutline = highlighted.style.outline || '';
+        highlighted.dataset._dbg_origPointer = highlighted.style.pointerEvents || '';
+        highlighted.style.outline = '4px solid rgba(255,0,0,0.9)';
+        highlighted.style.pointerEvents = 'none';
+
+        infoBox = document.createElement('div');
+        infoBox.style.position = 'fixed';
+        infoBox.style.right = '20px';
+        infoBox.style.bottom = '20px';
+        infoBox.style.background = 'rgba(0,0,0,0.75)';
+        infoBox.style.color = 'white';
+        infoBox.style.padding = '10px 14px';
+        infoBox.style.borderRadius = '6px';
+        infoBox.style.zIndex = 1000000;
+        infoBox.innerText = `Overlay element: ${el.tagName} ${el.id?('#'+el.id):''} ${el.className?('.'+el.className.split(' ').join('.')):''} zIndex=${getComputedStyle(el).zIndex}`;
+        document.body.appendChild(infoBox);
+        if(restoreBtn) restoreBtn.style.display = 'inline-block';
+    }
+
+    function detectOverlay(){
+        const modal = document.getElementById('emailModal') || document.querySelector('.modal');
+        if(!modal){ alert('Modal non trovato'); return; }
+        const rect = modal.getBoundingClientRect();
+        const cx = Math.round(rect.left + rect.width/2);
+        const cy = Math.round(rect.top + rect.height/2);
+        const el = document.elementFromPoint(cx, cy);
+        if(el && !modal.contains(el)){
+            showInfo(el);
+            return el;
+        }
+        alert('Nessun overlay esterno rilevato al centro del modal.');
+        return null;
+    }
+
+    if(dbg){
+        dbg.addEventListener('click', function(){
+            // instruct user to open modal after clicking button
+            alert('Ora apri il modal "Invia Invito"; il debug evidenzierà l\'elemento che lo copre.');
+        });
+    }
+
+    if(restoreBtn){
+        restoreBtn.addEventListener('click', function(){
+            clearHighlight();
+        });
+    }
+
+    // Also run detection automatically when modal is shown
+    document.addEventListener('DOMContentLoaded', function(){
+        const modal = document.getElementById('emailModal');
+        if(modal){
+            modal.addEventListener('shown.bs.modal', function(){
+                setTimeout(() => detectOverlay(), 120);
+            });
+        }
+    });
+})();
 </script>
 
 {% endblock %}
