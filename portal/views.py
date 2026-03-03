@@ -398,6 +398,9 @@ def admin_upload_period_folder(request):
         'settembre': 9, 'ottobre': 10, 'novembre': 11, 'dicembre': 12,
     }
 
+    # Two-phase flow:
+    # - initial POST with files: process files and create users/payslips, store created ids in session and show confirmation
+    # - confirmation page has Annulla which will call admin_cancel_import to rollback created items
     if request.method == 'POST' and request.FILES:
         # accept either input name 'files' or legacy 'folder' from template
         files = request.FILES.getlist('files') or request.FILES.getlist('folder')
@@ -458,11 +461,11 @@ def admin_upload_period_folder(request):
                     password = secrets.token_urlsafe(8)
                     user = User.objects.create_user(username=username, password=password, is_active=False)
                     employee = Employee.objects.create(user=user, first_name=first, last_name=last)
-                    created_users.append((username, f.name))
+                    created_users.append(username)
                     # keep a record for template
                     if 'created_employees' not in locals():
                         created_employees = []
-                    created_employees.append({'first_name': first, 'last_name': last, 'month': parts[-2], 'year': year})
+                    created_employees.append({'first_name': first, 'last_name': last, 'month': parts[-2], 'year': year, 'username': username})
 
                 # create payslip if not exists — make atomic per file to avoid partial DB state
                 try:
@@ -472,7 +475,7 @@ def admin_upload_period_folder(request):
                         else:
                             ps = Payslip(employee=employee, year=year, month=month)
                             ps.pdf.save(f.name, f, save=True)
-                            created_payslips.append((employee.user.username, year, month))
+                            created_payslips.append(ps.id)
                 except IntegrityError as ie:
                     logger.exception('IntegrityError creating payslip for file %s', f.name)
                     skipped.append((f.name, 'integrity error'))
@@ -484,6 +487,10 @@ def admin_upload_period_folder(request):
             # Add a generic error entry so the template can show something instead of raising 500
             skipped.append(('__internal__', 'Unhandled error during import — see logs'))
 
+        # persist created identifiers in session for potential rollback if admin cancels
+        request.session['last_import_created_users'] = created_users
+        request.session['last_import_created_payslips'] = created_payslips
+
         # render summary
         return render(request, 'portal/admin_confirm_import.html', {
             'new_employees': created_employees if 'created_employees' in locals() else [],
@@ -493,3 +500,29 @@ def admin_upload_period_folder(request):
         })
 
     return render(request, 'portal/admin_upload_period_folder.html')
+
+
+@login_required
+def admin_cancel_import(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        return redirect('admin_upload_period_folder')
+
+    created_usernames = request.session.pop('last_import_created_users', []) or []
+    created_payslip_ids = request.session.pop('last_import_created_payslips', []) or []
+
+    # delete payslips first
+    try:
+        Payslip.objects.filter(id__in=created_payslip_ids).delete()
+    except Exception:
+        logger.exception('Error deleting created payslips during cancel-import')
+
+    # delete users (which will cascade to Employee)
+    try:
+        User.objects.filter(username__in=created_usernames).delete()
+    except Exception:
+        logger.exception('Error deleting created users during cancel-import')
+
+    return redirect('admin_upload_period_folder')

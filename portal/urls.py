@@ -15,6 +15,7 @@ urlpatterns = [
 
     # Admin upload folder/zip: ripristinato
     path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),
+    path('admin-cancel-import/', views.admin_cancel_import, name='admin_cancel_import'),
 
     path('open/<int:payslip_id>/', views.open_payslip, name='open_payslip'),
 ]
