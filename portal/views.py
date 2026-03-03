@@ -7,13 +7,7 @@ from django.db import transaction
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
-from .models import (
-    Employee,
-    Payslip,
-    PayslipView,
-    ImportJob,
-    InviteToken,
-)
+from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
 
 
 # =========================================================
@@ -65,14 +59,12 @@ def register_with_token(request, token):
                 "error": "Le password non coincidono"
             })
 
-        # Aggiorna user
         user.first_name = first_name
         user.last_name = last_name
         user.set_password(password)
         user.is_active = True
         user.save()
 
-        # Aggiorna employee
         employee.first_name = first_name
         employee.last_name = last_name
         employee.must_change_password = False
@@ -103,22 +95,23 @@ def send_invite_email(employee):
     subject = "Accesso Portale Cedolini"
 
     text_content = f"""
-Gentile {employee.first_name} {employee.last_name},
+Gentile {employee.first_name or ''} {employee.last_name or ''},
 
 è stato creato il tuo accesso al Portale Cedolini.
 
 Username: {employee.user.username}
 
-Completa la registrazione qui:
+Clicca qui per completare la registrazione:
 {register_url}
 
 Il link scade tra 7 giorni.
 
+Cordiali saluti
 San Vincenzo Srl
 """
 
     html_content = f"""
-<p>Gentile <strong>{employee.first_name} {employee.last_name}</strong>,</p>
+<p>Gentile <strong>{employee.first_name or ''} {employee.last_name or ''}</strong>,</p>
 
 <p>È stato creato il tuo accesso al <strong>Portale Cedolini</strong>.</p>
 
@@ -126,14 +119,15 @@ San Vincenzo Srl
 
 <p>
 <a href="{register_url}" 
-style="display:inline-block;padding:12px 20px;background:#1f2937;color:white;text-decoration:none;border-radius:6px;">
+style="display:inline-block;padding:12px 20px;background:#111827;color:white;text-decoration:none;border-radius:6px;">
 Completa registrazione
 </a>
 </p>
 
 <p>Il link scade tra 7 giorni.</p>
 
-<p>San Vincenzo Srl</p>
+<p>Cordiali saluti<br>
+San Vincenzo Srl</p>
 """
 
     email = EmailMultiAlternatives(
@@ -279,11 +273,10 @@ def admin_upload_period_folder(request):
                     name_parts = parts[:-2]
                     nome = name_parts[-1].capitalize()
                     cognome = " ".join(name_parts[:-1]).title()
-
-                    full_name_key = f"{nome} {cognome}".lower()
+                    full_name = f"{nome} {cognome}"
                     mese = month_map[mese_str]
 
-                    employee = employees.get(full_name_key)
+                    employee = employees.get(full_name.lower())
 
                     if not employee:
                         base_username = nome.lower() + "-" + cognome.lower().replace(" ", "-")
@@ -308,7 +301,7 @@ def admin_upload_period_folder(request):
                             must_change_password=True
                         )
 
-                        employees[full_name_key] = employee
+                        employees[full_name.lower()] = employee
                         usernames.add(username)
                         job.created_users += 1
 

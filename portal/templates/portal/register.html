@@ -2,49 +2,42 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Benvenuto - Portale Cedolini</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benvenuto nel Portale Cedolini</title>
     <style>
         body {
-            margin: 0;
             font-family: Arial, sans-serif;
             background: #f3f4f6;
+            margin: 0;
+            padding: 0;
         }
         .container {
             max-width: 500px;
-            margin: 60px auto;
+            margin: 80px auto;
             background: white;
             padding: 40px;
             border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        }
-        .logo {
-            text-align: center;
-            margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         }
         h1 {
+            margin-top: 0;
             font-size: 22px;
-            margin-bottom: 10px;
-            color: #1f2937;
         }
         p {
+            color: #555;
             font-size: 14px;
-            color: #4b5563;
-            line-height: 1.5;
         }
         input {
             width: 100%;
-            padding: 12px;
-            margin-top: 8px;
-            margin-bottom: 18px;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 15px;
             border-radius: 6px;
-            border: 1px solid #d1d5db;
-            font-size: 14px;
+            border: 1px solid #ccc;
         }
         button {
             width: 100%;
             padding: 12px;
-            background: #1f2937;
+            background: #111827;
             color: white;
             border: none;
             border-radius: 6px;
@@ -52,69 +45,44 @@
             cursor: pointer;
         }
         button:hover {
-            background: #111827;
+            background: #1f2937;
         }
         .error {
             color: red;
-            margin-bottom: 15px;
-        }
-        .welcome-box {
-            background: #f9fafb;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-size: 13px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
-
 <div class="container">
-
-    <div class="logo">
-        <img src="/static/portal/logo.png" width="120">
-    </div>
 
     <h1>Benvenuto nel Portale Cedolini</h1>
 
     <p>
-        Gentile {{ employee.first_name }} {{ employee.last_name }},
-        tramite questo portale potrai:
+        Attraverso questo portale potrai:
+        <br>• Visualizzare i tuoi cedolini
+        <br>• Scaricarli in PDF
+        <br>• Consultare lo storico dei documenti
     </p>
 
-    <div class="welcome-box">
-        • Visualizzare i tuoi cedolini<br>
-        • Scaricare i PDF<br>
-        • Consultare lo storico
-    </div>
-
-    <p>
-        Per iniziare, completa la registrazione impostando la tua password.
-    </p>
+    <p>Per completare l’attivazione, inserisci i tuoi dati e crea una password.</p>
 
     {% if error %}
         <div class="error">{{ error }}</div>
     {% endif %}
 
-    <form method="POST">
+    <form method="post">
         {% csrf_token %}
 
-        <label>Nome</label>
-        <input type="text" name="first_name" required value="{{ employee.first_name }}">
+        <input type="text" name="first_name" placeholder="Nome" required>
+        <input type="text" name="last_name" placeholder="Cognome" required>
 
-        <label>Cognome</label>
-        <input type="text" name="last_name" required value="{{ employee.last_name }}">
+        <input type="password" name="password" placeholder="Nuova password (min 8 caratteri)" required>
+        <input type="password" name="confirm_password" placeholder="Conferma password" required>
 
-        <label>Password</label>
-        <input type="password" name="password" required>
-
-        <label>Conferma Password</label>
-        <input type="password" name="confirm_password" required>
-
-        <button type="submit">Completa Registrazione</button>
+        <button type="submit">Attiva Account</button>
     </form>
 
 </div>
-
 </body>
 </html>
