@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
@@ -269,79 +269,88 @@ def admin_upload_period_folder(request):
     if request.method == 'POST' and request.FILES:
         # accept either input name 'files' or legacy 'folder' from template
         files = request.FILES.getlist('files') or request.FILES.getlist('folder')
+        try:
+            for f in files:
+                # filename without extension
+                name = os.path.splitext(f.name)[0].strip()
+                parts = name.split()
+                if len(parts) < 3:
+                    skipped.append((f.name, 'filename too short'))
+                    continue
 
-        for f in files:
-            # filename without extension
-            name = os.path.splitext(f.name)[0].strip()
-            parts = name.split()
-            if len(parts) < 3:
-                skipped.append((f.name, 'filename too short'))
-                continue
+                # last token = year
+                year_token = parts[-1]
+                try:
+                    year = int(year_token)
+                except Exception:
+                    skipped.append((f.name, 'invalid year'))
+                    continue
 
-            # last token = year
-            year_token = parts[-1]
-            try:
-                year = int(year_token)
-            except Exception:
-                skipped.append((f.name, 'invalid year'))
-                continue
+                month_token = parts[-2].lower()
+                month = months_map.get(month_token)
+                if not month:
+                    skipped.append((f.name, f'unknown month "{parts[-2]}"'))
+                    continue
 
-            month_token = parts[-2].lower()
-            month = months_map.get(month_token)
-            if not month:
-                skipped.append((f.name, f'unknown month "{parts[-2]}"'))
-                continue
+                name_tokens = parts[:-2]
 
-            name_tokens = parts[:-2]
+                # Find existing employee trying different splits between last_name and first_name
+                employee = None
+                for i in range(1, len(name_tokens)):
+                    last = ' '.join(name_tokens[:i]).strip()
+                    first = ' '.join(name_tokens[i:]).strip()
+                    qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
+                    if qs.exists():
+                        employee = qs.first()
+                        break
 
-            # Find existing employee trying different splits between last_name and first_name
-            employee = None
-            for i in range(1, len(name_tokens)):
-                last = ' '.join(name_tokens[:i]).strip()
-                first = ' '.join(name_tokens[i:]).strip()
-                qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
-                if qs.exists():
-                    employee = qs.first()
-                    break
+                # fallback: surname = first token, firstname = rest
+                if not employee:
+                    last = name_tokens[0]
+                    first = ' '.join(name_tokens[1:]) if len(name_tokens) > 1 else ''
+                    qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
+                    if qs.exists():
+                        employee = qs.first()
 
-            # fallback: surname = first token, firstname = rest
-            if not employee:
-                last = name_tokens[0]
-                first = ' '.join(name_tokens[1:]) if len(name_tokens) > 1 else ''
-                qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
-                if qs.exists():
-                    employee = qs.first()
+                # If still not found, create user+employee
+                if not employee:
+                    # create unique username from full surname (all name_tokens before month/year)
+                    base_username = '-'.join([t.lower() for t in name_tokens])
+                    base_username = base_username.replace("'", '').replace('"', '')
+                    username = base_username
+                    suffix = 1
+                    while User.objects.filter(username=username).exists():
+                        username = f"{base_username}{suffix}"
+                        suffix += 1
 
-            # If still not found, create user+employee
-            if not employee:
-                # create unique username from full surname (all name_tokens before month/year)
-                base_username = '-'.join([t.lower() for t in name_tokens])
-                base_username = base_username.replace("'", '').replace('"', '')
-                username = base_username
-                suffix = 1
-                while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{suffix}"
-                    suffix += 1
+                    password = secrets.token_urlsafe(8)
+                    user = User.objects.create_user(username=username, password=password, is_active=False)
+                    employee = Employee.objects.create(user=user, first_name=first, last_name=last)
+                    created_users.append((username, f.name))
+                    # keep a record for template
+                    if 'created_employees' not in locals():
+                        created_employees = []
+                    created_employees.append({'first_name': first, 'last_name': last, 'month': parts[-2], 'year': year})
 
-                password = secrets.token_urlsafe(8)
-                user = User.objects.create_user(username=username, password=password, is_active=False)
-                employee = Employee.objects.create(user=user, first_name=first, last_name=last)
-                created_users.append((username, f.name))
-                # keep a record for template
-                if 'created_employees' not in locals():
-                    created_employees = []
-                created_employees.append({'first_name': first, 'last_name': last, 'month': parts[-2], 'year': year})
-
-            # create payslip if not exists
-            try:
-                ps, created = Payslip.objects.get_or_create(employee=employee, year=year, month=month, defaults={'pdf': f})
-                if created:
-                    created_payslips.append((employee.user.username, year, month))
-                else:
-                    skipped.append((f.name, 'payslip already exists'))
-            except Exception as e:
-                logger.exception('Error creating payslip for file %s', f.name)
-                skipped.append((f.name, str(e)))
+                # create payslip if not exists — make atomic per file to avoid partial DB state
+                try:
+                    with transaction.atomic():
+                        if Payslip.objects.filter(employee=employee, year=year, month=month).exists():
+                            skipped.append((f.name, 'payslip already exists'))
+                        else:
+                            ps = Payslip(employee=employee, year=year, month=month)
+                            ps.pdf.save(f.name, f, save=True)
+                            created_payslips.append((employee.user.username, year, month))
+                except IntegrityError as ie:
+                    logger.exception('IntegrityError creating payslip for file %s', f.name)
+                    skipped.append((f.name, 'integrity error'))
+                except Exception as e:
+                    logger.exception('Error creating payslip for file %s', f.name)
+                    skipped.append((f.name, str(e)))
+        except Exception:
+            logger.exception('Unhandled error while processing uploaded files')
+            # Add a generic error entry so the template can show something instead of raising 500
+            skipped.append(('__internal__', 'Unhandled error during import — see logs'))
 
         # render summary
         return render(request, 'portal/admin_confirm_import.html', {
