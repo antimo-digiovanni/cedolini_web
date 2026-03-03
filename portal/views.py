@@ -10,6 +10,10 @@ from django.utils import timezone
 
 from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # =========================================================
 # HOME
@@ -86,8 +90,12 @@ def register_with_token(request, token):
 
 @login_required
 def dashboard(request):
+    logger.info("dashboard START user=%s", getattr(request.user, "username", None))
+    logger.info("before get_object_or_404(Employee)")
     employee = get_object_or_404(Employee, user=request.user)
+    logger.info("after get_object_or_404 employee_id=%s", getattr(employee, "id", None))
 
+    logger.info("constructing payslips queryset")
     payslips = (
         Payslip.objects
         .filter(employee=employee)
@@ -95,9 +103,19 @@ def dashboard(request):
         .order_by('-year', '-month')
     )
 
-    grouped = {}
+    logger.info("queryset constructed — forcing evaluation with .count()")
+    try:
+        count = payslips.count()
+        logger.info("payslips.count=%d", count)
+    except Exception:
+        logger.exception("Error while evaluating payslips queryset")
 
-    for p in payslips:
+    grouped = {}
+    logger.info("entering loop over payslips")
+    for idx, p in enumerate(payslips):
+        if idx < 5:
+            logger.info("processing payslip id=%s year=%s month=%s", getattr(p, "id", None), getattr(p, "year", None), getattr(p, "month", None))
+
         viewed = p.payslipview_set.exists()
 
         p.is_viewed = viewed
@@ -108,6 +126,7 @@ def dashboard(request):
 
         grouped[p.year].append(p)
 
+    logger.info("about to render template")
     return render(request, 'portal/dashboard.html', {
         'employee': employee,
         'grouped_payslips': grouped
