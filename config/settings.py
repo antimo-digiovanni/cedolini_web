@@ -137,3 +137,18 @@ LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ==============================
+# EMAIL (ARUBA SMTP)
+# ==============================
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = "smtps.aruba.it"
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+
+EMAIL_HOST_USER = "cedolini@sanvincenzosrl.com"
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
+
+DEFAULT_FROM_EMAIL = "Cedolini San Vincenzo <cedolini@sanvincenzosrl.com>"
