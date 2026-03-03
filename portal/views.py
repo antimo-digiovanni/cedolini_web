@@ -7,7 +7,13 @@ from django.db import transaction
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
-from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
+from .models import (
+    Employee,
+    Payslip,
+    PayslipView,
+    ImportJob,
+    InviteToken,
+)
 
 
 # =========================================================
@@ -36,10 +42,18 @@ def register_with_token(request, token):
     user = employee.user
 
     if request.method == "POST":
+        first_name = request.POST.get("first_name")
+        last_name = request.POST.get("last_name")
         password = request.POST.get("password")
         confirm = request.POST.get("confirm_password")
 
-        if not password or len(password) < 8:
+        if not first_name or not last_name or not password:
+            return render(request, "portal/register.html", {
+                "employee": employee,
+                "error": "Compila tutti i campi"
+            })
+
+        if len(password) < 8:
             return render(request, "portal/register.html", {
                 "employee": employee,
                 "error": "Password troppo corta (min 8 caratteri)"
@@ -51,10 +65,16 @@ def register_with_token(request, token):
                 "error": "Le password non coincidono"
             })
 
+        # Aggiorna user
+        user.first_name = first_name
+        user.last_name = last_name
         user.set_password(password)
         user.is_active = True
         user.save()
 
+        # Aggiorna employee
+        employee.first_name = first_name
+        employee.last_name = last_name
         employee.must_change_password = False
         employee.save()
 
@@ -83,23 +103,22 @@ def send_invite_email(employee):
     subject = "Accesso Portale Cedolini"
 
     text_content = f"""
-Gentile {employee.full_name},
+Gentile {employee.first_name} {employee.last_name},
 
 è stato creato il tuo accesso al Portale Cedolini.
 
 Username: {employee.user.username}
 
-Clicca qui per completare la registrazione:
+Completa la registrazione qui:
 {register_url}
 
 Il link scade tra 7 giorni.
 
-Cordiali saluti
 San Vincenzo Srl
 """
 
     html_content = f"""
-<p>Gentile <strong>{employee.full_name}</strong>,</p>
+<p>Gentile <strong>{employee.first_name} {employee.last_name}</strong>,</p>
 
 <p>È stato creato il tuo accesso al <strong>Portale Cedolini</strong>.</p>
 
@@ -114,8 +133,7 @@ Completa registrazione
 
 <p>Il link scade tra 7 giorni.</p>
 
-<p>Cordiali saluti<br>
-San Vincenzo Srl</p>
+<p>San Vincenzo Srl</p>
 """
 
     email = EmailMultiAlternatives(
@@ -224,7 +242,7 @@ def admin_upload_period_folder(request):
             with transaction.atomic():
 
                 employees = {
-                    e.full_name.lower(): e
+                    f"{e.first_name} {e.last_name}".lower(): e
                     for e in Employee.objects.select_related("user")
                 }
 
@@ -261,10 +279,11 @@ def admin_upload_period_folder(request):
                     name_parts = parts[:-2]
                     nome = name_parts[-1].capitalize()
                     cognome = " ".join(name_parts[:-1]).title()
-                    full_name = f"{nome} {cognome}"
+
+                    full_name_key = f"{nome} {cognome}".lower()
                     mese = month_map[mese_str]
 
-                    employee = employees.get(full_name.lower())
+                    employee = employees.get(full_name_key)
 
                     if not employee:
                         base_username = nome.lower() + "-" + cognome.lower().replace(" ", "-")
@@ -284,11 +303,12 @@ def admin_upload_period_folder(request):
 
                         employee = Employee.objects.create(
                             user=user,
-                            full_name=full_name,
+                            first_name=nome,
+                            last_name=cognome,
                             must_change_password=True
                         )
 
-                        employees[full_name.lower()] = employee
+                        employees[full_name_key] = employee
                         usernames.add(username)
                         job.created_users += 1
 

@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-from .models import Employee, Payslip, AuditEvent
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+from datetime import timedelta
+
+from .models import Employee, Payslip, AuditEvent, InviteToken
 
 
 admin.site.site_header = "Admin"
@@ -20,7 +24,16 @@ class EmployeeAdmin(admin.ModelAdmin):
 
         if obj.email_invio and not obj.invito_inviato:
 
-            link = "https://cedolini-web.onrender.com/"
+            # Genera token
+            token = get_random_string(64)
+
+            InviteToken.objects.create(
+                employee=obj,
+                token=token,
+                expires_at=timezone.now() + timedelta(days=3)
+            )
+
+            link = f"https://cedolini-web.onrender.com/portal/register/{token}/"
 
             subject = "Accesso Portale Cedolini"
 
@@ -29,18 +42,13 @@ Ciao {obj.first_name} {obj.last_name},
 
 Sei stato invitato ad accedere al Portale Cedolini.
 
-Accedi da qui:
+Completa la registrazione da qui:
 {link}
-
-Username: {obj.user.username}
 """
 
             html_content = f"""
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-</head>
 <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial, sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
 <tr>
@@ -55,20 +63,19 @@ Username: {obj.user.username}
 
     <tr>
         <td style="font-size:20px;font-weight:bold;color:#1f2937;padding-bottom:20px;">
-            Accesso Portale Cedolini
+            Benvenuto nel Portale Cedolini
         </td>
     </tr>
 
     <tr>
         <td style="font-size:14px;color:#374151;padding-bottom:20px;">
             Gentile <strong>{obj.first_name} {obj.last_name}</strong>,<br><br>
-            è stato creato il tuo accesso al portale aziendale.
-        </td>
-    </tr>
-
-    <tr>
-        <td style="font-size:14px;color:#374151;padding-bottom:10px;">
-            <strong>Username:</strong> {obj.user.username}
+            tramite questo portale potrai:
+            <ul>
+                <li>Visualizzare i tuoi cedolini</li>
+                <li>Scaricare i PDF</li>
+                <li>Consultare lo storico</li>
+            </ul>
         </td>
     </tr>
 
@@ -77,14 +84,14 @@ Username: {obj.user.username}
             <a href="{link}" 
                style="background:#1f2937;color:#ffffff;padding:12px 24px;
                text-decoration:none;border-radius:6px;font-weight:bold;">
-               Accedi al Portale
+               Completa Registrazione
             </a>
         </td>
     </tr>
 
     <tr>
         <td style="font-size:12px;color:#6b7280;padding-top:20px;">
-            Se non hai richiesto questo accesso puoi ignorare questa email.
+            Il link è valido per 3 giorni.
         </td>
     </tr>
 
@@ -119,22 +126,11 @@ Username: {obj.user.username}
 
 @admin.register(Payslip)
 class PayslipAdmin(admin.ModelAdmin):
-    list_display = ('employee', 'mese_legibile', 'year', 'uploaded_at')
+    list_display = ('employee', 'year', 'month', 'uploaded_at')
     list_filter = ('year', 'month')
-    search_fields = ('employee__full_name',)
-
-    def mese_legibile(self, obj):
-        mesi = [
-            "", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-            "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
-        ]
-        return mesi[obj.month]
-
-    mese_legibile.short_description = "Mese"
 
 
 @admin.register(AuditEvent)
 class AuditEventAdmin(admin.ModelAdmin):
     list_display = ('created_at', 'action', 'actor_user', 'employee')
     list_filter = ('action',)
-    search_fields = ('employee__full_name',)
