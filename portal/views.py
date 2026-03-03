@@ -5,8 +5,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db import transaction
+from django.utils import timezone
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 
-from .models import Employee, Payslip, PayslipView, ImportJob
+from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
 
 
 # =========================================================
@@ -19,6 +22,106 @@ def home(request):
             return redirect('admin_dashboard')
         return redirect('dashboard')
     return redirect('login')
+
+
+# =========================================================
+# REGISTER VIA TOKEN
+# =========================================================
+
+def register_with_token(request, token):
+    invite = get_object_or_404(InviteToken, token=token)
+
+    if not invite.is_valid():
+        return HttpResponse("Token non valido o scaduto.", status=400)
+
+    employee = invite.employee
+    user = employee.user
+
+    if request.method == "POST":
+        password = request.POST.get("password")
+
+        if not password or len(password) < 8:
+            messages.error(request, "Password troppo corta (min 8 caratteri)")
+            return redirect(request.path)
+
+        user.set_password(password)
+        user.is_active = True
+        user.save()
+
+        employee.must_change_password = False
+        employee.save()
+
+        invite.mark_used()
+
+        messages.success(request, "Registrazione completata. Ora puoi accedere.")
+        return redirect("login")
+
+    return render(request, "portal/register.html", {
+        "employee": employee
+    })
+
+
+# =========================================================
+# INVIA INVITO EMAIL
+# =========================================================
+
+def send_invite_email(employee):
+
+    invite = InviteToken.objects.create(employee=employee)
+
+    register_url = f"https://cedolini-web.onrender.com/portal/register/{invite.token}/"
+
+    subject = "Accesso Portale Cedolini"
+
+    text_content = f"""
+Gentile {employee.full_name},
+
+è stato creato il tuo accesso al Portale Cedolini.
+
+Username: {employee.user.username}
+
+Clicca qui per completare la registrazione:
+{register_url}
+
+Il link scade tra 7 giorni.
+
+Cordiali saluti
+San Vincenzo Srl
+"""
+
+    html_content = f"""
+<p>Gentile <strong>{employee.full_name}</strong>,</p>
+
+<p>È stato creato il tuo accesso al <strong>Portale Cedolini</strong>.</p>
+
+<p><strong>Username:</strong> {employee.user.username}</p>
+
+<p>
+<a href="{register_url}" 
+style="display:inline-block;padding:12px 20px;background:#1f2937;color:white;text-decoration:none;border-radius:6px;">
+Completa registrazione
+</a>
+</p>
+
+<p>Il link scade tra 7 giorni.</p>
+
+<p>Cordiali saluti<br>
+San Vincenzo Srl</p>
+"""
+
+    email = EmailMultiAlternatives(
+        subject,
+        text_content,
+        settings.DEFAULT_FROM_EMAIL,
+        [employee.email_invio],
+        cc=["cedolini@sanvincenzosrl.com"],
+    )
+
+    email.attach_alternative(html_content, "text/html")
+    email.send()
+
+    employee.invito_inviato = True
+    employee.save()
 
 
 # =========================================================
@@ -82,7 +185,7 @@ def admin_dashboard(request):
 
 
 # =========================================================
-# IMPORT CARTELLA PERIODO (PRO VERSION)
+# IMPORT CARTELLA PERIODO
 # =========================================================
 
 @login_required
@@ -212,10 +315,6 @@ def admin_upload_period_folder(request):
 
     return render(request, "portal/admin_upload_period_folder.html")
 
-
-# =========================================================
-# PROGRESS ENDPOINT
-# =========================================================
 
 @login_required
 def import_progress(request, job_id):
