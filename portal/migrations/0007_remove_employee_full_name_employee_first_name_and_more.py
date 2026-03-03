@@ -17,11 +17,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='employee',
             name='first_name',
-            field=models.CharField(blank=True=True, null=True, max_length=80),
+            field=models.CharField(blank=True, null=True, max_length=80),
         ),
         migrations.AddField(
             model_name='employee',
             name='last_name',
-            field=models.CharField(blank=True=True, null=True, max_length=80),
+            field=models.CharField(blank=True, null=True, max_length=80),
         ),
     ]
