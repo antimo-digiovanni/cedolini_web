@@ -2,15 +2,16 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Dashboard admin
+
+    path('', views.dashboard, name='dashboard'),
+
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
 
-    # Upload cedolini
-    path('admin-upload/', views.admin_upload_period_folder, name='admin_upload_period_folder'),
+    path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),
 
-    # Lista cedolini utente
-    path('payslips/', views.payslip_list, name='payslip_list'),
+    path('import-progress/<int:job_id>/', views.import_progress, name='import_progress'),
 
-    # Download cedolino
-    path('payslip/<int:pk>/download/', views.payslip_download, name='payslip_download'),
+    path('open/<int:payslip_id>/', views.open_payslip, name='open_payslip'),
+
+    path('register/<str:token>/', views.register_view, name='register_view'),
 ]
