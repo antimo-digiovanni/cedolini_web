@@ -126,6 +126,20 @@ main {
 .modal-backdrop {
     z-index: 1500 !important;
 }
+/* Stronger rules in case other elements overlay the modal */
+.modal,
+.modal-backdrop,
+.modal-dialog,
+.modal-content {
+    z-index: 99999 !important;
+}
+.modal {
+    pointer-events: auto !important;
+}
+.modal-backdrop {
+    pointer-events: auto !important;
+    background-color: rgba(0,0,0,0.55) !important;
+}
 </style>
 </head>
 
