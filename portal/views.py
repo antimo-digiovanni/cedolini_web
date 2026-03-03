@@ -179,7 +179,7 @@ def admin_report(request):
 
 
 # =========================================================
-# IMPORT CARTELLA PERIODO (FUNZIONANTE)
+# IMPORT CARTELLA PERIODO (GESTISCE COGNOMI DOPPI)
 # =========================================================
 
 @login_required
@@ -215,12 +215,11 @@ def admin_upload_period_folder(request):
                 skipped += 1
                 continue
 
-            cognome = parts[0].capitalize()
-            nome = parts[1].capitalize()
-            mese_str = parts[2]
+            mese_str = parts[-2]
+            anno_str = parts[-1]
 
             try:
-                anno = int(parts[3])
+                anno = int(anno_str)
             except:
                 skipped += 1
                 continue
@@ -229,8 +228,17 @@ def admin_upload_period_folder(request):
                 skipped += 1
                 continue
 
-            mese = month_map[mese_str]
+            name_parts = parts[:-2]
+
+            if len(name_parts) < 2:
+                skipped += 1
+                continue
+
+            nome = name_parts[-1].capitalize()
+            cognome = " ".join(name_parts[:-1]).capitalize()
+
             full_name = f"{nome} {cognome}"
+            mese = month_map[mese_str]
 
             employee = Employee.objects.filter(
                 full_name__iexact=full_name
@@ -238,7 +246,7 @@ def admin_upload_period_folder(request):
 
             if not employee:
 
-                base_username = f"{nome.lower()}-{cognome.lower()}"
+                base_username = nome.lower() + "-" + cognome.lower().replace(" ", "-")
                 username = base_username
                 counter = 1
 
