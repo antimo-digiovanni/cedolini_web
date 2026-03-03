@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.utils.html import format_html
+from django.core.mail import send_mail
+from django.conf import settings
 from .models import Employee, Payslip, AuditEvent
 
 
@@ -13,6 +14,36 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'external_code', 'must_change_password', 'invito_inviato')
     search_fields = ('full_name', 'external_code')
     list_filter = ('must_change_password', 'invito_inviato')
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        if obj.email_invio and not obj.invito_inviato:
+
+            link = "https://cedolini-web.onrender.com/"
+
+            send_mail(
+                subject="Accesso Portale Cedolini",
+                message=f"""
+Ciao {obj.full_name},
+
+Sei stato invitato ad accedere al portale cedolini.
+
+Accedi da qui:
+{link}
+
+Username: {obj.user.username}
+
+Al primo accesso ti verrà richiesto di cambiare password.
+                """,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[obj.email_invio],
+                fail_silently=False,
+                cc=["cedolini@sanvincenzosrl.com"],
+            )
+
+            obj.invito_inviato = True
+            obj.save()
 
 
 @admin.register(Payslip)

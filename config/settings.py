@@ -11,13 +11,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 # ==============================
 
-SECRET_KEY = os.environ.get("SECRET_KEY")
-DEBUG = os.environ.get("DEBUG", "False") == "True"
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
+DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get(
-    "ALLOWED_HOSTS",
-    "cedolini-web.onrender.com"
-).split(",")
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "cedolini-web.onrender.com"]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://cedolini-web.onrender.com",
@@ -70,28 +67,29 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # ==============================
-# DATABASE
+# DATABASE (locale SQLite / produzione Postgres)
 # ==============================
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-    )
-}
+if os.environ.get("DATABASE_URL"):
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=os.environ.get("DATABASE_URL"),
+            conn_max_age=600,
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # ==============================
 # PASSWORD VALIDATION
 # ==============================
 
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-]
+AUTH_PASSWORD_VALIDATORS = []
 
 # ==============================
 # INTERNATIONALIZATION
@@ -126,7 +124,10 @@ AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = False
 
-MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+if AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+else:
+    MEDIA_URL = "/media/"
 
 # ==============================
 # LOGIN
@@ -143,7 +144,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ==============================
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-
 EMAIL_HOST = "smtps.aruba.it"
 EMAIL_PORT = 465
 EMAIL_USE_SSL = True
