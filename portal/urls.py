@@ -12,6 +12,10 @@ urlpatterns = [
     path('admin-employees/<int:employee_id>/', views.admin_employee_detail, name='admin_employee_detail'),
 
     path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),
+
+    # 🔥 NUOVO ENDPOINT PROGRESS
+    path('import-progress/<int:job_id>/', views.import_progress, name='import_progress'),
+
     path('admin-upload/', views.admin_upload_payslip, name='admin_upload_payslip'),
     path('admin-audit/', views.admin_audit_dashboard, name='admin_audit_dashboard'),
 
