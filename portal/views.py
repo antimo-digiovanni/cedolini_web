@@ -234,6 +234,8 @@ def admin_send_invite(request):
     emp_id = request.POST.get('employee_id')
     email = request.POST.get('email')
 
+    logger.info('admin_send_invite START user=%s emp_id=%s email_present=%s', getattr(request.user, 'username', None), emp_id, bool(email))
+
     if not emp_id:
         return JsonResponse({'ok': False, 'error': 'missing employee_id'}, status=400)
 
@@ -242,10 +244,14 @@ def admin_send_invite(request):
     except Employee.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
 
+    logger.info('admin_send_invite: target employee=%s username=%s current_email=%s', getattr(employee, 'id', None), getattr(employee.user, 'username', None), employee.email_invio)
+
     # if email provided, set it
     if email:
         employee.email_invio = email
         employee.save()
+
+        logger.info('admin_send_invite: updated email for employee=%s -> %s', employee.id, email)
 
     if not employee.email_invio:
         return JsonResponse({'ok': False, 'need_email': True})
@@ -255,8 +261,12 @@ def admin_send_invite(request):
     from django.utils import timezone
     from datetime import timedelta
 
-    token = get_random_string(64)
-    InviteToken.objects.create(employee=employee, token=token, expires_at=timezone.now() + timedelta(days=7))
+    try:
+        token = get_random_string(64)
+        InviteToken.objects.create(employee=employee, token=token, expires_at=timezone.now() + timedelta(days=7))
+    except Exception:
+        logger.exception('admin_send_invite: error creating InviteToken for employee=%s', employee.id)
+        return JsonResponse({'ok': False, 'error': 'token_error'})
 
     link = f"https://cedolini-web.onrender.com/portal/register/{token}/"
     username = employee.user.username
@@ -304,14 +314,19 @@ def admin_send_invite(request):
 """
 
     from django.core.mail import EmailMultiAlternatives
-    email_msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [employee.email_invio], cc=["cedolini@sanvincenzosrl.com"])
-    email_msg.attach_alternative(html_content, "text/html")
-    email_msg.send()
+    try:
+        email_msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [employee.email_invio], cc=["cedolini@sanvincenzosrl.com"])
+        email_msg.attach_alternative(html_content, "text/html")
+        email_msg.send()
 
-    employee.invito_inviato = True
-    employee.save()
+        employee.invito_inviato = True
+        employee.save()
 
-    return JsonResponse({'ok': True})
+        logger.info('admin_send_invite: email sent to %s for employee=%s', employee.email_invio, employee.id)
+        return JsonResponse({'ok': True})
+    except Exception:
+        logger.exception('admin_send_invite: failed sending email to %s for employee=%s', employee.email_invio, employee.id)
+        return JsonResponse({'ok': False, 'error': 'send_failed'})
 
 def send_read_notification_email(payslip):
 
