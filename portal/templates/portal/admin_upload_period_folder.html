@@ -5,7 +5,6 @@
 
     <h2 class="mb-4">Importa Cedolini (Cartella Periodo)</h2>
 
-    <!-- MESSAGGI -->
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-success">
@@ -16,7 +15,7 @@
 
     <div class="card p-4 shadow-sm">
 
-        <form method="POST" enctype="multipart/form-data">
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="mb-3">
@@ -26,6 +25,7 @@
 
                 <input type="file"
                        name="folder"
+                       id="folderInput"
                        multiple
                        webkitdirectory
                        directory
@@ -38,8 +38,54 @@
             </button>
         </form>
 
+        <!-- 🔥 BARRA DI CARICAMENTO -->
+        <div class="progress mt-4" style="height:25px; display:none;" id="progressContainer">
+            <div id="progressBar"
+                 class="progress-bar progress-bar-striped progress-bar-animated"
+                 role="progressbar"
+                 style="width: 0%">
+                0%
+            </div>
+        </div>
+
     </div>
 
 </div>
+
+<script>
+document.getElementById("uploadForm").addEventListener("submit", function(e) {
+
+    e.preventDefault();
+
+    const form = this;
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar = document.getElementById("progressBar");
+
+    progressContainer.style.display = "block";
+
+    xhr.open("POST", "", true);
+
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            let percent = Math.round((e.loaded / e.total) * 100);
+            progressBar.style.width = percent + "%";
+            progressBar.innerHTML = percent + "%";
+        }
+    };
+
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            location.reload();
+        } else {
+            alert("Errore durante il caricamento.");
+        }
+    };
+
+    xhr.send(formData);
+});
+</script>
 
 {% endblock %}

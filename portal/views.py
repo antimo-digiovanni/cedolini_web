@@ -1,4 +1,5 @@
 import os
+from django.db import transaction
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
@@ -179,7 +180,7 @@ def admin_report(request):
 
 
 # =========================================================
-# IMPORT CARTELLA PERIODO (GESTISCE COGNOMI DOPPI)
+# IMPORT CARTELLA PERIODO (STABILE PER 100 FILE)
 # =========================================================
 
 @login_required
@@ -206,85 +207,105 @@ def admin_upload_period_folder(request):
         created_payslips = 0
         skipped = 0
 
-        for file in files:
+        # Precarico dipendenti e username per ridurre query
+        existing_employees = {
+            e.full_name.lower(): e
+            for e in Employee.objects.select_related("user").all()
+        }
 
-            filename = os.path.splitext(file.name)[0].strip().lower()
-            parts = filename.split()
+        existing_usernames = set(
+            User.objects.values_list("username", flat=True)
+        )
 
-            if len(parts) < 4:
-                skipped += 1
-                continue
+        try:
+            with transaction.atomic():
 
-            mese_str = parts[-2]
-            anno_str = parts[-1]
+                for file in files:
 
-            try:
-                anno = int(anno_str)
-            except:
-                skipped += 1
-                continue
+                    filename = os.path.splitext(file.name)[0].strip().lower()
+                    parts = filename.split()
 
-            if mese_str not in month_map:
-                skipped += 1
-                continue
+                    if len(parts) < 4:
+                        skipped += 1
+                        continue
 
-            name_parts = parts[:-2]
+                    mese_str = parts[-2]
+                    anno_str = parts[-1]
 
-            if len(name_parts) < 2:
-                skipped += 1
-                continue
+                    try:
+                        anno = int(anno_str)
+                    except:
+                        skipped += 1
+                        continue
 
-            nome = name_parts[-1].capitalize()
-            cognome = " ".join(name_parts[:-1]).capitalize()
+                    if mese_str not in month_map:
+                        skipped += 1
+                        continue
 
-            full_name = f"{nome} {cognome}"
-            mese = month_map[mese_str]
+                    name_parts = parts[:-2]
 
-            employee = Employee.objects.filter(
-                full_name__iexact=full_name
-            ).first()
+                    if len(name_parts) < 2:
+                        skipped += 1
+                        continue
 
-            if not employee:
+                    nome = name_parts[-1].capitalize()
+                    cognome = " ".join(name_parts[:-1]).capitalize()
 
-                base_username = nome.lower() + "-" + cognome.lower().replace(" ", "-")
-                username = base_username
-                counter = 1
+                    full_name = f"{nome} {cognome}"
+                    mese = month_map[mese_str]
 
-                while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{counter}"
-                    counter += 1
+                    employee = existing_employees.get(full_name.lower())
 
-                user = User.objects.create_user(
-                    username=username,
-                    password="cambiala",
-                    first_name=nome,
-                    last_name=cognome
-                )
+                    # CREA UTENTE SE NON ESISTE
+                    if not employee:
 
-                employee = Employee.objects.create(
-                    user=user,
-                    full_name=full_name,
-                    must_change_password=True
-                )
+                        base_username = nome.lower() + "-" + cognome.lower().replace(" ", "-")
+                        username = base_username
+                        counter = 1
 
-                created_users += 1
+                        while username in existing_usernames:
+                            username = f"{base_username}{counter}"
+                            counter += 1
 
-            if not Payslip.objects.filter(
-                employee=employee,
-                year=anno,
-                month=mese
-            ).exists():
+                        user = User.objects.create_user(
+                            username=username,
+                            password="cambiala",
+                            first_name=nome,
+                            last_name=cognome
+                        )
 
-                Payslip.objects.create(
-                    employee=employee,
-                    year=anno,
-                    month=mese,
-                    pdf=file
-                )
+                        employee = Employee.objects.create(
+                            user=user,
+                            full_name=full_name,
+                            must_change_password=True
+                        )
 
-                created_payslips += 1
-            else:
-                skipped += 1
+                        existing_employees[full_name.lower()] = employee
+                        existing_usernames.add(username)
+
+                        created_users += 1
+
+                    # CREA CEDOLINO SE NON ESISTE
+                    if not Payslip.objects.filter(
+                        employee=employee,
+                        year=anno,
+                        month=mese
+                    ).exists():
+
+                        Payslip.objects.create(
+                            employee=employee,
+                            year=anno,
+                            month=mese,
+                            pdf=file
+                        )
+
+                        created_payslips += 1
+                    else:
+                        skipped += 1
+
+        except Exception as e:
+            messages.error(request, f"Errore durante import: {str(e)}")
+            return redirect("admin_upload_period_folder")
 
         messages.success(
             request,
