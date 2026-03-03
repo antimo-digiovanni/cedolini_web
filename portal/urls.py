@@ -9,8 +9,8 @@ urlpatterns = [
 
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
 
-    # 🔴 COMMENTA QUESTA
-    # path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),
+    # Admin upload folder/zip: ripristinato
+    path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),
 
     path('open/<int:payslip_id>/', views.open_payslip, name='open_payslip'),
 ]

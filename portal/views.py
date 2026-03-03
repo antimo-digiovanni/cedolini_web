@@ -11,6 +11,7 @@ from django.utils import timezone
 from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
 
 import logging
+import secrets
 
 logger = logging.getLogger(__name__)
 
@@ -244,3 +245,110 @@ Il cedolino di {employee.first_name} {employee.last_name}
 
     email.attach_alternative(html_content, "text/html")
     email.send()
+
+
+# =========================================================
+# ADMIN: Upload folder / multiple payslips import
+# =========================================================
+
+@login_required
+def admin_upload_period_folder(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    created_users = []
+    created_payslips = []
+    skipped = []
+
+    months_map = {
+        'gennaio': 1, 'febbraio': 2, 'marzo': 3, 'aprile': 4,
+        'maggio': 5, 'giugno': 6, 'luglio': 7, 'agosto': 8,
+        'settembre': 9, 'ottobre': 10, 'novembre': 11, 'dicembre': 12,
+    }
+
+    if request.method == 'POST' and request.FILES:
+        # accept either input name 'files' or legacy 'folder' from template
+        files = request.FILES.getlist('files') or request.FILES.getlist('folder')
+
+        for f in files:
+            # filename without extension
+            name = os.path.splitext(f.name)[0].strip()
+            parts = name.split()
+            if len(parts) < 3:
+                skipped.append((f.name, 'filename too short'))
+                continue
+
+            # last token = year
+            year_token = parts[-1]
+            try:
+                year = int(year_token)
+            except Exception:
+                skipped.append((f.name, 'invalid year'))
+                continue
+
+            month_token = parts[-2].lower()
+            month = months_map.get(month_token)
+            if not month:
+                skipped.append((f.name, f'unknown month "{parts[-2]}"'))
+                continue
+
+            name_tokens = parts[:-2]
+
+            # Find existing employee trying different splits between last_name and first_name
+            employee = None
+            for i in range(1, len(name_tokens)):
+                last = ' '.join(name_tokens[:i]).strip()
+                first = ' '.join(name_tokens[i:]).strip()
+                qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
+                if qs.exists():
+                    employee = qs.first()
+                    break
+
+            # fallback: surname = first token, firstname = rest
+            if not employee:
+                last = name_tokens[0]
+                first = ' '.join(name_tokens[1:]) if len(name_tokens) > 1 else ''
+                qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
+                if qs.exists():
+                    employee = qs.first()
+
+            # If still not found, create user+employee
+            if not employee:
+                # create unique username from full surname (all name_tokens before month/year)
+                base_username = '-'.join([t.lower() for t in name_tokens])
+                base_username = base_username.replace("'", '').replace('"', '')
+                username = base_username
+                suffix = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{suffix}"
+                    suffix += 1
+
+                password = secrets.token_urlsafe(8)
+                user = User.objects.create_user(username=username, password=password, is_active=False)
+                employee = Employee.objects.create(user=user, first_name=first, last_name=last)
+                created_users.append((username, f.name))
+                # keep a record for template
+                if 'created_employees' not in locals():
+                    created_employees = []
+                created_employees.append({'first_name': first, 'last_name': last, 'month': parts[-2], 'year': year})
+
+            # create payslip if not exists
+            try:
+                ps, created = Payslip.objects.get_or_create(employee=employee, year=year, month=month, defaults={'pdf': f})
+                if created:
+                    created_payslips.append((employee.user.username, year, month))
+                else:
+                    skipped.append((f.name, 'payslip already exists'))
+            except Exception as e:
+                logger.exception('Error creating payslip for file %s', f.name)
+                skipped.append((f.name, str(e)))
+
+        # render summary
+        return render(request, 'portal/admin_confirm_import.html', {
+            'new_employees': created_employees if 'created_employees' in locals() else [],
+            'created_users': created_users,
+            'created_payslips': created_payslips,
+            'skipped': skipped,
+        })
+
+    return render(request, 'portal/admin_upload_period_folder.html')
