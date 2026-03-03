@@ -7,7 +7,6 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
-from django.urls import reverse
 from django.db.models import Count
 
 from .models import Employee, Payslip, PayslipView
@@ -32,9 +31,6 @@ def home(request):
 @login_required
 def dashboard(request):
     employee = get_object_or_404(Employee, user=request.user)
-
-    if employee.must_change_password:
-        return redirect('password_change')
 
     payslips = Payslip.objects.filter(
         employee=employee
@@ -96,7 +92,6 @@ def admin_upload_period_folder(request):
             filename = os.path.splitext(base)[0].lower().strip()
             parts = filename.split()
 
-            # Formato atteso: COGNOME NOME MESE ANNO
             if len(parts) < 4:
                 skipped += 1
                 continue
@@ -118,26 +113,27 @@ def admin_upload_period_folder(request):
             mese = month_map[mese_str]
             full_name = f"{nome} {cognome}"
 
-            employee = Employee.objects.filter(full_name=full_name).first()
+            employee = Employee.objects.filter(
+                full_name__iexact=full_name
+            ).first()
 
             # CREA NUOVO UTENTE SE NON ESISTE
             if not employee:
 
-                base_username = f"{nome.lower()}-{cognome.lower()}"
-                username = base_username
+                username_base = f"{nome.lower()}-{cognome.lower()}"
+                username = username_base
                 counter = 1
 
                 while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{counter}"
+                    username = f"{username_base}{counter}"
                     counter += 1
 
-                user = User.objects.create(
+                user = User.objects.create_user(
                     username=username,
+                    password="cambiala",
                     first_name=nome,
                     last_name=cognome
                 )
-                user.set_password("cambiala")
-                user.save()
 
                 employee = Employee.objects.create(
                     user=user,
@@ -172,3 +168,97 @@ def admin_upload_period_folder(request):
         return redirect("admin_upload_period_folder")
 
     return render(request, "portal/admin_upload_period_folder.html")
+
+
+# =========================================================
+# ADMIN DASHBOARD
+# =========================================================
+
+@login_required
+def admin_dashboard(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    totale_cedolini = Payslip.objects.count()
+    totale_dipendenti = Employee.objects.count()
+
+    visualizzati = Payslip.objects.filter(
+        payslipview__isnull=False
+    ).distinct().count()
+
+    non_visualizzati = totale_cedolini - visualizzati
+
+    return render(request, "portal/admin_dashboard.html", {
+        "totale_cedolini": totale_cedolini,
+        "totale_dipendenti": totale_dipendenti,
+        "visualizzati": visualizzati,
+        "non_visualizzati": non_visualizzati,
+    })
+
+
+# =========================================================
+# ADMIN EMPLOYEES
+# =========================================================
+
+@login_required
+def admin_employees(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.select_related('user').all()
+
+    return render(request, "portal/admin_employees.html", {
+        "employees": employees
+    })
+
+
+# =========================================================
+# ADMIN REPORT
+# =========================================================
+
+@login_required
+def admin_report(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.all()
+    report_data = []
+
+    for emp in employees:
+        totale = emp.payslips.count()
+
+        visualizzati = Payslip.objects.filter(
+            employee=emp,
+            payslipview__isnull=False
+        ).distinct().count()
+
+        non_visualizzati = totale - visualizzati
+
+        report_data.append({
+            "employee": emp,
+            "totale": totale,
+            "visualizzati": visualizzati,
+            "non_visualizzati": non_visualizzati,
+        })
+
+    return render(request, "portal/admin_report.html", {
+        "report_data": report_data
+    })
+
+
+# =========================================================
+# ADMIN DETTAGLIO DIPENDENTE
+# =========================================================
+
+@login_required
+def admin_employee_detail(request, employee_id):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee, id=employee_id)
+    payslips = employee.payslips.all().order_by('-year', '-month')
+
+    return render(request, "portal/admin_employee_detail.html", {
+        "employee": employee,
+        "payslips": payslips
+    })
