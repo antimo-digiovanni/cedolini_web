@@ -2,7 +2,6 @@ import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 from django.conf import settings
@@ -41,12 +40,16 @@ def register_with_token(request, token):
         confirm = request.POST.get("confirm_password")
 
         if not password or len(password) < 8:
-            messages.error(request, "Password troppo corta (min 8 caratteri)")
-            return redirect(request.path)
+            return render(request, "portal/register.html", {
+                "employee": employee,
+                "error": "Password troppo corta (min 8 caratteri)"
+            })
 
         if password != confirm:
-            messages.error(request, "Le password non coincidono")
-            return redirect(request.path)
+            return render(request, "portal/register.html", {
+                "employee": employee,
+                "error": "Le password non coincidono"
+            })
 
         user.set_password(password)
         user.is_active = True
@@ -57,8 +60,7 @@ def register_with_token(request, token):
 
         invite.mark_used()
 
-        messages.success(request, "Registrazione completata. Ora puoi accedere.")
-        return redirect("login")
+        return redirect("/login/")
 
     return render(request, "portal/register.html", {
         "employee": employee
