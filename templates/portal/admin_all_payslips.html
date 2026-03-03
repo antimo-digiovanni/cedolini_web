@@ -1,0 +1,32 @@
+{% extends "portal/base.html" %}
+{% block title %}Tutti i Cedolini{% endblock %}
+
+{% block content %}
+<div class="card-modern">
+    <h4>Tutti i Cedolini</h4>
+    <div class="table-responsive mt-3">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Anno</th>
+                    <th>Mese</th>
+                    <th>Caricato</th>
+                    <th>Apri</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payslips %}
+                <tr>
+                    <td>{{ p.employee.full_name }}</td>
+                    <td>{{ p.year }}</td>
+                    <td>{{ p.month }}</td>
+                    <td>{{ p.uploaded_at }}</td>
+                    <td><a href="{% url 'open_payslip' p.id %}" class="btn btn-sm btn-primary">Apri</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

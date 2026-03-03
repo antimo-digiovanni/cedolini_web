@@ -8,6 +8,10 @@ urlpatterns = [
     path('register/<str:token>/', views.register_with_token, name='register_with_token'),
 
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin-all-payslips/', views.admin_all_payslips, name='admin_all_payslips'),
+    path('admin-employees/', views.admin_employees, name='admin_employees'),
+    path('admin-send-invite/', views.admin_send_invite, name='admin_send_invite'),
+    path('admin-employee/<int:emp_id>/', views.admin_employee_detail, name='admin_employee_detail'),
 
     # Admin upload folder/zip: ripristinato
     path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),

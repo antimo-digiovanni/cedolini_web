@@ -8,22 +8,114 @@
     <thead>
         <tr>
             <th>Nome</th>
+            <th>Email</th>
+            <th>Invito</th>
             <th>Azioni</th>
         </tr>
     </thead>
     <tbody>
         {% for emp in employees %}
-        <tr>
+        <tr data-employee-id="{{ emp.id }}">
             <td>{{ emp.full_name }}</td>
+            <td class="emp-email">{{ emp.email_invio }}</td>
             <td>
-                <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary btn-sm">
-                    Vedi Cedolini
-                </a>
+                {% if emp.invito_inviato %}
+                    <span class="badge bg-success">Inviato</span>
+                {% else %}
+                    <span class="badge bg-warning">Non inviato</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary btn-sm">Vedi Cedolini</a>
+                <button class="btn btn-sm btn-outline-primary send-invite-btn">Invia Invito</button>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 </div>
+
+<!-- Modal per inserire email -->
+<div class="modal" tabindex="-1" id="emailModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Inserisci email</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" id="modalEmail" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="modalSend">Invia Invito</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    let currentEmployeeId = null;
+    const modal = new bootstrap.Modal(document.getElementById('emailModal'));
+
+    document.querySelectorAll('.send-invite-btn').forEach(btn => {
+        btn.addEventListener('click', async function(){
+            const tr = this.closest('tr');
+            const empId = tr.dataset.employeeId;
+            const emailCell = tr.querySelector('.emp-email');
+            const email = emailCell ? emailCell.textContent.trim() : '';
+
+            currentEmployeeId = empId;
+
+            const resp = await fetch('{% url "admin_send_invite" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: new URLSearchParams({ employee_id: empId })
+            });
+
+            const data = await resp.json();
+            if(data.need_email){
+                // show modal
+                modal.show();
+            } else if(data.ok){
+                location.reload();
+            } else {
+                alert('Errore: ' + (data.error || 'unknown'));
+            }
+        });
+    });
+
+    document.getElementById('modalSend').addEventListener('click', async function(){
+        const email = document.getElementById('modalEmail').value.trim();
+        if(!email) return alert('Inserisci una email');
+
+        const resp = await fetch('{% url "admin_send_invite" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({ employee_id: currentEmployeeId, email: email })
+        });
+        const data = await resp.json();
+        if(data.ok){
+            modal.hide();
+            location.reload();
+        } else {
+            alert('Errore: ' + (data.error || 'unknown'));
+        }
+    });
+});
+
+function getCookie(name) {
+    let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+}
+</script>
 
 {% endblock %}

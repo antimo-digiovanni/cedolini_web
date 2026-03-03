@@ -181,6 +181,138 @@ def admin_dashboard(request):
         "non_visualizzati": non_visualizzati,
     })
 
+
+@login_required
+def admin_all_payslips(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    payslips = Payslip.objects.select_related('employee__user').order_by('-year', '-month')
+    return render(request, 'portal/admin_all_payslips.html', {
+        'payslips': payslips
+    })
+
+
+@login_required
+def admin_employees(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.select_related('user').all().order_by('last_name', 'first_name')
+    return render(request, 'portal/admin_employees.html', {
+        'employees': employees
+    })
+
+
+@login_required
+def admin_employee_detail(request, emp_id):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee, id=emp_id)
+    payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
+
+    detailed = []
+    for p in payslips:
+        view = PayslipView.objects.filter(payslip=p).first()
+        detailed.append({'payslip': p, 'view': view})
+
+    return render(request, 'portal/admin_employee_detail.html', {
+        'employee': employee,
+        'detailed': detailed,
+    })
+
+
+@login_required
+def admin_send_invite(request):
+    if not request.user.is_staff:
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'method'}, status=405)
+
+    emp_id = request.POST.get('employee_id')
+    email = request.POST.get('email')
+
+    if not emp_id:
+        return JsonResponse({'ok': False, 'error': 'missing employee_id'}, status=400)
+
+    try:
+        employee = Employee.objects.select_related('user').get(id=emp_id)
+    except Employee.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
+
+    # if email provided, set it
+    if email:
+        employee.email_invio = email
+        employee.save()
+
+    if not employee.email_invio:
+        return JsonResponse({'ok': False, 'need_email': True})
+
+    # create token and send email (reuse admin email template)
+    from django.utils.crypto import get_random_string
+    from django.utils import timezone
+    from datetime import timedelta
+
+    token = get_random_string(64)
+    InviteToken.objects.create(employee=employee, token=token, expires_at=timezone.now() + timedelta(days=7))
+
+    link = f"https://cedolini-web.onrender.com/portal/register/{token}/"
+    username = employee.user.username
+
+    subject = "Attivazione account - Portale Cedolini"
+    text_content = f"Gentile {employee.first_name or ''} {employee.last_name or ''},\n\n" \
+                   f"è stato creato il tuo accesso al Portale Cedolini.\n\nUSERNAME: {username}\n\nClicca sul link seguente per attivare il tuo account e creare la password:\n{link}\n\nIl link è valido per 7 giorni.\n"
+
+    html_content = f"""
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial, sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+<tr>
+<td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;padding:40px;">
+    <tr>
+        <td align="center" style="padding-bottom:20px;">
+            <img src="https://cedolini-web.onrender.com/static/portal/logo.png" width="120">
+        </td>
+    </tr>
+    <tr>
+        <td style="font-size:22px;font-weight:bold;color:#1f2937;padding-bottom:20px;">Attivazione Portale Cedolini</td>
+    </tr>
+    <tr>
+        <td style="font-size:14px;color:#374151;padding-bottom:20px;">Gentile <strong>{employee.first_name or ''} {employee.last_name or ''}</strong>,<br><br>è stato creato il tuo accesso al Portale Cedolini.</td>
+    </tr>
+    <tr>
+        <td align="center" style="padding:30px 0;">
+            <a href="{link}" style="background:#2563eb;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Attiva il tuo account</a>
+        </td>
+    </tr>
+    <tr>
+        <td style="font-size:12px;color:#6b7280;">Il link è valido per 7 giorni.</td>
+    </tr>
+    <tr>
+        <td style="font-size:12px;color:#9ca3af;padding-top:20px;">© San Vincenzo Srl</td>
+    </tr>
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>
+"""
+
+    from django.core.mail import EmailMultiAlternatives
+    email_msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [employee.email_invio], cc=["cedolini@sanvincenzosrl.com"])
+    email_msg.attach_alternative(html_content, "text/html")
+    email_msg.send()
+
+    employee.invito_inviato = True
+    employee.save()
+
+    return JsonResponse({'ok': True})
+
 def send_read_notification_email(payslip):
 
     employee = payslip.employee
