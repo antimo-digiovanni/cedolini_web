@@ -42,6 +42,16 @@ button {
     font-weight: 600;
     border-radius: 8px;
 }
+
+button:hover {
+    background: #1e40af;
+}
+
+.error {
+    color: red;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
 </style>
 </head>
 
@@ -53,12 +63,30 @@ button {
         <img src="{% static 'portal/logo.png' %}" style="max-height:70px;">
     </div>
 
-    <h4 class="mb-4">Attivazione Account</h4>
+    <h4 class="mb-3">Benvenuto nel Portale Cedolini</h4>
 
-    <p><strong>{{ employee.full_name }}</strong></p>
+    <p class="text-muted mb-4">
+        Completa i tuoi dati per attivare il tuo account.
+    </p>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
 
     <form method="POST">
         {% csrf_token %}
+
+        <input type="text"
+               name="first_name"
+               class="form-control mb-3"
+               placeholder="Nome"
+               required>
+
+        <input type="text"
+               name="last_name"
+               class="form-control mb-3"
+               placeholder="Cognome"
+               required>
 
         <input type="password"
                name="password"
@@ -68,7 +96,7 @@ button {
 
         <input type="password"
                name="confirm_password"
-               class="form-control mb-3"
+               class="form-control mb-4"
                placeholder="Conferma password"
                required>
 
