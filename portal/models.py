@@ -1,5 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import timedelta
+import secrets
 
 
 class Employee(models.Model):
@@ -41,7 +44,6 @@ class AuditEvent(models.Model):
     metadata = models.JSONField(blank=True, null=True, default=dict)
 
 
-# 🔥 MODELLO PER BARRA DI AVANZAMENTO IMPORT
 class ImportJob(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     total_files = models.IntegerField(default=0)
@@ -51,3 +53,34 @@ class ImportJob(models.Model):
     skipped = models.IntegerField(default=0)
     status = models.CharField(max_length=20, default="processing")  # processing | completed | error
     error_message = models.TextField(blank=True, null=True)
+
+
+# =========================================
+# INVITE TOKEN (PRODUCTION READY)
+# =========================================
+
+class InviteToken(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="invite_tokens")
+    token = models.CharField(max_length=128, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(48)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return not self.used and timezone.now() < self.expires_at
+
+    def mark_used(self):
+        self.used = True
+        self.used_at = timezone.now()
+        self.save()
+
+    def __str__(self):
+        return f"Invite for {self.employee.full_name}"
