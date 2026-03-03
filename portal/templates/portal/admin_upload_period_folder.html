@@ -19,48 +19,49 @@ def admin_upload_period_folder(request):
         }
 
         created_users = 0
-        linked_payslips = 0
+        created_payslips = 0
         skipped = 0
 
-        for f in files:
+        for file in files:
 
-            base = os.path.basename(f.name)
-            filename = os.path.splitext(base)[0].strip()
+            filename = os.path.splitext(file.name)[0].strip().lower()
             parts = filename.split()
 
+            # Formato atteso: COGNOME NOME MESE ANNO
             if len(parts) < 4:
                 skipped += 1
                 continue
 
             cognome = parts[0].capitalize()
             nome = parts[1].capitalize()
-            mese_str = parts[2].lower()
-            anno_str = parts[3]
+            mese_str = parts[2]
+            
+            try:
+                anno = int(parts[3])
+            except:
+                skipped += 1
+                continue
 
             if mese_str not in month_map:
                 skipped += 1
                 continue
 
-            try:
-                anno = int(anno_str)
-            except:
-                skipped += 1
-                continue
-
             mese = month_map[mese_str]
+            full_name = f"{nome} {cognome}"
 
-            # CERCA PER COGNOME + NOME ignorando case
             employee = Employee.objects.filter(
-                full_name__iexact=f"{nome} {cognome}"
+                full_name__iexact=full_name
             ).first()
 
+            # 🔥 CREA UTENTE SE NON ESISTE
             if not employee:
 
-                username = f"{nome.lower()}-{cognome.lower()}"
+                base_username = f"{nome.lower()}-{cognome.lower()}"
+                username = base_username
                 counter = 1
 
                 while User.objects.filter(username=username).exists():
-                    username = f"{nome.lower()}-{cognome.lower()}{counter}"
+                    username = f"{base_username}{counter}"
                     counter += 1
 
                 user = User.objects.create_user(
@@ -72,13 +73,13 @@ def admin_upload_period_folder(request):
 
                 employee = Employee.objects.create(
                     user=user,
-                    full_name=f"{nome} {cognome}",
+                    full_name=full_name,
                     must_change_password=True
                 )
 
                 created_users += 1
 
-            # CREA CEDOLINO
+            # 🔥 CREA CEDOLINO SE NON ESISTE
             if not Payslip.objects.filter(
                 employee=employee,
                 year=anno,
@@ -89,14 +90,16 @@ def admin_upload_period_folder(request):
                     employee=employee,
                     year=anno,
                     month=mese,
-                    pdf=f
+                    pdf=file
                 )
 
-                linked_payslips += 1
+                created_payslips += 1
+            else:
+                skipped += 1
 
         messages.success(
             request,
-            f"Import completato ✅ Cedolini: {linked_payslips} | "
+            f"Import completato ✅ Cedolini creati: {created_payslips} | "
             f"Nuovi utenti: {created_users} | Saltati: {skipped}"
         )
 
