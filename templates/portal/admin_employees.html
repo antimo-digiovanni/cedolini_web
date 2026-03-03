@@ -125,3 +125,40 @@ function getCookie(name) {
 </script>
 
 {% endblock %}
+
+<script>
+// Diagnostic and mitigation: if another element overlays the modal, temporarily disable its pointer-events
+document.addEventListener('DOMContentLoaded', function(){
+    const modalEl = document.getElementById('emailModal');
+    if(!modalEl) return;
+
+    let disabledEl = null;
+
+    modalEl.addEventListener('shown.bs.modal', function(){
+        try {
+            const rect = modalEl.getBoundingClientRect();
+            const cx = rect.left + rect.width/2;
+            const cy = rect.top + rect.height/2;
+            const topEl = document.elementFromPoint(cx, cy);
+            console.log('Modal center top element:', topEl);
+            if(topEl && !modalEl.contains(topEl)){
+                // temporarily disable pointer events on the overlaying element
+                disabledEl = topEl;
+                disabledEl.__oldPointer = disabledEl.style.pointerEvents;
+                disabledEl.style.pointerEvents = 'none';
+                console.warn('Temporarily disabled pointer-events on overlaying element', disabledEl);
+            }
+
+            const input = modalEl.querySelector('#modalEmail');
+            if(input) input.focus();
+        } catch(e){ console.error('modal diagnostic error', e); }
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function(){
+        if(disabledEl){
+            disabledEl.style.pointerEvents = disabledEl.__oldPointer || '';
+            disabledEl = null;
+        }
+    });
+});
+</script>
