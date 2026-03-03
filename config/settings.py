@@ -152,3 +152,27 @@ EMAIL_HOST_USER = "cedolini@sanvincenzosrl.com"
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 
 DEFAULT_FROM_EMAIL = "Cedolini San Vincenzo <cedolini@sanvincenzosrl.com>"
+
+# Basic logging configuration: send INFO+ logs to stdout so Render captures them
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
