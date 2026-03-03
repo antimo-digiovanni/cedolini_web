@@ -136,6 +136,30 @@ def open_payslip(request, payslip_id):
     response['Content-Disposition'] = 'inline; filename="cedolino.pdf"'
     return response
 
+# =========================================================
+# ADMIN DASHBOARD
+# =========================================================
+
+@login_required
+def admin_dashboard(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    totale_cedolini = Payslip.objects.count()
+    totale_dipendenti = Employee.objects.count()
+
+    visualizzati = Payslip.objects.filter(
+        payslipview__isnull=False
+    ).distinct().count()
+
+    non_visualizzati = totale_cedolini - visualizzati
+
+    return render(request, "portal/admin_dashboard.html", {
+        "totale_cedolini": totale_cedolini,
+        "totale_dipendenti": totale_dipendenti,
+        "visualizzati": visualizzati,
+        "non_visualizzati": non_visualizzati,
+    })
 
 def send_read_notification_email(payslip):
 
