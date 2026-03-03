@@ -20,33 +20,43 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_filter = ('must_change_password', 'invito_inviato')
 
     def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
+    super().save_model(request, obj, form, change)
 
-        if obj.email_invio and not obj.invito_inviato:
+    if obj.email_invio and not obj.invito_inviato:
 
-            # Genera token
-            token = get_random_string(64)
+        token = get_random_string(64)
 
-            InviteToken.objects.create(
-                employee=obj,
-                token=token,
-                expires_at=timezone.now() + timedelta(days=3)
-            )
+        InviteToken.objects.create(
+            employee=obj,
+            token=token,
+            expires_at=timezone.now() + timedelta(days=7)
+        )
 
-            link = f"https://cedolini-web.onrender.com/portal/register/{token}/"
+        link = f"https://cedolini-web.onrender.com/portal/register/{token}/"
 
-            subject = "Accesso Portale Cedolini"
+        username = obj.user.username
 
-            text_content = f"""
-Ciao {obj.first_name} {obj.last_name},
+        subject = "Attivazione account - Portale Cedolini"
 
-Sei stato invitato ad accedere al Portale Cedolini.
+        text_content = f"""
+Gentile {obj.first_name} {obj.last_name},
 
-Completa la registrazione da qui:
+è stato creato il tuo accesso al Portale Cedolini.
+
+USERNAME: {username}
+
+Ti servirà questo username per effettuare il login al portale.
+
+Clicca sul link seguente per attivare il tuo account e creare la password:
 {link}
+
+Il link è valido per 7 giorni.
+
+Cordiali saluti
+San Vincenzo Srl
 """
 
-            html_content = f"""
+        html_content = f"""
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial, sans-serif;">
@@ -62,36 +72,43 @@ Completa la registrazione da qui:
     </tr>
 
     <tr>
-        <td style="font-size:20px;font-weight:bold;color:#1f2937;padding-bottom:20px;">
-            Benvenuto nel Portale Cedolini
+        <td style="font-size:22px;font-weight:bold;color:#1f2937;padding-bottom:20px;">
+            Attivazione Portale Cedolini
         </td>
     </tr>
 
     <tr>
         <td style="font-size:14px;color:#374151;padding-bottom:20px;">
             Gentile <strong>{obj.first_name} {obj.last_name}</strong>,<br><br>
-            tramite questo portale potrai:
-            <ul>
-                <li>Visualizzare i tuoi cedolini</li>
-                <li>Scaricare i PDF</li>
-                <li>Consultare lo storico</li>
-            </ul>
+            è stato creato il tuo accesso al Portale Cedolini.
+        </td>
+    </tr>
+
+    <tr>
+        <td style="padding:20px;background:#f3f4f6;border-radius:8px;text-align:center;">
+            <div style="font-size:13px;color:#6b7280;">Username per il login</div>
+            <div style="font-size:20px;font-weight:bold;color:#1e3a8a;margin-top:5px;">
+                {username}
+            </div>
+            <div style="font-size:12px;color:#6b7280;margin-top:5px;">
+                Conserva questo username: ti servirà per accedere al portale.
+            </div>
         </td>
     </tr>
 
     <tr>
         <td align="center" style="padding:30px 0;">
             <a href="{link}" 
-               style="background:#1f2937;color:#ffffff;padding:12px 24px;
+               style="background:#2563eb;color:#ffffff;padding:14px 28px;
                text-decoration:none;border-radius:6px;font-weight:bold;">
-               Completa Registrazione
+               Attiva il tuo account
             </a>
         </td>
     </tr>
 
     <tr>
-        <td style="font-size:12px;color:#6b7280;padding-top:20px;">
-            Il link è valido per 3 giorni.
+        <td style="font-size:12px;color:#6b7280;">
+            Il link è valido per 7 giorni.
         </td>
     </tr>
 
@@ -109,19 +126,19 @@ Completa la registrazione da qui:
 </html>
 """
 
-            email = EmailMultiAlternatives(
-                subject,
-                text_content,
-                settings.DEFAULT_FROM_EMAIL,
-                [obj.email_invio],
-                cc=["cedolini@sanvincenzosrl.com"],
-            )
+        email = EmailMultiAlternatives(
+            subject,
+            text_content,
+            settings.DEFAULT_FROM_EMAIL,
+            [obj.email_invio],
+            cc=["cedolini@sanvincenzosrl.com"],
+        )
 
-            email.attach_alternative(html_content, "text/html")
-            email.send()
+        email.attach_alternative(html_content, "text/html")
+        email.send()
 
-            obj.invito_inviato = True
-            obj.save()
+        obj.invito_inviato = True
+        obj.save()
 
 
 @admin.register(Payslip)
