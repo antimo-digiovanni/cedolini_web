@@ -1,13 +1,10 @@
 import os
-import calendar
-import datetime
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
-from django.db.models import Count
 
 from .models import Employee, Payslip, PayslipView
 
@@ -59,115 +56,32 @@ def open_payslip(request, payslip_id):
 
 
 # =========================================================
-# IMPORT CARTELLA PERIODO (CREA UTENTI + CEDOLINI)
+# REGISTER VIEW
 # =========================================================
 
-@login_required
-def admin_upload_period_folder(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
+def register_view(request, token):
+    user = get_object_or_404(User, username=token)
+    employee = get_object_or_404(Employee, user=user)
 
     if request.method == "POST":
+        password = request.POST.get("password")
+        confirm = request.POST.get("confirm_password")
 
-        files = request.FILES.getlist("folder")
+        if password and password == confirm:
+            user.set_password(password)
+            user.save()
 
-        if not files:
-            messages.error(request, "Nessun file selezionato.")
-            return redirect("admin_upload_period_folder")
+            employee.must_change_password = False
+            employee.save()
 
-        month_map = {
-            "gennaio": 1, "febbraio": 2, "marzo": 3,
-            "aprile": 4, "maggio": 5, "giugno": 6,
-            "luglio": 7, "agosto": 8, "settembre": 9,
-            "ottobre": 10, "novembre": 11, "dicembre": 12,
-        }
+            messages.success(request, "Registrazione completata.")
+            return redirect("login")
+        else:
+            messages.error(request, "Le password non coincidono.")
 
-        created_users = 0
-        linked_payslips = 0
-        skipped = 0
-
-        for f in files:
-
-            base = os.path.basename(f.name)
-            filename = os.path.splitext(base)[0].lower().strip()
-            parts = filename.split()
-
-            if len(parts) < 4:
-                skipped += 1
-                continue
-
-            cognome = parts[0].capitalize()
-            nome = parts[1].capitalize()
-            mese_str = parts[2].lower()
-
-            try:
-                anno = int(parts[3])
-            except:
-                skipped += 1
-                continue
-
-            if mese_str not in month_map:
-                skipped += 1
-                continue
-
-            mese = month_map[mese_str]
-            full_name = f"{nome} {cognome}"
-
-            employee = Employee.objects.filter(
-                full_name__iexact=full_name
-            ).first()
-
-            # CREA NUOVO UTENTE SE NON ESISTE
-            if not employee:
-
-                username_base = f"{nome.lower()}-{cognome.lower()}"
-                username = username_base
-                counter = 1
-
-                while User.objects.filter(username=username).exists():
-                    username = f"{username_base}{counter}"
-                    counter += 1
-
-                user = User.objects.create_user(
-                    username=username,
-                    password="cambiala",
-                    first_name=nome,
-                    last_name=cognome
-                )
-
-                employee = Employee.objects.create(
-                    user=user,
-                    full_name=full_name,
-                    must_change_password=True
-                )
-
-                created_users += 1
-
-            # CREA CEDOLINO SE NON ESISTE
-            if not Payslip.objects.filter(
-                employee=employee,
-                year=anno,
-                month=mese
-            ).exists():
-
-                Payslip.objects.create(
-                    employee=employee,
-                    year=anno,
-                    month=mese,
-                    pdf=f
-                )
-
-                linked_payslips += 1
-
-        messages.success(
-            request,
-            f"Import completato ✅ Cedolini: {linked_payslips} | "
-            f"Nuovi utenti: {created_users} | Saltati: {skipped}"
-        )
-
-        return redirect("admin_upload_period_folder")
-
-    return render(request, "portal/admin_upload_period_folder.html")
+    return render(request, "portal/register.html", {
+        "employee": employee
+    })
 
 
 # =========================================================
@@ -213,6 +127,24 @@ def admin_employees(request):
 
 
 # =========================================================
+# ADMIN EMPLOYEE DETAIL
+# =========================================================
+
+@login_required
+def admin_employee_detail(request, employee_id):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee, id=employee_id)
+    payslips = employee.payslips.all().order_by('-year', '-month')
+
+    return render(request, "portal/admin_employee_detail.html", {
+        "employee": employee,
+        "payslips": payslips
+    })
+
+
+# =========================================================
 # ADMIN REPORT
 # =========================================================
 
@@ -247,21 +179,16 @@ def admin_report(request):
 
 
 # =========================================================
-# ADMIN DETTAGLIO DIPENDENTE
+# IMPORT CARTELLA PERIODO
 # =========================================================
 
 @login_required
-def admin_employee_detail(request, employee_id):
+def admin_upload_period_folder(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    employee = get_object_or_404(Employee, id=employee_id)
-    payslips = employee.payslips.all().order_by('-year', '-month')
+    return render(request, "portal/admin_upload_period_folder.html")
 
-    return render(request, "portal/admin_employee_detail.html", {
-        "employee": employee,
-        "payslips": payslips
-    })
 
 # =========================================================
 # UPLOAD SINGOLO CEDOLINO
@@ -274,8 +201,9 @@ def admin_upload_payslip(request):
 
     return render(request, 'portal/admin_upload_payslip.html')
 
+
 # =========================================================
-# ADMIN AUDIT DASHBOARD
+# ADMIN AUDIT
 # =========================================================
 
 @login_required
