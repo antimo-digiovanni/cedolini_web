@@ -1,6 +1,6 @@
 from django.contrib import admin
-from django.core.mail import send_mail
 from django.conf import settings
+from django.core.mail import EmailMessage
 from .models import Employee, Payslip, AuditEvent
 
 
@@ -22,9 +22,9 @@ class EmployeeAdmin(admin.ModelAdmin):
 
             link = "https://cedolini-web.onrender.com/"
 
-            send_mail(
+            email = EmailMessage(
                 subject="Accesso Portale Cedolini",
-                message=f"""
+                body=f"""
 Ciao {obj.full_name},
 
 Sei stato invitato ad accedere al portale cedolini.
@@ -37,10 +37,11 @@ Username: {obj.user.username}
 Al primo accesso ti verrà richiesto di cambiare password.
                 """,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[obj.email_invio],
-                fail_silently=False,
+                to=[obj.email_invio],
                 cc=["cedolini@sanvincenzosrl.com"],
             )
+
+            email.send(fail_silently=False)
 
             obj.invito_inviato = True
             obj.save()
