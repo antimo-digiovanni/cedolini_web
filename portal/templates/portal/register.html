@@ -60,6 +60,15 @@ button {
     <h4 class="mb-4">Attivazione Account</h4>
 
     <p><strong>{{ employee.full_name }}</strong></p>
+    <p class="text-muted">Username: {{ employee.user.username }}</p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
 
     <form method="POST">
         {% csrf_token %}

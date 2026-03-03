@@ -5,7 +5,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db import transaction
-from django.utils import timezone
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
@@ -39,9 +38,14 @@ def register_with_token(request, token):
 
     if request.method == "POST":
         password = request.POST.get("password")
+        confirm = request.POST.get("confirm_password")
 
         if not password or len(password) < 8:
             messages.error(request, "Password troppo corta (min 8 caratteri)")
+            return redirect(request.path)
+
+        if password != confirm:
+            messages.error(request, "Le password non coincidono")
             return redirect(request.path)
 
         user.set_password(password)
@@ -66,6 +70,9 @@ def register_with_token(request, token):
 # =========================================================
 
 def send_invite_email(employee):
+
+    if not employee.email_invio:
+        raise Exception("Email dipendente non impostata.")
 
     invite = InviteToken.objects.create(employee=employee)
 
