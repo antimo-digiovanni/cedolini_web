@@ -273,3 +273,14 @@ def admin_upload_payslip(request):
         return redirect('dashboard')
 
     return render(request, 'portal/admin_upload_payslip.html')
+
+# =========================================================
+# ADMIN AUDIT DASHBOARD
+# =========================================================
+
+@login_required
+def admin_audit_dashboard(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    return render(request, 'portal/admin_audit.html')
