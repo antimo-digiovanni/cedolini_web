@@ -262,3 +262,14 @@ def admin_employee_detail(request, employee_id):
         "employee": employee,
         "payslips": payslips
     })
+
+# =========================================================
+# UPLOAD SINGOLO CEDOLINO
+# =========================================================
+
+@login_required
+def admin_upload_payslip(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    return render(request, 'portal/admin_upload_payslip.html')

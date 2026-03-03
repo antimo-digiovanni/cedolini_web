@@ -1,43 +1,105 @@
-{% extends "portal/base.html" %}
-{% block title %}Import Mese{% endblock %}
+@login_required
+def admin_upload_period_folder(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
 
-{% block content %}
+    if request.method == "POST":
 
-<div class="container">
+        files = request.FILES.getlist("folder")
 
-    <div class="mb-4">
-        <h2 class="fw-bold">Upload Cedolini (Cartella Periodo)</h2>
-        <p class="text-muted">Seleziona la cartella del mese (es: 2024 Dicembre)</p>
-    </div>
+        if not files:
+            messages.error(request, "Nessun file selezionato.")
+            return redirect("admin_upload_period_folder")
 
-    <div class="card-modern p-4">
+        month_map = {
+            "gennaio": 1, "febbraio": 2, "marzo": 3,
+            "aprile": 4, "maggio": 5, "giugno": 6,
+            "luglio": 7, "agosto": 8, "settembre": 9,
+            "ottobre": 10, "novembre": 11, "dicembre": 12,
+        }
 
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
+        created_users = 0
+        linked_payslips = 0
+        skipped = 0
 
-            <div class="mb-3">
-                <label class="form-label fw-semibold">
-                    Seleziona la cartella del mese
-                </label>
+        for f in files:
 
-                <input
-                    type="file"
-                    name="folder"
-                    class="form-control"
-                    webkitdirectory
-                    directory
-                    multiple
-                >
-            </div>
+            base = os.path.basename(f.name)
+            filename = os.path.splitext(base)[0].strip()
+            parts = filename.split()
 
-            <button type="submit" class="btn btn-primary">
-                Importa Cedolini
-            </button>
+            if len(parts) < 4:
+                skipped += 1
+                continue
 
-        </form>
+            cognome = parts[0].capitalize()
+            nome = parts[1].capitalize()
+            mese_str = parts[2].lower()
+            anno_str = parts[3]
 
-    </div>
+            if mese_str not in month_map:
+                skipped += 1
+                continue
 
-</div>
+            try:
+                anno = int(anno_str)
+            except:
+                skipped += 1
+                continue
 
-{% endblock %}
+            mese = month_map[mese_str]
+
+            # CERCA PER COGNOME + NOME ignorando case
+            employee = Employee.objects.filter(
+                full_name__iexact=f"{nome} {cognome}"
+            ).first()
+
+            if not employee:
+
+                username = f"{nome.lower()}-{cognome.lower()}"
+                counter = 1
+
+                while User.objects.filter(username=username).exists():
+                    username = f"{nome.lower()}-{cognome.lower()}{counter}"
+                    counter += 1
+
+                user = User.objects.create_user(
+                    username=username,
+                    password="cambiala",
+                    first_name=nome,
+                    last_name=cognome
+                )
+
+                employee = Employee.objects.create(
+                    user=user,
+                    full_name=f"{nome} {cognome}",
+                    must_change_password=True
+                )
+
+                created_users += 1
+
+            # CREA CEDOLINO
+            if not Payslip.objects.filter(
+                employee=employee,
+                year=anno,
+                month=mese
+            ).exists():
+
+                Payslip.objects.create(
+                    employee=employee,
+                    year=anno,
+                    month=mese,
+                    pdf=f
+                )
+
+                linked_payslips += 1
+
+        messages.success(
+            request,
+            f"Import completato ✅ Cedolini: {linked_payslips} | "
+            f"Nuovi utenti: {created_users} | Saltati: {skipped}"
+        )
+
+        return redirect("admin_upload_period_folder")
+
+    return render(request, "portal/admin_upload_period_folder.html")
