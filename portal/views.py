@@ -101,7 +101,7 @@ def dashboard(request):
         viewed = p.payslipview_set.first()
 
         p.is_viewed = bool(viewed)
-        p.viewed_at = viewed.created_at if viewed else None
+        p.viewed_at = viewed.viewed_at if viewed else None
 
         if p.year not in grouped:
             grouped[p.year] = []
