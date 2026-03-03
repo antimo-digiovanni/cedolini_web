@@ -6,6 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.utils import timezone
 
 from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
 
@@ -80,102 +81,42 @@ def register_with_token(request, token):
 
 
 # =========================================================
-# INVIA INVITO EMAIL
-# =========================================================
-
-def send_invite_email(employee):
-
-    if not employee.email_invio:
-        raise Exception("Email dipendente non impostata.")
-
-    invite = InviteToken.objects.create(employee=employee)
-
-    register_url = f"https://cedolini-web.onrender.com/portal/register/{invite.token}/"
-
-    username = employee.user.username
-
-    subject = "Attivazione account - Portale Cedolini"
-
-    text_content = f"""
-Gentile {employee.first_name or ''} {employee.last_name or ''},
-
-è stato creato il tuo accesso al Portale Cedolini.
-
-USERNAME: {username}
-
-Ti servirà questo username per effettuare l'accesso al portale.
-
-Clicca sul link seguente per attivare il tuo account e creare la password:
-{register_url}
-
-Il link è valido per 7 giorni.
-
-Cordiali saluti
-San Vincenzo Srl
-"""
-
-    html_content = f"""
-<p>Gentile <strong>{employee.first_name or ''} {employee.last_name or ''}</strong>,</p>
-
-<p>È stato creato il tuo accesso al <strong>Portale Cedolini</strong>.</p>
-
-<div style="background:#f3f4f6;padding:15px;border-radius:8px;margin:15px 0;">
-    <p style="margin:0;"><strong>Username:</strong></p>
-    <p style="font-size:18px;font-weight:bold;color:#1e3a8a;margin:5px 0;">
-        {username}
-    </p>
-    <p style="font-size:13px;color:#555;margin:0;">
-        Ti servirà questo username per effettuare il login.
-    </p>
-</div>
-
-<p>
-<a href="{register_url}" 
-style="display:inline-block;padding:12px 20px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:600;">
-Attiva il tuo account
-</a>
-</p>
-
-<p style="margin-top:20px;font-size:13px;color:#555;">
-Il link è valido per 7 giorni.
-</p>
-
-<p>Cordiali saluti<br>
-San Vincenzo Srl</p>
-"""
-
-    email = EmailMultiAlternatives(
-        subject,
-        text_content,
-        settings.DEFAULT_FROM_EMAIL,
-        [employee.email_invio],
-        cc=["cedolini@sanvincenzosrl.com"],
-    )
-
-    email.attach_alternative(html_content, "text/html")
-    email.send()
-
-    employee.invito_inviato = True
-    employee.save()
-
-
-# =========================================================
-# AREA DIPENDENTE
+# DASHBOARD DIPENDENTE
 # =========================================================
 
 @login_required
 def dashboard(request):
     employee = get_object_or_404(Employee, user=request.user)
 
-    payslips = Payslip.objects.filter(
-        employee=employee
-    ).order_by('-year', '-month')
+    payslips = (
+        Payslip.objects
+        .filter(employee=employee)
+        .prefetch_related("payslipview_set")
+        .order_by('-year', '-month')
+    )
+
+    grouped = {}
+
+    for p in payslips:
+        viewed = p.payslipview_set.first()
+
+        p.is_viewed = bool(viewed)
+        p.viewed_at = viewed.created_at if viewed else None
+
+        if p.year not in grouped:
+            grouped[p.year] = []
+
+        grouped[p.year].append(p)
 
     return render(request, 'portal/dashboard.html', {
         'employee': employee,
-        'payslips': payslips
+        'grouped_payslips': grouped
     })
 
+
+# =========================================================
+# APERTURA CEDOLINO + EMAIL NOTIFICA LETTURA
+# =========================================================
 
 @login_required
 def open_payslip(request, payslip_id):
@@ -185,179 +126,78 @@ def open_payslip(request, payslip_id):
         return HttpResponse("Non autorizzato", status=403)
 
     if not request.user.is_staff:
-        if not PayslipView.objects.filter(payslip=payslip).exists():
-            PayslipView.objects.create(payslip=payslip)
+        view, created = PayslipView.objects.get_or_create(payslip=payslip)
+
+        # Se è la prima visualizzazione invia email
+        if created:
+            send_read_notification_email(payslip)
 
     response = HttpResponse(payslip.pdf, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="cedolino.pdf"'
     return response
 
 
-# =========================================================
-# ADMIN DASHBOARD
-# =========================================================
+def send_read_notification_email(payslip):
 
-@login_required
-def admin_dashboard(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
+    employee = payslip.employee
+    user = employee.user
 
-    totale_cedolini = Payslip.objects.count()
-    totale_dipendenti = Employee.objects.count()
+    subject = "Cedolino visualizzato - Portale Cedolini"
 
-    visualizzati = Payslip.objects.filter(
-        payslipview__isnull=False
-    ).distinct().count()
+    text_content = f"""
+Il cedolino di {employee.first_name} {employee.last_name}
+({payslip.month}/{payslip.year})
+è stato visualizzato in data {timezone.now().strftime("%d/%m/%Y %H:%M")}.
+"""
 
-    non_visualizzati = totale_cedolini - visualizzati
+    html_content = f"""
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial, sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+<tr>
+<td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;padding:40px;">
+    
+    <tr>
+        <td align="center" style="padding-bottom:20px;">
+            <img src="https://cedolini-web.onrender.com/static/portal/logo.png" width="120">
+        </td>
+    </tr>
 
-    return render(request, "portal/admin_dashboard.html", {
-        "totale_cedolini": totale_cedolini,
-        "totale_dipendenti": totale_dipendenti,
-        "visualizzati": visualizzati,
-        "non_visualizzati": non_visualizzati,
-    })
+    <tr>
+        <td style="font-size:20px;font-weight:bold;color:#1f2937;padding-bottom:20px;">
+            Cedolino Visualizzato
+        </td>
+    </tr>
 
+    <tr>
+        <td style="font-size:14px;color:#374151;padding-bottom:20px;">
+            Il dipendente <strong>{employee.first_name} {employee.last_name}</strong><br>
+            ha visualizzato il cedolino di <strong>{payslip.month}/{payslip.year}</strong>.
+        </td>
+    </tr>
 
-# =========================================================
-# IMPORT CARTELLA PERIODO
-# =========================================================
+    <tr>
+        <td style="font-size:13px;color:#6b7280;">
+            Data e ora: {timezone.now().strftime("%d/%m/%Y %H:%M")}
+        </td>
+    </tr>
 
-@login_required
-def admin_upload_period_folder(request):
-    if not request.user.is_staff:
-        return redirect('dashboard')
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>
+"""
 
-    if request.method == "POST":
+    email = EmailMultiAlternatives(
+        subject,
+        text_content,
+        settings.DEFAULT_FROM_EMAIL,
+        ["cedolini@sanvincenzosrl.com"],
+    )
 
-        files = request.FILES.getlist("folder")
-
-        if not files:
-            return JsonResponse({"error": "Nessun file"}, status=400)
-
-        job = ImportJob.objects.create(total_files=len(files))
-
-        month_map = {
-            "gennaio": 1, "febbraio": 2, "marzo": 3,
-            "aprile": 4, "maggio": 5, "giugno": 6,
-            "luglio": 7, "agosto": 8, "settembre": 9,
-            "ottobre": 10, "novembre": 11, "dicembre": 12,
-        }
-
-        try:
-            with transaction.atomic():
-
-                employees = {
-                    f"{e.first_name} {e.last_name}".lower(): e
-                    for e in Employee.objects.select_related("user")
-                }
-
-                usernames = set(User.objects.values_list("username", flat=True))
-
-                existing_payslips = set(
-                    Payslip.objects.values_list("employee_id", "year", "month")
-                )
-
-                for file in files:
-
-                    filename = os.path.splitext(file.name)[0].strip().lower()
-                    parts = filename.split()
-
-                    if len(parts) < 4:
-                        job.skipped += 1
-                        continue
-
-                    mese_str = parts[-2]
-                    anno_str = parts[-1]
-
-                    if mese_str not in month_map:
-                        job.skipped += 1
-                        continue
-
-                    try:
-                        anno = int(anno_str)
-                    except:
-                        job.skipped += 1
-                        continue
-
-                    name_parts = parts[:-2]
-                    nome = name_parts[-1].capitalize()
-                    cognome = " ".join(name_parts[:-1]).title()
-                    full_name = f"{nome} {cognome}"
-                    mese = month_map[mese_str]
-
-                    employee = employees.get(full_name.lower())
-
-                    if not employee:
-                        base_username = nome.lower() + "-" + cognome.lower().replace(" ", "-")
-                        username = base_username
-                        counter = 1
-
-                        while username in usernames:
-                            username = f"{base_username}{counter}"
-                            counter += 1
-
-                        user = User.objects.create_user(
-                            username=username,
-                            password="cambiala",
-                            first_name=nome,
-                            last_name=cognome
-                        )
-
-                        employee = Employee.objects.create(
-                            user=user,
-                            first_name=nome,
-                            last_name=cognome,
-                            must_change_password=True
-                        )
-
-                        employees[full_name.lower()] = employee
-                        usernames.add(username)
-                        job.created_users += 1
-
-                    if (employee.id, anno, mese) not in existing_payslips:
-                        Payslip.objects.create(
-                            employee=employee,
-                            year=anno,
-                            month=mese,
-                            pdf=file
-                        )
-                        job.created_payslips += 1
-                    else:
-                        job.skipped += 1
-
-                    job.processed_files += 1
-                    job.save(update_fields=[
-                        "processed_files",
-                        "created_users",
-                        "created_payslips",
-                        "skipped"
-                    ])
-
-                job.status = "completed"
-                job.save()
-
-        except Exception as e:
-            job.status = "error"
-            job.error_message = str(e)
-            job.save()
-            return JsonResponse({"error": str(e)}, status=500)
-
-        return JsonResponse({"job_id": job.id})
-
-    return render(request, "portal/admin_upload_period_folder.html")
-
-
-@login_required
-def import_progress(request, job_id):
-    job = get_object_or_404(ImportJob, id=job_id)
-
-    percent = int((job.processed_files / job.total_files) * 100) if job.total_files else 0
-
-    return JsonResponse({
-        "percent": percent,
-        "status": job.status,
-        "created_users": job.created_users,
-        "created_payslips": job.created_payslips,
-        "skipped": job.skipped
-    })
+    email.attach_alternative(html_content, "text/html")
+    email.send()

@@ -7,54 +7,69 @@
 
     <h2 class="mb-4">I tuoi Cedolini</h2>
 
-    <div class="card-modern">
+    {% for year, payslips in grouped_payslips.items %}
+    
+        <div class="card-modern mb-4">
 
-        <table class="table align-middle">
-            <thead>
-                <tr>
-                    <th>Anno</th>
-                    <th>Mese</th>
-                    <th>Apri</th>
-                </tr>
-            </thead>
-            <tbody>
+            <h4 class="mb-3">Anno {{ year }}</h4>
 
-            {% for payslip in payslips %}
-                <tr>
-                    <td>{{ payslip.year }}</td>
-                    <td>
-                        {% if payslip.month == 1 %}Gennaio{% endif %}
-                        {% if payslip.month == 2 %}Febbraio{% endif %}
-                        {% if payslip.month == 3 %}Marzo{% endif %}
-                        {% if payslip.month == 4 %}Aprile{% endif %}
-                        {% if payslip.month == 5 %}Maggio{% endif %}
-                        {% if payslip.month == 6 %}Giugno{% endif %}
-                        {% if payslip.month == 7 %}Luglio{% endif %}
-                        {% if payslip.month == 8 %}Agosto{% endif %}
-                        {% if payslip.month == 9 %}Settembre{% endif %}
-                        {% if payslip.month == 10 %}Ottobre{% endif %}
-                        {% if payslip.month == 11 %}Novembre{% endif %}
-                        {% if payslip.month == 12 %}Dicembre{% endif %}
-                    </td>
-                    <td>
-                        <a href="{% url 'open_payslip' payslip.id %}"
-                           class="btn btn-sm btn-primary">
-                           Apri PDF
-                        </a>
-                    </td>
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="3" class="text-center text-muted">
-                        Nessun cedolino disponibile
-                    </td>
-                </tr>
-            {% endfor %}
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Mese</th>
+                        <th>Stato</th>
+                        <th>Apri</th>
+                    </tr>
+                </thead>
+                <tbody>
 
-            </tbody>
-        </table>
+                {% for payslip in payslips %}
+                    <tr>
+                        <td>
+                            {% if payslip.month == 1 %}Gennaio{% endif %}
+                            {% if payslip.month == 2 %}Febbraio{% endif %}
+                            {% if payslip.month == 3 %}Marzo{% endif %}
+                            {% if payslip.month == 4 %}Aprile{% endif %}
+                            {% if payslip.month == 5 %}Maggio{% endif %}
+                            {% if payslip.month == 6 %}Giugno{% endif %}
+                            {% if payslip.month == 7 %}Luglio{% endif %}
+                            {% if payslip.month == 8 %}Agosto{% endif %}
+                            {% if payslip.month == 9 %}Settembre{% endif %}
+                            {% if payslip.month == 10 %}Ottobre{% endif %}
+                            {% if payslip.month == 11 %}Novembre{% endif %}
+                            {% if payslip.month == 12 %}Dicembre{% endif %}
+                        </td>
 
-    </div>
+                        <td>
+                            {% if payslip.is_viewed %}
+                                <span class="badge bg-success">
+                                    ● Visualizzato
+                                </span>
+                                <div style="font-size:12px;color:#6b7280;">
+                                    {{ payslip.viewed_at|date:"d/m/Y H:i" }}
+                                </div>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    ● Non visualizzato
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <a href="{% url 'open_payslip' payslip.id %}"
+                               class="btn btn-sm btn-primary">
+                               Apri PDF
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+
+                </tbody>
+            </table>
+
+        </div>
+
+    {% endfor %}
 
 </div>
 
