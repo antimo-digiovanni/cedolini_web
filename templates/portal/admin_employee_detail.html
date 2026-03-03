@@ -7,6 +7,10 @@
 
 {% regroup detailed by payslip.year as year_list %}
 
+{% if not detailed %}
+<div class="alert alert-info">Nessun cedolino trovato per questo dipendente.</div>
+{% endif %}
+
 {% for year in year_list %}
 
 <div class="card-modern mb-4">

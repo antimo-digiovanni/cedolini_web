@@ -212,6 +212,13 @@ def admin_employee_detail(request, emp_id):
     employee = get_object_or_404(Employee, id=emp_id)
     payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
 
+    logger.info('admin_employee_detail: employee=%s payslip_count=%d', getattr(employee, 'id', None), payslips.count())
+    try:
+        ids = list(payslips.values_list('id', flat=True))
+        logger.info('admin_employee_detail: payslip_ids=%s', ids)
+    except Exception:
+        logger.exception('admin_employee_detail: error listing payslip ids for employee=%s', getattr(employee, 'id', None))
+
     detailed = []
     for p in payslips:
         view = PayslipView.objects.filter(payslip=p).first()
