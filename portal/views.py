@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.db import transaction, IntegrityError
+from django.db.models import Count
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
@@ -197,8 +198,7 @@ def admin_all_payslips(request):
 def admin_employees(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-
-    employees = Employee.objects.select_related('user').all().order_by('last_name', 'first_name')
+    employees = Employee.objects.select_related('user').annotate(payslip_count=Count('payslips')).all().order_by('last_name', 'first_name')
     return render(request, 'portal/admin_employees.html', {
         'employees': employees
     })

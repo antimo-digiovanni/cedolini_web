@@ -9,6 +9,7 @@
         <tr>
             <th>Nome</th>
             <th>Email</th>
+            <th>Cedolini</th>
             <th>Invito</th>
             <th>Azioni</th>
         </tr>
@@ -18,6 +19,11 @@
         <tr data-employee-id="{{ emp.id }}">
             <td>{{ emp.full_name }}</td>
             <td class="emp-email">{{ emp.email_invio }}</td>
+            <td>
+                <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-outline-secondary btn-sm">
+                    {{ emp.payslip_count }}
+                </a>
+            </td>
             <td>
                 {% if emp.invito_inviato %}
                     <span class="badge bg-success">Inviato</span>
