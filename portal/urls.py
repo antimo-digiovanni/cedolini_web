@@ -13,5 +13,4 @@ urlpatterns = [
 
     path('open/<int:payslip_id>/', views.open_payslip, name='open_payslip'),
 
-    path('register/<str:token>/', views.register_view, name='register_view'),
 ]
