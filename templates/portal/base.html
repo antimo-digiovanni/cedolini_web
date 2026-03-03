@@ -127,18 +127,24 @@ main {
     z-index: 1500 !important;
 }
 /* Stronger rules in case other elements overlay the modal */
+.modal-backdrop {
+    z-index: 100000 !important;
+    background-color: rgba(0,0,0,0.55) !important;
+}
+
 .modal,
-.modal-backdrop,
 .modal-dialog,
 .modal-content {
-    z-index: 99999 !important;
+    z-index: 200000 !important;
+    pointer-events: auto !important;
 }
+
+/* ensure modal is fixed and centered above all other stacking contexts */
 .modal {
-    pointer-events: auto !important;
-}
-.modal-backdrop {
-    pointer-events: auto !important;
-    background-color: rgba(0,0,0,0.55) !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
 }
 </style>
 </head>
