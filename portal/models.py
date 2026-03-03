@@ -15,7 +15,7 @@ class Employee(models.Model):
     must_change_password = models.BooleanField(default=True)
 
     def __str__(self):
-    return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}"
 
 
 class Payslip(models.Model):
