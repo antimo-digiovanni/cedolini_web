@@ -406,6 +406,21 @@ def admin_all_payslips(request):
     if employee_id:
         payslips = payslips.filter(employee_id=employee_id)
 
+    # CUD: usiamo gli stessi filtri per anno e dipendente (mese non rilevante)
+    cuds = Cud.objects.select_related('employee__user').order_by('-year')
+    if year:
+        cuds = cuds.filter(year=year)
+    if employee_id:
+        cuds = cuds.filter(employee_id=employee_id)
+
+    # arricchisci con info di visualizzazione
+    cuds_list = []
+    for c in cuds:
+        view = CudView.objects.filter(cud=c).order_by('viewed_at').first()
+        c.is_viewed = bool(view)
+        c.viewed_at = view.viewed_at if view else None
+        cuds_list.append(c)
+
     # Export CSV opzionale
     export_format = request.GET.get('format')
     if export_format == 'csv':
@@ -429,6 +444,7 @@ def admin_all_payslips(request):
 
     return render(request, 'portal/admin_all_payslips.html', {
         'payslips': payslips,
+        'cuds': cuds_list,
         'employees': employees,
         'year_selected': year,
         'month_selected': month,

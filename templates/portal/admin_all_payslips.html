@@ -58,4 +58,56 @@
         </table>
     </div>
 </div>
+
+{% if cuds %}
+
+<div class="card-modern mt-4">
+    <h4 class="mb-3">Tutti i CUD</h4>
+
+    <div class="table-responsive mt-2">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Anno</th>
+                    <th>Caricato</th>
+                    <th>Stato</th>
+                    <th>Data Visualizzazione</th>
+                    <th>Apri</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cuds %}
+                <tr>
+                    <td>{{ c.employee.full_name }}</td>
+                    <td>{{ c.year }}</td>
+                    <td>{{ c.uploaded_at }}</td>
+                    <td>
+                        {% if c.is_viewed %}
+                            <span class="badge bg-success">Visualizzato</span>
+                        {% else %}
+                            <span class="badge bg-danger">Non visualizzato</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.is_viewed and c.viewed_at %}
+                            {{ c.viewed_at|date:"d/m/Y H:i" }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'open_cud' c.id %}"
+                           class="btn btn-sm btn-secondary" target="_blank" rel="noopener">
+                           Apri CUD
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
 {% endblock %}
