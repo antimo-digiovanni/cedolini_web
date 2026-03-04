@@ -18,6 +18,7 @@ urlpatterns = [
     path('admin-send-invite/', views.admin_send_invite, name='admin_send_invite'),
     path('admin-employee/<int:emp_id>/', views.admin_employee_detail, name='admin_employee_detail'),
     path('admin-employee-payslips/<int:emp_id>/', views.admin_employee_payslips, name='admin_employee_payslips'),
+    path('admin-reset-payslip-view/<int:payslip_id>/', views.admin_reset_payslip_view, name='admin_reset_payslip_view'),
 
     # Admin upload folder/zip: ripristinato
     path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),

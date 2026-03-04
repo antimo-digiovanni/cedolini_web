@@ -572,6 +572,27 @@ def admin_employee_detail(request, emp_id):
 
 
 @login_required
+def admin_reset_payslip_view(request, payslip_id):
+    """Consente all'admin di azzerare lo stato di visualizzazione di un cedolino."""
+    if not request.user.is_staff:
+        return HttpResponse(status=403)
+
+    payslip = get_object_or_404(Payslip, id=payslip_id)
+
+    if request.method == 'POST':
+        PayslipView.objects.filter(payslip=payslip).delete()
+
+        _create_audit_event(
+            request,
+            "payslip_view_reset",
+            employee=payslip.employee,
+            payslip=payslip,
+        )
+
+    return redirect('admin_employee_detail', emp_id=payslip.employee_id)
+
+
+@login_required
 def admin_employee_payslips(request, emp_id):
     if not request.user.is_staff:
         return HttpResponse(status=403)
@@ -865,10 +886,27 @@ def admin_upload_period_folder(request):
                         employee = qs.first()
                         break
 
-                # fallback: surname = first token, firstname = rest
+                # fallback: gestisci cognomi composti (Del Prete, Di Stefano, ...)
+                # e, in generale, usa "prima parola = cognome" / resto = nome
                 if not employee:
-                    last = name_tokens[0]
-                    first = ' '.join(name_tokens[1:]) if len(name_tokens) > 1 else ''
+                    surname_particles = {
+                        'DE', 'DEL', 'DELLA', 'DI', 'DA', 'DAL', 'DEI', 'DEGLI', 'DELL', "D'", 'D',
+                    }
+
+                    last = None
+                    first = None
+
+                    tokens_upper = [t.upper() for t in name_tokens]
+
+                    # Esempio filename: "DEL PRETE RAFFAELE" -> cognome "DEL PRETE", nome "RAFFAELE"
+                    if len(name_tokens) >= 3 and tokens_upper[0] in surname_particles:
+                        last = ' '.join(name_tokens[:2]).strip()
+                        first = ' '.join(name_tokens[2:]).strip()
+                    else:
+                        last = name_tokens[0]
+                        first = ' '.join(name_tokens[1:]) if len(name_tokens) > 1 else ''
+
+                    # prova ancora a cercare un dipendente esistente con questa combinazione
                     qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
                     if qs.exists():
                         employee = qs.first()

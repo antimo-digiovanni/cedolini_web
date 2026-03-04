@@ -20,7 +20,7 @@
         <thead>
             <tr>
                 <th>Mese</th>
-                <th>Stato</th>
+                <th class="text-center">Stato</th>
                 <th>Data Visualizzazione</th>
                 <th>Azioni</th>
             </tr>
@@ -45,7 +45,7 @@
                     {% if item.payslip.month == 12 %}Dicembre{% endif %}
                 </td>
 
-                <td>
+                <td class="text-center">
                     {% if item.view %}
                         <span class="badge bg-success">Visualizzato</span>
                     {% else %}
@@ -63,6 +63,10 @@
 
                 <td>
                     <a href="{% url 'open_payslip' item.payslip.id %}" class="btn btn-sm btn-primary" target="_blank">Apri</a>
+                    <form method="post" action="{% url 'admin_reset_payslip_view' item.payslip.id %}" style="display:inline-block;margin-left:6px;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Reset visualizzazione</button>
+                    </form>
                 </td>
 
             </tr>
@@ -85,7 +89,7 @@
         <thead>
             <tr>
                 <th>Anno</th>
-                <th>Stato</th>
+                <th class="text-center">Stato</th>
                 <th>Data Visualizzazione</th>
                 <th>Azioni</th>
             </tr>
@@ -94,7 +98,7 @@
         {% for item in cuds_detailed %}
             <tr>
                 <td>{{ item.cud.year }}</td>
-                <td>
+                <td class="text-center">
                     {% if item.view %}
                         <span class="badge bg-success">Visualizzato</span>
                     {% else %}
