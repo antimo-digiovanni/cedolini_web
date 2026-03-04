@@ -112,19 +112,28 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # MEDIA – CLOUDFLARE R2
 # ==============================
 
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
 AWS_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
 AWS_STORAGE_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME")
-AWS_S3_ENDPOINT_URL = os.environ.get("R2_ENDPOINT_URL")
+AWS_S3_ENDPOINT_URL = os.environ.get("R2_ENDPOINT_URL")  # endpoint S3 (API), NON pubblico
 
 AWS_S3_REGION_NAME = "auto"
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = False
 
-if AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
+# URL pubblico per servire i file (es: https://pub-xxxx.r2.dev/<bucket>/...)
+# Deve essere configurato come R2_PUBLIC_BASE_URL nelle variabili di ambiente
+R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL")
+
+# Storage predefinito: backend personalizzato che costruisce URL pubblici R2
+DEFAULT_FILE_STORAGE = "portal.storage_backends.R2PublicStorage"
+
+if R2_PUBLIC_BASE_URL and AWS_STORAGE_BUCKET_NAME:
+    # MEDIA_URL coerente con gli URL pubblici generati dallo storage
+    MEDIA_URL = R2_PUBLIC_BASE_URL.rstrip("/") + f"/{AWS_STORAGE_BUCKET_NAME}/"
+elif AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
+    # fallback: vecchio comportamento (potrebbe richiedere autorizzazione)
     MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 else:
     MEDIA_URL = "/media/"
