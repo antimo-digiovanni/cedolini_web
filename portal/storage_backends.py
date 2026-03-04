@@ -17,9 +17,10 @@ class R2PublicStorage(S3Boto3Storage):
 
         if base_url:
             base_url = base_url.rstrip("/")
-            bucket = self.bucket_name
             name = name.lstrip("/")
-            return f"{base_url}/{bucket}/{name}"
+            # Il dominio R2 pubblico punta già alla root del bucket,
+            # quindi non aggiungiamo il nome del bucket nel path.
+            return f"{base_url}/{name}"
 
         # Fallback: comportamento standard S3Boto3Storage
         return super().url(name, parameters=parameters, expire=expire, http_method=http_method)
