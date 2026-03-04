@@ -3,24 +3,74 @@
 {% block title %}Report Cedolini{% endblock %}
 
 {% block content %}
+<style>
+    .admin-hero {
+        background: linear-gradient(135deg, #0f172a, #1d4ed8);
+        border-radius: 16px;
+        padding: 22px;
+        color: #fff;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.2);
+    }
+    .kpi-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #fff;
+        padding: 16px;
+        height: 100%;
+    }
+    .kpi-label {
+        color: #64748b;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        margin-bottom: 4px;
+    }
+    .kpi-value {
+        color: #0f172a;
+        font-size: 1.6rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+    .table-professional thead th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        color: #475569;
+        letter-spacing: .04em;
+        border-bottom-width: 1px;
+    }
+</style>
 
 <div class="fade-in">
 
-    <h2 class="mb-4">Report Visualizzazioni Cedolini</h2>
+    <div class="admin-hero mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h3 class="mb-1"><i class="bi bi-graph-up-arrow me-1"></i>Report visualizzazioni cedolini</h3>
+                <p class="mb-0 opacity-75">Monitoraggio accessi ai documenti e dettaglio per singolo dipendente.</p>
+            </div>
+            <span class="badge bg-light text-dark px-3 py-2">Analisi fruizione</span>
+        </div>
+    </div>
 
     <div class="card-modern mb-4">
-        <div class="row text-center">
+        <div class="row g-3">
             <div class="col-md-4">
-                <h6>Cedolini totali</h6>
-                <h3>{{ totale_cedolini }}</h3>
+                <div class="kpi-card text-center">
+                    <div class="kpi-label">Cedolini totali</div>
+                    <div class="kpi-value">{{ totale_cedolini }}</div>
+                </div>
             </div>
             <div class="col-md-4">
-                <h6>Visualizzati almeno una volta</h6>
-                <h3>{{ totale_visualizzati }}</h3>
+                <div class="kpi-card text-center">
+                    <div class="kpi-label">Visualizzati almeno una volta</div>
+                    <div class="kpi-value text-success">{{ totale_visualizzati }}</div>
+                </div>
             </div>
             <div class="col-md-4">
-                <h6>Mai visualizzati</h6>
-                <h3>{{ totale_non_visualizzati }}</h3>
+                <div class="kpi-card text-center">
+                    <div class="kpi-label">Mai visualizzati</div>
+                    <div class="kpi-value text-danger">{{ totale_non_visualizzati }}</div>
+                </div>
             </div>
         </div>
     </div>
@@ -29,8 +79,8 @@
         <h5 class="mb-3">Dettaglio per dipendente</h5>
 
         <div class="table-responsive">
-            <table class="table align-middle">
-                <thead>
+            <table class="table table-professional align-middle">
+                <thead class="table-light">
                     <tr>
                         <th>Dipendente</th>
                         <th>Totali</th>
