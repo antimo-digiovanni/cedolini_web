@@ -24,4 +24,5 @@ urlpatterns = [
     path('admin-cancel-import/', views.admin_cancel_import, name='admin_cancel_import'),
 
     path('open/<int:payslip_id>/', views.open_payslip, name='open_payslip'),
+    path('cud/<int:cud_id>/', views.open_cud, name='open_cud'),
 ]

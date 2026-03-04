@@ -72,6 +72,41 @@
 
     {% endfor %}
 
+    {% if cuds %}
+
+    <div class="mt-5">
+        <h2 class="mb-3">I tuoi CUD</h2>
+
+        <div class="card-modern">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Anno</th>
+                        <th>Documento</th>
+                        <th>Apri</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for cud in cuds %}
+                    <tr>
+                        <td>{{ cud.year }}</td>
+                        <td>CUD {{ cud.year }}</td>
+                        <td>
+                            <a href="{% url 'open_cud' cud.id %}"
+                               class="btn btn-sm btn-secondary"
+                               target="_blank" rel="noopener">
+                               Apri CUD
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% endif %}
+
 </div>
 
 {% endblock %}

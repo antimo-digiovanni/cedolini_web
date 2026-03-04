@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 
-from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
+from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken, Cud
 from .models import AuditEvent
 from django.core.paginator import Paginator
 
@@ -159,10 +159,14 @@ def dashboard(request):
 
         grouped[p.year].append(p)
 
+    # CUD annuali del dipendente
+    cuds = Cud.objects.filter(employee=employee).order_by('-year')
+
     logger.info("about to render template")
     return render(request, 'portal/dashboard.html', {
         'employee': employee,
-        'grouped_payslips': grouped
+        'grouped_payslips': grouped,
+        'cuds': cuds,
     })
 
 
@@ -200,6 +204,31 @@ def open_payslip(request, payslip_id):
     except Exception:
         logger.exception('open_payslip: failed to build payslip URL id=%s', payslip_id)
         return HttpResponse('Errore nel recupero del file', status=500)
+
+
+@login_required
+def open_cud(request, cud_id):
+    """Apertura del PDF CUD annuale."""
+    cud = get_object_or_404(Cud, id=cud_id)
+
+    if not request.user.is_staff and cud.employee.user != request.user:
+        return HttpResponse("Non autorizzato", status=403)
+
+    # Audit apertura CUD (solo se non staff)
+    if not request.user.is_staff:
+        _create_audit_event(
+            request,
+            "cud_opened",
+            employee=cud.employee,
+            metadata={"year": cud.year},
+        )
+
+    try:
+        url = cud.pdf.url
+        return HttpResponseRedirect(url)
+    except Exception:
+        logger.exception('open_cud: failed to build CUD URL id=%s', cud_id)
+        return HttpResponse('Errore nel recupero del file CUD', status=500)
 
 # =========================================================
 # ADMIN DASHBOARD

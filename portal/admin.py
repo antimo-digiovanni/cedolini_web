@@ -5,7 +5,7 @@ from django.utils.crypto import get_random_string
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Employee, Payslip, AuditEvent, InviteToken
+from .models import Employee, Payslip, Cud, AuditEvent, InviteToken
 
 
 admin.site.site_header = "Admin"
@@ -144,6 +144,12 @@ San Vincenzo Srl
 class PayslipAdmin(admin.ModelAdmin):
     list_display = ('employee', 'year', 'month', 'uploaded_at')
     list_filter = ('year', 'month')
+
+
+@admin.register(Cud)
+class CudAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'year', 'uploaded_at')
+    list_filter = ('year',)
 
 
 @admin.register(AuditEvent)

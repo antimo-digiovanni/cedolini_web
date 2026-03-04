@@ -40,6 +40,22 @@ class Payslip(models.Model):
         unique_together = [("employee", "year", "month")]
 
 
+class Cud(models.Model):
+    """Documento CUD annuale per dipendente."""
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="cuds")
+    year = models.PositiveIntegerField()
+    pdf = models.FileField(upload_to="cud/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("employee", "year")]
+        ordering = ["-year"]
+
+    def __str__(self):
+        return f"CUD {self.year} - {self.employee.full_name}"
+
+
 class PayslipView(models.Model):
     payslip = models.ForeignKey(Payslip, on_delete=models.CASCADE)
     viewed_at = models.DateTimeField(auto_now_add=True)
