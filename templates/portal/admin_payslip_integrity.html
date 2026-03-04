@@ -1,0 +1,71 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Controllo Integrit\u00e0 Cedolini{% endblock %}
+
+{% block content %}
+<div class="card-modern mb-4">
+    <h4>Controllo Integrit\u00e0 Cedolini</h4>
+    <p class="text-muted mb-3">Verifica che per ogni record in database esista il relativo PDF nello storage.</p>
+
+    <form method="get" class="row g-3 align-items-end mb-3">
+        <div class="col-md-3">
+            <label class="form-label">Anno</label>
+            <input type="number" name="year" class="form-control" value="{{ year_selected }}" placeholder="es. 2025">
+        </div>
+        <div class="col-md-5">
+            <label class="form-label">Dipendente</label>
+            <select name="employee" class="form-select">
+                <option value="">Tutti</option>
+                {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if emp.id == employee_selected %}selected{% endif %}>
+                        {{ emp.full_name }} (ID {{ emp.id }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100 mt-4">Esegui controllo</button>
+        </div>
+        <div class="col-md-2 text-end">
+            <div class="small text-muted mt-4">Massimo 2000 cedolini per esecuzione.</div>
+        </div>
+    </form>
+
+    {% if checked %}
+    <div class="alert alert-info">
+        Controllati {{ checked }} cedolini. Mancanti: <strong>{{ missing|length }}</strong>.
+    </div>
+    {% endif %}
+
+    {% if missing %}
+    <div class="table-responsive mt-3">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Dipendente</th>
+                    <th>Periodo</th>
+                    <th>Nome file</th>
+                    <th>Caricato</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in missing %}
+                <tr class="table-danger">
+                    <td>{{ p.id }}</td>
+                    <td>{{ p.employee.full_name }} (ID {{ p.employee.id }})</td>
+                    <td>{{ p.month_name }} {{ p.year }}</td>
+                    <td>{{ p.pdf.name }}</td>
+                    <td>{{ p.uploaded_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif checked %}
+        <div class="alert alert-success mt-3">
+            Nessun cedolino mancante trovato con i filtri selezionati.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
