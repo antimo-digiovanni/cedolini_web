@@ -61,6 +61,11 @@ class PayslipView(models.Model):
     viewed_at = models.DateTimeField(auto_now_add=True)
 
 
+class CudView(models.Model):
+    cud = models.ForeignKey(Cud, on_delete=models.CASCADE)
+    viewed_at = models.DateTimeField(auto_now_add=True)
+
+
 class AuditEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     action = models.CharField(max_length=50)

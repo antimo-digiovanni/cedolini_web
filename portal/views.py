@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 
-from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken, Cud
+from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken, Cud, CudView
 from .models import AuditEvent
 from django.core.paginator import Paginator
 
@@ -149,10 +149,12 @@ def dashboard(request):
         if idx < 5:
             logger.info("processing payslip id=%s year=%s month=%s", getattr(p, "id", None), getattr(p, "year", None), getattr(p, "month", None))
 
-        viewed = p.payslipview_set.exists()
+        first_view = None
+        if p.payslipview_set.all():
+            first_view = p.payslipview_set.order_by('viewed_at').first()
 
-        p.is_viewed = viewed
-        p.viewed_at = None
+        p.is_viewed = bool(first_view)
+        p.viewed_at = first_view.viewed_at if first_view else None
 
         if p.year not in grouped:
             grouped[p.year] = []
@@ -160,7 +162,18 @@ def dashboard(request):
         grouped[p.year].append(p)
 
     # CUD annuali del dipendente
-    cuds = Cud.objects.filter(employee=employee).order_by('-year')
+    cuds = (
+        Cud.objects
+        .filter(employee=employee)
+        .prefetch_related('cudview_set')
+        .order_by('-year')
+    )
+
+    # Aggiunge info di visualizzazione CUD
+    for c in cuds:
+        first_view = c.cudview_set.order_by('viewed_at').first() if c.cudview_set.all() else None
+        c.is_viewed = bool(first_view)
+        c.viewed_at = first_view.viewed_at if first_view else None
 
     logger.info("about to render template")
     return render(request, 'portal/dashboard.html', {
@@ -214,13 +227,18 @@ def open_cud(request, cud_id):
     if not request.user.is_staff and cud.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
 
-    # Audit apertura CUD (solo se non staff)
+    # Tracciamento apertura e audit (solo se non staff)
     if not request.user.is_staff:
+        view, created = CudView.objects.get_or_create(cud=cud)
+
         _create_audit_event(
             request,
             "cud_opened",
             employee=cud.employee,
-            metadata={"year": cud.year},
+            metadata={
+                "year": cud.year,
+                "first_view": created,
+            },
         )
 
     try:
@@ -523,9 +541,17 @@ def admin_employee_detail(request, emp_id):
         view = PayslipView.objects.filter(payslip=p).first()
         detailed.append({'payslip': p, 'view': view})
 
+    # CUD del dipendente con info di visualizzazione
+    cuds = Cud.objects.filter(employee=employee).order_by('-year')
+    cuds_detailed = []
+    for c in cuds:
+        view = CudView.objects.filter(cud=c).first()
+        cuds_detailed.append({'cud': c, 'view': view})
+
     return render(request, 'portal/admin_employee_detail.html', {
         'employee': employee,
         'detailed': detailed,
+        'cuds_detailed': cuds_detailed,
     })
 
 

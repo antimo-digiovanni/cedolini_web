@@ -82,7 +82,8 @@
                 <thead>
                     <tr>
                         <th>Anno</th>
-                        <th>Documento</th>
+                        <th>Stato</th>
+                        <th>Data Visualizzazione</th>
                         <th>Apri</th>
                     </tr>
                 </thead>
@@ -90,7 +91,20 @@
                 {% for cud in cuds %}
                     <tr>
                         <td>{{ cud.year }}</td>
-                        <td>CUD {{ cud.year }}</td>
+                        <td>
+                            {% if cud.is_viewed %}
+                                <span class="badge bg-success">Visualizzato</span>
+                            {% else %}
+                                <span class="badge bg-danger">Non visualizzato</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cud.is_viewed and cud.viewed_at %}
+                                {{ cud.viewed_at|date:"d/m/Y H:i" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
                         <td>
                             <a href="{% url 'open_cud' cud.id %}"
                                class="btn btn-sm btn-secondary"

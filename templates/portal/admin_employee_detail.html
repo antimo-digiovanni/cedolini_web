@@ -77,3 +77,50 @@
 {% endfor %}
 
 {% endblock %}
+
+{% if cuds_detailed %}
+
+<div class="card-modern mb-4">
+    <h4 class="mb-3">CUD</h4>
+
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Anno</th>
+                <th>Stato</th>
+                <th>Data Visualizzazione</th>
+                <th>Azioni</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in cuds_detailed %}
+            <tr>
+                <td>{{ item.cud.year }}</td>
+                <td>
+                    {% if item.view %}
+                        <span class="badge bg-success">Visualizzato</span>
+                    {% else %}
+                        <span class="badge bg-danger">Non visualizzato</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.view %}
+                        {{ item.view.viewed_at|date:"d/m/Y H:i" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'open_cud' item.cud.id %}"
+                       class="btn btn-sm btn-secondary" target="_blank">
+                       Apri CUD
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endif %}
