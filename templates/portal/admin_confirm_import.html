@@ -20,7 +20,7 @@
         Seleziona quelli che vuoi creare. Gli altri verranno scartati.
     </div>
 
-    <form method="post">
+    <form method="post" class="mt-3">
         {% csrf_token %}
 
         <div class="table-responsive">
@@ -61,14 +61,16 @@
             <button type="submit" class="btn btn-success">
                 Conferma Import
             </button>
-
-            <form method="post" action="{% url 'admin_cancel_import' %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline-secondary">Annulla</button>
-            </form>
         </div>
-        
+
         {% comment %} Include hidden debug lists so view can rollback if needed (session used server-side) {% endcomment %}
     </form>
+
+    <div class="mt-2">
+        <form method="post" action="{% url 'admin_cancel_import' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary">Annulla</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
