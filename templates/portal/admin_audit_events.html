@@ -39,7 +39,7 @@
                         <td>{{ ev.action }}</td>
                         <td>{% if ev.actor_user %}{{ ev.actor_user.username }}{% endif %}</td>
                         <td>{% if ev.employee %}{{ ev.employee.full_name }} ({{ ev.employee.id }}){% endif %}</td>
-                        <td>{% if ev.payslip %}<a href="{% url 'open_payslip' ev.payslip.id %}">{{ ev.payslip.id }}</a>{% endif %}</td>
+                        <td>{% if ev.payslip %}<a href="{% url 'open_payslip' ev.payslip.id %}" target="_blank" rel="noopener">{{ ev.payslip.id }}</a>{% endif %}</td>
                         <td>{{ ev.ip_address }}</td>
                         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ev.user_agent }}</td>
                         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ev.metadata }}</td>

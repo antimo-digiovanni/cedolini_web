@@ -22,7 +22,7 @@
                     <td>{{ p.year }}</td>
                     <td>{{ p.month }}</td>
                     <td>{{ p.uploaded_at }}</td>
-                    <td><a href="{% url 'open_payslip' p.id %}" class="btn btn-sm btn-primary">Apri</a></td>
+                    <td><a href="{% url 'open_payslip' p.id %}" class="btn btn-sm btn-primary" target="_blank" rel="noopener">Apri</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
