@@ -411,14 +411,19 @@ def admin_send_invite(request):
         </td>
     </tr>
     <tr>
-        <td style="font-size:22px;font-weight:bold;color:#1f2937;padding-bottom:20px;">Attivazione Portale Cedolini</td>
+        <td style="font-size:24px;font-weight:bold;color:#1f2937;padding-bottom:8px;">Attivazione Portale Cedolini</td>
     </tr>
     <tr>
-        <td style="font-size:14px;color:#374151;padding-bottom:20px;">
+        <td style="font-size:13px;color:#6b7280;padding-bottom:24px;">
+            Accesso sicuro ai tuoi cedolini online
+        </td>
+    </tr>
+    <tr>
+        <td style="font-size:14px;color:#374151;padding-bottom:20px;line-height:1.6;">
             Gentile <strong>{employee.first_name or ''} {employee.last_name or ''}</strong>,<br><br>
-            è stato creato il tuo accesso al Portale Cedolini.<br><br>
-            Il tuo <strong>username</strong> per accedere è:<br>
-            <span style="display:inline-block;margin-top:8px;padding:6px 10px;background:#f3f4f6;border-radius:4px;font-family:monospace;">
+            è stato creato il tuo accesso al <strong>Portale Cedolini</strong>.<br><br>
+            Il tuo <strong style="color:#111827;">USERNAME</strong> per accedere è:<br>
+            <span style="display:inline-block;margin-top:10px;padding:10px 14px;background:#eff6ff;border-radius:6px;font-family:monospace;font-size:15px;color:#111827;border:1px solid #bfdbfe;">
                 {username}
             </span>
         </td>
@@ -429,10 +434,14 @@ def admin_send_invite(request):
         </td>
     </tr>
     <tr>
-        <td style="font-size:12px;color:#6b7280;">
-            Il link è valido per 7 giorni.<br>
-            Per accedere in futuro al portale utilizza sempre questo indirizzo:<br>
-            <a href="https://cedolini-web.onrender.com/login/" style="color:#2563eb;text-decoration:none;">
+        <td style="font-size:12px;color:#6b7280;padding-top:10px;">
+            Il link è valido per 7 giorni.
+        </td>
+    </tr>
+    <tr>
+        <td style="font-size:13px;color:#374151;padding-top:10px;">
+            Per i prossimi accessi al portale utilizza sempre questo indirizzo:<br>
+            <a href="https://cedolini-web.onrender.com/login/" style="display:inline-block;margin-top:8px;padding:8px 12px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:4px;font-size:13px;">
                 https://cedolini-web.onrender.com/login/
             </a>
         </td>
