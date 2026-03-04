@@ -22,6 +22,7 @@
                 <th>Mese</th>
                 <th>Stato</th>
                 <th>Data Visualizzazione</th>
+                <th>Azioni</th>
             </tr>
         </thead>
         <tbody>
@@ -58,6 +59,10 @@
                     {% else %}
                         —
                     {% endif %}
+                </td>
+
+                <td>
+                    <a href="{% url 'open_payslip' item.payslip.id %}" class="btn btn-sm btn-primary" target="_blank">Apri</a>
                 </td>
 
             </tr>
