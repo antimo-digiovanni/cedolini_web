@@ -3,8 +3,37 @@
 
 {% block content %}
 <div class="card-modern">
-    <h4>Tutti i Cedolini</h4>
-    <div class="table-responsive mt-3">
+    <h4 class="mb-3">Tutti i Cedolini</h4>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-md-2">
+            <label class="form-label">Anno</label>
+            <input type="number" name="year" class="form-control" value="{{ year_selected }}" placeholder="es. 2025">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Mese</label>
+            <input type="number" name="month" min="1" max="12" class="form-control" value="{{ month_selected }}" placeholder="1-12">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Dipendente</label>
+            <select name="employee" class="form-select">
+                <option value="">Tutti</option>
+                {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if emp.id == employee_selected %}selected{% endif %}>
+                        {{ emp.full_name }} ({{ emp.external_code }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Filtra</button>
+        </div>
+        <div class="col-md-2 text-end">
+            <a href="?{% if year_selected %}year={{ year_selected }}&amp;{% endif %}{% if month_selected %}month={{ month_selected }}&amp;{% endif %}{% if employee_selected %}employee={{ employee_selected }}&amp;{% endif %}format=csv" class="btn btn-outline-secondary w-100">Esporta CSV</a>
+        </div>
+    </form>
+
+    <div class="table-responsive mt-2">
         <table class="table table-striped align-middle">
             <thead>
                 <tr>

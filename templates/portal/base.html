@@ -170,11 +170,17 @@ main {
         <a href="{% url 'admin_employees' %}">
             <i class="bi bi-people"></i> Gestione Dipendenti
         </a>
+        <a href="{% url 'admin_report' %}">
+            <i class="bi bi-graph-up"></i> Report cedolini
+        </a>
         <a href="{% url 'admin_audit_events' %}">
             <i class="bi bi-clipboard-data"></i> Storico azioni
         </a>
         <a href="{% url 'admin_import_jobs' %}">
             <i class="bi bi-clock-history"></i> Storico caricamenti
+        </a>
+        <a href="{% url 'admin_payslip_integrity' %}">
+            <i class="bi bi-shield-check"></i> Controllo cedolini
         </a>
         {% endif %}
 

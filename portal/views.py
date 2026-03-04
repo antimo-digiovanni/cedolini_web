@@ -1,11 +1,12 @@
 import os
+import csv
 from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect
 from django.db import transaction, IntegrityError
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
@@ -191,13 +192,143 @@ def admin_dashboard(request):
 
 
 @login_required
+def admin_report(request):
+    """Report sintetico visualizzazioni cedolini per dipendente."""
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees_stats = (
+        Employee.objects
+        .annotate(
+            totale=Count('payslip', distinct=True),
+            visualizzati=Count('payslip', filter=Q(payslip__payslipview__isnull=False), distinct=True),
+        )
+        .order_by('last_name', 'first_name')
+    )
+
+    rows = []
+    totale_cedolini = 0
+    totale_visualizzati = 0
+
+    for emp in employees_stats:
+        totale = emp.totale
+        visualizzati = emp.visualizzati
+        non_visualizzati = max(totale - visualizzati, 0)
+
+        totale_cedolini += totale
+        totale_visualizzati += visualizzati
+
+        rows.append({
+            'employee': emp,
+            'total': totale,
+            'visualizzati': visualizzati,
+            'non_visualizzati': non_visualizzati,
+        })
+
+    totale_non_visualizzati = max(totale_cedolini - totale_visualizzati, 0)
+
+    return render(request, "portal/admin_report.html", {
+        "rows": rows,
+        "totale_cedolini": totale_cedolini,
+        "totale_visualizzati": totale_visualizzati,
+        "totale_non_visualizzati": totale_non_visualizzati,
+    })
+
+
+# =========================================================
+# ADMIN: CONTROLLO INTEGRITÀ CEDOLINI
+# =========================================================
+
+@login_required
+def admin_payslip_integrity(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    from django.core.files.storage import default_storage
+
+    year = request.GET.get('year')
+    employee_id = request.GET.get('employee')
+
+    payslips_qs = Payslip.objects.all().select_related('employee').order_by('-year', '-month')
+
+    if year:
+        payslips_qs = payslips_qs.filter(year=year)
+    if employee_id:
+        payslips_qs = payslips_qs.filter(employee_id=employee_id)
+
+    # Limite di sicurezza per non bombardare lo storage
+    payslips_qs = payslips_qs[:2000]
+
+    missing = []
+    checked = 0
+
+    for p in payslips_qs:
+        checked += 1
+        try:
+            exists = default_storage.exists(p.pdf.name)
+        except Exception:
+            logger.exception("Errore nel controllo esistenza file per payslip id=%s", p.id)
+            exists = False
+
+        if not exists:
+            missing.append(p)
+
+    employees = Employee.objects.order_by('last_name', 'first_name')
+
+    return render(request, "portal/admin_payslip_integrity.html", {
+        "employees": employees,
+        "year_selected": year,
+        "employee_selected": int(employee_id) if employee_id else None,
+        "checked": checked,
+        "missing": missing,
+    })
+
+
+@login_required
 def admin_all_payslips(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    employee_id = request.GET.get('employee')
+
     payslips = Payslip.objects.select_related('employee__user').order_by('-year', '-month')
+
+    if year:
+        payslips = payslips.filter(year=year)
+    if month:
+        payslips = payslips.filter(month=month)
+    if employee_id:
+        payslips = payslips.filter(employee_id=employee_id)
+
+    # Export CSV opzionale
+    export_format = request.GET.get('format')
+    if export_format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="cedolini.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Dipendente', 'Codice esterno', 'Anno', 'Mese', 'Caricato il', 'ID'])
+        for p in payslips:
+            writer.writerow([
+                getattr(p.employee, 'full_name', str(p.employee)),
+                getattr(p.employee, 'external_code', ''),
+                p.year,
+                p.month,
+                p.uploaded_at,
+                p.id,
+            ])
+        return response
+
+    employees = Employee.objects.order_by('last_name', 'first_name')
+
     return render(request, 'portal/admin_all_payslips.html', {
-        'payslips': payslips
+        'payslips': payslips,
+        'employees': employees,
+        'year_selected': year,
+        'month_selected': month,
+        'employee_selected': int(employee_id) if employee_id else None,
     })
 
 

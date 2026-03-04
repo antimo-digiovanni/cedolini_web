@@ -1,35 +1,32 @@
 {% extends "portal/base.html" %}
-{% load static %}
+
+{% block title %}Report Cedolini{% endblock %}
 
 {% block content %}
 
 <div class="fade-in">
 
-    <h2 class="mb-4">Report Visualizzazioni</h2>
+    <h2 class="mb-4">Report Visualizzazioni Cedolini</h2>
 
     <div class="card-modern mb-4">
         <div class="row text-center">
             <div class="col-md-4">
-                <h6>Cedolini Totali</h6>
-                <h3>{{ report_data|length }}</h3>
+                <h6>Cedolini totali</h6>
+                <h3>{{ totale_cedolini }}</h3>
             </div>
             <div class="col-md-4">
-                <h6>Visualizzati</h6>
-                <h3>
-                    {{ report_data|dictsort:"visualizzati"|length }}
-                </h3>
+                <h6>Visualizzati almeno una volta</h6>
+                <h3>{{ totale_visualizzati }}</h3>
             </div>
             <div class="col-md-4">
-                <h6>Non Visualizzati</h6>
-                <h3>
-                    {{ report_data|dictsort:"non_visualizzati"|length }}
-                </h3>
+                <h6>Mai visualizzati</h6>
+                <h3>{{ totale_non_visualizzati }}</h3>
             </div>
         </div>
     </div>
 
     <div class="card-modern">
-        <h5 class="mb-3">Per Dipendente</h5>
+        <h5 class="mb-3">Dettaglio per dipendente</h5>
 
         <div class="table-responsive">
             <table class="table align-middle">
@@ -38,12 +35,12 @@
                         <th>Dipendente</th>
                         <th>Totali</th>
                         <th>Visualizzati</th>
-                        <th>Non Visualizzati</th>
+                        <th>Non visualizzati</th>
                         <th>Dettaglio</th>
                     </tr>
                 </thead>
                 <tbody>
-                {% for row in report_data %}
+                {% for row in rows %}
                     <tr>
                         <td>{{ row.employee.full_name }}</td>
                         <td>{{ row.total }}</td>
@@ -67,7 +64,7 @@
                 {% empty %}
                     <tr>
                         <td colspan="5" class="text-center text-muted">
-                            Nessun dato disponibile
+                            Nessun dato disponibile.
                         </td>
                     </tr>
                 {% endfor %}
