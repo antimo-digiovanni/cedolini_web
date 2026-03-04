@@ -1,0 +1,89 @@
+{% extends "portal/base.html" %}
+{% block title %}Storico Caricamenti Cedolini{% endblock %}
+
+{% block content %}
+<div class="card-modern">
+    <h4 class="mb-4">
+        <i class="bi bi-clock-history"></i> Storico caricamenti cedolini
+    </h4>
+
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Data</th>
+                    <th>Totale file</th>
+                    <th>Processati</th>
+                    <th>Nuovi utenti</th>
+                    <th>Cedolini creati</th>
+                    <th>Scartati</th>
+                    <th>Stato</th>
+                    <th>Cedolini</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in page_obj.object_list %}
+                <tr>
+                    <td>{{ job.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>{{ job.total_files }}</td>
+                    <td>{{ job.processed_files }}</td>
+                    <td>{{ job.created_users }}</td>
+                    <td>{{ job.created_payslips }}</td>
+                    <td>{{ job.skipped }}</td>
+                    <td>
+                        {% if job.status == "completed" %}
+                            <span class="badge bg-success">Completato</span>
+                        {% elif job.status == "error" %}
+                            <span class="badge bg-danger">Errore</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">In corso</span>
+                        {% endif %}
+                        {% if job.error_message %}
+                            <div class="small text-muted mt-1">{{ job.error_message }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'admin_import_job_payslips' job.id %}" class="btn btn-sm btn-outline-primary">
+                            Vedi cedolini
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Paginazione import">
+        <ul class="pagination pagination-sm mt-3">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Pagina {{ page_obj.number }} di {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    {% else %}
+    <div class="alert alert-info mb-0">
+        Nessun caricamento registrato al momento.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

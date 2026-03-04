@@ -1,0 +1,56 @@
+{% extends "portal/base.html" %}
+{% block title %}Cedolini caricati{% endblock %}
+
+{% block content %}
+<div class="card-modern">
+    <h4 class="mb-3">
+        <i class="bi bi-file-earmark-pdf"></i> Cedolini caricati
+    </h4>
+
+    <p class="text-muted mb-3">
+        Import del {{ job.created_at|date:"d/m/Y H:i" }}
+        (finestra: {{ start|date:"d/m/Y H:i" }} - {{ end|date:"d/m/Y H:i" }}).
+    </p>
+
+    {% if payslips %}
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Mese</th>
+                    <th>Anno</th>
+                    <th>Caricato il</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payslips %}
+                <tr>
+                    <td>
+                        {% if p.employee.user.first_name or p.employee.user.last_name %}
+                            {{ p.employee.user.first_name }} {{ p.employee.user.last_name }}
+                        {% else %}
+                            {{ p.employee.user.username }}
+                        {% endif %}
+                    </td>
+                    <td>{{ p.month }}</td>
+                    <td>{{ p.year }}</td>
+                    <td>{{ p.uploaded_at|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'open_payslip' p.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                            Apri
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-0">
+        Nessun cedolino trovato nel periodo di questo caricamento.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

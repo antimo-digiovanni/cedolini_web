@@ -3,7 +3,17 @@
 
 {% block content %}
 <div class="card card-custom p-4">
-    <h3 class="mb-3">Nuovi Dipendenti Trovati</h3>
+    <h3 class="mb-3">Conferma Import Cedolini</h3>
+
+    {% if import_job %}
+    <div class="alert alert-info">
+        <strong>Riepilogo caricamento:</strong><br>
+        File totali: {{ import_job.total_files }} | Processati: {{ import_job.processed_files }} |
+        Nuovi utenti: {{ import_job.created_users }} | Cedolini creati: {{ import_job.created_payslips }} |
+        Scartati: {{ import_job.skipped }} |
+        Stato: {{ import_job.status }}
+    </div>
+    {% endif %}
 
     <div class="alert alert-warning">
         Sono stati trovati dipendenti non ancora registrati.<br>
