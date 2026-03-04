@@ -1,0 +1,47 @@
+{% extends "portal/base.html" %}
+{% block title %}Carica CUD{% endblock %}
+
+{% block content %}
+
+<div class="container" style="max-width:720px;">
+
+    <h2 class="fw-bold mb-3">Carica CUD</h2>
+    <p class="text-muted mb-4">
+        Seleziona il dipendente, l'anno e il PDF del CUD.
+        Se esiste già un CUD per quell'anno, verrà sostituito.
+    </p>
+
+    {% if success %}
+        <div class="alert alert-success">
+            CUD caricato correttamente per {{ cud.employee.full_name }} (anno {{ cud.year }}).
+            {% if replaced %}<br><strong>Nota:</strong> il CUD precedente per questo anno è stato sostituito.{% endif %}
+        </div>
+    {% endif %}
+
+    <div class="card-modern bg-white">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="form-label">Dipendente</label>
+                {{ form.employee|as_widget:"form-select" }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Anno</label>
+                {{ form.year|as_widget:"form-control" }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">File PDF CUD</label>
+                {{ form.pdf|as_widget:"form-control" }}
+            </div>
+
+            <button type="submit" class="btn btn-primary">Carica CUD</button>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary ms-2">Torna alla Dashboard</a>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -8,6 +8,7 @@ urlpatterns = [
     path('register/<str:token>/', views.register_with_token, name='register_with_token'),
 
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin-upload-cud/', views.admin_upload_cud, name='admin_upload_cud'),
     path('admin-report/', views.admin_report, name='admin_report'),
     path('admin-all-payslips/', views.admin_all_payslips, name='admin_all_payslips'),
     path('admin-audit-events/', views.admin_audit_events, name='admin_audit_events'),

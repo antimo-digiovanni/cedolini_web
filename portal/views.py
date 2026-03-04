@@ -275,6 +275,63 @@ def admin_dashboard(request):
 
 
 @login_required
+def admin_upload_cud(request):
+    """Upload manuale di un singolo CUD (annuale) per un dipendente."""
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    from django import forms
+
+    class CudUploadForm(forms.Form):
+        employee = forms.ModelChoiceField(queryset=Employee.objects.order_by('last_name', 'first_name'))
+        year = forms.IntegerField(min_value=2000, max_value=2100)
+        pdf = forms.FileField()
+
+    success = False
+    replaced = False
+    cud_obj = None
+
+    if request.method == 'POST':
+        form = CudUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            employee = form.cleaned_data['employee']
+            year = form.cleaned_data['year']
+            pdf_file = form.cleaned_data['pdf']
+
+            with transaction.atomic():
+                existing = Cud.objects.filter(employee=employee, year=year).first()
+                if existing:
+                    try:
+                        existing.pdf.delete(save=False)
+                    except Exception:
+                        logger.exception('Error deleting existing CUD file for %s', existing.id)
+                    existing.delete()
+                    replaced = True
+
+                cud_obj = Cud(employee=employee, year=year)
+                cud_obj.pdf.save(pdf_file.name, pdf_file, save=True)
+
+            _create_audit_event(
+                request,
+                "cud_uploaded",
+                employee=employee,
+                metadata={"year": year, "replaced": replaced},
+            )
+
+            success = True
+    else:
+        from django.utils import timezone
+        form = CudUploadForm(initial={"year": timezone.now().year})
+
+    return render(request, "portal/admin_upload_cud.html", {
+        "form": form,
+        "success": success,
+        "replaced": replaced,
+        "cud": cud_obj,
+    })
+
+
+@login_required
 def admin_report(request):
     """Report sintetico visualizzazioni cedolini per dipendente."""
     if not request.user.is_staff:
