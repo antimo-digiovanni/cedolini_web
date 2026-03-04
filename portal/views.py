@@ -10,6 +10,8 @@ from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 
 from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken
+from .models import AuditEvent
+from django.core.paginator import Paginator
 
 import logging
 import secrets
@@ -207,6 +209,32 @@ def admin_all_payslips(request):
     payslips = Payslip.objects.select_related('employee__user').order_by('-year', '-month')
     return render(request, 'portal/admin_all_payslips.html', {
         'payslips': payslips
+    })
+
+
+@login_required
+def admin_audit_events(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    qs = AuditEvent.objects.select_related('actor_user', 'employee', 'payslip').order_by('-created_at')
+
+    # simple filtering by action or employee id
+    action = request.GET.get('action')
+    emp = request.GET.get('employee')
+    if action:
+        qs = qs.filter(action__icontains=action)
+    if emp:
+        qs = qs.filter(employee__id=emp)
+
+    paginator = Paginator(qs, 50)
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+
+    return render(request, 'portal/admin_audit_events.html', {
+        'page_obj': page_obj,
+        'action': action or '',
+        'employee_filter': emp or '',
     })
 
 

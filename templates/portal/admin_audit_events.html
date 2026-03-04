@@ -1,0 +1,65 @@
+{% extends "portal/base.html" %}
+{% block title %}Storico Azioni{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Storico Azioni</h2>
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto">
+            <input type="text" name="action" value="{{ action }}" placeholder="Azione" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <input type="text" name="employee" value="{{ employee_filter }}" placeholder="Employee ID" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-sm btn-primary">Filtra</button>
+        </div>
+    </form>
+
+    <div class="card-modern">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Azione</th>
+                        <th>Utente</th>
+                        <th>Dipendente</th>
+                        <th>Cedolino</th>
+                        <th>IP</th>
+                        <th>UA</th>
+                        <th>Meta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ev in page_obj %}
+                    <tr>
+                        <td>{{ ev.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>{{ ev.action }}</td>
+                        <td>{% if ev.actor_user %}{{ ev.actor_user.username }}{% endif %}</td>
+                        <td>{% if ev.employee %}{{ ev.employee.full_name }} ({{ ev.employee.id }}){% endif %}</td>
+                        <td>{% if ev.payslip %}<a href="{% url 'open_payslip' ev.payslip.id %}">{{ ev.payslip.id }}</a>{% endif %}</td>
+                        <td>{{ ev.ip_address }}</td>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ev.user_agent }}</td>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ev.metadata }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <nav class="mt-3" aria-label="Page navigation">
+            <ul class="pagination pagination-sm">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&action={{ action }}&employee={{ employee_filter }}">&laquo;</a></li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Pagina {{ page_obj.number }} di {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&action={{ action }}&employee={{ employee_filter }}">&raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}
