@@ -106,7 +106,6 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ==============================
 # MEDIA – CLOUDFLARE R2
@@ -127,7 +126,6 @@ AWS_QUERYSTRING_AUTH = False
 R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL")
 
 # Storage predefinito: backend personalizzato che costruisce URL pubblici R2
-DEFAULT_FILE_STORAGE = "portal.storage_backends.R2PublicStorage"
 
 if R2_PUBLIC_BASE_URL:
     # MEDIA_URL coerente con gli URL pubblici generati dallo storage
@@ -137,6 +135,16 @@ elif AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
     MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 else:
     MEDIA_URL = "/media/"
+
+# Django 4.2+ STORAGES configuration
+STORAGES = {
+    "default": {
+        "BACKEND": "portal.storage_backends.R2PublicStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # ==============================
 # LOGIN
