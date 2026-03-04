@@ -309,6 +309,22 @@ def admin_payslip_integrity(request):
         if not exists:
             missing.append(p)
 
+    missing_count = len(missing)
+    missing_ratio = (missing_count / checked) if checked else 0
+
+    if missing_count == 0:
+        integrity_status = "ok"
+        integrity_label = "OK"
+        integrity_reason = "Nessun PDF mancante rilevato."
+    elif missing_ratio <= 0.05:
+        integrity_status = "warning"
+        integrity_label = "Attenzione"
+        integrity_reason = "Anomalie limitate: presenza di pochi PDF mancanti."
+    else:
+        integrity_status = "critical"
+        integrity_label = "Critica"
+        integrity_reason = "Anomalie elevate: numero significativo di PDF mancanti."
+
     employees = Employee.objects.order_by('last_name', 'first_name')
 
     return render(request, "portal/admin_payslip_integrity.html", {
@@ -317,6 +333,11 @@ def admin_payslip_integrity(request):
         "employee_selected": int(employee_id) if employee_id else None,
         "checked": checked,
         "missing": missing,
+        "missing_count": missing_count,
+        "missing_percentage": round(missing_ratio * 100, 1),
+        "integrity_status": integrity_status,
+        "integrity_label": integrity_label,
+        "integrity_reason": integrity_reason,
     })
 
 

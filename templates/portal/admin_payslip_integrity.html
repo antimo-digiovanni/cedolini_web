@@ -48,6 +48,19 @@
         color: #b91c1c;
         font-weight: 600;
     }
+    .badge-soft-warning {
+        background-color: #fef3c7;
+        color: #92400e;
+        font-weight: 600;
+    }
+    .integrity-note {
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 12px 14px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.92rem;
+    }
 </style>
 
 <div class="integrity-hero mb-4">
@@ -102,15 +115,17 @@
         <div class="col-md-4">
             <div class="kpi-card">
                 <div class="kpi-label">PDF mancanti</div>
-                <div class="kpi-value text-danger">{{ missing|length }}</div>
+                <div class="kpi-value text-danger">{{ missing_count }}</div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="kpi-card">
                 <div class="kpi-label">Integrità</div>
                 <div class="kpi-value">
-                    {% if missing|length == 0 %}
-                        <span class="text-success">OK</span>
+                    {% if integrity_status == 'ok' %}
+                        <span class="text-success">{{ integrity_label }}</span>
+                    {% elif integrity_status == 'warning' %}
+                        <span class="text-warning">{{ integrity_label }}</span>
                     {% else %}
                         <span class="text-danger">Critica</span>
                     {% endif %}
@@ -118,13 +133,22 @@
             </div>
         </div>
     </div>
+    <div class="integrity-note mb-4">
+        <strong>Perché questo stato:</strong>
+        {{ integrity_reason }}
+        ({{ missing_count }} mancanti su {{ checked }} controllati, {{ missing_percentage }}%).
+    </div>
     {% endif %}
 
     {% if missing %}
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h5 class="mb-0">Dettaglio anomalie</h5>
         <div class="d-flex align-items-center gap-2">
-            <span class="badge badge-soft-danger px-3 py-2">{{ missing|length }} mancanti</span>
+            {% if integrity_status == 'warning' %}
+                <span class="badge badge-soft-warning px-3 py-2">{{ missing_count }} mancanti</span>
+            {% else %}
+                <span class="badge badge-soft-danger px-3 py-2">{{ missing_count }} mancanti</span>
+            {% endif %}
             <input id="missingFilter" type="text" class="form-control form-control-sm" style="width: 260px;" placeholder="Filtra per nome, periodo o file...">
         </div>
     </div>
