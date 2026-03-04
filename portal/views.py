@@ -22,6 +22,33 @@ logger = logging.getLogger(__name__)
 
 
 # =========================================================
+# Utility: Audit logging
+# =========================================================
+
+def _create_audit_event(request, action, *, employee=None, payslip=None, metadata=None):
+    """Crea un AuditEvent di base con IP e user-agent.
+
+    Usato per popolare la pagina "Storico azioni" con eventi
+    significativi (apertura cedolino, import massivi, inviti, ecc.).
+    """
+    try:
+        ip = request.META.get('REMOTE_ADDR')
+        ua = request.META.get('HTTP_USER_AGENT', '')
+        AuditEvent.objects.create(
+            action=action,
+            actor_user=request.user if getattr(request, 'user', None) and request.user.is_authenticated else None,
+            employee=employee,
+            payslip=payslip,
+            ip_address=ip,
+            user_agent=ua,
+            metadata=metadata or {},
+        )
+    except Exception:
+        # Non bloccare il flusso se il log fallisce
+        logger.exception("Errore nella creazione di AuditEvent (%s)", action)
+
+
+# =========================================================
 # HOME
 # =========================================================
 
@@ -156,6 +183,15 @@ def open_payslip(request, payslip_id):
         # Se è la prima visualizzazione invia email
         if created:
             send_read_notification_email(payslip)
+
+        # Audit: apertura cedolino da parte del dipendente
+        _create_audit_event(
+            request,
+            "payslip_opened",
+            employee=payslip.employee,
+            payslip=payslip,
+            metadata={"first_view": created},
+        )
 
     # Reindirizza sempre all'URL pubblico del PDF (R2 gestisce la visualizzazione/download)
     try:
@@ -585,6 +621,16 @@ def admin_send_invite(request):
         employee.invito_inviato = True
         employee.save()
 
+        # Audit: invito inviato a un dipendente
+        _create_audit_event(
+            request,
+            "invite_sent",
+            employee=employee,
+            metadata={
+                "email": employee.email_invio,
+            },
+        )
+
         logger.info('admin_send_invite: email sent to %s for employee=%s', employee.email_invio, employee.id)
         return JsonResponse({'ok': True})
     except Exception:
@@ -802,6 +848,21 @@ def admin_upload_period_folder(request):
             job.status,
         )
 
+        # Audit: import massivo cedolini completato (o terminato con errore)
+        _create_audit_event(
+            request,
+            "payslip_import_completed",
+            metadata={
+                "import_job_id": job.id,
+                "total_files": total_files,
+                "processed_files": processed_files,
+                "created_users": len(created_users),
+                "created_payslips": len(created_payslips),
+                "skipped": len(skipped),
+                "status": job.status,
+            },
+        )
+
         # persist created identifiers in session for potential rollback if admin cancels
         request.session['last_import_created_users'] = created_users
         request.session['last_import_created_payslips'] = created_payslips
@@ -844,5 +905,15 @@ def admin_cancel_import(request):
         User.objects.filter(username__in=created_usernames).delete()
     except Exception:
         logger.exception('Error deleting created users during cancel-import')
+
+    # Audit: annullamento ultimo import cedolini
+    _create_audit_event(
+        request,
+        "payslip_import_cancelled",
+        metadata={
+            "deleted_users": len(created_usernames),
+            "deleted_payslips": len(created_payslip_ids),
+        },
+    )
 
     return redirect('admin_upload_period_folder')
