@@ -387,8 +387,15 @@ def admin_send_invite(request):
     username = employee.user.username
 
     subject = "Attivazione account - Portale Cedolini"
-    text_content = f"Gentile {employee.first_name or ''} {employee.last_name or ''},\n\n" \
-                   f"è stato creato il tuo accesso al Portale Cedolini.\n\nUSERNAME: {username}\n\nClicca sul link seguente per attivare il tuo account e creare la password:\n{link}\n\nIl link è valido per 7 giorni.\n"
+    text_content = (
+        f"Gentile {employee.first_name or ''} {employee.last_name or ''},\n\n"
+        f"è stato creato il tuo accesso al Portale Cedolini.\n\n"
+        f"USERNAME: {username}\n\n"
+        f"Clicca sul link seguente per attivare il tuo account e creare la password:\n{link}\n\n"
+        f"Il link è valido per 7 giorni.\n\n"
+        f"Per accedere in futuro al portale utilizza sempre questo indirizzo:\n"
+        f"https://cedolini-web.onrender.com/login/\n"
+    )
 
     html_content = f"""
 <!DOCTYPE html>
@@ -407,7 +414,14 @@ def admin_send_invite(request):
         <td style="font-size:22px;font-weight:bold;color:#1f2937;padding-bottom:20px;">Attivazione Portale Cedolini</td>
     </tr>
     <tr>
-        <td style="font-size:14px;color:#374151;padding-bottom:20px;">Gentile <strong>{employee.first_name or ''} {employee.last_name or ''}</strong>,<br><br>è stato creato il tuo accesso al Portale Cedolini.</td>
+        <td style="font-size:14px;color:#374151;padding-bottom:20px;">
+            Gentile <strong>{employee.first_name or ''} {employee.last_name or ''}</strong>,<br><br>
+            è stato creato il tuo accesso al Portale Cedolini.<br><br>
+            Il tuo <strong>username</strong> per accedere è:<br>
+            <span style="display:inline-block;margin-top:8px;padding:6px 10px;background:#f3f4f6;border-radius:4px;font-family:monospace;">
+                {username}
+            </span>
+        </td>
     </tr>
     <tr>
         <td align="center" style="padding:30px 0;">
@@ -415,7 +429,13 @@ def admin_send_invite(request):
         </td>
     </tr>
     <tr>
-        <td style="font-size:12px;color:#6b7280;">Il link è valido per 7 giorni.</td>
+        <td style="font-size:12px;color:#6b7280;">
+            Il link è valido per 7 giorni.<br>
+            Per accedere in futuro al portale utilizza sempre questo indirizzo:<br>
+            <a href="https://cedolini-web.onrender.com/login/" style="color:#2563eb;text-decoration:none;">
+                https://cedolini-web.onrender.com/login/
+            </a>
+        </td>
     </tr>
     <tr>
         <td style="font-size:12px;color:#9ca3af;padding-top:20px;">© San Vincenzo Srl</td>
