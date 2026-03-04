@@ -3,69 +3,185 @@
 {% block title %}Controllo Integrit\u00e0 Cedolini{% endblock %}
 
 {% block content %}
-<div class="card-modern mb-4">
-    <h4>Controllo Integrit\u00e0 Cedolini</h4>
-    <p class="text-muted mb-3">Verifica che per ogni record in database esista il relativo PDF nello storage.</p>
+<style>
+    .integrity-hero {
+        background: linear-gradient(135deg, #0f172a, #1d4ed8);
+        border-radius: 16px;
+        padding: 24px;
+        color: #fff;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.2);
+    }
+    .kpi-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #fff;
+        padding: 16px;
+        height: 100%;
+    }
+    .kpi-label {
+        color: #64748b;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+    }
+    .kpi-value {
+        color: #0f172a;
+        font-size: 1.6rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+    .integrity-panel {
+        border: 1px solid #dbeafe;
+        border-radius: 14px;
+        background: #f8fbff;
+    }
+    .table-professional thead th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        color: #475569;
+        letter-spacing: .04em;
+        border-bottom-width: 1px;
+    }
+    .badge-soft-danger {
+        background-color: #fee2e2;
+        color: #b91c1c;
+        font-weight: 600;
+    }
+</style>
 
-    <form method="get" class="row g-3 align-items-end mb-3">
-        <div class="col-md-3">
-            <label class="form-label">Anno</label>
-            <input type="number" name="year" class="form-control" value="{{ year_selected }}" placeholder="es. 2025">
+<div class="integrity-hero mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <h3 class="mb-1">Controllo integrità cedolini</h3>
+            <p class="mb-0 opacity-75">Verifica coerenza tra database e storage PDF con filtri rapidi per anno e dipendente.</p>
         </div>
-        <div class="col-md-5">
-            <label class="form-label">Dipendente</label>
-            <select name="employee" class="form-select">
-                <option value="">Tutti</option>
-                {% for emp in employees %}
-                    <option value="{{ emp.id }}" {% if emp.id == employee_selected %}selected{% endif %}>
-                        {{ emp.full_name }} (ID {{ emp.id }})
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-primary w-100 mt-4">Esegui controllo</button>
-        </div>
-        <div class="col-md-2 text-end">
-            <div class="small text-muted mt-4">Massimo 2000 cedolini per esecuzione.</div>
-        </div>
-    </form>
+        <span class="badge bg-light text-dark px-3 py-2">Limite sicurezza: 2000 record</span>
+    </div>
+</div>
+
+<div class="card-modern mb-4">
+    <div class="integrity-panel p-3 p-md-4 mb-4">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Anno</label>
+                <input type="number" name="year" class="form-control" value="{{ year_selected }}" placeholder="es. 2026">
+            </div>
+            <div class="col-md-5">
+                <label class="form-label fw-semibold">Dipendente</label>
+                <select name="employee" class="form-select">
+                    <option value="">Tutti i dipendenti</option>
+                    {% for emp in employees %}
+                        <option value="{{ emp.id }}" {% if emp.id == employee_selected %}selected{% endif %}>
+                            {{ emp.full_name }} (ID {{ emp.id }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search me-1"></i>Esegui controllo
+                </button>
+            </div>
+            <div class="col-md-2 d-grid">
+                <a href="{% url 'admin_payslip_integrity' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset filtri
+                </a>
+            </div>
+        </form>
+    </div>
 
     {% if checked %}
-    <div class="alert alert-info">
-        Controllati {{ checked }} cedolini. Mancanti: <strong>{{ missing|length }}</strong>.
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div class="kpi-label">Cedolini controllati</div>
+                <div class="kpi-value">{{ checked }}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div class="kpi-label">PDF mancanti</div>
+                <div class="kpi-value text-danger">{{ missing|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div class="kpi-label">Integrità</div>
+                <div class="kpi-value">
+                    {% if missing|length == 0 %}
+                        <span class="text-success">OK</span>
+                    {% else %}
+                        <span class="text-danger">Critica</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
     {% endif %}
 
     {% if missing %}
-    <div class="table-responsive mt-3">
-        <table class="table table-sm align-middle">
-            <thead>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h5 class="mb-0">Dettaglio anomalie</h5>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge badge-soft-danger px-3 py-2">{{ missing|length }} mancanti</span>
+            <input id="missingFilter" type="text" class="form-control form-control-sm" style="width: 260px;" placeholder="Filtra per nome, periodo o file...">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-professional align-middle" id="missingTable">
+            <thead class="table-light">
                 <tr>
                     <th>ID</th>
                     <th>Dipendente</th>
                     <th>Periodo</th>
                     <th>Nome file</th>
-                    <th>Caricato</th>
+                    <th>Caricato il</th>
+                    <th class="text-end">Stato</th>
                 </tr>
             </thead>
             <tbody>
                 {% for p in missing %}
-                <tr class="table-danger">
-                    <td>{{ p.id }}</td>
-                    <td>{{ p.employee.full_name }} (ID {{ p.employee.id }})</td>
+                <tr>
+                    <td class="fw-semibold">#{{ p.id }}</td>
+                    <td>{{ p.employee.full_name }} <span class="text-muted">(ID {{ p.employee.id }})</span></td>
                     <td>{{ p.month_name }} {{ p.year }}</td>
-                    <td>{{ p.pdf.name }}</td>
+                    <td class="text-break">{{ p.pdf.name }}</td>
                     <td>{{ p.uploaded_at }}</td>
+                    <td class="text-end"><span class="badge text-bg-danger">PDF assente</span></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% elif checked %}
-        <div class="alert alert-success mt-3">
+        <div class="alert alert-success mt-2 mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-check-circle-fill"></i>
             Nessun cedolino mancante trovato con i filtri selezionati.
+        </div>
+    {% else %}
+        <div class="alert alert-info mt-2 mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle-fill"></i>
+            Seleziona i filtri e avvia il controllo per visualizzare il report di integrità.
         </div>
     {% endif %}
 </div>
+
+<script>
+    (function() {
+        const input = document.getElementById('missingFilter');
+        const table = document.getElementById('missingTable');
+        if (!input || !table) return;
+
+        input.addEventListener('input', function() {
+            const value = input.value.toLowerCase().trim();
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach((row) => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(value) ? '' : 'none';
+            });
+        });
+    })();
+</script>
 {% endblock %}
