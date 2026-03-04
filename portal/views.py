@@ -200,8 +200,8 @@ def admin_report(request):
     employees_stats = (
         Employee.objects
         .annotate(
-            totale=Count('payslip', distinct=True),
-            visualizzati=Count('payslip', filter=Q(payslip__payslipview__isnull=False), distinct=True),
+            totale=Count('payslips', distinct=True),
+            visualizzati=Count('payslips', filter=Q(payslips__payslipview__isnull=False), distinct=True),
         )
         .order_by('last_name', 'first_name')
     )
