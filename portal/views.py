@@ -2,7 +2,7 @@ import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect
 from django.db import transaction, IntegrityError
 from django.db.models import Count
 from django.conf import settings
@@ -153,9 +153,25 @@ def open_payslip(request, payslip_id):
         if created:
             send_read_notification_email(payslip)
 
-    response = HttpResponse(payslip.pdf, content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="cedolino.pdf"'
-    return response
+    # Serve il file usando lo storage configured (supporta S3/R2 or filesystem)
+    from django.core.files.storage import default_storage
+    try:
+        # try to open with storage (works with S3-backed storages too)
+        f = default_storage.open(payslip.pdf.name, 'rb')
+        response = FileResponse(f, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="{os.path.basename(payslip.pdf.name)}"'
+        return response
+    except FileNotFoundError:
+        logger.exception('open_payslip: file not found in storage for payslip id=%s name=%s', payslip_id, payslip.pdf.name)
+        return HttpResponse('File non trovato', status=404)
+    except Exception:
+        # Some storages (or configuration) may not allow open; try redirecting to the file URL
+        try:
+            url = payslip.pdf.url
+            return HttpResponseRedirect(url)
+        except Exception:
+            logger.exception('open_payslip: failed to serve or redirect payslip id=%s', payslip_id)
+            return HttpResponse('Errore nel recupero del file', status=500)
 
 # =========================================================
 # ADMIN DASHBOARD
