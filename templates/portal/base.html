@@ -14,6 +14,7 @@ body {
     background-color: #f1f5f9;
     font-family: 'Segoe UI', sans-serif;
     position: relative;
+    overflow-x: hidden;
 }
 
 .background-logo {
@@ -36,6 +37,7 @@ body {
     top: 0;
     padding: 25px 15px;
     z-index: 2;
+    overflow-y: auto;
 }
 
 .sidebar-title {
@@ -119,6 +121,73 @@ main {
     z-index: 2;
 }
 
+.page-main {
+    padding: 1.5rem;
+}
+
+.sidebar-mobile-toggle {
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: #ffffff;
+}
+
+.sidebar-mobile-toggle:hover,
+.sidebar-mobile-toggle:focus {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.52);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-sidebar {
+    background: linear-gradient(180deg, #0f172a, #1e293b);
+}
+
+.mobile-sidebar .offcanvas-header {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.mobile-sidebar .btn-close {
+    filter: invert(1) grayscale(1);
+}
+
+.mobile-sidebar .sidebar {
+    height: auto;
+    position: static;
+    padding: 0;
+}
+
+@media (max-width: 991.98px) {
+    .background-logo {
+        display: none;
+    }
+
+    .topbar {
+        padding: 12px 14px;
+    }
+
+    .topbar-title {
+        font-size: 0.95rem;
+    }
+
+    .topbar-user {
+        display: none;
+    }
+
+    .page-main {
+        padding: 1rem;
+    }
+
+    .card-modern {
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .custom-footer {
+        position: static;
+        margin: 8px 0 12px;
+        text-align: center;
+    }
+}
+
 /* Ensure Bootstrap modal appears above other page elements */
 .modal {
     z-index: 2000 !important;
@@ -147,6 +216,7 @@ main {
     transform: translate(-50%, -50%) !important;
 }
 </style>
+{% block extra_css %}{% endblock %}
 </head>
 
 <body>
@@ -155,52 +225,59 @@ main {
 
 <div class="d-flex">
 
-    <div class="sidebar" style="width:260px;">
-        <div class="sidebar-title">Menu</div>
+    <div class="sidebar sidebar-desktop d-none d-lg-block" style="width:260px;">
+        <div id="sidebarMenuContent">
+            <div class="sidebar-title">Menu</div>
 
-        <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
+            <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
 
-        {% if user.is_staff %}
-        <a href="{% url 'admin:index' %}">
-            <i class="bi bi-gear"></i> Admin Django
-        </a>
+            {% if user.is_staff %}
+            <a href="{% url 'admin:index' %}">
+                <i class="bi bi-gear"></i> Admin Django
+            </a>
 
-        <a href="{% url 'admin_employees' %}">
-            <i class="bi bi-people"></i> Gestione Dipendenti
-        </a>
-        <a href="{% url 'admin_report' %}">
-            <i class="bi bi-graph-up"></i> Report cedolini
-        </a>
-        <a href="{% url 'admin_audit_events' %}">
-            <i class="bi bi-clipboard-data"></i> Storico azioni
-        </a>
-        <a href="{% url 'admin_import_jobs' %}">
-            <i class="bi bi-clock-history"></i> Storico caricamenti
-        </a>
-        <a href="{% url 'admin_payslip_integrity' %}">
-            <i class="bi bi-shield-check"></i> Controllo cedolini
-        </a>
-        {% endif %}
+            <a href="{% url 'admin_employees' %}">
+                <i class="bi bi-people"></i> Gestione Dipendenti
+            </a>
+            <a href="{% url 'admin_report' %}">
+                <i class="bi bi-graph-up"></i> Report cedolini
+            </a>
+            <a href="{% url 'admin_audit_events' %}">
+                <i class="bi bi-clipboard-data"></i> Storico azioni
+            </a>
+            <a href="{% url 'admin_import_jobs' %}">
+                <i class="bi bi-clock-history"></i> Storico caricamenti
+            </a>
+            <a href="{% url 'admin_payslip_integrity' %}">
+                <i class="bi bi-shield-check"></i> Controllo cedolini
+            </a>
+            {% endif %}
 
-        <a href="{% url 'password_change' %}">
-            <i class="bi bi-key"></i> Cambia Password
-        </a>
+            <a href="{% url 'password_change' %}">
+                <i class="bi bi-key"></i> Cambia Password
+            </a>
 
-        <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button type="submit">
-                <i class="bi bi-box-arrow-right"></i> Logout
-            </button>
-        </form>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </form>
+        </div>
     </div>
 
     <div class="flex-fill">
 
         <div class="topbar">
-            <div class="topbar-title">
-                San Vincenzo - Area Cedolini
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm sidebar-mobile-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Apri menu">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div class="topbar-title">
+                    San Vincenzo - Area Cedolini
+                </div>
             </div>
 
             <div class="topbar-user">
@@ -212,10 +289,20 @@ main {
             </div>
         </div>
 
-        <main class="container-fluid p-4">
+        <main class="container-fluid page-main">
             {% block content %}{% endblock %}
         </main>
 
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-start mobile-sidebar text-white" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="mobileSidebarLabel">Menu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="sidebar" id="mobileSidebarMenu"></div>
     </div>
 </div>
 
@@ -225,6 +312,15 @@ main {
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const desktopMenu = document.getElementById('sidebarMenuContent');
+    const mobileMenu = document.getElementById('mobileSidebarMenu');
+    if (desktopMenu && mobileMenu) {
+        mobileMenu.innerHTML = desktopMenu.innerHTML;
+    }
+});
+</script>
 
 </body>
 </html>

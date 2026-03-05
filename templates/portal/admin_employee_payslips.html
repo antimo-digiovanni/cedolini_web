@@ -4,6 +4,7 @@
   <h2>Cedolini: {{ employee.full_name }} {% if employee.external_code %}({{ employee.external_code }}){% endif %}</h2>
   <p><a href="{% url 'admin_manage_employees' %}">← Torna alla lista dipendenti</a></p>
 
+  <div class="table-responsive">
   <table class="table">
     <thead>
       <tr>
@@ -22,11 +23,11 @@
           {% if p.view %}✅ Visualizzato ({{ p.view.viewed_at }}){% else %}❌ Non visualizzato{% endif %}
         </td>
         <td style="display:flex; gap:8px; flex-wrap:wrap;">
-          <a class="btn" href="{{ p.pdf.url }}" target="_blank">Scarica</a>
+          <a class="btn btn-sm btn-outline-primary" href="{{ p.pdf.url }}" target="_blank">Scarica</a>
 
           <form method="post" action="{% url 'admin_reset_payslip_view' p.id %}" style="display:inline;">
             {% csrf_token %}
-            <button class="btn" type="submit">Reset view</button>
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Reset view</button>
           </form>
 
           <form method="post" action="{% url 'admin_delete_payslip' p.id %}" style="display:inline;"
@@ -41,5 +42,6 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endblock %}

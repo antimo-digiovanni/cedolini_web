@@ -11,7 +11,7 @@
 
 <style>
 body {
-    height: 100vh;
+    min-height: 100dvh;
     background: radial-gradient(circle at 20% 30%, #1e3a8a, #0f172a 60%);
     display: flex;
     align-items: center;
@@ -165,6 +165,9 @@ body.fade-out {
 
     body {
         background: #0f172a;
+        align-items: flex-start;
+        padding: 14px 0;
+        overflow-y: auto;
     }
 
     body::before {
@@ -174,6 +177,7 @@ body.fade-out {
     .login-card {
         width: 92%;
         border-radius: 18px;
+        margin: 8px 0 18px;
     }
 
     .login-body {
@@ -192,6 +196,12 @@ body.fade-out {
     .btn-login {
         padding: 16px;
         font-size: 1rem;
+    }
+
+    .custom-footer {
+        position: static;
+        text-align: center;
+        margin-bottom: 10px;
     }
 }
 </style>

@@ -12,6 +12,7 @@
 {% endif %}
 
 <div class="card-modern">
+<div class="table-responsive">
 <table class="table table-hover">
     <thead>
         <tr>
@@ -40,14 +41,17 @@
                 {% endif %}
             </td>
             <td>
-                <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary btn-sm">Vedi Cedolini</a>
-                <button class="btn btn-sm btn-outline-primary send-invite-btn">Invia Invito</button>
-                <button class="btn btn-sm btn-outline-secondary create-invite-link-btn">Crea invito</button>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary btn-sm">Vedi Cedolini</a>
+                    <button class="btn btn-sm btn-outline-primary send-invite-btn">Invia Invito</button>
+                    <button class="btn btn-sm btn-outline-secondary create-invite-link-btn">Crea invito</button>
+                </div>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
 </div>
 
 <!-- Modal per inserire email -->
