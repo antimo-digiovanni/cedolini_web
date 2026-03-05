@@ -850,6 +850,22 @@ def admin_create_invite_link(request):
     employee.invito_inviato = True
     employee.save(update_fields=['invito_inviato'])
 
+    # Testo precompilato in stile email di invito, da incollare in WhatsApp/SMS
+    username = employee.user.username
+    full_name = employee.full_name
+    message = (
+        f"Gentile {full_name},\n\n"
+        f"è stato creato il tuo accesso al Portale Cedolini.\n\n"
+        f"USERNAME: {username}\n\n"
+        f"Per attivare il tuo account e creare la password utilizza questo link:\n"
+        f"{link}\n\n"
+        f"Il link è valido per 7 giorni.\n\n"
+        f"Per i prossimi accessi al portale utilizza sempre questo indirizzo:\n"
+        f"https://cedolini-web.onrender.com/login/\n\n"
+        f"Cordiali saluti\n"
+        f"San Vincenzo Srl"
+    )
+
     # Audit: link invito creato per invio manuale
     _create_audit_event(
         request,
@@ -866,6 +882,7 @@ def admin_create_invite_link(request):
         'link': link,
         'username': employee.user.username,
         'full_name': employee.full_name,
+        'message': message,
     })
 
 def send_read_notification_email(payslip):

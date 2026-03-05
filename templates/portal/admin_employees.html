@@ -179,9 +179,9 @@ document.addEventListener('DOMContentLoaded', function(){
                 });
 
                 const data = await resp.json();
-                if(data.ok && data.link){
-                    const msg = 'Copia questo link di invito e incollalo in WhatsApp o via SMS:';
-                    window.prompt(msg, data.link);
+                if(data.ok && data.message){
+                    const msg = 'Messaggio di invito precompilato (copialo e incollalo in WhatsApp o via SMS):';
+                    window.prompt(msg, data.message);
                 } else {
                     alert('Errore creazione invito: ' + (data.error || 'unknown'));
                 }
