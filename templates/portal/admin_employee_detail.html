@@ -14,6 +14,12 @@
 <div class="alert alert-info">Nessun cedolino trovato per questo dipendente.</div>
 {% endif %}
 
+{% if detailed %}
+<div class="alert alert-info py-2 px-3 mb-3" role="alert">
+    <strong>Istruzioni:</strong> clicca su <strong>2025</strong>, <strong>2026</strong> o sull'anno disponibile per visualizzare i mesi caricati.
+</div>
+{% endif %}
+
 <div id="adminEmployeeYearsAccordion">
 {% for year in year_list %}
 
@@ -26,7 +32,7 @@
         aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
         aria-controls="admin-year-collapse-{{ year.grouper }}">
         <h4 class="mb-0">Anno {{ year.grouper }}</h4>
-        <span class="small text-muted">{{ year.list|length }} mesi</span>
+        <span class="small text-muted">Clicca per vedere i mesi ({{ year.list|length }})</span>
     </button>
 
     <div id="admin-year-collapse-{{ year.grouper }}" class="collapse {% if forloop.first %}show{% endif %} mt-3" data-bs-parent="#adminEmployeeYearsAccordion">

@@ -100,6 +100,10 @@
 
     <h2 class="mb-4">I tuoi Cedolini</h2>
 
+    <div class="alert alert-info py-2 px-3 mb-3" role="alert">
+        <strong>Come visualizzare i mesi:</strong> clicca su <strong>2025</strong>, <strong>2026</strong> o sull'anno disponibile per aprire la lista dei cedolini.
+    </div>
+
     <div id="employeeYearsAccordion">
     {% for year, payslips in grouped_payslips.items %}
         <div class="card-modern mb-3" id="year-{{ year }}">
@@ -111,7 +115,7 @@
                 aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
                 aria-controls="year-collapse-{{ year }}">
                 <h4 class="mb-0">Anno {{ year }}</h4>
-                <span class="small text-muted">{{ payslips|length }} mesi</span>
+                <span class="small text-muted">Clicca per vedere i mesi ({{ payslips|length }})</span>
             </button>
 
             <div id="year-collapse-{{ year }}" class="collapse {% if forloop.first %}show{% endif %} mt-3" data-bs-parent="#employeeYearsAccordion">
