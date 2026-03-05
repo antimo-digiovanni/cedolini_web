@@ -153,6 +153,9 @@ STORAGES = {
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "login"
+AUTHENTICATION_BACKENDS = [
+    "portal.auth_backends.EmailOrUsernameBackend",
+]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
