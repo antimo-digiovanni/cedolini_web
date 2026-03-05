@@ -4,6 +4,50 @@
 {% block extra_css %}
 <style>
 @media (max-width: 767.98px) {
+    .employee-mobile-quickbar {
+        position: sticky;
+        top: 0.65rem;
+        z-index: 12;
+        margin-bottom: 1rem;
+        border-radius: 14px;
+        padding: 0.75rem;
+        background: linear-gradient(135deg, #0f172a, #1e3a8a);
+        color: #e2e8f0;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.28);
+    }
+
+    .employee-mobile-quickbar-title {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #cbd5e1;
+        margin-bottom: 0.45rem;
+    }
+
+    .employee-mobile-chips {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.2rem;
+    }
+
+    .employee-mobile-chip {
+        display: inline-block;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 999px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.8rem;
+        text-decoration: none;
+        color: #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .employee-mobile-chip.active {
+        border-color: #60a5fa;
+        background: rgba(59, 130, 246, 0.28);
+    }
+
     .employee-doc-card {
         border: 1px solid #e2e8f0;
         border-radius: 12px;
@@ -29,11 +73,36 @@
 
 <div class="fade-in">
 
+    <div class="employee-mobile-quickbar d-md-none">
+        <div class="employee-mobile-quickbar-title">Accesso rapido</div>
+
+        {% for year, payslips in grouped_payslips.items %}
+            {% if forloop.first %}
+                {% for payslip in payslips %}
+                    {% if forloop.first %}
+                        <a href="{% url 'open_payslip' payslip.id %}" class="btn btn-sm btn-light w-100 mb-2" target="_blank" rel="noopener">
+                            Apri ultimo cedolino
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+
+        <div class="employee-mobile-chips">
+            {% for year, payslips in grouped_payslips.items %}
+                <a href="#year-{{ year }}" class="employee-mobile-chip {% if forloop.first %}active{% endif %}">{{ year }}</a>
+            {% endfor %}
+            {% if cuds %}
+                <a href="#cud-section" class="employee-mobile-chip">CUD</a>
+            {% endif %}
+        </div>
+    </div>
+
     <h2 class="mb-4">I tuoi Cedolini</h2>
 
     {% for year, payslips in grouped_payslips.items %}
     
-        <div class="card-modern mb-4">
+        <div class="card-modern mb-4" id="year-{{ year }}">
 
             <h4 class="mb-3">Anno {{ year }}</h4>
 
@@ -141,7 +210,7 @@
 
     {% if cuds %}
 
-    <div class="mt-5">
+    <div class="mt-5" id="cud-section">
         <h2 class="mb-3">I tuoi CUD</h2>
 
         <div class="card-modern">
