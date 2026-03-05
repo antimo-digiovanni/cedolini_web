@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="page-hero">
-  <div class="container">
+  <div class="container reveal-up">
     <h1>Contatti</h1>
     <p>Scrivici per informazioni commerciali o richieste operative.</p>
   </div>
@@ -15,7 +15,7 @@
   <div class="container">
     <div class="row g-4">
       <div class="col-lg-6">
-        <article class="service-card">
+        <article class="service-card reveal-up">
           <h2>Riferimenti</h2>
           <ul class="contact-list">
             <li><strong>Azienda:</strong> San Vincenzo SRL</li>
@@ -23,10 +23,13 @@
             <li><strong>Telefono:</strong> +39 000 000 0000</li>
             <li><strong>Orari:</strong> Lun - Ven, 09:00 - 18:00</li>
           </ul>
+          <div class="contact-actions">
+            <a class="btn btn-primary-hero" href="mailto:cedolini@sanvincenzosrl.com">Scrivi una email</a>
+          </div>
         </article>
       </div>
       <div class="col-lg-6">
-        <article class="service-card">
+        <article class="service-card reveal-up" style="animation-delay:.12s;">
           <h2>Area riservata dipendenti</h2>
           <p>Per consultare cedolini e documenti personali accedi all'area riservata.</p>
           <a class="btn btn-primary-hero" href="{% url 'login' %}">Accedi al portale</a>

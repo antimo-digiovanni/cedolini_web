@@ -11,12 +11,18 @@
   <meta property="og:description" content="{% block og_description %}Servizi aziendali, macchinari professionali e supporto dedicato.{% endblock %}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="{% static 'portal/public-site.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+  <div class="bg-orb bg-orb-left" aria-hidden="true"></div>
+  <div class="bg-orb bg-orb-right" aria-hidden="true"></div>
+
   <header class="site-header">
     <nav class="navbar navbar-expand-lg">
       <div class="container">
@@ -29,10 +35,10 @@
         </button>
         <div class="collapse navbar-collapse" id="siteNav">
           <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
-            <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'public_services' %}">Servizi</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'public_machinery' %}">Macchinari</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'public_contacts' %}">Contatti</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'home' %}is-active{% endif %}" href="{% url 'home' %}">Home</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_services' %}is-active{% endif %}" href="{% url 'public_services' %}">Servizi</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_machinery' %}is-active{% endif %}" href="{% url 'public_machinery' %}">Macchinari</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_contacts' %}is-active{% endif %}" href="{% url 'public_contacts' %}">Contatti</a></li>
             <li class="nav-item ms-lg-2"><a class="btn btn-access" href="{% url 'login' %}">Area Dipendenti</a></li>
           </ul>
         </div>
@@ -45,9 +51,29 @@
   </main>
 
   <footer class="site-footer">
-    <div class="container d-flex flex-column flex-md-row justify-content-between gap-2">
-      <span>San Vincenzo SRL - Tutti i diritti riservati</span>
-      <span>Email: cedolini@sanvincenzosrl.com</span>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">San Vincenzo SRL</div>
+          <p class="footer-copy">Servizi professionali, organizzazione operativa e supporto dedicato alle aziende.</p>
+        </div>
+        <div>
+          <div class="footer-title">Contatti</div>
+          <ul class="footer-list">
+            <li>cedolini@sanvincenzosrl.com</li>
+            <li>+39 000 000 0000</li>
+          </ul>
+        </div>
+        <div>
+          <div class="footer-title">Azienda</div>
+          <ul class="footer-list">
+            <li><a href="{% url 'public_services' %}">Servizi</a></li>
+            <li><a href="{% url 'public_machinery' %}">Macchinari</a></li>
+            <li><a href="{% url 'public_contacts' %}">Richiedi informazioni</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">San Vincenzo SRL - Tutti i diritti riservati</div>
     </div>
   </footer>
 

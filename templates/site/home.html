@@ -18,13 +18,18 @@
 {% block content %}
 <section class="hero-section">
   <div class="container">
-    <div class="hero-box">
+    <div class="hero-box reveal-up">
       <p class="hero-kicker">Soluzioni aziendali</p>
-      <h1>Servizi affidabili, organizzazione moderna, attenzione al cliente.</h1>
-      <p class="hero-sub">Affianchiamo aziende e professionisti con servizi su misura, supporto operativo e strumenti ad alte prestazioni.</p>
+      <h1>Professionalita operativa per aziende che vogliono crescere senza compromessi.</h1>
+      <p class="hero-sub">Con San Vincenzo SRL trovi un partner concreto: servizi strutturati, processi efficienti e supporto continuo in ogni fase del lavoro.</p>
       <div class="hero-actions">
         <a class="btn btn-primary-hero" href="{% url 'public_services' %}">Scopri i servizi</a>
         <a class="btn btn-outline-hero" href="{% url 'public_contacts' %}">Contattaci</a>
+      </div>
+      <div class="hero-metrics">
+        <div><strong>Precisione</strong><span>Flussi controllati e tracciabili</span></div>
+        <div><strong>Tempestivita</strong><span>Risposte rapide e operative</span></div>
+        <div><strong>Affidabilita</strong><span>Standard stabili nel tempo</span></div>
       </div>
     </div>
   </div>
@@ -32,28 +37,61 @@
 
 <section class="feature-section">
   <div class="container">
+    <div class="section-heading reveal-up">
+      <p class="section-kicker">Perche sceglierci</p>
+      <h2>Valore reale, non promesse generiche</h2>
+    </div>
     <div class="row g-4">
       <div class="col-md-4">
-        <article class="feature-card">
+        <article class="feature-card reveal-up" style="animation-delay:.05s;">
           <i class="bi bi-shield-check"></i>
           <h2>Affidabilita</h2>
           <p>Processi organizzati e attenzione continua alla qualita del servizio.</p>
         </article>
       </div>
       <div class="col-md-4">
-        <article class="feature-card">
+        <article class="feature-card reveal-up" style="animation-delay:.12s;">
           <i class="bi bi-gear-wide-connected"></i>
           <h2>Tecnologia</h2>
           <p>Macchinari e metodi aggiornati per offrire risultati concreti e misurabili.</p>
         </article>
       </div>
       <div class="col-md-4">
-        <article class="feature-card">
+        <article class="feature-card reveal-up" style="animation-delay:.2s;">
           <i class="bi bi-people"></i>
           <h2>Supporto</h2>
           <p>Un team disponibile per ascolto, consulenza e assistenza operativa.</p>
         </article>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="content-section">
+  <div class="container">
+    <div class="process-panel reveal-up">
+      <div class="process-copy">
+        <p class="section-kicker">Metodo</p>
+        <h2>Un percorso operativo chiaro, dall'analisi alla continuita</h2>
+        <p>Ogni collaborazione parte da obiettivi concreti: valutiamo bisogni, pianifichiamo attivita e monitoriamo i risultati con una logica di miglioramento continuo.</p>
+      </div>
+      <ol class="process-steps">
+        <li><span>01</span> Ascolto e analisi</li>
+        <li><span>02</span> Proposta personalizzata</li>
+        <li><span>03</span> Attivazione e controllo qualita</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container reveal-up">
+    <div class="cta-band-box">
+      <div>
+        <p class="section-kicker mb-1">Parliamone</p>
+        <h2>Vuoi una soluzione su misura per la tua attivita?</h2>
+      </div>
+      <a class="btn btn-primary-hero" href="{% url 'public_contacts' %}">Richiedi un contatto</a>
     </div>
   </div>
 </section>
