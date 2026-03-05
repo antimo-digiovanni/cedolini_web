@@ -8,9 +8,9 @@ from datetime import timedelta
 from .models import Employee, Payslip, Cud, AuditEvent, InviteToken
 
 
-admin.site.site_header = "Admin"
-admin.site.site_title = "Admin"
-admin.site.index_title = "Pannello di Amministrazione"
+admin.site.site_header = "Amministrazione Portale Cedolini"
+admin.site.site_title = "Portale Cedolini Admin"
+admin.site.index_title = "Pannello di amministrazione"
 
 
 @admin.register(Employee)

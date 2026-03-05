@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}Portale Cedolini | Amministrazione{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'portal/admin-theme.css' %}">
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">Portale Cedolini | Amministrazione</a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
