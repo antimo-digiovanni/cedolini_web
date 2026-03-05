@@ -18,7 +18,9 @@ body {
     justify-content: center;
     font-family: 'Segoe UI', sans-serif;
     margin: 0;
-    overflow: hidden;
+    padding: 18px 14px;
+    overflow-x: hidden;
+    overflow-y: auto;
     transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
@@ -45,7 +47,7 @@ body.fade-out {
 
 /* Card */
 .login-card {
-    width: 420px;
+    width: min(420px, calc(100vw - 28px));
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(18px);
     border-radius: 22px;
@@ -158,15 +160,18 @@ body.fade-out {
     right: 25px;
     font-size: 0.8rem;
     color: #cbd5e1;
+    max-width: min(320px, calc(100vw - 24px));
+    text-align: right;
 }
 
 /* MOBILE OPTIMIZATION */
-@media(max-width: 480px) {
+@media(max-width: 768px) {
 
     body {
         background: #0f172a;
         align-items: flex-start;
-        padding: 14px 0;
+        justify-content: flex-start;
+        padding: 14px;
         overflow-y: auto;
     }
 
@@ -175,7 +180,7 @@ body.fade-out {
     }
 
     .login-card {
-        width: 92%;
+        width: 100%;
         border-radius: 18px;
         margin: 8px 0 18px;
     }
@@ -201,7 +206,8 @@ body.fade-out {
     .custom-footer {
         position: static;
         text-align: center;
-        margin-bottom: 10px;
+        margin: 0 auto 10px;
+        max-width: 100%;
     }
 }
 </style>
