@@ -14,11 +14,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "cedolini-web.onrender.com"]
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://cedolini-web.onrender.com",
+BASE_ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "cedolini-web.onrender.com",
+    "sanvincenzoservice.it",
+    "www.sanvincenzoservice.it",
 ]
+
+extra_allowed_hosts = [h.strip() for h in os.environ.get("EXTRA_ALLOWED_HOSTS", "").split(",") if h.strip()]
+ALLOWED_HOSTS = BASE_ALLOWED_HOSTS + extra_allowed_hosts
+
+BASE_CSRF_TRUSTED_ORIGINS = [
+    "https://cedolini-web.onrender.com",
+    "https://sanvincenzoservice.it",
+    "https://www.sanvincenzoservice.it",
+]
+
+extra_csrf_origins = [o.strip() for o in os.environ.get("EXTRA_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
+CSRF_TRUSTED_ORIGINS = BASE_CSRF_TRUSTED_ORIGINS + extra_csrf_origins
 
 # ==============================
 # APPLICATIONS
