@@ -4,9 +4,12 @@
 {% block content %}
 <div class="container-fluid">
 
-  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-    <h3 class="mb-0 me-3">Storico Audit</h3>
+  <div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Storico Audit</h2>
+    <p class="mb-0 opacity-75">Analizza eventi di consultazione, upload, aggiornamento e cancellazione.</p>
+  </div>
 
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <div class="d-flex gap-2">
       <div class="badge bg-dark">Letti: {{ totals.viewed }}</div>
       <div class="badge bg-primary">Caricati: {{ totals.uploaded }}</div>

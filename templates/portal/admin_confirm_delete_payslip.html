@@ -1,7 +1,10 @@
 {% extends "portal/base.html" %}
 {% block content %}
 <div class="container">
-  <h2>Conferma cancellazione</h2>
+  <div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Conferma Cancellazione</h2>
+    <p class="mb-0 opacity-75">Controlla i dettagli prima di eliminare il cedolino.</p>
+  </div>
   <p>Stai per cancellare il cedolino: <b>{{ payslip.employee.full_name }}</b> - <b>{{ payslip.month }}/{{ payslip.year }}</b></p>
 
   <form method="post">

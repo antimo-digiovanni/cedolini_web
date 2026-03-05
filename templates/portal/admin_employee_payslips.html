@@ -1,7 +1,10 @@
 {% extends "portal/base.html" %}
 {% block content %}
 <div class="container">
-  <h2>Cedolini: {{ employee.full_name }} {% if employee.external_code %}({{ employee.external_code }}){% endif %}</h2>
+  <div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Cedolini Dipendente</h2>
+    <p class="mb-0 opacity-75">{{ employee.full_name }} {% if employee.external_code %}({{ employee.external_code }}){% endif %}</p>
+  </div>
   <p><a href="{% url 'admin_manage_employees' %}">← Torna alla lista dipendenti</a></p>
 
   <div class="table-responsive">

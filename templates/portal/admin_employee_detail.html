@@ -3,7 +3,10 @@
 
 {% block content %}
 
-<h2 class="mb-4">{{ employee.full_name }}</h2>
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Dettaglio Dipendente</h2>
+    <p class="mb-0 opacity-75">{{ employee.full_name }}</p>
+</div>
 
 {% regroup detailed by payslip.year as year_list %}
 

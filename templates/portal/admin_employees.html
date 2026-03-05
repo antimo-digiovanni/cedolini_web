@@ -1,7 +1,10 @@
 {% extends "portal/base.html" %}
 {% block content %}
 
-<h2 class="mb-4">Dipendenti</h2>
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Gestione Dipendenti</h2>
+    <p class="mb-0 opacity-75">Visualizza dipendenti, inviti e accesso rapido ai cedolini.</p>
+</div>
 
 {% if user.is_staff %}
 <div class="mb-3">
