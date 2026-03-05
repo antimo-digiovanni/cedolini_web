@@ -1,0 +1,60 @@
+{% extends 'site/base.html' %}
+
+{% block title %}San Vincenzo SRL | Servizi e Soluzioni Professionali{% endblock %}
+{% block meta_description %}San Vincenzo SRL offre servizi professionali, supporto operativo e macchinari per aziende e privati.{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "San Vincenzo SRL",
+  "email": "cedolini@sanvincenzosrl.com",
+  "url": "{{ request.build_absolute_uri }}"
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="hero-section">
+  <div class="container">
+    <div class="hero-box">
+      <p class="hero-kicker">Soluzioni aziendali</p>
+      <h1>Servizi affidabili, organizzazione moderna, attenzione al cliente.</h1>
+      <p class="hero-sub">Affianchiamo aziende e professionisti con servizi su misura, supporto operativo e strumenti ad alte prestazioni.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary-hero" href="{% url 'public_services' %}">Scopri i servizi</a>
+        <a class="btn btn-outline-hero" href="{% url 'public_contacts' %}">Contattaci</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="feature-section">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <article class="feature-card">
+          <i class="bi bi-shield-check"></i>
+          <h2>Affidabilita</h2>
+          <p>Processi organizzati e attenzione continua alla qualita del servizio.</p>
+        </article>
+      </div>
+      <div class="col-md-4">
+        <article class="feature-card">
+          <i class="bi bi-gear-wide-connected"></i>
+          <h2>Tecnologia</h2>
+          <p>Macchinari e metodi aggiornati per offrire risultati concreti e misurabili.</p>
+        </article>
+      </div>
+      <div class="col-md-4">
+        <article class="feature-card">
+          <i class="bi bi-people"></i>
+          <h2>Supporto</h2>
+          <p>Un team disponibile per ascolto, consulenza e assistenza operativa.</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

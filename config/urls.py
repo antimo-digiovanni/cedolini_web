@@ -10,6 +10,11 @@ urlpatterns = [
 
     # Home
     path('', views.home, name='home'),
+    path('servizi/', views.public_services, name='public_services'),
+    path('macchinari/', views.public_machinery, name='public_machinery'),
+    path('contatti/', views.public_contacts, name='public_contacts'),
+    path('sitemap.xml', views.sitemap_xml, name='sitemap_xml'),
+    path('robots.txt', views.robots_txt, name='robots_txt'),
 
     # Login / Logout
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),

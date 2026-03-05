@@ -57,7 +57,53 @@ def home(request):
         if request.user.is_staff:
             return redirect('admin_dashboard')
         return redirect('dashboard')
-    return redirect('login')
+    return render(request, 'site/home.html')
+
+
+def public_services(request):
+    return render(request, 'site/services.html')
+
+
+def public_machinery(request):
+    return render(request, 'site/machinery.html')
+
+
+def public_contacts(request):
+    return render(request, 'site/contacts.html')
+
+
+def sitemap_xml(request):
+    pages = [
+        '',
+        'servizi/',
+        'macchinari/',
+        'contatti/',
+        'login/',
+    ]
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    xml_items = []
+    for page in pages:
+        xml_items.append(
+            f"<url><loc>{base_url}/{page}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>"
+        )
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        + ''.join(xml_items) +
+        '</urlset>'
+    )
+    return HttpResponse(xml, content_type='application/xml')
+
+
+def robots_txt(request):
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    content = (
+        'User-agent: *\n'
+        'Allow: /\n\n'
+        f'Sitemap: {base_url}/sitemap.xml\n'
+    )
+    return HttpResponse(content, content_type='text/plain')
 
 
 # =========================================================

@@ -1,0 +1,38 @@
+{% extends 'site/base.html' %}
+
+{% block title %}Contatti | San Vincenzo SRL{% endblock %}
+{% block meta_description %}Contatta San Vincenzo SRL per informazioni su servizi, macchinari e collaborazioni.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+  <div class="container">
+    <h1>Contatti</h1>
+    <p>Scrivici per informazioni commerciali o richieste operative.</p>
+  </div>
+</section>
+
+<section class="content-section">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <article class="service-card">
+          <h2>Riferimenti</h2>
+          <ul class="contact-list">
+            <li><strong>Azienda:</strong> San Vincenzo SRL</li>
+            <li><strong>Email:</strong> cedolini@sanvincenzosrl.com</li>
+            <li><strong>Telefono:</strong> +39 000 000 0000</li>
+            <li><strong>Orari:</strong> Lun - Ven, 09:00 - 18:00</li>
+          </ul>
+        </article>
+      </div>
+      <div class="col-lg-6">
+        <article class="service-card">
+          <h2>Area riservata dipendenti</h2>
+          <p>Per consultare cedolini e documenti personali accedi all'area riservata.</p>
+          <a class="btn btn-primary-hero" href="{% url 'login' %}">Accedi al portale</a>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
