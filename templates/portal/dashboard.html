@@ -100,113 +100,122 @@
 
     <h2 class="mb-4">I tuoi Cedolini</h2>
 
+    <div id="employeeYearsAccordion">
     {% for year, payslips in grouped_payslips.items %}
-    
-        <div class="card-modern mb-4" id="year-{{ year }}">
+        <div class="card-modern mb-3" id="year-{{ year }}">
+            <button
+                class="btn btn-link text-decoration-none text-start w-100 p-0 d-flex justify-content-between align-items-center"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#year-collapse-{{ year }}"
+                aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                aria-controls="year-collapse-{{ year }}">
+                <h4 class="mb-0">Anno {{ year }}</h4>
+                <span class="small text-muted">{{ payslips|length }} mesi</span>
+            </button>
 
-            <h4 class="mb-3">Anno {{ year }}</h4>
+            <div id="year-collapse-{{ year }}" class="collapse {% if forloop.first %}show{% endif %} mt-3" data-bs-parent="#employeeYearsAccordion">
+                <div class="table-responsive d-none d-md-block">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Mese</th>
+                            <th>Stato</th>
+                            <th>Apri</th>
+                        </tr>
+                    </thead>
+                    <tbody>
 
-            <div class="table-responsive d-none d-md-block">
-            <table class="table align-middle">
-                <thead>
-                    <tr>
-                        <th>Mese</th>
-                        <th>Stato</th>
-                        <th>Apri</th>
-                    </tr>
-                </thead>
-                <tbody>
+                    {% for payslip in payslips %}
+                        <tr>
+                            <td>
+                                {% if payslip.month == 1 %}Gennaio{% endif %}
+                                {% if payslip.month == 2 %}Febbraio{% endif %}
+                                {% if payslip.month == 3 %}Marzo{% endif %}
+                                {% if payslip.month == 4 %}Aprile{% endif %}
+                                {% if payslip.month == 5 %}Maggio{% endif %}
+                                {% if payslip.month == 6 %}Giugno{% endif %}
+                                {% if payslip.month == 7 %}Luglio{% endif %}
+                                {% if payslip.month == 8 %}Agosto{% endif %}
+                                {% if payslip.month == 9 %}Settembre{% endif %}
+                                {% if payslip.month == 10 %}Ottobre{% endif %}
+                                {% if payslip.month == 11 %}Novembre{% endif %}
+                                {% if payslip.month == 12 %}Dicembre{% endif %}
+                            </td>
 
-                {% for payslip in payslips %}
-                    <tr>
-                        <td>
-                            {% if payslip.month == 1 %}Gennaio{% endif %}
-                            {% if payslip.month == 2 %}Febbraio{% endif %}
-                            {% if payslip.month == 3 %}Marzo{% endif %}
-                            {% if payslip.month == 4 %}Aprile{% endif %}
-                            {% if payslip.month == 5 %}Maggio{% endif %}
-                            {% if payslip.month == 6 %}Giugno{% endif %}
-                            {% if payslip.month == 7 %}Luglio{% endif %}
-                            {% if payslip.month == 8 %}Agosto{% endif %}
-                            {% if payslip.month == 9 %}Settembre{% endif %}
-                            {% if payslip.month == 10 %}Ottobre{% endif %}
-                            {% if payslip.month == 11 %}Novembre{% endif %}
-                            {% if payslip.month == 12 %}Dicembre{% endif %}
-                        </td>
+                            <td>
+                                {% if payslip.is_viewed %}
+                                    <span class="badge bg-success">
+                                        ● Visualizzato
+                                    </span>
+                                    <div style="font-size:12px;color:#6b7280;">
+                                        {{ payslip.viewed_at|date:"d/m/Y H:i" }}
+                                    </div>
+                                {% else %}
+                                    <span class="badge bg-danger">
+                                        ● Non visualizzato
+                                    </span>
+                                {% endif %}
+                            </td>
 
-                        <td>
-                            {% if payslip.is_viewed %}
-                                <span class="badge bg-success">
-                                    ● Visualizzato
-                                </span>
-                                <div style="font-size:12px;color:#6b7280;">
-                                    {{ payslip.viewed_at|date:"d/m/Y H:i" }}
+                            <td>
+                                <a href="{% url 'open_payslip' payslip.id %}"
+                                   class="btn btn-sm btn-primary"
+                                   target="_blank" rel="noopener">
+                                   Apri PDF
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+
+                    </tbody>
+                </table>
+                </div>
+
+                <div class="d-md-none">
+                    {% for payslip in payslips %}
+                        <div class="employee-doc-card">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                    <div class="employee-doc-title">
+                                        {% if payslip.month == 1 %}Gennaio{% endif %}
+                                        {% if payslip.month == 2 %}Febbraio{% endif %}
+                                        {% if payslip.month == 3 %}Marzo{% endif %}
+                                        {% if payslip.month == 4 %}Aprile{% endif %}
+                                        {% if payslip.month == 5 %}Maggio{% endif %}
+                                        {% if payslip.month == 6 %}Giugno{% endif %}
+                                        {% if payslip.month == 7 %}Luglio{% endif %}
+                                        {% if payslip.month == 8 %}Agosto{% endif %}
+                                        {% if payslip.month == 9 %}Settembre{% endif %}
+                                        {% if payslip.month == 10 %}Ottobre{% endif %}
+                                        {% if payslip.month == 11 %}Novembre{% endif %}
+                                        {% if payslip.month == 12 %}Dicembre{% endif %}
+                                    </div>
+                                    <div class="employee-doc-meta">
+                                        {% if payslip.is_viewed %}
+                                            Visualizzato {{ payslip.viewed_at|date:"d/m/Y H:i" }}
+                                        {% else %}
+                                            Non visualizzato
+                                        {% endif %}
+                                    </div>
                                 </div>
-                            {% else %}
-                                <span class="badge bg-danger">
-                                    ● Non visualizzato
-                                </span>
-                            {% endif %}
-                        </td>
-
-                        <td>
-                            <a href="{% url 'open_payslip' payslip.id %}"
-                               class="btn btn-sm btn-primary"
-                               target="_blank" rel="noopener">
-                               Apri PDF
-                            </a>
-                        </td>
-                    </tr>
-                {% endfor %}
-
-                </tbody>
-            </table>
-            </div>
-
-            <div class="d-md-none">
-                {% for payslip in payslips %}
-                    <div class="employee-doc-card">
-                        <div class="d-flex justify-content-between align-items-start gap-2">
-                            <div>
-                                <div class="employee-doc-title">
-                                    {% if payslip.month == 1 %}Gennaio{% endif %}
-                                    {% if payslip.month == 2 %}Febbraio{% endif %}
-                                    {% if payslip.month == 3 %}Marzo{% endif %}
-                                    {% if payslip.month == 4 %}Aprile{% endif %}
-                                    {% if payslip.month == 5 %}Maggio{% endif %}
-                                    {% if payslip.month == 6 %}Giugno{% endif %}
-                                    {% if payslip.month == 7 %}Luglio{% endif %}
-                                    {% if payslip.month == 8 %}Agosto{% endif %}
-                                    {% if payslip.month == 9 %}Settembre{% endif %}
-                                    {% if payslip.month == 10 %}Ottobre{% endif %}
-                                    {% if payslip.month == 11 %}Novembre{% endif %}
-                                    {% if payslip.month == 12 %}Dicembre{% endif %}
-                                </div>
-                                <div class="employee-doc-meta">
-                                    {% if payslip.is_viewed %}
-                                        Visualizzato {{ payslip.viewed_at|date:"d/m/Y H:i" }}
-                                    {% else %}
-                                        Non visualizzato
-                                    {% endif %}
-                                </div>
+                                {% if payslip.is_viewed %}
+                                    <span class="badge bg-success">OK</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Nuovo</span>
+                                {% endif %}
                             </div>
-                            {% if payslip.is_viewed %}
-                                <span class="badge bg-success">OK</span>
-                            {% else %}
-                                <span class="badge bg-danger">Nuovo</span>
-                            {% endif %}
+
+                            <a href="{% url 'open_payslip' payslip.id %}" class="btn btn-primary btn-sm w-100 mt-2" target="_blank" rel="noopener">
+                                Apri PDF
+                            </a>
                         </div>
-
-                        <a href="{% url 'open_payslip' payslip.id %}" class="btn btn-primary btn-sm w-100 mt-2" target="_blank" rel="noopener">
-                            Apri PDF
-                        </a>
-                    </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
-
         </div>
-
     {% endfor %}
+    </div>
 
     {% if cuds %}
 

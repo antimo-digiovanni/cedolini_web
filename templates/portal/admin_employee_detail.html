@@ -14,74 +14,87 @@
 <div class="alert alert-info">Nessun cedolino trovato per questo dipendente.</div>
 {% endif %}
 
+<div id="adminEmployeeYearsAccordion">
 {% for year in year_list %}
 
-<div class="card-modern mb-4">
-    <h4 class="mb-3">Anno {{ year.grouper }}</h4>
+<div class="card-modern mb-3">
+    <button
+        class="btn btn-link text-decoration-none text-start w-100 p-0 d-flex justify-content-between align-items-center"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#admin-year-collapse-{{ year.grouper }}"
+        aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+        aria-controls="admin-year-collapse-{{ year.grouper }}">
+        <h4 class="mb-0">Anno {{ year.grouper }}</h4>
+        <span class="small text-muted">{{ year.list|length }} mesi</span>
+    </button>
 
-    <table class="table align-middle">
-        <thead>
-            <tr>
-                <th style="width:40%;">Mese</th>
-                <th class="text-center" style="width:15%;">Stato</th>
-                <th style="width:25%;">Data Visualizzazione</th>
-                <th style="width:20%;">Azioni</th>
-            </tr>
-        </thead>
-        <tbody>
+    <div id="admin-year-collapse-{{ year.grouper }}" class="collapse {% if forloop.first %}show{% endif %} mt-3" data-bs-parent="#adminEmployeeYearsAccordion">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th style="width:40%;">Mese</th>
+                    <th class="text-center" style="width:15%;">Stato</th>
+                    <th style="width:25%;">Data Visualizzazione</th>
+                    <th style="width:20%;">Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
 
-        {% for item in year.list %}
+            {% for item in year.list %}
 
-            <tr>
-                <td>
-                    {% if item.payslip.month == 1 %}Gennaio{% endif %}
-                    {% if item.payslip.month == 2 %}Febbraio{% endif %}
-                    {% if item.payslip.month == 3 %}Marzo{% endif %}
-                    {% if item.payslip.month == 4 %}Aprile{% endif %}
-                    {% if item.payslip.month == 5 %}Maggio{% endif %}
-                    {% if item.payslip.month == 6 %}Giugno{% endif %}
-                    {% if item.payslip.month == 7 %}Luglio{% endif %}
-                    {% if item.payslip.month == 8 %}Agosto{% endif %}
-                    {% if item.payslip.month == 9 %}Settembre{% endif %}
-                    {% if item.payslip.month == 10 %}Ottobre{% endif %}
-                    {% if item.payslip.month == 11 %}Novembre{% endif %}
-                    {% if item.payslip.month == 12 %}Dicembre{% endif %}
-                </td>
+                <tr>
+                    <td>
+                        {% if item.payslip.month == 1 %}Gennaio{% endif %}
+                        {% if item.payslip.month == 2 %}Febbraio{% endif %}
+                        {% if item.payslip.month == 3 %}Marzo{% endif %}
+                        {% if item.payslip.month == 4 %}Aprile{% endif %}
+                        {% if item.payslip.month == 5 %}Maggio{% endif %}
+                        {% if item.payslip.month == 6 %}Giugno{% endif %}
+                        {% if item.payslip.month == 7 %}Luglio{% endif %}
+                        {% if item.payslip.month == 8 %}Agosto{% endif %}
+                        {% if item.payslip.month == 9 %}Settembre{% endif %}
+                        {% if item.payslip.month == 10 %}Ottobre{% endif %}
+                        {% if item.payslip.month == 11 %}Novembre{% endif %}
+                        {% if item.payslip.month == 12 %}Dicembre{% endif %}
+                    </td>
 
-                <td class="text-center">
-                    {% if item.view %}
-                        <span class="badge bg-success">Visualizzato</span>
-                    {% else %}
-                        <span class="badge bg-danger">Non visualizzato</span>
-                    {% endif %}
-                </td>
+                    <td class="text-center">
+                        {% if item.view %}
+                            <span class="badge bg-success">Visualizzato</span>
+                        {% else %}
+                            <span class="badge bg-danger">Non visualizzato</span>
+                        {% endif %}
+                    </td>
 
-                <td>
-                    {% if item.view %}
-                        {{ item.view.viewed_at|date:"d/m/Y H:i" }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </td>
+                    <td>
+                        {% if item.view %}
+                            {{ item.view.viewed_at|date:"d/m/Y H:i" }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
 
-                <td>
-                    <a href="{% url 'open_payslip' item.payslip.id %}" class="btn btn-sm btn-primary" target="_blank">Apri</a>
-                    <form method="post" action="{% url 'admin_reset_payslip_view' item.payslip.id %}" style="display:inline-block;margin-left:6px;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-secondary">Reset visualizzazione</button>
-                    </form>
-                </td>
+                    <td>
+                        <a href="{% url 'open_payslip' item.payslip.id %}" class="btn btn-sm btn-primary" target="_blank">Apri</a>
+                        <form method="post" action="{% url 'admin_reset_payslip_view' item.payslip.id %}" style="display:inline-block;margin-left:6px;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Reset visualizzazione</button>
+                        </form>
+                    </td>
 
-            </tr>
+                </tr>
 
-        {% endfor %}
+            {% endfor %}
 
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
 
 </div>
 
 {% endfor %}
+</div>
 
 {% if cuds_detailed %}
 
