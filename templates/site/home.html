@@ -2,6 +2,8 @@
 
 {% block title %}San Vincenzo SRL | Servizi e Soluzioni Professionali{% endblock %}
 {% block meta_description %}San Vincenzo SRL offre servizi professionali, supporto operativo e macchinari per aziende e privati.{% endblock %}
+{% block og_title %}San Vincenzo SRL | Partner operativo per imprese{% endblock %}
+{% block og_description %}Supporto professionale, organizzazione operativa e soluzioni personalizzate per aziende e professionisti.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -9,7 +11,9 @@
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
   "name": "San Vincenzo SRL",
+  "description": "Servizi professionali e supporto operativo per aziende.",
   "email": "cedolini@sanvincenzosrl.com",
+  "telephone": "+39 000 000 0000",
   "url": "{{ request.build_absolute_uri }}"
 }
 </script>
@@ -21,10 +25,10 @@
     <div class="hero-box reveal-up">
       <p class="hero-kicker">Soluzioni aziendali</p>
       <h1>Professionalita operativa per aziende che vogliono crescere senza compromessi.</h1>
-      <p class="hero-sub">Con San Vincenzo SRL trovi un partner concreto: servizi strutturati, processi efficienti e supporto continuo in ogni fase del lavoro.</p>
+      <p class="hero-sub">Con San Vincenzo SRL trovi un partner concreto: servizi strutturati, processi efficienti e supporto continuo in ogni fase del lavoro, con un approccio orientato ai risultati.</p>
       <div class="hero-actions">
         <a class="btn btn-primary-hero" href="{% url 'public_services' %}">Scopri i servizi</a>
-        <a class="btn btn-outline-hero" href="{% url 'public_contacts' %}">Contattaci</a>
+        <a class="btn btn-outline-hero" href="{% url 'public_contacts' %}">Prenota un confronto</a>
       </div>
       <div class="hero-metrics">
         <div><strong>Precisione</strong><span>Flussi controllati e tracciabili</span></div>
@@ -89,9 +93,9 @@
     <div class="cta-band-box">
       <div>
         <p class="section-kicker mb-1">Parliamone</p>
-        <h2>Vuoi una soluzione su misura per la tua attivita?</h2>
+        <h2>Vuoi migliorare organizzazione, tempi e qualita operativa?</h2>
       </div>
-      <a class="btn btn-primary-hero" href="{% url 'public_contacts' %}">Richiedi un contatto</a>
+      <a class="btn btn-primary-hero" href="{% url 'public_contacts' %}">Richiedi una consulenza</a>
     </div>
   </div>
 </section>

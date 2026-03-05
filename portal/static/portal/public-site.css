@@ -23,6 +23,22 @@ body {
     overflow-x: hidden;
 }
 
+.site-page {
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
+.site-page.is-ready {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.site-page.is-leaving {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
 h1,
 h2,
 h3,
@@ -480,5 +496,15 @@ h4 {
     .footer-grid {
         grid-template-columns: 1fr;
         gap: 1.4rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .site-page,
+    .site-page.is-ready,
+    .site-page.is-leaving {
+        opacity: 1;
+        transform: none;
+        transition: none;
     }
 }
