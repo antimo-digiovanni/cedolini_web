@@ -79,6 +79,7 @@ def register_with_token(request, token):
         email = request.POST.get("email")
         password = request.POST.get("password")
         confirm = request.POST.get("confirm_password")
+        privacy_accepted = request.POST.get("privacy_accepted") == "on"
 
         if not first_name or not last_name or not email or not password:
             return render(request, "portal/register.html", {
@@ -98,6 +99,12 @@ def register_with_token(request, token):
                 "error": "Le password non coincidono"
             })
 
+        if not privacy_accepted:
+            return render(request, "portal/register.html", {
+                "employee": employee,
+                "error": "Devi accettare l'informativa privacy per completare la registrazione."
+            })
+
         user.first_name = first_name
         user.last_name = last_name
         user.email = email
@@ -109,6 +116,8 @@ def register_with_token(request, token):
         employee.last_name = last_name
         employee.email_invio = email
         employee.must_change_password = False
+        employee.privacy_accepted = True
+        employee.privacy_accepted_at = timezone.now()
         employee.save()
 
         invite.mark_used()

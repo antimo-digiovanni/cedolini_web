@@ -13,6 +13,8 @@ class Employee(models.Model):
     invito_inviato = models.BooleanField(default=False)
     external_code = models.CharField(max_length=10, blank=True, null=True)
     must_change_password = models.BooleanField(default=True)
+    privacy_accepted = models.BooleanField(default=False)
+    privacy_accepted_at = models.DateTimeField(null=True, blank=True)
 
     @property
     def full_name(self):

@@ -33,6 +33,27 @@
             border-radius: 6px;
             border: 1px solid #ddd;
         }
+        .check-wrap {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #334155;
+        }
+        .check-wrap input {
+            width: auto;
+            margin: 3px 0 0;
+            padding: 0;
+        }
+        .privacy-link {
+            color: #1d4ed8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .privacy-link:hover {
+            text-decoration: underline;
+        }
         button {
             width: 100%;
             padding: 12px;
@@ -63,13 +84,107 @@
 
         <input type="text" name="first_name" placeholder="Nome" required>
         <input type="text" name="last_name" placeholder="Cognome" required>
+        <input type="email" name="email" placeholder="Email" required>
 
         <input type="password" name="password" placeholder="Nuova password" required>
         <input type="password" name="confirm_password" placeholder="Conferma password" required>
 
+        <label class="check-wrap" for="privacyAcceptedSimple">
+            <input id="privacyAcceptedSimple" type="checkbox" name="privacy_accepted" required>
+            <span>Accetto l'<a href="#" class="privacy-link" onclick="openPrivacy(); return false;">informativa privacy</a>.</span>
+        </label>
+
         <button type="submit">Attiva Account</button>
     </form>
 </div>
+
+<div id="privacyBox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); padding:20px; overflow:auto;">
+    <div style="max-width:760px; margin:20px auto; background:#fff; border-radius:8px; padding:20px; line-height:1.45; color:#334155; white-space:pre-line;">
+INFORMATIVA SULLA PRIVACY
+
+Ultimo aggiornamento: 2026
+
+La presente informativa descrive le modalita di gestione dei dati personali degli utenti che utilizzano il portale dipendenti per la consultazione dei cedolini e dei documenti aziendali.
+
+1. Titolare del trattamento
+
+Il titolare del trattamento dei dati e:
+
+San Vincenzo SRL
+Email: cedolini@sanvincenzosrl.com
+
+Il titolare e responsabile del trattamento dei dati personali degli utenti che accedono al portale.
+
+2. Tipologia di dati raccolti
+
+Attraverso il portale possono essere trattati i seguenti dati personali:
+- nome e cognome
+- indirizzo email
+- codice fiscale
+- dati relativi al rapporto di lavoro
+- cedolini paga e documenti aziendali
+- dati di accesso al portale
+
+Questi dati sono necessari per consentire l'accesso al portale e la consultazione dei documenti personali.
+
+3. Finalita del trattamento
+
+I dati personali vengono trattati esclusivamente per le seguenti finalita:
+- consentire l'accesso al portale dipendenti
+- rendere disponibili cedolini e documenti personali
+- garantire la sicurezza e la corretta gestione dell'account
+- adempiere ad obblighi amministrativi e normativi
+
+4. Modalita di trattamento
+
+Il trattamento dei dati avviene mediante strumenti informatici e telematici nel rispetto delle misure di sicurezza previste dalla normativa vigente.
+
+I dati sono conservati su infrastrutture cloud sicure e accessibili esclusivamente da personale autorizzato.
+
+5. Conservazione dei dati
+
+I dati personali saranno conservati per il tempo necessario alla gestione del rapporto di lavoro e per gli obblighi di legge applicabili.
+
+6. Accesso ai dati
+
+L'accesso ai dati e consentito esclusivamente:
+- all'utente titolare dell'account
+- al personale autorizzato dell'azienda
+- ai fornitori tecnici che gestiscono l'infrastruttura informatica del servizio
+
+7. Sicurezza dei dati
+
+Il sistema adotta misure di sicurezza tecniche e organizzative per proteggere i dati da accessi non autorizzati, perdita o divulgazione.
+
+8. Diritti dell'utente
+
+L'utente puo esercitare i diritti previsti dal Regolamento (UE) 2016/679 (GDPR), tra cui:
+- accesso ai propri dati
+- rettifica dei dati
+- cancellazione nei casi previsti dalla legge
+- limitazione del trattamento
+
+Per esercitare tali diritti e possibile contattare il titolare del trattamento.
+
+9. Accettazione
+
+Utilizzando il portale e creando il proprio account, l'utente dichiara di aver letto e accettato la presente informativa sulla privacy.
+
+        <div style="margin-top:16px; text-align:right;">
+            <button type="button" onclick="closePrivacy()" style="width:auto; background:#1d4ed8;">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openPrivacy() {
+    document.getElementById('privacyBox').style.display = 'block';
+}
+
+function closePrivacy() {
+    document.getElementById('privacyBox').style.display = 'none';
+}
+</script>
 
 </body>
 </html>
