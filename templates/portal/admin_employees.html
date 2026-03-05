@@ -42,6 +42,7 @@
             <td>
                 <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary btn-sm">Vedi Cedolini</a>
                 <button class="btn btn-sm btn-outline-primary send-invite-btn">Invia Invito</button>
+                <button class="btn btn-sm btn-outline-secondary create-invite-link-btn">Crea invito</button>
             </td>
         </tr>
         {% endfor %}
@@ -160,6 +161,35 @@ document.addEventListener('DOMContentLoaded', function(){
         } else {
             alert('Errore: ' + (data.error || 'unknown'));
         }
+    });
+
+    // Crea link di invito per invio manuale (WhatsApp/SMS)
+    document.querySelectorAll('.create-invite-link-btn').forEach(btn => {
+        btn.addEventListener('click', async function(){
+            const tr = this.closest('tr');
+            const empId = tr.dataset.employeeId;
+
+            try {
+                const resp = await fetch('{% url "admin_create_invite_link" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: new URLSearchParams({ employee_id: empId })
+                });
+
+                const data = await resp.json();
+                if(data.ok && data.link){
+                    const msg = 'Copia questo link di invito e incollalo in WhatsApp o via SMS:';
+                    window.prompt(msg, data.link);
+                } else {
+                    alert('Errore creazione invito: ' + (data.error || 'unknown'));
+                }
+            } catch(e){
+                console.error('Errore creazione link invito', e);
+                alert('Errore di rete nella creazione del link invito');
+            }
+        });
     });
 });
 

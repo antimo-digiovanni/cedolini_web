@@ -76,10 +76,11 @@ def register_with_token(request, token):
     if request.method == "POST":
         first_name = request.POST.get("first_name")
         last_name = request.POST.get("last_name")
+        email = request.POST.get("email")
         password = request.POST.get("password")
         confirm = request.POST.get("confirm_password")
 
-        if not first_name or not last_name or not password:
+        if not first_name or not last_name or not email or not password:
             return render(request, "portal/register.html", {
                 "employee": employee,
                 "error": "Compila tutti i campi"
@@ -99,12 +100,14 @@ def register_with_token(request, token):
 
         user.first_name = first_name
         user.last_name = last_name
+        user.email = email
         user.set_password(password)
         user.is_active = True
         user.save()
 
         employee.first_name = first_name
         employee.last_name = last_name
+        employee.email_invio = email
         employee.must_change_password = False
         employee.save()
 
@@ -806,6 +809,64 @@ def admin_send_invite(request):
     except Exception:
         logger.exception('admin_send_invite: failed sending email to %s for employee=%s', employee.email_invio, employee.id)
         return JsonResponse({'ok': False, 'error': 'send_failed'})
+
+
+@login_required
+def admin_create_invite_link(request):
+    """Crea (o riusa) un link di invito senza inviare email.
+
+    Usato dall'area admin per copiare il link e inviarlo manualmente
+    via WhatsApp / SMS.
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'method'}, status=405)
+
+    emp_id = request.POST.get('employee_id')
+    if not emp_id:
+        return JsonResponse({'ok': False, 'error': 'missing employee_id'}, status=400)
+
+    try:
+        employee = Employee.objects.select_related('user').get(id=emp_id)
+    except Employee.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
+
+    # Riusa un token valido se esiste, altrimenti creane uno nuovo
+    invite = (
+        InviteToken.objects
+        .filter(employee=employee, used=False, expires_at__gt=timezone.now())
+        .order_by('-created_at')
+        .first()
+    )
+
+    if not invite:
+        invite = InviteToken.objects.create(employee=employee)
+
+    link = f"https://cedolini-web.onrender.com/portal/register/{invite.token}/"
+
+    # Segna che un invito è stato generato
+    employee.invito_inviato = True
+    employee.save(update_fields=['invito_inviato'])
+
+    # Audit: link invito creato per invio manuale
+    _create_audit_event(
+        request,
+        "invite_link_created",
+        employee=employee,
+        metadata={
+            "invite_token_id": invite.id,
+            "via": "manual",
+        },
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'link': link,
+        'username': employee.user.username,
+        'full_name': employee.full_name,
+    })
 
 def send_read_notification_email(payslip):
 
