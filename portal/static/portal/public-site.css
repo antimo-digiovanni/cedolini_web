@@ -384,6 +384,23 @@ h4 {
     margin-top: 1rem;
 }
 
+.contact-leads {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.contact-lead-item {
+    border: 1px solid #d8e3f5;
+    border-radius: 14px;
+    padding: 0.9rem;
+    background: linear-gradient(130deg, #ffffff, #f7faff);
+}
+
+.contact-lead-item h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+}
+
 .contact-form .form-label {
     font-weight: 700;
     color: #0f172a;

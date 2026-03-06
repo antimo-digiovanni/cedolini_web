@@ -16,7 +16,7 @@
     <div class="row g-4">
       <div class="col-lg-6">
         <article class="service-card reveal-up">
-          <h2>Riferimenti</h2>
+          <h2>Riferimenti aziendali</h2>
           <ul class="contact-list">
             <li><strong>Azienda:</strong> San Vincenzo S.R.L.</li>
             <li><strong>Indirizzo:</strong> Via B. Cellini 154, 80028 Grumo Nevano (NA)</li>
@@ -32,8 +32,31 @@
       </div>
       <div class="col-lg-6">
         <article class="service-card reveal-up" style="animation-delay:.12s;">
+          <h2>Referenti diretti</h2>
+          <div class="contact-leads">
+            <div class="contact-lead-item">
+              <h3>Antimo Di Giovanni</h3>
+              <p class="mb-2">Referente per servizi digitali e richieste generali aziendali.</p>
+              <ul class="service-list compact mb-0">
+                <li>Email diretta: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></li>
+                <li>Ambiti: siti web, SEO, sistemi gestionali, pubblicazione cedolini online e consulenza generale</li>
+              </ul>
+            </div>
+            <div class="contact-lead-item">
+              <h3>Lorenzo Mercurio</h3>
+              <p class="mb-2">Responsabile area operativa per noleggio, logistica e servizi sul campo.</p>
+              <ul class="service-list compact mb-0">
+                <li>Telefono diretto: <a href="tel:+393319674101">3319674101</a></li>
+                <li>Ambiti: noleggio, trasporto e logistica, facchinaggio, manutenzione e giardinaggio, carpenteria, pest control, lavori in quota, riconfezionamento, portineria e stoccaggio pallet</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="col-12">
+        <article class="service-card reveal-up" style="animation-delay:.16s;">
           <h2>Scrivici un messaggio</h2>
-          <p>Compila il modulo per richiedere informazioni o un preventivo. Il messaggio verra inviato direttamente a <strong>{{ contact_email }}</strong>.</p>
+          <p>Compila il modulo per richiedere informazioni o un preventivo. Il messaggio verra inviato direttamente a <strong>{{ contact_email }}</strong>, che coordinera il referente piu adatto in base al servizio richiesto.</p>
 
           {% if contact_success %}
             <div class="contact-alert contact-alert-success">Messaggio inviato con successo. Ti ricontatteremo al piu presto.</div>
@@ -70,12 +93,6 @@
               </div>
             </div>
           </form>
-        </article>
-      </div>
-      <div class="col-12">
-        <article class="service-card reveal-up" style="animation-delay:.18s;">
-          <h2>Riconoscimento</h2>
-          <p>Questo sito e stato ideato e realizzato da <strong>Antimo Di Giovanni</strong>.</p>
         </article>
       </div>
     </div>
