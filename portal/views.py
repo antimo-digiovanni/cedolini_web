@@ -186,7 +186,8 @@ def robots_txt(request):
 
 def site_webmanifest(request):
     """Manifest PWA per installazione su schermata Home Android."""
-    logo_url = request.build_absolute_uri(static('portal/logo.png'))
+    icon_192_url = request.build_absolute_uri(static('portal/icons/icon-192.png'))
+    icon_512_url = request.build_absolute_uri(static('portal/icons/icon-512.png'))
     manifest = {
         "name": "San Vincenzo S.R.L.",
         "short_name": "San Vincenzo",
@@ -198,13 +199,13 @@ def site_webmanifest(request):
         "description": "Servizi professionali e soluzioni operative per aziende.",
         "icons": [
             {
-                "src": logo_url,
+                "src": icon_192_url,
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any"
             },
             {
-                "src": logo_url,
+                "src": icon_512_url,
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any maskable"
