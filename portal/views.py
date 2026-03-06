@@ -64,6 +64,10 @@ def public_services(request):
     return render(request, 'site/services.html')
 
 
+def public_about(request):
+    return render(request, 'site/about.html')
+
+
 def public_machinery(request):
     return render(request, 'site/machinery.html')
 
@@ -75,6 +79,7 @@ def public_contacts(request):
 def sitemap_xml(request):
     pages = [
         '',
+        'chi-siamo/',
         'servizi/',
         'macchinari/',
         'contatti/',

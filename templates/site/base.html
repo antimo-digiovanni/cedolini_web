@@ -31,7 +31,8 @@
     "@type": "Organization",
     "name": "San Vincenzo SRL",
     "url": "{{ request.scheme }}://{{ request.get_host }}",
-    "email": "cedolini@sanvincenzosrl.com",
+    "email": "sanvincenzosrl@gmail.com",
+    "telephone": "+39 0818801972",
     "logo": "{{ request.scheme }}://{{ request.get_host }}{% static 'portal/logo.png' %}"
   }
   </script>
@@ -45,7 +46,6 @@
     <nav class="navbar navbar-expand-lg">
       <div class="container">
         <a class="navbar-brand fw-bold" href="{% url 'home' %}">
-          <img src="{% static 'portal/logo.png' %}" alt="Logo San Vincenzo" class="brand-logo">
           <span>San Vincenzo SRL</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#siteNav" aria-controls="siteNav" aria-expanded="false" aria-label="Apri menu">
@@ -54,11 +54,15 @@
         <div class="collapse navbar-collapse" id="siteNav">
           <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'home' %}is-active{% endif %}" href="{% url 'home' %}">Home</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_about' %}is-active{% endif %}" href="{% url 'public_about' %}">Chi siamo</a></li>
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_services' %}is-active{% endif %}" href="{% url 'public_services' %}">Servizi</a></li>
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_machinery' %}is-active{% endif %}" href="{% url 'public_machinery' %}">Macchinari</a></li>
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_contacts' %}is-active{% endif %}" href="{% url 'public_contacts' %}">Contatti</a></li>
             <li class="nav-item ms-lg-2"><a class="btn btn-access" href="{% url 'login' %}">Area Dipendenti</a></li>
           </ul>
+          <a class="header-logo-right d-none d-lg-inline-flex" href="{% url 'home' %}" aria-label="San Vincenzo SRL">
+            <img src="{% static 'portal/logo.png' %}" alt="Logo San Vincenzo" class="header-logo-mark">
+          </a>
         </div>
       </div>
     </nav>
@@ -73,18 +77,20 @@
       <div class="footer-grid">
         <div>
           <div class="footer-brand">San Vincenzo SRL</div>
-          <p class="footer-copy">Servizi professionali, organizzazione operativa e supporto dedicato alle aziende.</p>
+          <p class="footer-copy">Azienda multiservizi specializzata in soluzioni professionali per imprese, industrie e attivita commerciali.</p>
         </div>
         <div>
           <div class="footer-title">Contatti</div>
           <ul class="footer-list">
-            <li>cedolini@sanvincenzosrl.com</li>
-            <li>+39 000 000 0000</li>
+            <li>sanvincenzosrl@gmail.com</li>
+            <li>0818801972 - 3400515648</li>
+            <li>Via B. Cellini 154, 80028 Grumo Nevano (NA)</li>
           </ul>
         </div>
         <div>
           <div class="footer-title">Azienda</div>
           <ul class="footer-list">
+            <li><a href="{% url 'public_about' %}">Chi siamo</a></li>
             <li><a href="{% url 'public_services' %}">Servizi</a></li>
             <li><a href="{% url 'public_machinery' %}">Macchinari</a></li>
             <li><a href="{% url 'public_contacts' %}">Richiedi informazioni</a></li>

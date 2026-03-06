@@ -113,6 +113,10 @@ h4 {
     gap: 8px;
 }
 
+.navbar-brand span {
+    font-size: 1.2rem;
+}
+
 .nav-link:hover,
 .nav-link:focus,
 .navbar-brand:hover,
@@ -128,9 +132,22 @@ h4 {
 .brand-logo {
     height: 38px;
     width: auto;
-    border-radius: 6px;
-    background: #ffffff;
-    padding: 3px;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+}
+
+.header-logo-right {
+    margin-left: 1rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-logo-mark {
+    height: 58px;
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.34));
 }
 
 .btn-access {
@@ -307,6 +324,32 @@ h4 {
 .service-card p,
 .machine-card p {
     color: var(--muted);
+}
+
+.service-subtitle {
+    font-size: 1.02rem;
+    margin-top: 1rem;
+    margin-bottom: 0.45rem;
+    color: #0f172a;
+}
+
+.service-list {
+    margin: 0.55rem 0 0.9rem;
+    padding-left: 1.1rem;
+    color: #334155;
+}
+
+.service-list li {
+    margin-bottom: 0.32rem;
+}
+
+.service-list.compact li {
+    margin-bottom: 0.45rem;
+}
+
+.cert-list {
+    columns: 2;
+    column-gap: 1.6rem;
 }
 
 .page-hero {
@@ -499,6 +542,10 @@ h4 {
         margin-top: 0.6rem;
     }
 
+    .navbar-brand span {
+        font-size: 1.05rem;
+    }
+
     .hero-metrics {
         grid-template-columns: 1fr;
     }
@@ -515,6 +562,10 @@ h4 {
     .footer-grid {
         grid-template-columns: 1fr;
         gap: 1.4rem;
+    }
+
+    .cert-list {
+        columns: 1;
     }
 }
 

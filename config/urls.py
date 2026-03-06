@@ -10,6 +10,7 @@ urlpatterns = [
 
     # Home
     path('', views.home, name='home'),
+    path('chi-siamo/', views.public_about, name='public_about'),
     path('servizi/', views.public_services, name='public_services'),
     path('macchinari/', views.public_machinery, name='public_machinery'),
     path('contatti/', views.public_contacts, name='public_contacts'),
