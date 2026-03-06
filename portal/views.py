@@ -73,7 +73,7 @@ def public_machinery(request):
 
 
 def public_contacts(request):
-    contact_email = 'ANTIMO.DIGIOVANNI@SANVINCENZOSRL.COM'
+    contact_email = 'antimo.digiovanni@sanvincenzosrl.com'
     form_data = {
         'name': '',
         'email': '',

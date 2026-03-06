@@ -142,13 +142,15 @@ h4 {
 }
 
 .header-logo-right {
-    margin-left: 1.4rem;
+    margin-left: auto;
+    padding-left: 0.9rem;
     align-items: center;
     justify-content: center;
+    display: inline-flex;
 }
 
 .header-logo-mark {
-    height: 58px;
+    height: 52px;
     width: auto;
     display: block;
     filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.34));
@@ -552,6 +554,10 @@ h4 {
     padding-top: 0.85rem;
     font-size: 0.9rem;
     color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
 .reveal-up {
@@ -587,6 +593,10 @@ h4 {
         font-size: 1.05rem;
     }
 
+    .header-logo-mark {
+        height: 44px;
+    }
+
     .hero-metrics {
         grid-template-columns: 1fr;
     }
@@ -603,6 +613,11 @@ h4 {
     .footer-grid {
         grid-template-columns: 1fr;
         gap: 1.4rem;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .cert-list {
