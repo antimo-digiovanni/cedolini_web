@@ -23,7 +23,7 @@
             <li><strong>Telefono:</strong> 0818801972</li>
             <li><strong>Cellulare:</strong> 3400515648</li>
             <li><strong>Email:</strong> {{ contact_email }}</li>
-            <li><strong>Disponibilita:</strong> 24 ore su 24, 7 giorni su 7</li>
+            <li><strong>Disponibilità:</strong> 24 ore su 24, 7 giorni su 7</li>
           </ul>
           <div class="contact-actions">
             <a class="btn btn-primary-hero" href="mailto:{{ contact_email }}">Scrivi una email</a>
@@ -56,10 +56,10 @@
       <div class="col-12">
         <article class="service-card reveal-up" style="animation-delay:.16s;">
           <h2>Scrivici un messaggio</h2>
-          <p>Compila il modulo per richiedere informazioni o un preventivo. Il messaggio verra inviato direttamente a <strong>{{ contact_email }}</strong>, che coordinera il referente piu adatto in base al servizio richiesto.</p>
+          <p>Compila il modulo per richiedere informazioni o un preventivo. Il messaggio verrà inviato direttamente a <strong>{{ contact_email }}</strong>, che coordinerà il referente più adatto in base al servizio richiesto.</p>
 
           {% if contact_success %}
-            <div class="contact-alert contact-alert-success">Messaggio inviato con successo. Ti ricontatteremo al piu presto.</div>
+            <div class="contact-alert contact-alert-success">Messaggio inviato con successo. Ti ricontatteremo al più presto.</div>
           {% endif %}
           {% if contact_error %}
             <div class="contact-alert contact-alert-error">{{ contact_error }}</div>
