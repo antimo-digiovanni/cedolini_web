@@ -11,10 +11,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="San Vincenzo">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="icon" type="image/png" sizes="16x16" href="{% url 'favicon_16_png' %}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{% url 'favicon_32_png' %}">
   <link rel="icon" type="image/png" sizes="192x192" href="{% static 'portal/icons/icon-192.png' %}">
   <link rel="icon" type="image/png" sizes="512x512" href="{% static 'portal/icons/icon-512.png' %}">
   <link rel="shortcut icon" type="image/png" href="{% static 'portal/icons/icon-192.png' %}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'portal/icons/apple-touch-icon.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% url 'apple_touch_icon' %}">
+  <link rel="apple-touch-icon-precomposed" href="{% url 'apple_touch_icon_precomposed' %}">
   <meta name="description" content="{% block meta_description %}San Vincenzo SRL: servizi, macchinari e soluzioni professionali per aziende e privati.{% endblock %}">
   <meta name="google-site-verification" content="npiTY8GcitDSrfogHA64HxHEFNFt6e_lGdyCEEwzUZc" />
   <meta name="robots" content="{% block meta_robots %}index,follow,max-image-preview:large{% endblock %}">

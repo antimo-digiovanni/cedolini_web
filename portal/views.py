@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect
+from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.db import transaction, IntegrityError
 from django.db.models import Count, Q
 from django.conf import settings
@@ -228,7 +228,27 @@ def google_site_verification(request):
 
 def favicon_ico(request):
     """Compatibilita browser: favicon richiesta su /favicon.ico."""
-    return HttpResponseRedirect(static('portal/icons/icon-192.png'))
+    return HttpResponsePermanentRedirect(static('portal/icons/icon-192.png'))
+
+
+def favicon_32_png(request):
+    """Compatibilita launcher: icona 32x32 su path standard."""
+    return HttpResponsePermanentRedirect(static('portal/icons/icon-192.png'))
+
+
+def favicon_16_png(request):
+    """Compatibilita launcher: icona 16x16 su path standard."""
+    return HttpResponsePermanentRedirect(static('portal/icons/icon-192.png'))
+
+
+def apple_touch_icon(request):
+    """Compatibilita iOS: apple-touch-icon su root path."""
+    return HttpResponsePermanentRedirect(static('portal/icons/apple-touch-icon.png'))
+
+
+def apple_touch_icon_precomposed(request):
+    """Compatibilita iOS legacy: apple-touch-icon-precomposed su root path."""
+    return HttpResponsePermanentRedirect(static('portal/icons/apple-touch-icon.png'))
 
 
 # =========================================================
