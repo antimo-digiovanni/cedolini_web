@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
@@ -10,6 +11,7 @@ from django.db.models import Count, Q
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
+from django.templatetags.static import static
 
 from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken, Cud, CudView
 from .models import AuditEvent
@@ -180,6 +182,39 @@ def robots_txt(request):
         f'Sitemap: {base_url}/sitemap.xml\n'
     )
     return HttpResponse(content, content_type='text/plain')
+
+
+def site_webmanifest(request):
+    """Manifest PWA per installazione su schermata Home Android."""
+    logo_url = request.build_absolute_uri(static('portal/logo.png'))
+    manifest = {
+        "name": "San Vincenzo S.R.L.",
+        "short_name": "San Vincenzo",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#f5f8ff",
+        "theme_color": "#0f172a",
+        "description": "Servizi professionali e soluzioni operative per aziende.",
+        "icons": [
+            {
+                "src": logo_url,
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any"
+            },
+            {
+                "src": logo_url,
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ]
+    }
+    return HttpResponse(
+        json.dumps(manifest),
+        content_type='application/manifest+json',
+    )
 
 
 def google_site_verification(request):
