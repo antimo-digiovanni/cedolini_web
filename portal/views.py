@@ -226,6 +226,11 @@ def google_site_verification(request):
     )
 
 
+def favicon_ico(request):
+    """Compatibilita browser: favicon richiesta su /favicon.ico."""
+    return HttpResponseRedirect(static('portal/icons/icon-192.png'))
+
+
 # =========================================================
 # REGISTER VIA TOKEN
 # =========================================================

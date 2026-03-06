@@ -17,6 +17,7 @@ urlpatterns = [
     path('macchinari/', views.public_machinery, name='public_machinery'),
     path('contatti/', views.public_contacts, name='public_contacts'),
     path('site.webmanifest', views.site_webmanifest, name='site_webmanifest'),
+    path('favicon.ico', views.favicon_ico, name='favicon_ico'),
     path('googlee8ce7f16b7b5fed5.html', views.google_site_verification, name='google_site_verification'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap_xml'),
     path('robots.txt', views.robots_txt, name='robots_txt'),
