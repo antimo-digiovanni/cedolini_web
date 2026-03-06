@@ -37,10 +37,14 @@
                 </button>
             </td>
             <td>
-                {% if emp.invito_inviato %}
-                    <span class="badge bg-success">Inviato</span>
+                {% if emp.privacy_accepted %}
+                    <span class="badge" style="background:#1e3a8a; color:#fff;">
+                        <i class="bi bi-patch-check-fill me-1"></i>Registrato
+                    </span>
+                {% elif emp.invito_inviato %}
+                    <span class="badge bg-success">Invitato</span>
                 {% else %}
-                    <span class="badge bg-warning">Non inviato</span>
+                    <span class="badge bg-warning text-dark">Non invitato</span>
                 {% endif %}
             </td>
             <td>
