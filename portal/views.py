@@ -182,6 +182,14 @@ def robots_txt(request):
     return HttpResponse(content, content_type='text/plain')
 
 
+def google_site_verification(request):
+    """Serve il file di verifica Search Console al percorso richiesto da Google."""
+    return HttpResponse(
+        'google-site-verification: googlee8ce7f16b7b5fed5.html',
+        content_type='text/plain',
+    )
+
+
 # =========================================================
 # REGISTER VIA TOKEN
 # =========================================================
