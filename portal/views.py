@@ -73,7 +73,69 @@ def public_machinery(request):
 
 
 def public_contacts(request):
-    return render(request, 'site/contacts.html')
+    contact_email = 'ANTIMO.DIGIOVANNI@SANVINCENZOSRL.COM'
+    form_data = {
+        'name': '',
+        'email': '',
+        'phone': '',
+        'subject': '',
+        'message': '',
+    }
+    contact_error = None
+    contact_success = False
+
+    if request.method == 'POST':
+        form_data = {
+            'name': request.POST.get('name', '').strip(),
+            'email': request.POST.get('email', '').strip(),
+            'phone': request.POST.get('phone', '').strip(),
+            'subject': request.POST.get('subject', '').strip(),
+            'message': request.POST.get('message', '').strip(),
+        }
+
+        if not form_data['name'] or not form_data['email'] or not form_data['message']:
+            contact_error = 'Compila almeno nome, email e messaggio.'
+        else:
+            email_subject = form_data['subject'] or 'Nuova richiesta dal sito San Vincenzo SRL'
+            email_body = (
+                'Nuova richiesta ricevuta dal sito web.\n\n'
+                f"Nome: {form_data['name']}\n"
+                f"Email: {form_data['email']}\n"
+                f"Telefono: {form_data['phone'] or 'Non indicato'}\n"
+                f"Oggetto: {form_data['subject'] or 'Non indicato'}\n\n"
+                'Messaggio:\n'
+                f"{form_data['message']}\n"
+            )
+
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or 'noreply@sanvincenzosrl.com'
+
+            try:
+                mail = EmailMultiAlternatives(
+                    subject=email_subject,
+                    body=email_body,
+                    from_email=from_email,
+                    to=[contact_email],
+                    reply_to=[form_data['email']],
+                )
+                mail.send(fail_silently=False)
+                contact_success = True
+                form_data = {
+                    'name': '',
+                    'email': '',
+                    'phone': '',
+                    'subject': '',
+                    'message': '',
+                }
+            except Exception:
+                logger.exception('Errore invio richiesta contatti sito pubblico')
+                contact_error = 'Invio non riuscito al momento. Puoi scriverci direttamente via email o telefono.'
+
+    return render(request, 'site/contacts.html', {
+        'contact_email': contact_email,
+        'form_data': form_data,
+        'contact_error': contact_error,
+        'contact_success': contact_success,
+    })
 
 
 def sitemap_xml(request):

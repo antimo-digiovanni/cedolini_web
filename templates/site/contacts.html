@@ -22,19 +22,60 @@
             <li><strong>Indirizzo:</strong> Via B. Cellini 154, 80028 Grumo Nevano (NA)</li>
             <li><strong>Telefono:</strong> 0818801972</li>
             <li><strong>Cellulare:</strong> 3400515648</li>
-            <li><strong>Email:</strong> sanvincenzosrl@gmail.com</li>
+            <li><strong>Email:</strong> {{ contact_email }}</li>
             <li><strong>Disponibilita:</strong> 24 ore su 24, 7 giorni su 7</li>
           </ul>
           <div class="contact-actions">
-            <a class="btn btn-primary-hero" href="mailto:sanvincenzosrl@gmail.com">Scrivi una email</a>
+            <a class="btn btn-primary-hero" href="mailto:{{ contact_email }}">Scrivi una email</a>
           </div>
         </article>
       </div>
       <div class="col-lg-6">
         <article class="service-card reveal-up" style="animation-delay:.12s;">
-          <h2>Area riservata dipendenti</h2>
-          <p>Per consultare cedolini e documenti personali accedi all'area riservata.</p>
-          <a class="btn btn-primary-hero" href="{% url 'login' %}">Accedi al portale</a>
+          <h2>Scrivici un messaggio</h2>
+          <p>Compila il modulo per richiedere informazioni o un preventivo. Il messaggio verra inviato direttamente a <strong>{{ contact_email }}</strong>.</p>
+
+          {% if contact_success %}
+            <div class="contact-alert contact-alert-success">Messaggio inviato con successo. Ti ricontatteremo al piu presto.</div>
+          {% endif %}
+          {% if contact_error %}
+            <div class="contact-alert contact-alert-error">{{ contact_error }}</div>
+          {% endif %}
+
+          <form method="post" class="contact-form">
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="name" class="form-label">Nome e cognome *</label>
+                <input id="name" name="name" type="text" class="form-control" value="{{ form_data.name }}" required>
+              </div>
+              <div class="col-md-6">
+                <label for="email" class="form-label">Email *</label>
+                <input id="email" name="email" type="email" class="form-control" value="{{ form_data.email }}" required>
+              </div>
+              <div class="col-md-6">
+                <label for="phone" class="form-label">Telefono</label>
+                <input id="phone" name="phone" type="text" class="form-control" value="{{ form_data.phone }}">
+              </div>
+              <div class="col-md-6">
+                <label for="subject" class="form-label">Oggetto</label>
+                <input id="subject" name="subject" type="text" class="form-control" value="{{ form_data.subject }}" placeholder="Preventivo, informazioni, supporto...">
+              </div>
+              <div class="col-12">
+                <label for="message" class="form-label">Messaggio *</label>
+                <textarea id="message" name="message" class="form-control" rows="5" required>{{ form_data.message }}</textarea>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary-hero">Invia richiesta</button>
+              </div>
+            </div>
+          </form>
+        </article>
+      </div>
+      <div class="col-12">
+        <article class="service-card reveal-up" style="animation-delay:.18s;">
+          <h2>Riconoscimento</h2>
+          <p>Questo sito e stato ideato e realizzato da <strong>Antimo Di Giovanni</strong>.</p>
         </article>
       </div>
     </div>

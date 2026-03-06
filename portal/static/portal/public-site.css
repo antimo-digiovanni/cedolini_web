@@ -102,6 +102,10 @@ h4 {
     padding: 0.95rem 0;
 }
 
+.navbar-collapse {
+    flex-grow: 1;
+}
+
 .navbar-brand,
 .nav-link {
     color: #ffffff;
@@ -138,7 +142,7 @@ h4 {
 }
 
 .header-logo-right {
-    margin-left: 1rem;
+    margin-left: 1.4rem;
     align-items: center;
     justify-content: center;
 }
@@ -376,6 +380,43 @@ h4 {
 
 .contact-actions {
     margin-top: 1rem;
+}
+
+.contact-form .form-label {
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.35rem;
+}
+
+.contact-form .form-control {
+    border: 1px solid #cbdaf4;
+    border-radius: 12px;
+    padding: 0.62rem 0.78rem;
+}
+
+.contact-form .form-control:focus {
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+.contact-alert {
+    border-radius: 12px;
+    padding: 0.7rem 0.85rem;
+    margin-bottom: 0.85rem;
+    border: 1px solid transparent;
+    font-weight: 600;
+}
+
+.contact-alert-success {
+    background: #ecfdf3;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+
+.contact-alert-error {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
 }
 
 .process-panel {
