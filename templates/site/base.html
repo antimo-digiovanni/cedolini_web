@@ -107,6 +107,11 @@
       body.classList.add('is-ready');
     }
 
+    window.addEventListener('pageshow', () => {
+      body.classList.remove('is-leaving');
+      body.classList.add('is-ready');
+    });
+
     document.addEventListener('click', function(event) {
       const link = event.target.closest('a[href]');
       if (!link) return;
@@ -127,36 +132,6 @@
       setTimeout(() => {
         window.location.href = destination.href;
       }, 230);
-    });
-
-    if (reducedMotion) return;
-
-    function typeElement(el, speed, delay) {
-      const text = (el.textContent || '').trim();
-      if (!text) return;
-      if ([...el.childNodes].some((n) => n.nodeType !== Node.TEXT_NODE)) return;
-
-      el.textContent = '';
-      el.classList.add('is-typing');
-
-      setTimeout(() => {
-        let index = 0;
-        const timer = setInterval(() => {
-          index += 1;
-          el.textContent = text.slice(0, index);
-          if (index >= text.length) {
-            clearInterval(timer);
-            el.classList.remove('is-typing');
-          }
-        }, speed);
-      }, delay);
-    }
-
-    const typingTargets = document.querySelectorAll('main h1, main h2, main .section-kicker, main .hero-sub, main .page-hero p');
-    let delay = 60;
-    typingTargets.forEach((el) => {
-      typeElement(el, 12, delay);
-      delay += 80;
     });
   })();
   </script>
