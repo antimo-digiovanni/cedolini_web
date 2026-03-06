@@ -68,6 +68,10 @@ def public_services(request):
     return render(request, 'site/services.html')
 
 
+def public_digital_services(request):
+    return render(request, 'site/digital_services.html')
+
+
 def public_about(request):
     return render(request, 'site/about.html')
 
@@ -147,6 +151,7 @@ def sitemap_xml(request):
         '',
         'chi-siamo/',
         'servizi/',
+        'servizi-digitali/',
         'macchinari/',
         'contatti/',
         'login/',

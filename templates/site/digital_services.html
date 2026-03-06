@@ -1,0 +1,113 @@
+{% extends 'site/base.html' %}
+
+{% block title %}Servizi Digitali | San Vincenzo SRL{% endblock %}
+{% block meta_description %}Servizi digitali San Vincenzo SRL: sviluppo siti web professionali, SEO, sistemi gestionali su misura e piattaforme per pubblicazione cedolini online.{% endblock %}
+{% block og_title %}Servizi Digitali | San Vincenzo SRL{% endblock %}
+{% block og_description %}Progettiamo presenza digitale e sistemi operativi: web, indicizzazione e gestione cedolini online.{% endblock %}
+
+{% block content %}
+<section class="digital-hero">
+  <div class="container reveal-up">
+    <p class="digital-kicker">San Vincenzo Digital</p>
+    <h1>Servizi digitali per aziende che vogliono risultati concreti.</h1>
+    <p class="digital-sub">Affianchiamo imprese e professionisti nella trasformazione digitale con soluzioni personalizzate: siti web ad alte prestazioni, SEO tecnica e strategica, piattaforme gestionali e sistemi dedicati alla pubblicazione cedolini.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary-hero" href="{% url 'public_contacts' %}">Richiedi una consulenza</a>
+      <a class="btn btn-outline-hero" href="{% url 'public_services' %}">Torna ai servizi operativi</a>
+    </div>
+  </div>
+</section>
+
+<section class="content-section">
+  <div class="container">
+    <div class="section-heading reveal-up">
+      <p class="section-kicker">Cosa realizziamo</p>
+      <h2>Una linea digitale completa, dalla visibilita alla gestione interna</h2>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <article class="digital-card reveal-up" style="animation-delay:.04s;">
+          <div class="digital-card-icon"><i class="bi bi-window-stack"></i></div>
+          <h3>Sviluppo siti web aziendali</h3>
+          <p>Progettiamo siti web professionali veloci, responsive e orientati alla conversione. Ogni progetto viene costruito su identita aziendale, obiettivi commerciali e user experience.</p>
+          <ul>
+            <li>Struttura moderna e navigazione chiara</li>
+            <li>Performance elevate su desktop e mobile</li>
+            <li>Contenuti ottimizzati per autorevolezza e fiducia</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="col-lg-6">
+        <article class="digital-card reveal-up" style="animation-delay:.1s;">
+          <div class="digital-card-icon"><i class="bi bi-search"></i></div>
+          <h3>SEO e indicizzazione</h3>
+          <p>Implementiamo attivita SEO on-page e tecnica per migliorare posizionamento e visibilita sui principali motori di ricerca.</p>
+          <ul>
+            <li>Analisi keyword e struttura contenuti</li>
+            <li>Ottimizzazione meta tag, heading e performance</li>
+            <li>Supporto continuo per crescita organica</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="col-lg-6">
+        <article class="digital-card reveal-up" style="animation-delay:.16s;">
+          <div class="digital-card-icon"><i class="bi bi-diagram-3"></i></div>
+          <h3>Sistemi di gestione personalizzati</h3>
+          <p>Sviluppiamo strumenti digitali su misura per ottimizzare processi interni, ridurre errori e aumentare controllo operativo.</p>
+          <ul>
+            <li>Workflow adattati alle procedure aziendali</li>
+            <li>Gestione documentale e tracciamento attivita</li>
+            <li>Dashboard operative e report dedicati</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="col-lg-6">
+        <article class="digital-card reveal-up" style="animation-delay:.22s;">
+          <div class="digital-card-icon"><i class="bi bi-file-earmark-lock2"></i></div>
+          <h3>Pubblicazione cedolini online</h3>
+          <p>Realizziamo e configuriamo sistemi sicuri per pubblicazione e consultazione cedolini, con accesso riservato e gestione centralizzata.</p>
+          <ul>
+            <li>Area dipendenti con accesso protetto</li>
+            <li>Caricamento e consultazione documenti in cloud</li>
+            <li>Supporto operativo e manutenzione evolutiva</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="digital-process">
+  <div class="container">
+    <div class="digital-process-box reveal-up">
+      <div>
+        <p class="section-kicker mb-1">Metodo di lavoro</p>
+        <h2>Dal bisogno al risultato, con una roadmap precisa</h2>
+        <p>Ogni progetto digitale parte dall'analisi del contesto aziendale e arriva alla messa online con monitoraggio e miglioramento continuo.</p>
+      </div>
+      <ol>
+        <li><span>01</span> Analisi obiettivi e processi</li>
+        <li><span>02</span> Progettazione tecnica e contenuti</li>
+        <li><span>03</span> Sviluppo, test e rilascio</li>
+        <li><span>04</span> Formazione, supporto e crescita</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container reveal-up">
+    <div class="cta-band-box">
+      <div>
+        <p class="section-kicker mb-1">Progetto digitale</p>
+        <h2>Parliamo del tuo sito, della tua visibilita e dei tuoi flussi interni.</h2>
+      </div>
+      <a class="btn btn-primary-hero" href="{% url 'public_contacts' %}">Prenota un confronto</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

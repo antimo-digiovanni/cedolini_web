@@ -13,6 +13,7 @@ urlpatterns = [
     path('sito-web/', views.public_home, name='public_home'),
     path('chi-siamo/', views.public_about, name='public_about'),
     path('servizi/', views.public_services, name='public_services'),
+    path('servizi-digitali/', views.public_digital_services, name='public_digital_services'),
     path('macchinari/', views.public_machinery, name='public_machinery'),
     path('contatti/', views.public_contacts, name='public_contacts'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap_xml'),
