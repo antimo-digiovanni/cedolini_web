@@ -858,9 +858,11 @@ def admin_send_invite(request):
         f"Gentile {employee.first_name or ''} {employee.last_name or ''},\n\n"
         f"è stato creato il tuo accesso al Portale Cedolini.\n\n"
         f"USERNAME: {username}\n\n"
+        f"EMAIL: {employee.email_invio}\n\n"
         f"Clicca sul link seguente per attivare il tuo account e creare la password:\n{link}\n\n"
         f"Il link è valido per 7 giorni.\n\n"
-        f"Per accedere in futuro al portale utilizza sempre questo indirizzo:\n"
+        f"Dopo l'attivazione potrai accedere usando il tuo username oppure la tua email.\n\n"
+        f"Per accedere al portale utilizza sempre questo indirizzo:\n"
         f"https://cedolini-web.onrender.com/login/\n"
     )
 
@@ -893,6 +895,11 @@ def admin_send_invite(request):
             <span style="display:inline-block;margin-top:10px;padding:10px 14px;background:#eff6ff;border-radius:6px;font-family:monospace;font-size:15px;color:#111827;border:1px solid #bfdbfe;">
                 {username}
             </span>
+            <br><br>
+            La tua <strong style="color:#111827;">EMAIL</strong> associata è:<br>
+            <span style="display:inline-block;margin-top:10px;padding:10px 14px;background:#eff6ff;border-radius:6px;font-family:monospace;font-size:15px;color:#111827;border:1px solid #bfdbfe;">
+                {employee.email_invio}
+            </span>
         </td>
     </tr>
     <tr>
@@ -906,8 +913,13 @@ def admin_send_invite(request):
         </td>
     </tr>
     <tr>
+        <td style="font-size:13px;color:#374151;padding-top:10px;line-height:1.6;">
+            Dopo l'attivazione potrai accedere con <strong>USERNAME</strong> oppure con la tua <strong>EMAIL</strong>.
+        </td>
+    </tr>
+    <tr>
         <td style="font-size:13px;color:#374151;padding-top:10px;">
-            Per i prossimi accessi al portale utilizza sempre questo indirizzo:<br>
+            Per accedere al portale utilizza sempre questo indirizzo:<br>
             <a href="https://cedolini-web.onrender.com/login/" style="display:inline-block;margin-top:8px;padding:8px 12px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:4px;font-size:13px;">
                 https://cedolini-web.onrender.com/login/
             </a>
