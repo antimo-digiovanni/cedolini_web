@@ -60,6 +60,10 @@ def home(request):
     return render(request, 'site/home.html')
 
 
+def public_home(request):
+    return render(request, 'site/home.html')
+
+
 def public_services(request):
     return render(request, 'site/services.html')
 
