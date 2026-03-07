@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: cedolini-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-10000} --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile -
+    autoDeploy: true
