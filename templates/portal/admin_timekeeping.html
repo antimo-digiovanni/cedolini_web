@@ -44,6 +44,19 @@
     gap: 0.5rem;
     flex-wrap: wrap;
 }
+
+.matrix-scrollbar-proxy {
+    overflow-x: scroll;
+    overflow-y: hidden;
+    height: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.matrix-scrollbar-proxy-inner {
+    height: 1px;
+}
 </style>
 {% endblock %}
 
@@ -150,6 +163,10 @@
     <div class="matrix-nav mb-2">
         <button type="button" class="btn btn-sm btn-outline-secondary" id="matrixScrollStart">Vai a inizio mese</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="matrixScrollEnd">Vai a fine mese</button>
+    </div>
+
+    <div class="matrix-scrollbar-proxy" id="matrixScrollProxy">
+        <div class="matrix-scrollbar-proxy-inner" id="matrixScrollProxyInner"></div>
     </div>
 
     <div class="matrix-scroll-wrap" id="matrixScrollWrap">
@@ -290,6 +307,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const wrap = document.getElementById('matrixScrollWrap');
+    const proxy = document.getElementById('matrixScrollProxy');
+    const proxyInner = document.getElementById('matrixScrollProxyInner');
     const goStart = document.getElementById('matrixScrollStart');
     const goEnd = document.getElementById('matrixScrollEnd');
 
@@ -305,9 +324,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (goEnd) {
         goEnd.addEventListener('click', function () {
-            wrap.scrollTo({ left: wrap.scrollWidth, behavior: 'smooth' });
+            wrap.scrollTo({ left: wrap.scrollWidth - wrap.clientWidth, behavior: 'smooth' });
         });
     }
+
+    function syncProxyWidth() {
+        if (!proxyInner) {
+            return;
+        }
+        proxyInner.style.width = wrap.scrollWidth + 'px';
+    }
+
+    syncProxyWidth();
+    window.addEventListener('resize', syncProxyWidth);
+
+    if (proxy) {
+        proxy.addEventListener('scroll', function () {
+            wrap.scrollLeft = proxy.scrollLeft;
+        });
+
+        wrap.addEventListener('scroll', function () {
+            proxy.scrollLeft = wrap.scrollLeft;
+        });
+    }
+
+    wrap.addEventListener('wheel', function (e) {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            e.preventDefault();
+            wrap.scrollLeft += e.deltaY;
+        }
+    }, { passive: false });
 
     let isDown = false;
     let startX = 0;
@@ -339,6 +385,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const walk = (x - startX) * 1.3;
         wrap.scrollLeft = scrollLeft - walk;
     });
+
+    if (proxy) {
+        proxy.scrollLeft = wrap.scrollLeft;
+    }
 });
 </script>
 {% endif %}

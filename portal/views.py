@@ -605,7 +605,7 @@ def timekeeping(request):
             status=WorkMarkRequest.STATUS_APPROVED,
         ).exists()
 
-        if strict_mode and (latitude is None or longitude is None):
+        if strict_mode and (latitude is None or longitude is None) and not approved_out_of_zone:
             return JsonResponse(
                 {'ok': False, 'error': 'Geolocalizzazione obbligatoria: attiva il GPS per marcare.'},
                 status=400,
