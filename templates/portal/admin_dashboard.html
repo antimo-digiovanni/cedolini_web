@@ -10,51 +10,52 @@
         <p class="mb-0 opacity-75">Monitoraggio completo del sistema</p>
     </div>
 
-    <div class="mb-3 d-flex flex-wrap gap-2">
-        <a href="{% url 'admin_upload_period_folder' %}" class="btn btn-sm btn-primary">
-            <i class="bi bi-folder2-open"></i> Carica Cedolini (Cartella)
-        </a>
-        <a href="{% url 'admin_upload_cud' %}" class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-file-earmark-arrow-up"></i> Carica CUD
-        </a>
-        <a href="{% url 'admin_employees' %}" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-people"></i> Gestione Dipendenti
-        </a>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card-modern bg-white position-relative text-center">
+                <div class="position-absolute top-0 end-0 p-3">
+                    <i class="bi bi-box-arrow-in-right text-success" style="font-size:1.4rem;"></i>
+                </div>
+                <h1 class="fw-bold mt-3 display-6">{{ entered_today_count }}</h1>
+                <p class="text-muted mb-0">Dipendenti con Entrata Oggi</p>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card-modern bg-white position-relative text-center">
+                <div class="position-absolute top-0 end-0 p-3">
+                    <i class="bi bi-check2-circle text-primary" style="font-size:1.4rem;"></i>
+                </div>
+                <h1 class="fw-bold mt-3 display-6">{{ completed_today_count }}</h1>
+                <p class="text-muted mb-0">Giornata Completa (Entrata/Uscita)</p>
+            </div>
+        </div>
     </div>
 
-    <!-- CARD STATISTICHE -->
-    <div class="row g-4">
-
+    <div class="row g-4 mt-1">
         <div class="col-md-4">
-            <div class="card-modern bg-white position-relative text-center">
-                <div class="position-absolute top-0 end-0 p-3">
-                    <i class="bi bi-file-earmark-text text-primary" style="font-size:1.4rem;"></i>
-                </div>
-                <h1 class="fw-bold mt-3 display-6">{{ totale_cedolini }}</h1>
-                <p class="text-muted mb-0">Totale Cedolini</p>
+            <div class="card-modern bg-white text-center">
+                <a href="{% url 'admin_upload_period_folder' %}" class="btn btn-primary w-100">
+                    <i class="bi bi-folder2-open"></i> Carica Cedolini
+                </a>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card-modern bg-white position-relative text-center">
-                <div class="position-absolute top-0 end-0 p-3">
-                    <i class="bi bi-eye text-success" style="font-size:1.4rem;"></i>
-                </div>
-                <h1 class="fw-bold mt-3 display-6">{{ visualizzati }}</h1>
-                <p class="text-muted mb-0">Visualizzati</p>
+            <div class="card-modern bg-white text-center">
+                <a href="{% url 'admin_upload_cud' %}" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Carica CUD
+                </a>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card-modern bg-white position-relative text-center">
-                <div class="position-absolute top-0 end-0 p-3">
-                    <i class="bi bi-eye-slash text-danger" style="font-size:1.4rem;"></i>
-                </div>
-                <h1 class="fw-bold mt-3 display-6">{{ non_visualizzati }}</h1>
-                <p class="text-muted mb-0">Non Visualizzati</p>
+            <div class="card-modern bg-white text-center">
+                <a href="{% url 'admin_employees' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-people"></i> Gestione Dipendenti
+                </a>
             </div>
         </div>
-
     </div>
 
     <div class="row g-4 mt-1">

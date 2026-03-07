@@ -1394,15 +1394,6 @@ def admin_dashboard(request):
 
             return redirect('admin_dashboard')
 
-    totale_cedolini = Payslip.objects.count()
-    totale_dipendenti = Employee.objects.count()
-
-    visualizzati = Payslip.objects.filter(
-        payslipview__isnull=False
-    ).distinct().count()
-
-    non_visualizzati = totale_cedolini - visualizzati
-
     today = timezone.localdate()
     _sync_approved_requests_for_range(today, today)
     pending_mark_requests = (
@@ -1425,11 +1416,17 @@ def admin_dashboard(request):
         .order_by('employee__last_name', 'employee__first_name')
     )
 
+    entered_today_count = today_marked_sessions.filter(
+        Q(started_at__isnull=False) | Q(corrected_started_at__isnull=False)
+    ).count()
+    completed_today_count = today_marked_sessions.filter(
+        (Q(started_at__isnull=False) | Q(corrected_started_at__isnull=False))
+        & (Q(ended_at__isnull=False) | Q(corrected_ended_at__isnull=False))
+    ).count()
+
     return render(request, "portal/admin_dashboard.html", {
-        "totale_cedolini": totale_cedolini,
-        "totale_dipendenti": totale_dipendenti,
-        "visualizzati": visualizzati,
-        "non_visualizzati": non_visualizzati,
+        "entered_today_count": entered_today_count,
+        "completed_today_count": completed_today_count,
         "today": today,
         "pending_mark_requests": pending_mark_requests,
         "today_marked_sessions": today_marked_sessions,
