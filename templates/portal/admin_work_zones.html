@@ -1,6 +1,23 @@
 {% extends "portal/base.html" %}
 {% block title %}Zone di Lavoro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+#zoneMap {
+    width: 100%;
+    min-height: 360px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.zone-map-hint {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-hero mb-4">
     <h2 class="fw-bold mb-1">Zone di Lavoro</h2>
@@ -25,15 +42,15 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Latitudine</label>
-                    <input name="latitude" class="form-control" placeholder="40.000000" required>
+                    <input id="zoneLatitude" name="latitude" class="form-control" placeholder="40.000000" required>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Longitudine</label>
-                    <input name="longitude" class="form-control" placeholder="15.000000" required>
+                    <input id="zoneLongitude" name="longitude" class="form-control" placeholder="15.000000" required>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Raggio (metri)</label>
-                    <input name="radius_meters" type="number" min="10" value="100" class="form-control" required>
+                    <input id="zoneRadius" name="radius_meters" type="number" min="10" value="100" class="form-control" required>
                 </div>
                 <div class="col-12 d-grid">
                     <button class="btn btn-primary" type="submit">Crea zona</button>
@@ -88,6 +105,14 @@
 </div>
 
 <div class="card-modern bg-white mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="fw-semibold mb-0">Mappa Zona</h5>
+        <span class="zone-map-hint">Clicca in mappa per impostare coordinate, il cerchio mostra il raggio selezionato.</span>
+    </div>
+    <div id="zoneMap"></div>
+</div>
+
+<div class="card-modern bg-white mb-4">
     <h5 class="fw-semibold mb-3">Zone configurate</h5>
     <div class="table-responsive">
         <table class="table align-middle mb-0">
@@ -97,6 +122,7 @@
                     <th>Coordinate</th>
                     <th>Raggio</th>
                     <th>Stato</th>
+                    <th>Mappa</th>
                 </tr>
             </thead>
             <tbody>
@@ -112,10 +138,21 @@
                             <span class="badge bg-secondary">Disattiva</span>
                         {% endif %}
                     </td>
+                    <td>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary zone-preview-btn"
+                            data-lat="{{ zone.latitude }}"
+                            data-lon="{{ zone.longitude }}"
+                            data-radius="{{ zone.radius_meters }}"
+                        >
+                            Mostra
+                        </button>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted">Nessuna zona definita.</td>
+                    <td colspan="5" class="text-center text-muted">Nessuna zona definita.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -179,4 +216,90 @@
         </table>
     </div>
 </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const latInput = document.getElementById('zoneLatitude');
+    const lonInput = document.getElementById('zoneLongitude');
+    const radiusInput = document.getElementById('zoneRadius');
+    const mapEl = document.getElementById('zoneMap');
+
+    if (!latInput || !lonInput || !radiusInput || !mapEl || typeof L === 'undefined') {
+        return;
+    }
+
+    const defaultLat = 40.8518;
+    const defaultLon = 14.2681;
+    const map = L.map('zoneMap').setView([defaultLat, defaultLon], 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker = null;
+    let circle = null;
+
+    function parseInputNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function updateMapFromInputs(fitBounds) {
+        const lat = parseInputNumber(latInput.value);
+        const lon = parseInputNumber(lonInput.value);
+        const radius = Math.max(parseInputNumber(radiusInput.value) || 100, 10);
+
+        if (lat === null || lon === null) {
+            return;
+        }
+
+        if (!marker) {
+            marker = L.marker([lat, lon]).addTo(map);
+        } else {
+            marker.setLatLng([lat, lon]);
+        }
+
+        if (!circle) {
+            circle = L.circle([lat, lon], {
+                radius: radius,
+                color: '#1d4ed8',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.15,
+            }).addTo(map);
+        } else {
+            circle.setLatLng([lat, lon]);
+            circle.setRadius(radius);
+        }
+
+        if (fitBounds) {
+            map.fitBounds(circle.getBounds(), { padding: [24, 24] });
+        }
+    }
+
+    map.on('click', function (ev) {
+        latInput.value = ev.latlng.lat.toFixed(6);
+        lonInput.value = ev.latlng.lng.toFixed(6);
+        updateMapFromInputs(true);
+    });
+
+    latInput.addEventListener('input', function () { updateMapFromInputs(false); });
+    lonInput.addEventListener('input', function () { updateMapFromInputs(false); });
+    radiusInput.addEventListener('input', function () { updateMapFromInputs(false); });
+
+    document.querySelectorAll('.zone-preview-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            latInput.value = btn.dataset.lat || '';
+            lonInput.value = btn.dataset.lon || '';
+            radiusInput.value = btn.dataset.radius || '100';
+            updateMapFromInputs(true);
+            mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    });
+
+    updateMapFromInputs(true);
+    setTimeout(function () { map.invalidateSize(); }, 120);
+});
+</script>
 {% endblock %}
