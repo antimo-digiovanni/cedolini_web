@@ -51,6 +51,46 @@
 
             <div id="timekeepingFeedback" class="alert mt-3 d-none" role="alert"></div>
         </div>
+
+        <div class="card-modern bg-white mt-4">
+            <h5 class="fw-semibold">Richiesta marcatura fuori zona</h5>
+
+            {% if request_status == 'sent' %}
+            <div class="alert alert-success py-2">Richiesta inviata al preposto per autorizzazione.</div>
+            {% elif request_status == 'already_pending' %}
+            <div class="alert alert-warning py-2">Hai gia una richiesta in attesa per oggi.</div>
+            {% elif request_status == 'invalid' %}
+            <div class="alert alert-danger py-2">Inserisci un messaggio piu dettagliato.</div>
+            {% endif %}
+
+            {% if today_mark_request %}
+            <div class="mb-2">
+                <strong>Stato oggi:</strong>
+                {% if today_mark_request.status == 'approved' %}
+                    <span class="badge bg-success">Approvata</span>
+                {% elif today_mark_request.status == 'rejected' %}
+                    <span class="badge bg-danger">Rifiutata</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">In attesa</span>
+                {% endif %}
+            </div>
+            <div class="small text-muted mb-3">{{ today_mark_request.reason }}</div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="request_out_of_zone">
+                <label class="form-label">Messaggio al preposto</label>
+                <textarea
+                    name="reason"
+                    rows="3"
+                    class="form-control"
+                    placeholder="Es: Prima di entrare in cantiere devo acquistare materiali, richiedo marcatura autorizzata fuori zona."
+                    required
+                ></textarea>
+                <button class="btn btn-outline-primary mt-2" type="submit">Invia richiesta</button>
+            </form>
+        </div>
     </div>
 
     <div class="col-lg-7">

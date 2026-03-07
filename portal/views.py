@@ -28,6 +28,7 @@ from .models import (
     WorkZone,
     EmployeeWorkZone,
     WorkSession,
+    WorkMarkRequest,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
@@ -520,9 +521,49 @@ def timekeeping(request):
     session.worked_display = session.worked_hours_display()
     active_assignments = _active_assignments_for_employee(employee, today)
     has_active_zone = bool(active_assignments)
+    today_mark_request = (
+        WorkMarkRequest.objects
+        .filter(employee=employee, work_date=today)
+        .order_by('-created_at')
+        .first()
+    )
+    request_status = request.GET.get('request_status', '')
 
     if request.method == 'POST':
         action = request.POST.get('action')
+
+        if action == 'request_out_of_zone':
+            reason = (request.POST.get('reason') or '').strip()
+            if len(reason) < 8:
+                return redirect(f"{request.path}?request_status=invalid")
+
+            latest_request = (
+                WorkMarkRequest.objects
+                .filter(employee=employee, work_date=today)
+                .order_by('-created_at')
+                .first()
+            )
+
+            if latest_request and latest_request.status == WorkMarkRequest.STATUS_PENDING:
+                return redirect(f"{request.path}?request_status=already_pending")
+
+            WorkMarkRequest.objects.create(
+                employee=employee,
+                work_date=today,
+                reason=reason,
+            )
+
+            _create_audit_event(
+                request,
+                'timekeeping_out_of_zone_requested',
+                employee=employee,
+                metadata={
+                    'work_date': str(today),
+                    'reason': reason,
+                },
+            )
+            return redirect(f"{request.path}?request_status=sent")
+
         latitude = _parse_coordinate(request.POST.get('latitude'))
         longitude = _parse_coordinate(request.POST.get('longitude'))
 
@@ -547,6 +588,11 @@ def timekeeping(request):
         now_ts = timezone.now()
         zone_check = _evaluate_location_for_employee_zone(employee, latitude, longitude, today)
         strict_mode = any(a.strict_geofence for a in active_assignments)
+        approved_out_of_zone = WorkMarkRequest.objects.filter(
+            employee=employee,
+            work_date=today,
+            status=WorkMarkRequest.STATUS_APPROVED,
+        ).exists()
 
         if strict_mode and (latitude is None or longitude is None):
             return JsonResponse(
@@ -554,7 +600,7 @@ def timekeeping(request):
                 status=400,
             )
 
-        if strict_mode and active_assignments and not zone_check['within']:
+        if strict_mode and active_assignments and not zone_check['within'] and not approved_out_of_zone:
             return JsonResponse(
                 {'ok': False, 'error': 'Marcatura bloccata: sei fuori dalla zona assegnata.'},
                 status=400,
@@ -628,6 +674,8 @@ def timekeeping(request):
         'today_session': session,
         'active_zones': _active_zones_for_employee(employee, today),
         'has_active_zone': has_active_zone,
+        'today_mark_request': today_mark_request,
+        'request_status': request_status,
         'month_sessions': month_sessions[:15],
         'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
     })
@@ -643,6 +691,34 @@ def admin_timekeeping(request):
 
     if request.method == 'POST':
         action = request.POST.get('action')
+
+        if action in {'approve_mark_request', 'reject_mark_request'}:
+            req_id = request.POST.get('request_id')
+            request_obj = WorkMarkRequest.objects.filter(id=req_id).select_related('employee').first()
+            if request_obj:
+                request_obj.status = (
+                    WorkMarkRequest.STATUS_APPROVED
+                    if action == 'approve_mark_request'
+                    else WorkMarkRequest.STATUS_REJECTED
+                )
+                request_obj.review_note = (request.POST.get('review_note') or '').strip() or None
+                request_obj.reviewed_by = request.user
+                request_obj.reviewed_at = timezone.now()
+                request_obj.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+                _create_audit_event(
+                    request,
+                    'timekeeping_out_of_zone_reviewed',
+                    employee=request_obj.employee,
+                    metadata={
+                        'request_id': request_obj.id,
+                        'work_date': str(request_obj.work_date),
+                        'status': request_obj.status,
+                    },
+                )
+
+            return redirect(request.get_full_path() or request.path)
+
         if action == 'correct_day':
             employee_id = request.POST.get('employee_id')
             target_date_raw = request.POST.get('target_date')
@@ -724,6 +800,13 @@ def admin_timekeeping(request):
     start_date = date(year, month, 1)
     end_date = date(year, month, month_last_day)
 
+    pending_mark_requests = (
+        WorkMarkRequest.objects
+        .select_related('employee')
+        .filter(status=WorkMarkRequest.STATUS_PENDING)
+        .order_by('-created_at')[:20]
+    )
+
     if all_mode:
         marked_sessions_qs = (
             WorkSession.objects
@@ -801,6 +884,7 @@ def admin_timekeeping(request):
             'day_numbers': day_numbers,
             'matrix_rows': matrix_rows,
             'employee_filter': 'all',
+            'pending_mark_requests': pending_mark_requests,
         })
 
     if selected_employee:
@@ -980,6 +1064,7 @@ def admin_timekeeping(request):
         'day_numbers': [],
         'matrix_rows': [],
         'employee_filter': str(selected_employee.id) if selected_employee else '',
+        'pending_mark_requests': pending_mark_requests,
     })
 
 

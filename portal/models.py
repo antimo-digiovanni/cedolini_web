@@ -230,3 +230,39 @@ class WorkSession(models.Model):
 
     def __str__(self):
         return f"{self.employee.full_name} {self.work_date}"
+
+
+class WorkMarkRequest(models.Model):
+    """Richiesta dipendente per autorizzare marcatura fuori zona nel giorno indicato."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'In attesa'),
+        (STATUS_APPROVED, 'Approvata'),
+        (STATUS_REJECTED, 'Rifiutata'),
+    ]
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='work_mark_requests')
+    work_date = models.DateField(default=timezone.localdate)
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    review_note = models.CharField(max_length=255, blank=True, null=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='reviewed_work_mark_requests',
+    )
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.employee.full_name} {self.work_date} [{self.status}]"

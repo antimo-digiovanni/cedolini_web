@@ -14,6 +14,7 @@ from .models import (
     WorkZone,
     EmployeeWorkZone,
     WorkSession,
+    WorkMarkRequest,
 )
 
 
@@ -195,3 +196,10 @@ class WorkSessionAdmin(admin.ModelAdmin):
     )
     list_filter = ('work_date', 'start_within_zone', 'end_within_zone')
     search_fields = ('employee__first_name', 'employee__last_name')
+
+
+@admin.register(WorkMarkRequest)
+class WorkMarkRequestAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'work_date', 'status', 'reviewed_by', 'reviewed_at', 'created_at')
+    list_filter = ('status', 'work_date')
+    search_fields = ('employee__first_name', 'employee__last_name', 'reason', 'review_note')
