@@ -6,7 +6,7 @@
 <style>
 #zoneMap {
     width: 100%;
-    min-height: 360px;
+    min-height: 720px;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
 }
@@ -123,6 +123,7 @@
                     <th>Raggio</th>
                     <th>Stato</th>
                     <th>Mappa</th>
+                    <th>Azioni</th>
                 </tr>
             </thead>
             <tbody>
@@ -149,10 +150,18 @@
                             Mostra
                         </button>
                     </td>
+                    <td>
+                        <form method="post" class="m-0" onsubmit="return confirm('Eliminare definitivamente questa zona?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_zone">
+                            <input type="hidden" name="zone_id" value="{{ zone.id }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
+                        </form>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted">Nessuna zona definita.</td>
+                    <td colspan="6" class="text-center text-muted">Nessuna zona definita.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -172,7 +181,7 @@
                     <th>Valida al</th>
                     <th>Geofence</th>
                     <th>Stato</th>
-                    <th></th>
+                    <th>Azioni</th>
                 </tr>
             </thead>
             <tbody>
@@ -197,14 +206,22 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if row.is_active %}
-                        <form method="post" class="m-0">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="deactivate_assignment">
-                            <input type="hidden" name="assignment_id" value="{{ row.id }}">
-                            <button class="btn btn-sm btn-outline-warning" type="submit">Disattiva</button>
-                        </form>
-                        {% endif %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if row.is_active %}
+                            <form method="post" class="m-0">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="deactivate_assignment">
+                                <input type="hidden" name="assignment_id" value="{{ row.id }}">
+                                <button class="btn btn-sm btn-outline-warning" type="submit">Disattiva</button>
+                            </form>
+                            {% endif %}
+                            <form method="post" class="m-0" onsubmit="return confirm('Eliminare definitivamente questa assegnazione?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_assignment">
+                                <input type="hidden" name="assignment_id" value="{{ row.id }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}

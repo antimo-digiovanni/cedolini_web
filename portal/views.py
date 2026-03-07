@@ -1143,6 +1143,33 @@ def admin_work_zones(request):
                 feedback = 'Assegnazione disattivata.'
                 feedback_level = 'warning'
 
+        if action == 'delete_zone':
+            zone_id = request.POST.get('zone_id')
+            zone = WorkZone.objects.filter(id=zone_id).first()
+
+            if not zone:
+                feedback = 'Zona non trovata.'
+                feedback_level = 'danger'
+            else:
+                zone_name = zone.name
+                zone.delete()
+                feedback = f'Zona "{zone_name}" eliminata.'
+                feedback_level = 'warning'
+
+        if action == 'delete_assignment':
+            assignment_id = request.POST.get('assignment_id')
+            assignment = EmployeeWorkZone.objects.select_related('employee', 'zone').filter(id=assignment_id).first()
+
+            if not assignment:
+                feedback = 'Assegnazione non trovata.'
+                feedback_level = 'danger'
+            else:
+                employee_name = assignment.employee.full_name
+                zone_name = assignment.zone.name
+                assignment.delete()
+                feedback = f'Assegnazione eliminata: {employee_name} -> {zone_name}.'
+                feedback_level = 'warning'
+
     employees = Employee.objects.order_by('last_name', 'first_name')
     zones = WorkZone.objects.order_by('name')
     assignments = (
