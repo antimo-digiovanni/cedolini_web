@@ -1,6 +1,41 @@
 {% extends "portal/base.html" %}
 {% block title %}Report Marcature{% endblock %}
 
+{% block extra_css %}
+<style>
+.matrix-scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.matrix-report-table {
+    min-width: max-content;
+    margin-bottom: 0;
+}
+
+.matrix-report-table th,
+.matrix-report-table td {
+    white-space: nowrap;
+}
+
+.matrix-report-table th:first-child,
+.matrix-report-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: #ffffff;
+    z-index: 2;
+}
+
+.report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-hero mb-4">
     <h2 class="fw-bold mb-1">Report Marcature</h2>
@@ -26,22 +61,20 @@
             <label class="form-label">Anno</label>
             <input type="number" min="2020" max="2100" name="year" value="{{ selected_year }}" class="form-control">
         </div>
-        <div class="col-md-2 d-grid">
+        <div class="col-md-2 col-12 d-grid">
             <button class="btn btn-primary" type="submit">Aggiorna</button>
         </div>
-        {% if selected_employee %}
-        <div class="col-md-2 d-grid">
-            <a class="btn btn-outline-secondary" href="?employee={{ selected_employee.id }}&month={{ selected_month }}&year={{ selected_year }}&format=csv">Export CSV</a>
+        <div class="col-12">
+            <div class="report-actions">
+                {% if selected_employee %}
+                <a class="btn btn-outline-secondary" href="?employee={{ selected_employee.id }}&month={{ selected_month }}&year={{ selected_year }}&format=csv">Export CSV</a>
+                <a class="btn btn-outline-success" href="?employee={{ selected_employee.id }}&month={{ selected_month }}&year={{ selected_year }}&format=xlsx">Export XLSX</a>
+                {% endif %}
+                {% if all_mode %}
+                <a class="btn btn-outline-secondary" href="?employee=all&month={{ selected_month }}&year={{ selected_year }}&format=csv">Export CSV</a>
+                {% endif %}
+            </div>
         </div>
-        <div class="col-md-2 d-grid">
-            <a class="btn btn-outline-success" href="?employee={{ selected_employee.id }}&month={{ selected_month }}&year={{ selected_year }}&format=xlsx">Export XLSX</a>
-        </div>
-        {% endif %}
-        {% if all_mode %}
-        <div class="col-md-2 d-grid">
-            <a class="btn btn-outline-secondary" href="?employee=all&month={{ selected_month }}&year={{ selected_year }}&format=csv">Export CSV</a>
-        </div>
-        {% endif %}
     </form>
 </div>
 
@@ -51,9 +84,10 @@
         <h5 class="mb-0">Report mensile dipendenti</h5>
         <span class="small text-muted">Righe: {{ matrix_rows|length }} (esclusi dipendenti senza marcature)</span>
     </div>
+    <p class="small text-muted mb-2">Per vedere tutti i giorni, scorri orizzontalmente la tabella.</p>
 
-    <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
+    <div class="matrix-scroll-wrap">
+        <table class="table table-sm align-middle matrix-report-table">
             <thead>
                 <tr>
                     <th style="min-width:220px;">Dipendente</th>
