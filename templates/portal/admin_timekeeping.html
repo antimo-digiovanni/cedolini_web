@@ -4,14 +4,19 @@
 {% block extra_css %}
 <style>
 .matrix-scroll-wrap {
-    overflow-x: auto;
+    overflow-x: scroll;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
+    max-width: 100%;
+    scrollbar-gutter: stable both-edges;
+    cursor: grab;
 }
 
 .matrix-report-table {
-    min-width: max-content;
+    width: max-content;
+    min-width: 100%;
     margin-bottom: 0;
 }
 
@@ -32,6 +37,12 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+.matrix-nav {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 </style>
 {% endblock %}
@@ -136,7 +147,12 @@
     </div>
     <p class="small text-muted mb-2">Per vedere tutti i giorni, scorri orizzontalmente la tabella.</p>
 
-    <div class="matrix-scroll-wrap">
+    <div class="matrix-nav mb-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="matrixScrollStart">Vai a inizio mese</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="matrixScrollEnd">Vai a fine mese</button>
+    </div>
+
+    <div class="matrix-scroll-wrap" id="matrixScrollWrap">
         <table class="table table-sm align-middle matrix-report-table">
             <thead>
                 <tr>
@@ -268,5 +284,62 @@
 <div class="card-modern bg-white">
     <p class="text-muted mb-0">Nessun dipendente disponibile.</p>
 </div>
+{% endif %}
+
+{% if all_mode %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const wrap = document.getElementById('matrixScrollWrap');
+    const goStart = document.getElementById('matrixScrollStart');
+    const goEnd = document.getElementById('matrixScrollEnd');
+
+    if (!wrap) {
+        return;
+    }
+
+    if (goStart) {
+        goStart.addEventListener('click', function () {
+            wrap.scrollTo({ left: 0, behavior: 'smooth' });
+        });
+    }
+
+    if (goEnd) {
+        goEnd.addEventListener('click', function () {
+            wrap.scrollTo({ left: wrap.scrollWidth, behavior: 'smooth' });
+        });
+    }
+
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
+    wrap.addEventListener('mousedown', function (e) {
+        isDown = true;
+        wrap.style.cursor = 'grabbing';
+        startX = e.pageX - wrap.offsetLeft;
+        scrollLeft = wrap.scrollLeft;
+    });
+
+    wrap.addEventListener('mouseleave', function () {
+        isDown = false;
+        wrap.style.cursor = 'grab';
+    });
+
+    wrap.addEventListener('mouseup', function () {
+        isDown = false;
+        wrap.style.cursor = 'grab';
+    });
+
+    wrap.addEventListener('mousemove', function (e) {
+        if (!isDown) {
+            return;
+        }
+        e.preventDefault();
+        const x = e.pageX - wrap.offsetLeft;
+        const walk = (x - startX) * 1.3;
+        wrap.scrollLeft = scrollLeft - walk;
+    });
+});
+</script>
 {% endif %}
 {% endblock %}
