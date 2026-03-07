@@ -129,7 +129,11 @@
         </div>
         <div class="col-md-2">
             <label class="form-label">Mese</label>
-            <input type="number" min="1" max="12" name="month" value="{{ selected_month }}" class="form-control">
+            <select name="month" class="form-select">
+                {% for month_num, month_name in month_choices %}
+                    <option value="{{ month_num }}" {% if selected_month == month_num %}selected{% endif %}>{{ month_name }}</option>
+                {% endfor %}
+            </select>
         </div>
         <div class="col-md-2">
             <label class="form-label">Anno</label>

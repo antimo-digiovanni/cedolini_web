@@ -874,15 +874,28 @@ def admin_timekeeping(request):
 
     employees = Employee.objects.order_by('last_name', 'first_name')
 
-    employee_filter = request.GET.get('employee')
+    month_choices = [
+        (1, 'Gennaio'),
+        (2, 'Febbraio'),
+        (3, 'Marzo'),
+        (4, 'Aprile'),
+        (5, 'Maggio'),
+        (6, 'Giugno'),
+        (7, 'Luglio'),
+        (8, 'Agosto'),
+        (9, 'Settembre'),
+        (10, 'Ottobre'),
+        (11, 'Novembre'),
+        (12, 'Dicembre'),
+    ]
+
+    employee_filter = (request.GET.get('employee') or 'all').strip()
     all_mode = employee_filter == 'all'
 
     selected_employee = None
     if not all_mode:
         if employee_filter:
             selected_employee = employees.filter(id=employee_filter).first()
-        if not selected_employee:
-            selected_employee = employees.first()
 
     rows = []
     total_minutes = 0
@@ -958,10 +971,12 @@ def admin_timekeeping(request):
 
         export_format = request.GET.get('format')
         if export_format == 'csv':
-            response = HttpResponse(content_type='text/csv')
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
             response['Content-Disposition'] = f'attachment; filename="report_marcature_tutti_{year}_{month}.csv"'
-            writer = csv.writer(response)
-            writer.writerow(['Dipendente'] + [str(d) for d in day_numbers] + ['Totale mese'])
+            response.write('\ufeff')
+            writer = csv.writer(response, delimiter=';')
+            day_headers = [date(year, month, d).strftime('%d/%m/%Y') for d in day_numbers]
+            writer.writerow(['Dipendente'] + day_headers + ['Totale ore lavorate'])
             for row in matrix_rows:
                 writer.writerow(
                     [row['employee'].full_name]
@@ -972,6 +987,7 @@ def admin_timekeeping(request):
 
         return render(request, 'portal/admin_timekeeping.html', {
             'employees': employees,
+            'month_choices': month_choices,
             'selected_employee': None,
             'selected_year': year,
             'selected_month': month,
@@ -996,9 +1012,10 @@ def admin_timekeeping(request):
 
         export_format = request.GET.get('format')
         if export_format == 'csv':
-            response = HttpResponse(content_type='text/csv')
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
             response['Content-Disposition'] = f'attachment; filename="marcature_{selected_employee.id}_{year}_{month}.csv"'
-            writer = csv.writer(response)
+            response.write('\ufeff')
+            writer = csv.writer(response, delimiter=';')
             writer.writerow([
                 'Data',
                 'Ingresso',
@@ -1152,6 +1169,7 @@ def admin_timekeeping(request):
 
     return render(request, 'portal/admin_timekeeping.html', {
         'employees': employees,
+        'month_choices': month_choices,
         'selected_employee': selected_employee,
         'selected_year': year,
         'selected_month': month,
