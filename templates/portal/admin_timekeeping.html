@@ -12,8 +12,9 @@
         <div class="col-md-4">
             <label class="form-label">Dipendente</label>
             <select name="employee" class="form-select">
+                <option value="all" {% if employee_filter == 'all' %}selected{% endif %}>Tutti i dipendenti (solo con marcature)</option>
                 {% for emp in employees %}
-                    <option value="{{ emp.id }}" {% if selected_employee and selected_employee.id == emp.id %}selected{% endif %}>{{ emp.full_name }}</option>
+                    <option value="{{ emp.id }}" {% if employee_filter != 'all' and selected_employee and selected_employee.id == emp.id %}selected{% endif %}>{{ emp.full_name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -36,10 +37,51 @@
             <a class="btn btn-outline-success" href="?employee={{ selected_employee.id }}&month={{ selected_month }}&year={{ selected_year }}&format=xlsx">Export XLSX</a>
         </div>
         {% endif %}
+        {% if all_mode %}
+        <div class="col-md-2 d-grid">
+            <a class="btn btn-outline-secondary" href="?employee=all&month={{ selected_month }}&year={{ selected_year }}&format=csv">Export CSV</a>
+        </div>
+        {% endif %}
     </form>
 </div>
 
-{% if selected_employee %}
+{% if all_mode %}
+<div class="card-modern bg-white mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Report mensile dipendenti</h5>
+        <span class="small text-muted">Righe: {{ matrix_rows|length }} (esclusi dipendenti senza marcature)</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="min-width:220px;">Dipendente</th>
+                    {% for d in day_numbers %}
+                        <th class="text-center" style="min-width:110px;">{{ d }}</th>
+                    {% endfor %}
+                    <th class="text-center" style="min-width:110px;">Totale</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in matrix_rows %}
+                <tr>
+                    <td><strong>{{ row.employee.full_name }}</strong></td>
+                    {% for cell in row.cells %}
+                        <td class="text-center small">{{ cell.value|default:'-' }}</td>
+                    {% endfor %}
+                    <td class="text-center"><span class="badge bg-primary">{{ row.month_total }}</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="40" class="text-center text-muted">Nessuna marcatura trovata nel mese selezionato.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif selected_employee %}
 <div class="row g-4 mb-4">
     <div class="col-md-4">
         <div class="card-modern bg-white text-center">

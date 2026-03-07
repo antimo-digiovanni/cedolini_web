@@ -484,6 +484,30 @@ def _parse_time_or_none(value):
         return None
 
 
+def _session_has_markings(session):
+    return bool(
+        session.started_at
+        or session.ended_at
+        or session.corrected_started_at
+        or session.corrected_ended_at
+    )
+
+
+def _session_cell_text(session):
+    if not session:
+        return ''
+
+    start = session.effective_started_at()
+    end = session.effective_ended_at()
+    if start and end:
+        return f"{start.strftime('%H:%M')}-{end.strftime('%H:%M')} ({session.worked_hours_display()})"
+    if start:
+        return f"IN {start.strftime('%H:%M')}"
+    if end:
+        return f"OUT {end.strftime('%H:%M')}"
+    return ''
+
+
 @login_required
 def timekeeping(request):
     """Marcatura dipendente: avvio/fine giornata con supporto geolocalizzazione."""
@@ -682,12 +706,15 @@ def admin_timekeeping(request):
 
     employees = Employee.objects.order_by('last_name', 'first_name')
 
+    employee_filter = request.GET.get('employee')
+    all_mode = employee_filter == 'all'
+
     selected_employee = None
-    employee_id = request.GET.get('employee')
-    if employee_id:
-        selected_employee = employees.filter(id=employee_id).first()
-    if not selected_employee:
-        selected_employee = employees.first()
+    if not all_mode:
+        if employee_filter:
+            selected_employee = employees.filter(id=employee_filter).first()
+        if not selected_employee:
+            selected_employee = employees.first()
 
     rows = []
     total_minutes = 0
@@ -696,6 +723,85 @@ def admin_timekeeping(request):
     month_last_day = calendar.monthrange(year, month)[1]
     start_date = date(year, month, 1)
     end_date = date(year, month, month_last_day)
+
+    if all_mode:
+        marked_sessions_qs = (
+            WorkSession.objects
+            .filter(work_date__range=(start_date, end_date))
+            .filter(
+                Q(started_at__isnull=False)
+                | Q(ended_at__isnull=False)
+                | Q(corrected_started_at__isnull=False)
+                | Q(corrected_ended_at__isnull=False)
+            )
+            .select_related('employee')
+            .order_by('employee__last_name', 'employee__first_name', 'work_date')
+        )
+
+        sessions_by_employee_day = {}
+        employee_ids = []
+        seen_ids = set()
+        for s in marked_sessions_qs:
+            if s.employee_id not in seen_ids:
+                seen_ids.add(s.employee_id)
+                employee_ids.append(s.employee_id)
+            sessions_by_employee_day[(s.employee_id, s.work_date.day)] = s
+
+        if employee_ids:
+            matrix_employees = list(
+                Employee.objects
+                .filter(id__in=employee_ids)
+                .order_by('last_name', 'first_name')
+            )
+        else:
+            matrix_employees = []
+
+        day_numbers = list(range(1, month_last_day + 1))
+        matrix_rows = []
+        for emp in matrix_employees:
+            cells = []
+            employee_total_minutes = 0
+            for day_number in day_numbers:
+                session = sessions_by_employee_day.get((emp.id, day_number))
+                if session:
+                    employee_total_minutes += session.worked_minutes()
+                cells.append({
+                    'day': day_number,
+                    'value': _session_cell_text(session),
+                })
+            matrix_rows.append({
+                'employee': emp,
+                'cells': cells,
+                'month_total': f"{employee_total_minutes // 60:02d}:{employee_total_minutes % 60:02d}",
+            })
+
+        export_format = request.GET.get('format')
+        if export_format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="report_marcature_tutti_{year}_{month}.csv"'
+            writer = csv.writer(response)
+            writer.writerow(['Dipendente'] + [str(d) for d in day_numbers] + ['Totale mese'])
+            for row in matrix_rows:
+                writer.writerow(
+                    [row['employee'].full_name]
+                    + [cell['value'] for cell in row['cells']]
+                    + [row['month_total']]
+                )
+            return response
+
+        return render(request, 'portal/admin_timekeeping.html', {
+            'employees': employees,
+            'selected_employee': None,
+            'selected_year': year,
+            'selected_month': month,
+            'rows': [],
+            'month_total': '00:00',
+            'incomplete_days': 0,
+            'all_mode': True,
+            'day_numbers': day_numbers,
+            'matrix_rows': matrix_rows,
+            'employee_filter': 'all',
+        })
 
     if selected_employee:
         sessions = (
@@ -870,6 +976,10 @@ def admin_timekeeping(request):
         'rows': rows,
         'month_total': f"{total_minutes // 60:02d}:{total_minutes % 60:02d}",
         'incomplete_days': incomplete_days,
+        'all_mode': False,
+        'day_numbers': [],
+        'matrix_rows': [],
+        'employee_filter': str(selected_employee.id) if selected_employee else '',
     })
 
 
