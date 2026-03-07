@@ -254,6 +254,9 @@ main {
             <a href="{% url 'timekeeping' %}" class="{% if request.resolver_match.url_name == 'timekeeping' %}active{% endif %}">
                 <i class="bi bi-stopwatch"></i> Marcatura
             </a>
+            <a href="{% static 'portal/docs/Tutorial_Completo_Dipendenti_Cedolini.pdf' %}" target="_blank" rel="noopener">
+                <i class="bi bi-file-earmark-pdf"></i> Tutorial Portale
+            </a>
             {% endif %}
 
             {% if user.is_staff %}
