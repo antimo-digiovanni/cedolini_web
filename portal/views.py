@@ -1281,11 +1281,35 @@ def admin_dashboard(request):
 
     non_visualizzati = totale_cedolini - visualizzati
 
+    today = timezone.localdate()
+    pending_mark_requests = (
+        WorkMarkRequest.objects
+        .select_related('employee')
+        .filter(status=WorkMarkRequest.STATUS_PENDING)
+        .order_by('-created_at')[:15]
+    )
+
+    today_marked_sessions = (
+        WorkSession.objects
+        .select_related('employee')
+        .filter(work_date=today)
+        .filter(
+            Q(started_at__isnull=False)
+            | Q(ended_at__isnull=False)
+            | Q(corrected_started_at__isnull=False)
+            | Q(corrected_ended_at__isnull=False)
+        )
+        .order_by('employee__last_name', 'employee__first_name')
+    )
+
     return render(request, "portal/admin_dashboard.html", {
         "totale_cedolini": totale_cedolini,
         "totale_dipendenti": totale_dipendenti,
         "visualizzati": visualizzati,
         "non_visualizzati": non_visualizzati,
+        "today": today,
+        "pending_mark_requests": pending_mark_requests,
+        "today_marked_sessions": today_marked_sessions,
     })
 
 

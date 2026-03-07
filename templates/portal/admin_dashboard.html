@@ -57,42 +57,74 @@
 
     </div>
 
-    <!-- GRAFICO -->
-    <div class="card-modern bg-white mt-5">
-        <h5 class="fw-semibold mb-4">Distribuzione Visualizzazioni</h5>
-        <div style="height:320px; max-height:420px;">
-            <canvas id="statsChart"></canvas>
+    <div class="row g-4 mt-1">
+        <div class="col-lg-5">
+            <div class="card-modern bg-white h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-semibold mb-0">Richieste fuori zona in attesa</h5>
+                    <a href="{% url 'admin_timekeeping' %}" class="btn btn-sm btn-outline-primary">Apri report</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Dipendente</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in pending_mark_requests %}
+                            <tr>
+                                <td>{{ req.employee.full_name }}</td>
+                                <td>{{ req.work_date|date:"d/m/Y" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">Nessuna richiesta in attesa.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card-modern bg-white h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-semibold mb-0">Chi ha marcato oggi ({{ today|date:"d/m/Y" }})</h5>
+                    <span class="badge bg-primary">{{ today_marked_sessions|length }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Dipendente</th>
+                                <th>Ingresso</th>
+                                <th>Uscita</th>
+                                <th>Totale</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in today_marked_sessions %}
+                            <tr>
+                                <td>{{ s.employee.full_name }}</td>
+                                <td>{% if s.effective_started_at %}{{ s.effective_started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                <td>{% if s.effective_ended_at %}{{ s.effective_ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                <td>{{ s.worked_hours_display }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Nessun dipendente ha marcato oggi.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-const ctx = document.getElementById('statsChart');
-
-if (ctx) {
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Visualizzati', 'Non Visualizzati'],
-            datasets: [{
-                data: [{{ visualizzati }}, {{ non_visualizzati }}],
-                backgroundColor: ['#10b981', '#ef4444'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' }
-            },
-            cutout: '65%'
-        }
-    });
-}
-</script>
 
 {% endblock %}
