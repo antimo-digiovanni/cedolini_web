@@ -520,6 +520,56 @@ def _session_cell_text(session):
     return ''
 
 
+def _apply_approved_mark_request_to_session(request_obj):
+    """Trasforma una richiesta fuori zona approvata in marcatura effettiva.
+
+    Usa il timestamp della richiesta (created_at), non il momento dell'approvazione,
+    per mantenere l'orario reale comunicato dal dipendente.
+    """
+    session, _ = WorkSession.objects.get_or_create(
+        employee=request_obj.employee,
+        work_date=request_obj.work_date,
+    )
+
+    mark_ts = request_obj.created_at
+    changed_fields = []
+
+    if request_obj.mark_type in {WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH}:
+        if not session.started_at:
+            session.started_at = mark_ts
+            session.start_within_zone = False
+            changed_fields.extend(['started_at', 'start_within_zone'])
+
+    if request_obj.mark_type in {WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH}:
+        if not session.ended_at:
+            session.ended_at = mark_ts
+            session.end_within_zone = False
+            changed_fields.extend(['ended_at', 'end_within_zone'])
+
+    if changed_fields:
+        session.save(update_fields=changed_fields + ['updated_at'])
+
+    return session
+
+
+def _sync_approved_requests_for_range(start_date, end_date, employee=None):
+    """Allinea WorkSession con richieste approvate gia esistenti nel range date."""
+    qs = (
+        WorkMarkRequest.objects
+        .select_related('employee')
+        .filter(
+            status=WorkMarkRequest.STATUS_APPROVED,
+            work_date__range=(start_date, end_date),
+        )
+        .order_by('work_date', 'created_at')
+    )
+    if employee is not None:
+        qs = qs.filter(employee=employee)
+
+    for req in qs:
+        _apply_approved_mark_request_to_session(req)
+
+
 @login_required
 def timekeeping(request):
     """Marcatura dipendente: avvio/fine giornata con supporto geolocalizzazione."""
@@ -528,6 +578,10 @@ def timekeeping(request):
 
     employee = get_object_or_404(Employee, user=request.user)
     today = timezone.localdate()
+
+    # Rende visibili immediatamente nel riepilogo le richieste gia approvate.
+    _sync_approved_requests_for_range(today, today, employee=employee)
+
     session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
     session.worked_display = session.worked_hours_display()
     active_assignments = _active_assignments_for_employee(employee, today)
@@ -739,6 +793,9 @@ def admin_timekeeping(request):
                 request_obj.reviewed_at = timezone.now()
                 request_obj.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
 
+                if request_obj.status == WorkMarkRequest.STATUS_APPROVED:
+                    _apply_approved_mark_request_to_session(request_obj)
+
                 _create_audit_event(
                     request,
                     'timekeeping_out_of_zone_reviewed',
@@ -747,6 +804,8 @@ def admin_timekeeping(request):
                         'request_id': request_obj.id,
                         'work_date': str(request_obj.work_date),
                         'status': request_obj.status,
+                        'mark_type': request_obj.mark_type,
+                        'marked_at': request_obj.created_at.isoformat() if request_obj.status == WorkMarkRequest.STATUS_APPROVED else None,
                     },
                 )
 
@@ -839,6 +898,12 @@ def admin_timekeeping(request):
         .filter(status=WorkMarkRequest.STATUS_PENDING)
         .order_by('-created_at')[:20]
     )
+
+    # Backfill in lettura: include nel report mensile eventuali approvazioni storiche.
+    if all_mode:
+        _sync_approved_requests_for_range(start_date, end_date)
+    elif selected_employee:
+        _sync_approved_requests_for_range(start_date, end_date, employee=selected_employee)
 
     if all_mode:
         marked_sessions_qs = (
@@ -1310,6 +1375,9 @@ def admin_dashboard(request):
                 request_obj.reviewed_at = timezone.now()
                 request_obj.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
 
+                if request_obj.status == WorkMarkRequest.STATUS_APPROVED:
+                    _apply_approved_mark_request_to_session(request_obj)
+
                 _create_audit_event(
                     request,
                     'timekeeping_out_of_zone_reviewed',
@@ -1318,6 +1386,8 @@ def admin_dashboard(request):
                         'request_id': request_obj.id,
                         'work_date': str(request_obj.work_date),
                         'status': request_obj.status,
+                        'mark_type': request_obj.mark_type,
+                        'marked_at': request_obj.created_at.isoformat() if request_obj.status == WorkMarkRequest.STATUS_APPROVED else None,
                         'via': 'admin_dashboard',
                     },
                 )
@@ -1334,6 +1404,7 @@ def admin_dashboard(request):
     non_visualizzati = totale_cedolini - visualizzati
 
     today = timezone.localdate()
+    _sync_approved_requests_for_range(today, today)
     pending_mark_requests = (
         WorkMarkRequest.objects
         .select_related('employee')
