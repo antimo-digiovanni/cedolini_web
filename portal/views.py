@@ -343,9 +343,20 @@ def register_with_token(request, token):
 @login_required
 def dashboard(request):
     logger.info("dashboard START user=%s", getattr(request.user, "username", None))
-    logger.info("before get_object_or_404(Employee)")
-    employee = get_object_or_404(Employee, user=request.user)
-    logger.info("after get_object_or_404 employee_id=%s", getattr(employee, "id", None))
+
+    # Se uno staff arriva direttamente su /portal/, portalo alla dashboard admin.
+    if request.user.is_staff:
+        return redirect('admin_dashboard')
+
+    employee = Employee.objects.filter(user=request.user).first()
+    if not employee:
+        logger.warning("dashboard: employee profile missing for user=%s", request.user.id)
+        return HttpResponse(
+            "Profilo dipendente non trovato. Contatta l'amministratore.",
+            status=403,
+        )
+
+    logger.info("dashboard employee_id=%s", getattr(employee, "id", None))
 
     logger.info("constructing payslips queryset")
     payslips = (
