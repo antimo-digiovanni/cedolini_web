@@ -436,18 +436,19 @@ h4 {
 }
 
 .contact-avatar-photo {
-    width: 168px;
-    height: 168px;
-    border-radius: 22px;
+    width: 180px;
+    height: 230px;
+    border-radius: 20px;
     object-fit: cover;
+    object-position: center top;
     border: none;
     box-shadow: none;
 }
 
 .contact-avatar-icon {
-    width: 168px;
-    height: 168px;
-    border-radius: 22px;
+    width: 180px;
+    height: 230px;
+    border-radius: 20px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -928,8 +929,8 @@ h4 {
 
     .contact-avatar-photo,
     .contact-avatar-icon {
-        width: 140px;
-        height: 140px;
+        width: 160px;
+        height: 210px;
     }
 }
 
