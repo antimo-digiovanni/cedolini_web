@@ -158,7 +158,69 @@
         <h5 class="mb-0">Report mensile dipendenti</h5>
         <span class="small text-muted">Righe: {{ matrix_rows|length }} (esclusi dipendenti senza marcature)</span>
     </div>
-    <p class="small text-muted mb-2">Per vedere tutti i giorni, scorri orizzontalmente la tabella.</p>
+    <p class="small text-muted mb-2">Vista completa mese (senza bisogno di scroll orizzontale):</p>
+
+    <div class="table-responsive mb-3">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="min-width:220px;">Dipendente</th>
+                    {% for d in day_numbers %}
+                        {% if d <= 16 %}
+                            <th class="text-center" style="min-width:90px;">{{ d }}</th>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in matrix_rows %}
+                <tr>
+                    <td><strong>{{ row.employee.full_name }}</strong></td>
+                    {% for cell in row.cells %}
+                        {% if cell.day <= 16 %}
+                            <td class="text-center small">{{ cell.value|default:'-' }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="20" class="text-center text-muted">Nessuna marcatura trovata nel mese selezionato.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if day_numbers|length > 16 %}
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="min-width:220px;">Dipendente</th>
+                    {% for d in day_numbers %}
+                        {% if d > 16 %}
+                            <th class="text-center" style="min-width:90px;">{{ d }}</th>
+                        {% endif %}
+                    {% endfor %}
+                    <th class="text-center" style="min-width:90px;">Totale</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in matrix_rows %}
+                <tr>
+                    <td><strong>{{ row.employee.full_name }}</strong></td>
+                    {% for cell in row.cells %}
+                        {% if cell.day > 16 %}
+                            <td class="text-center small">{{ cell.value|default:'-' }}</td>
+                        {% endif %}
+                    {% endfor %}
+                    <td class="text-center"><span class="badge bg-primary">{{ row.month_total }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 
     <div class="matrix-nav mb-2">
         <button type="button" class="btn btn-sm btn-outline-secondary" id="matrixScrollStart">Vai a inizio mese</button>

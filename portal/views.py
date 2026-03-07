@@ -587,10 +587,16 @@ def timekeeping(request):
         if action not in {'start', 'end'}:
             return JsonResponse({'ok': False, 'error': 'Azione non valida.'}, status=400)
 
+        approved_out_of_zone = WorkMarkRequest.objects.filter(
+            employee=employee,
+            work_date=today,
+            status=WorkMarkRequest.STATUS_APPROVED,
+        ).exists()
+
         if action == 'start' and session.started_at:
             return JsonResponse({'ok': False, 'error': 'Ingresso gia marcato oggi.'}, status=400)
 
-        if action == 'end' and not session.started_at:
+        if action == 'end' and not session.started_at and not approved_out_of_zone:
             return JsonResponse({'ok': False, 'error': 'Devi marcare prima l\'ingresso.'}, status=400)
 
         if action == 'end' and session.ended_at:
@@ -599,11 +605,6 @@ def timekeeping(request):
         now_ts = timezone.now()
         zone_check = _evaluate_location_for_employee_zone(employee, latitude, longitude, today)
         strict_mode = any(a.strict_geofence for a in active_assignments)
-        approved_out_of_zone = WorkMarkRequest.objects.filter(
-            employee=employee,
-            work_date=today,
-            status=WorkMarkRequest.STATUS_APPROVED,
-        ).exists()
 
         if strict_mode and (latitude is None or longitude is None) and not approved_out_of_zone:
             return JsonResponse(
@@ -638,6 +639,14 @@ def timekeeping(request):
             )
 
         if action == 'end':
+            if not session.started_at and approved_out_of_zone:
+                # Se autorizzato fuori zona, consenti fine lavori anche senza ingresso precedente.
+                session.started_at = now_ts
+                session.start_latitude = latitude
+                session.start_longitude = longitude
+                session.start_zone = zone_check['zone']
+                session.start_within_zone = zone_check['within']
+
             session.ended_at = now_ts
             session.end_latitude = latitude
             session.end_longitude = longitude
