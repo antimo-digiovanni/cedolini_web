@@ -42,11 +42,11 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Latitudine</label>
-                    <input id="zoneLatitude" name="latitude" class="form-control" placeholder="40.000000" required>
+                    <input id="zoneLatitude" name="latitude" class="form-control" placeholder="40.000000" value="40.000000" required>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Longitudine</label>
-                    <input id="zoneLongitude" name="longitude" class="form-control" placeholder="15.000000" required>
+                    <input id="zoneLongitude" name="longitude" class="form-control" placeholder="15.000000" value="15.000000" required>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Raggio (metri)</label>
@@ -246,8 +246,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const defaultLat = 40.8518;
-    const defaultLon = 14.2681;
+    const defaultLat = 40.000000;
+    const defaultLon = 15.000000;
     const map = L.map('zoneMap').setView([defaultLat, defaultLon], 11);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
