@@ -101,11 +101,16 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="request_out_of_zone">
                 <label class="form-label">Tipo richiesta</label>
-                <select name="mark_type" class="form-select mb-2" required>
-                    <option value="">Seleziona...</option>
-                    <option value="start">Marcatura Entrata fuori zona</option>
-                    <option value="end">Marcatura Uscita fuori zona</option>
-                </select>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <input type="radio" class="btn-check" name="mark_type" id="markTypeStart" value="start" required>
+                        <label class="btn btn-outline-success w-100 fw-semibold" for="markTypeStart">Entrata</label>
+                    </div>
+                    <div class="col-6">
+                        <input type="radio" class="btn-check" name="mark_type" id="markTypeEnd" value="end" required>
+                        <label class="btn btn-outline-danger w-100 fw-semibold" for="markTypeEnd">Uscita</label>
+                    </div>
+                </div>
                 <label class="form-label">Messaggio al preposto</label>
                 <textarea
                     name="reason"
