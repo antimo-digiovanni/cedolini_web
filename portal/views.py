@@ -494,11 +494,19 @@ def timekeeping(request):
     today = timezone.localdate()
     session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
     session.worked_display = session.worked_hours_display()
+    active_assignments = _active_assignments_for_employee(employee, today)
+    has_active_zone = bool(active_assignments)
 
     if request.method == 'POST':
         action = request.POST.get('action')
         latitude = _parse_coordinate(request.POST.get('latitude'))
         longitude = _parse_coordinate(request.POST.get('longitude'))
+
+        if not has_active_zone:
+            return JsonResponse(
+                {'ok': False, 'error': 'Marcatura non disponibile: nessuna zona attiva assegnata.'},
+                status=400,
+            )
 
         if action not in {'start', 'end'}:
             return JsonResponse({'ok': False, 'error': 'Azione non valida.'}, status=400)
@@ -514,7 +522,6 @@ def timekeeping(request):
 
         now_ts = timezone.now()
         zone_check = _evaluate_location_for_employee_zone(employee, latitude, longitude, today)
-        active_assignments = _active_assignments_for_employee(employee, today)
         strict_mode = any(a.strict_geofence for a in active_assignments)
 
         if strict_mode and (latitude is None or longitude is None):
@@ -596,6 +603,7 @@ def timekeeping(request):
         'employee': employee,
         'today_session': session,
         'active_zones': _active_zones_for_employee(employee, today),
+        'has_active_zone': has_active_zone,
         'month_sessions': month_sessions[:15],
         'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
     })

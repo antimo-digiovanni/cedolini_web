@@ -13,6 +13,12 @@
             <h5 class="fw-semibold">Stato di oggi</h5>
             <p class="text-muted mb-3">Data: {{ today_session.work_date|date:"d/m/Y" }}</p>
 
+            {% if not has_active_zone %}
+            <div class="alert alert-warning py-2" role="alert">
+                Marcatura disabilitata: non hai una zona di lavoro attiva assegnata.
+            </div>
+            {% endif %}
+
             <div class="mb-2">
                 <strong>Ingresso:</strong>
                 {% if today_session.started_at %}
@@ -35,10 +41,10 @@
             </div>
 
             <div class="d-grid gap-2">
-                <button id="btnStart" class="btn btn-success" {% if today_session.started_at %}disabled{% endif %}>
+                <button id="btnStart" class="btn btn-success" {% if today_session.started_at or not has_active_zone %}disabled{% endif %}>
                     <i class="bi bi-play-circle"></i> Inizio lavori
                 </button>
-                <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at %}disabled{% endif %}>
+                <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at or not has_active_zone %}disabled{% endif %}>
                     <i class="bi bi-stop-circle"></i> Fine lavori
                 </button>
             </div>
@@ -57,7 +63,7 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="text-muted mb-0">Nessuna zona assegnata: la marcatura verra comunque registrata.</p>
+                <p class="text-muted mb-0">Nessuna zona attiva assegnata: non puoi effettuare marcature.</p>
             {% endif %}
         </div>
 
