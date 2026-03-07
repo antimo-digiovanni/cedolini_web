@@ -3,59 +3,49 @@
 
 {% block extra_css %}
 <style>
-.matrix-scroll-wrap {
-    overflow-x: scroll;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    max-width: 100%;
-    scrollbar-gutter: stable both-edges;
-    cursor: grab;
-}
-
-.matrix-report-table {
-    width: max-content;
-    min-width: 100%;
-    margin-bottom: 0;
-}
-
-.matrix-report-table th,
-.matrix-report-table td {
-    white-space: nowrap;
-}
-
-.matrix-report-table th:first-child,
-.matrix-report-table td:first-child {
-    position: sticky;
-    left: 0;
-    background: #ffffff;
-    z-index: 2;
-}
-
 .report-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
 }
 
-.matrix-nav {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+.month-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 0.55rem;
 }
 
-.matrix-scrollbar-proxy {
-    overflow-x: scroll;
-    overflow-y: hidden;
-    height: 16px;
+.month-cell {
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
+    border-radius: 10px;
+    padding: 0.45rem 0.5rem;
+    background: #ffffff;
+    min-height: 62px;
 }
 
-.matrix-scrollbar-proxy-inner {
-    height: 1px;
+.month-cell-day {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.month-cell-value {
+    margin-top: 0.22rem;
+    font-size: 0.75rem;
+    line-height: 1.15;
+    color: #0f172a;
+}
+
+@media (max-width: 1199.98px) {
+    .month-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .month-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 }
 </style>
 {% endblock %}
@@ -77,6 +67,7 @@
                 <tr>
                     <th>Dipendente</th>
                     <th>Data</th>
+                    <th>Tipo</th>
                     <th>Motivazione</th>
                     <th>Azione</th>
                 </tr>
@@ -86,6 +77,15 @@
                 <tr>
                     <td>{{ req.employee.full_name }}</td>
                     <td>{{ req.work_date|date:"d/m/Y" }}</td>
+                    <td>
+                        {% if req.mark_type == 'start' %}
+                            <span class="badge bg-info text-dark">Entrata</span>
+                        {% elif req.mark_type == 'end' %}
+                            <span class="badge bg-primary">Uscita</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Entrata/Uscita</span>
+                        {% endif %}
+                    </td>
                     <td class="small">{{ req.reason }}</td>
                     <td>
                         <div class="d-flex flex-column gap-1">
@@ -108,7 +108,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted">Nessuna richiesta in attesa.</td>
+                    <td colspan="5" class="text-center text-muted">Nessuna richiesta in attesa.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -158,107 +158,26 @@
         <h5 class="mb-0">Report mensile dipendenti</h5>
         <span class="small text-muted">Righe: {{ matrix_rows|length }} (esclusi dipendenti senza marcature)</span>
     </div>
-    <p class="small text-muted mb-2">Vista completa mese (senza bisogno di scroll orizzontale):</p>
+    <p class="small text-muted mb-3">Ogni riquadro mostra la marcatura del giorno. Nessuno scroll orizzontale richiesto.</p>
 
-    <div class="table-responsive mb-3">
-        <table class="table table-sm align-middle mb-0">
-            <thead>
-                <tr>
-                    <th style="min-width:220px;">Dipendente</th>
-                    {% for d in day_numbers %}
-                        {% if d <= 16 %}
-                            <th class="text-center" style="min-width:90px;">{{ d }}</th>
-                        {% endif %}
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in matrix_rows %}
-                <tr>
-                    <td><strong>{{ row.employee.full_name }}</strong></td>
-                    {% for cell in row.cells %}
-                        {% if cell.day <= 16 %}
-                            <td class="text-center small">{{ cell.value|default:'-' }}</td>
-                        {% endif %}
-                    {% endfor %}
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="20" class="text-center text-muted">Nessuna marcatura trovata nel mese selezionato.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% for row in matrix_rows %}
+    <div class="border rounded-3 p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>{{ row.employee.full_name }}</strong>
+            <span class="badge bg-primary">Totale {{ row.month_total }}</span>
+        </div>
+        <div class="month-grid">
+            {% for cell in row.cells %}
+            <div class="month-cell">
+                <div class="month-cell-day">Giorno {{ cell.day }}</div>
+                <div class="month-cell-value">{{ cell.value|default:'-' }}</div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
-
-    {% if day_numbers|length > 16 %}
-    <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-            <thead>
-                <tr>
-                    <th style="min-width:220px;">Dipendente</th>
-                    {% for d in day_numbers %}
-                        {% if d > 16 %}
-                            <th class="text-center" style="min-width:90px;">{{ d }}</th>
-                        {% endif %}
-                    {% endfor %}
-                    <th class="text-center" style="min-width:90px;">Totale</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in matrix_rows %}
-                <tr>
-                    <td><strong>{{ row.employee.full_name }}</strong></td>
-                    {% for cell in row.cells %}
-                        {% if cell.day > 16 %}
-                            <td class="text-center small">{{ cell.value|default:'-' }}</td>
-                        {% endif %}
-                    {% endfor %}
-                    <td class="text-center"><span class="badge bg-primary">{{ row.month_total }}</span></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
-    <div class="matrix-nav mb-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="matrixScrollStart">Vai a inizio mese</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="matrixScrollEnd">Vai a fine mese</button>
-    </div>
-
-    <div class="matrix-scrollbar-proxy" id="matrixScrollProxy">
-        <div class="matrix-scrollbar-proxy-inner" id="matrixScrollProxyInner"></div>
-    </div>
-
-    <div class="matrix-scroll-wrap" id="matrixScrollWrap">
-        <table class="table table-sm align-middle matrix-report-table">
-            <thead>
-                <tr>
-                    <th style="min-width:220px;">Dipendente</th>
-                    {% for d in day_numbers %}
-                        <th class="text-center" style="min-width:110px;">{{ d }}</th>
-                    {% endfor %}
-                    <th class="text-center" style="min-width:110px;">Totale</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in matrix_rows %}
-                <tr>
-                    <td><strong>{{ row.employee.full_name }}</strong></td>
-                    {% for cell in row.cells %}
-                        <td class="text-center small">{{ cell.value|default:'-' }}</td>
-                    {% endfor %}
-                    <td class="text-center"><span class="badge bg-primary">{{ row.month_total }}</span></td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="40" class="text-center text-muted">Nessuna marcatura trovata nel mese selezionato.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {% empty %}
+    <div class="text-center text-muted py-3">Nessuna marcatura trovata nel mese selezionato.</div>
+    {% endfor %}
 </div>
 {% elif selected_employee %}
 <div class="row g-4 mb-4">
@@ -363,95 +282,5 @@
 <div class="card-modern bg-white">
     <p class="text-muted mb-0">Nessun dipendente disponibile.</p>
 </div>
-{% endif %}
-
-{% if all_mode %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const wrap = document.getElementById('matrixScrollWrap');
-    const proxy = document.getElementById('matrixScrollProxy');
-    const proxyInner = document.getElementById('matrixScrollProxyInner');
-    const goStart = document.getElementById('matrixScrollStart');
-    const goEnd = document.getElementById('matrixScrollEnd');
-
-    if (!wrap) {
-        return;
-    }
-
-    if (goStart) {
-        goStart.addEventListener('click', function () {
-            wrap.scrollTo({ left: 0, behavior: 'smooth' });
-        });
-    }
-
-    if (goEnd) {
-        goEnd.addEventListener('click', function () {
-            wrap.scrollTo({ left: wrap.scrollWidth - wrap.clientWidth, behavior: 'smooth' });
-        });
-    }
-
-    function syncProxyWidth() {
-        if (!proxyInner) {
-            return;
-        }
-        proxyInner.style.width = wrap.scrollWidth + 'px';
-    }
-
-    syncProxyWidth();
-    window.addEventListener('resize', syncProxyWidth);
-
-    if (proxy) {
-        proxy.addEventListener('scroll', function () {
-            wrap.scrollLeft = proxy.scrollLeft;
-        });
-
-        wrap.addEventListener('scroll', function () {
-            proxy.scrollLeft = wrap.scrollLeft;
-        });
-    }
-
-    wrap.addEventListener('wheel', function (e) {
-        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-            e.preventDefault();
-            wrap.scrollLeft += e.deltaY;
-        }
-    }, { passive: false });
-
-    let isDown = false;
-    let startX = 0;
-    let scrollLeft = 0;
-
-    wrap.addEventListener('mousedown', function (e) {
-        isDown = true;
-        wrap.style.cursor = 'grabbing';
-        startX = e.pageX - wrap.offsetLeft;
-        scrollLeft = wrap.scrollLeft;
-    });
-
-    wrap.addEventListener('mouseleave', function () {
-        isDown = false;
-        wrap.style.cursor = 'grab';
-    });
-
-    wrap.addEventListener('mouseup', function () {
-        isDown = false;
-        wrap.style.cursor = 'grab';
-    });
-
-    wrap.addEventListener('mousemove', function (e) {
-        if (!isDown) {
-            return;
-        }
-        e.preventDefault();
-        const x = e.pageX - wrap.offsetLeft;
-        const walk = (x - startX) * 1.3;
-        wrap.scrollLeft = scrollLeft - walk;
-    });
-
-    if (proxy) {
-        proxy.scrollLeft = wrap.scrollLeft;
-    }
-});
-</script>
 {% endif %}
 {% endblock %}

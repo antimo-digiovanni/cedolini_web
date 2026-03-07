@@ -70,6 +70,9 @@
                             <tr>
                                 <th>Dipendente</th>
                                 <th>Data</th>
+                                <th>Tipo</th>
+                                <th>Motivazione</th>
+                                <th>Azione</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -77,10 +80,38 @@
                             <tr>
                                 <td>{{ req.employee.full_name }}</td>
                                 <td>{{ req.work_date|date:"d/m/Y" }}</td>
+                                <td>
+                                    {% if req.mark_type == 'start' %}
+                                        <span class="badge bg-info text-dark">Entrata</span>
+                                    {% elif req.mark_type == 'end' %}
+                                        <span class="badge bg-primary">Uscita</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Entrata/Uscita</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">{{ req.reason }}</td>
+                                <td>
+                                    <div class="d-flex flex-column gap-1">
+                                        <form method="post" class="d-flex gap-1">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="approve_mark_request">
+                                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                                            <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Nota (opzionale)">
+                                            <button class="btn btn-sm btn-success" type="submit">Approva</button>
+                                        </form>
+                                        <form method="post" class="d-flex gap-1">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="reject_mark_request">
+                                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                                            <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Motivo rifiuto">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Rifiuta</button>
+                                        </form>
+                                    </div>
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="2" class="text-center text-muted">Nessuna richiesta in attesa.</td>
+                                <td colspan="5" class="text-center text-muted">Nessuna richiesta in attesa.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

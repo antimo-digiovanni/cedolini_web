@@ -55,31 +55,57 @@
         <div class="card-modern bg-white mt-4">
             <h5 class="fw-semibold">Richiesta marcatura fuori zona</h5>
 
-            {% if request_status == 'sent' %}
-            <div class="alert alert-success py-2">Richiesta inviata al preposto per autorizzazione.</div>
+            {% if request_status == 'sent_start' %}
+            <div class="alert alert-success py-2">Richiesta inviata per marcare l'ingresso fuori zona.</div>
+            {% elif request_status == 'sent_end' %}
+            <div class="alert alert-success py-2">Richiesta inviata per marcare l'uscita fuori zona.</div>
             {% elif request_status == 'already_pending' %}
-            <div class="alert alert-warning py-2">Hai gia una richiesta in attesa per oggi.</div>
+            <div class="alert alert-warning py-2">Hai gia una richiesta in attesa di questo tipo per oggi.</div>
             {% elif request_status == 'invalid' %}
             <div class="alert alert-danger py-2">Inserisci un messaggio piu dettagliato.</div>
+            {% elif request_status == 'invalid_type' %}
+            <div class="alert alert-danger py-2">Seleziona il tipo di marcatura da autorizzare.</div>
             {% endif %}
 
-            {% if today_mark_request %}
             <div class="mb-2">
-                <strong>Stato oggi:</strong>
-                {% if today_mark_request.status == 'approved' %}
-                    <span class="badge bg-success">Approvata</span>
-                {% elif today_mark_request.status == 'rejected' %}
-                    <span class="badge bg-danger">Rifiutata</span>
+                <strong>Stato richiesta Entrata:</strong>
+                {% if today_mark_request_start %}
+                    {% if today_mark_request_start.status == 'approved' %}
+                        <span class="badge bg-success">Approvata</span>
+                    {% elif today_mark_request_start.status == 'rejected' %}
+                        <span class="badge bg-danger">Rifiutata</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">In attesa</span>
+                    {% endif %}
                 {% else %}
-                    <span class="badge bg-warning text-dark">In attesa</span>
+                    <span class="badge bg-secondary">Nessuna</span>
                 {% endif %}
             </div>
-            <div class="small text-muted mb-3">{{ today_mark_request.reason }}</div>
-            {% endif %}
+
+            <div class="mb-2">
+                <strong>Stato richiesta Uscita:</strong>
+                {% if today_mark_request_end %}
+                    {% if today_mark_request_end.status == 'approved' %}
+                        <span class="badge bg-success">Approvata</span>
+                    {% elif today_mark_request_end.status == 'rejected' %}
+                        <span class="badge bg-danger">Rifiutata</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">In attesa</span>
+                    {% endif %}
+                {% else %}
+                    <span class="badge bg-secondary">Nessuna</span>
+                {% endif %}
+            </div>
 
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="request_out_of_zone">
+                <label class="form-label">Tipo richiesta</label>
+                <select name="mark_type" class="form-select mb-2" required>
+                    <option value="">Seleziona...</option>
+                    <option value="start">Marcatura Entrata fuori zona</option>
+                    <option value="end">Marcatura Uscita fuori zona</option>
+                </select>
                 <label class="form-label">Messaggio al preposto</label>
                 <textarea
                     name="reason"

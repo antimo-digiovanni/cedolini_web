@@ -245,8 +245,18 @@ class WorkMarkRequest(models.Model):
         (STATUS_REJECTED, 'Rifiutata'),
     ]
 
+    MARK_TYPE_START = 'start'
+    MARK_TYPE_END = 'end'
+    MARK_TYPE_BOTH = 'both'  # compatibilita storica
+    MARK_TYPE_CHOICES = [
+        (MARK_TYPE_START, 'Entrata'),
+        (MARK_TYPE_END, 'Uscita'),
+        (MARK_TYPE_BOTH, 'Entrata e uscita'),
+    ]
+
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='work_mark_requests')
     work_date = models.DateField(default=timezone.localdate)
+    mark_type = models.CharField(max_length=10, choices=MARK_TYPE_CHOICES, default=MARK_TYPE_BOTH)
     reason = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     review_note = models.CharField(max_length=255, blank=True, null=True)
