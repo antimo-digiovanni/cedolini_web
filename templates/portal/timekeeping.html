@@ -1,0 +1,177 @@
+{% extends "portal/base.html" %}
+{% block title %}Marcatura{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Marcatura</h2>
+    <p class="mb-0 opacity-75">Segna ingresso e uscita della giornata lavorativa.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card-modern bg-white">
+            <h5 class="fw-semibold">Stato di oggi</h5>
+            <p class="text-muted mb-3">Data: {{ today_session.work_date|date:"d/m/Y" }}</p>
+
+            <div class="mb-2">
+                <strong>Ingresso:</strong>
+                {% if today_session.started_at %}
+                    {{ today_session.started_at|date:"H:i" }}
+                {% else %}
+                    --:--
+                {% endif %}
+            </div>
+            <div class="mb-2">
+                <strong>Uscita:</strong>
+                {% if today_session.ended_at %}
+                    {{ today_session.ended_at|date:"H:i" }}
+                {% else %}
+                    --:--
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <strong>Totale:</strong>
+                {{ today_session.worked_display }}
+            </div>
+
+            <div class="d-grid gap-2">
+                <button id="btnStart" class="btn btn-success" {% if today_session.started_at %}disabled{% endif %}>
+                    <i class="bi bi-play-circle"></i> Inizio lavori
+                </button>
+                <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at %}disabled{% endif %}>
+                    <i class="bi bi-stop-circle"></i> Fine lavori
+                </button>
+            </div>
+
+            <div id="timekeepingFeedback" class="alert mt-3 d-none" role="alert"></div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card-modern bg-white mb-4">
+            <h5 class="fw-semibold">Zone assegnate</h5>
+            {% if active_zones %}
+                <ul class="mb-0">
+                    {% for zone in active_zones %}
+                        <li>{{ zone.name }} (raggio {{ zone.radius_meters }}m)</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted mb-0">Nessuna zona assegnata: la marcatura verra comunque registrata.</p>
+            {% endif %}
+        </div>
+
+        <div class="card-modern bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="fw-semibold mb-0">Riepilogo mese corrente</h5>
+                <span class="badge bg-primary">Totale {{ month_total_hours }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Ingresso</th>
+                            <th>Uscita</th>
+                            <th>Totale</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in month_sessions %}
+                        <tr>
+                            <td>{{ row.work_date|date:"d/m/Y" }}</td>
+                            <td>{% if row.started_at %}{{ row.started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                            <td>{% if row.ended_at %}{{ row.ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                            <td>{{ row.worked_display }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Nessuna marcatura nel mese.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+}
+
+function showFeedback(level, text) {
+    const box = document.getElementById('timekeepingFeedback');
+    if (!box) return;
+    box.className = 'alert mt-3';
+    if (level === 'success') box.classList.add('alert-success');
+    else box.classList.add('alert-danger');
+    box.textContent = text;
+}
+
+async function submitMark(action, latitude, longitude) {
+    const csrf = getCookie('csrftoken');
+    const payload = new URLSearchParams({ action: action });
+    if (latitude !== null && longitude !== null) {
+        payload.append('latitude', String(latitude));
+        payload.append('longitude', String(longitude));
+    }
+
+    const response = await fetch("{% url 'timekeeping' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: payload.toString(),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Errore durante la marcatura.');
+    }
+
+    const zoneText = data.zone ? ` Zona: ${data.zone}.` : '';
+    const geoText = data.distance_meters !== null ? ` Distanza: ${data.distance_meters}m.` : '';
+    showFeedback('success', 'Marcatura registrata con successo.' + zoneText + geoText);
+    setTimeout(() => window.location.reload(), 700);
+}
+
+function withGeolocation(action) {
+    if (!navigator.geolocation) {
+        submitMark(action, null, null).catch(err => showFeedback('danger', err.message));
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            submitMark(action, position.coords.latitude, position.coords.longitude)
+                .catch(err => showFeedback('danger', err.message));
+        },
+        () => {
+            submitMark(action, null, null).catch(err => showFeedback('danger', err.message));
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 0,
+        }
+    );
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnStart = document.getElementById('btnStart');
+    const btnEnd = document.getElementById('btnEnd');
+
+    if (btnStart) {
+        btnStart.addEventListener('click', () => withGeolocation('start'));
+    }
+    if (btnEnd) {
+        btnEnd.addEventListener('click', () => withGeolocation('end'));
+    }
+});
+</script>
+{% endblock %}

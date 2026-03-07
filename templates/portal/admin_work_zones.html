@@ -1,0 +1,182 @@
+{% extends "portal/base.html" %}
+{% block title %}Zone di Lavoro{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Zone di Lavoro</h2>
+    <p class="mb-0 opacity-75">Definisci aree operative e assegnale ai dipendenti esterni.</p>
+</div>
+
+{% if feedback %}
+<div class="alert alert-{{ feedback_level }}">{{ feedback }}</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card-modern bg-white h-100">
+            <h5 class="fw-semibold mb-3">Nuova zona</h5>
+            <form method="post" class="row g-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_zone">
+
+                <div class="col-12">
+                    <label class="form-label">Nome zona</label>
+                    <input name="name" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Latitudine</label>
+                    <input name="latitude" class="form-control" placeholder="40.000000" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Longitudine</label>
+                    <input name="longitude" class="form-control" placeholder="15.000000" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Raggio (metri)</label>
+                    <input name="radius_meters" type="number" min="10" value="100" class="form-control" required>
+                </div>
+                <div class="col-12 d-grid">
+                    <button class="btn btn-primary" type="submit">Crea zona</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card-modern bg-white h-100">
+            <h5 class="fw-semibold mb-3">Assegna zona</h5>
+            <form method="post" class="row g-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign_zone">
+
+                <div class="col-12">
+                    <label class="form-label">Dipendente</label>
+                    <select name="employee_id" class="form-select" required>
+                        <option value="">Seleziona...</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Zona</label>
+                    <select name="zone_id" class="form-select" required>
+                        <option value="">Seleziona...</option>
+                        {% for zone in zones %}
+                            <option value="{{ zone.id }}">{{ zone.name }} ({{ zone.radius_meters }}m)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Valida dal</label>
+                    <input type="date" name="valid_from" class="form-control">
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="strict_geofence" value="1" id="strict_geofence">
+                        <label class="form-check-label" for="strict_geofence">
+                            Modalita rigida: blocca marcatura fuori zona
+                        </label>
+                    </div>
+                </div>
+                <div class="col-12 d-grid">
+                    <button class="btn btn-outline-primary" type="submit">Assegna</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card-modern bg-white mb-4">
+    <h5 class="fw-semibold mb-3">Zone configurate</h5>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Coordinate</th>
+                    <th>Raggio</th>
+                    <th>Stato</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for zone in zones %}
+                <tr>
+                    <td>{{ zone.name }}</td>
+                    <td>{{ zone.latitude }}, {{ zone.longitude }}</td>
+                    <td>{{ zone.radius_meters }}m</td>
+                    <td>
+                        {% if zone.is_active %}
+                            <span class="badge bg-success">Attiva</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Disattiva</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">Nessuna zona definita.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card-modern bg-white">
+    <h5 class="fw-semibold mb-3">Assegnazioni</h5>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Zona</th>
+                    <th>Valida dal</th>
+                    <th>Valida al</th>
+                    <th>Geofence</th>
+                    <th>Stato</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in assignments %}
+                <tr>
+                    <td>{{ row.employee.full_name }}</td>
+                    <td>{{ row.zone.name }}</td>
+                    <td>{{ row.valid_from|date:"d/m/Y" }}</td>
+                    <td>{% if row.valid_to %}{{ row.valid_to|date:"d/m/Y" }}{% else %}--{% endif %}</td>
+                    <td>
+                        {% if row.strict_geofence %}
+                            <span class="badge bg-danger">Rigida</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Soft</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.is_active %}
+                            <span class="badge bg-success">Attiva</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Chiusa</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.is_active %}
+                        <form method="post" class="m-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="deactivate_assignment">
+                            <input type="hidden" name="assignment_id" value="{{ row.id }}">
+                            <button class="btn btn-sm btn-outline-warning" type="submit">Disattiva</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">Nessuna assegnazione disponibile.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

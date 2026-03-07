@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
 
     path('', views.dashboard, name='dashboard'),
+    path('marcatura/', views.timekeeping, name='timekeeping'),
 
     path('register/<str:token>/', views.register_with_token, name='register_with_token'),
 
@@ -15,6 +16,8 @@ urlpatterns = [
     path('admin-import-jobs/', views.admin_import_jobs, name='admin_import_jobs'),
     path('admin-import-jobs/<int:job_id>/payslips/', views.admin_import_job_payslips, name='admin_import_job_payslips'),
     path('admin-employees/', views.admin_employees, name='admin_employees'),
+    path('admin-marcature/', views.admin_timekeeping, name='admin_timekeeping'),
+    path('admin-zone-lavoro/', views.admin_work_zones, name='admin_work_zones'),
     path('admin-payslip-integrity/', views.admin_payslip_integrity, name='admin_payslip_integrity'),
     path('admin-send-invite/', views.admin_send_invite, name='admin_send_invite'),
     path('admin-create-invite-link/', views.admin_create_invite_link, name='admin_create_invite_link'),

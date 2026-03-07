@@ -119,3 +119,114 @@ class InviteToken(models.Model):
 
     def __str__(self):
         return f"Invite for {self.employee.full_name}"
+
+
+class WorkZone(models.Model):
+    """Zona di lavoro geolocalizzata configurata dall'admin."""
+
+    name = models.CharField(max_length=120)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    radius_meters = models.PositiveIntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+    notes = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.radius_meters}m)"
+
+
+class EmployeeWorkZone(models.Model):
+    """Assegnazione zona-dipendente (storica e attivabile/disattivabile)."""
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="zone_assignments")
+    zone = models.ForeignKey(WorkZone, on_delete=models.CASCADE, related_name="employee_assignments")
+    is_active = models.BooleanField(default=True)
+    strict_geofence = models.BooleanField(default=False)
+    valid_from = models.DateField(default=timezone.now)
+    valid_to = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("employee", "zone", "valid_from")]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.employee.full_name} -> {self.zone.name}"
+
+
+class WorkSession(models.Model):
+    """Marcatura giornaliera del dipendente (ingresso/uscita)."""
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="work_sessions")
+    work_date = models.DateField(default=timezone.localdate)
+    started_at = models.DateTimeField(blank=True, null=True)
+    ended_at = models.DateTimeField(blank=True, null=True)
+
+    start_latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    start_longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    end_latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    end_longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+
+    start_zone = models.ForeignKey(
+        WorkZone,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="start_sessions",
+    )
+    end_zone = models.ForeignKey(
+        WorkZone,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="end_sessions",
+    )
+    start_within_zone = models.BooleanField(default=False)
+    end_within_zone = models.BooleanField(default=False)
+
+    corrected_started_at = models.DateTimeField(blank=True, null=True)
+    corrected_ended_at = models.DateTimeField(blank=True, null=True)
+    correction_note = models.CharField(max_length=255, blank=True, null=True)
+    corrected_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="corrected_work_sessions",
+    )
+    corrected_at = models.DateTimeField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("employee", "work_date")]
+        ordering = ["-work_date", "-created_at"]
+
+    def effective_started_at(self):
+        return self.corrected_started_at or self.started_at
+
+    def effective_ended_at(self):
+        return self.corrected_ended_at or self.ended_at
+
+    def worked_minutes(self):
+        start_dt = self.effective_started_at()
+        end_dt = self.effective_ended_at()
+        if not start_dt or not end_dt:
+            return 0
+        delta = end_dt - start_dt
+        total_minutes = int(delta.total_seconds() // 60)
+        return max(total_minutes, 0)
+
+    def worked_hours_display(self):
+        minutes = self.worked_minutes()
+        hours = minutes // 60
+        rem = minutes % 60
+        return f"{hours:02d}:{rem:02d}"
+
+    def __str__(self):
+        return f"{self.employee.full_name} {self.work_date}"

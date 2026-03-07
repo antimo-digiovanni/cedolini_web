@@ -1,6 +1,10 @@
 import os
 import csv
 import json
+import math
+import calendar
+from datetime import date
+from datetime import datetime
 from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
@@ -13,7 +17,18 @@ from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from django.templatetags.static import static
 
-from .models import Employee, Payslip, PayslipView, ImportJob, InviteToken, Cud, CudView
+from .models import (
+    Employee,
+    Payslip,
+    PayslipView,
+    ImportJob,
+    InviteToken,
+    Cud,
+    CudView,
+    WorkZone,
+    EmployeeWorkZone,
+    WorkSession,
+)
 from .models import AuditEvent
 from django.core.paginator import Paginator
 
@@ -383,6 +398,562 @@ def dashboard(request):
         'employee': employee,
         'grouped_payslips': grouped,
         'cuds': cuds,
+    })
+
+
+def _haversine_meters(lat1, lon1, lat2, lon2):
+    """Distanza geodetica approssimata in metri tra due coordinate."""
+    earth_radius = 6371000
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(d_lon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return earth_radius * c
+
+
+def _parse_coordinate(value):
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _active_assignments_for_employee(employee, on_date):
+    assignments = (
+        EmployeeWorkZone.objects
+        .select_related("zone")
+        .filter(
+            employee=employee,
+            is_active=True,
+            zone__is_active=True,
+            valid_from__lte=on_date,
+        )
+        .filter(Q(valid_to__isnull=True) | Q(valid_to__gte=on_date))
+    )
+    return list(assignments)
+
+
+def _active_zones_for_employee(employee, on_date):
+    assignments = _active_assignments_for_employee(employee, on_date)
+    return [a.zone for a in assignments]
+
+
+def _evaluate_location_for_employee_zone(employee, lat, lon, on_date):
+    assignments = _active_assignments_for_employee(employee, on_date)
+    if not assignments or lat is None or lon is None:
+        return {
+            "assignment": None,
+            "zone": None,
+            "within": False,
+            "distance_meters": None,
+        }
+
+    best_assignment = None
+    best_zone = None
+    best_distance = None
+    for assignment in assignments:
+        zone = assignment.zone
+        distance = _haversine_meters(lat, lon, float(zone.latitude), float(zone.longitude))
+        if best_distance is None or distance < best_distance:
+            best_distance = distance
+            best_zone = zone
+            best_assignment = assignment
+
+    within = best_distance is not None and best_distance <= float(best_zone.radius_meters)
+    return {
+        "assignment": best_assignment,
+        "zone": best_zone,
+        "within": within,
+        "distance_meters": round(best_distance, 1) if best_distance is not None else None,
+    }
+
+
+def _parse_time_or_none(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+    except ValueError:
+        return None
+
+
+@login_required
+def timekeeping(request):
+    """Marcatura dipendente: avvio/fine giornata con supporto geolocalizzazione."""
+    if request.user.is_staff:
+        return redirect('admin_timekeeping')
+
+    employee = get_object_or_404(Employee, user=request.user)
+    today = timezone.localdate()
+    session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
+    session.worked_display = session.worked_hours_display()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        latitude = _parse_coordinate(request.POST.get('latitude'))
+        longitude = _parse_coordinate(request.POST.get('longitude'))
+
+        if action not in {'start', 'end'}:
+            return JsonResponse({'ok': False, 'error': 'Azione non valida.'}, status=400)
+
+        if action == 'start' and session.started_at:
+            return JsonResponse({'ok': False, 'error': 'Ingresso gia marcato oggi.'}, status=400)
+
+        if action == 'end' and not session.started_at:
+            return JsonResponse({'ok': False, 'error': 'Devi marcare prima l\'ingresso.'}, status=400)
+
+        if action == 'end' and session.ended_at:
+            return JsonResponse({'ok': False, 'error': 'Uscita gia marcata oggi.'}, status=400)
+
+        now_ts = timezone.now()
+        zone_check = _evaluate_location_for_employee_zone(employee, latitude, longitude, today)
+        active_assignments = _active_assignments_for_employee(employee, today)
+        strict_mode = any(a.strict_geofence for a in active_assignments)
+
+        if strict_mode and (latitude is None or longitude is None):
+            return JsonResponse(
+                {'ok': False, 'error': 'Geolocalizzazione obbligatoria: attiva il GPS per marcare.'},
+                status=400,
+            )
+
+        if strict_mode and active_assignments and not zone_check['within']:
+            return JsonResponse(
+                {'ok': False, 'error': 'Marcatura bloccata: sei fuori dalla zona assegnata.'},
+                status=400,
+            )
+
+        if action == 'start':
+            session.started_at = now_ts
+            session.start_latitude = latitude
+            session.start_longitude = longitude
+            session.start_zone = zone_check['zone']
+            session.start_within_zone = zone_check['within']
+            session.save()
+
+            _create_audit_event(
+                request,
+                'timekeeping_start',
+                employee=employee,
+                metadata={
+                    'work_date': str(today),
+                    'zone': zone_check['zone'].name if zone_check['zone'] else None,
+                    'within_zone': zone_check['within'],
+                    'distance_meters': zone_check['distance_meters'],
+                },
+            )
+
+        if action == 'end':
+            session.ended_at = now_ts
+            session.end_latitude = latitude
+            session.end_longitude = longitude
+            session.end_zone = zone_check['zone']
+            session.end_within_zone = zone_check['within']
+            session.save()
+
+            _create_audit_event(
+                request,
+                'timekeeping_end',
+                employee=employee,
+                metadata={
+                    'work_date': str(today),
+                    'zone': zone_check['zone'].name if zone_check['zone'] else None,
+                    'within_zone': zone_check['within'],
+                    'distance_meters': zone_check['distance_meters'],
+                    'worked_minutes': session.worked_minutes(),
+                },
+            )
+
+        return JsonResponse({
+            'ok': True,
+            'action': action,
+            'started_at': session.started_at.strftime('%H:%M') if session.started_at else None,
+            'ended_at': session.ended_at.strftime('%H:%M') if session.ended_at else None,
+            'worked': session.worked_hours_display(),
+            'zone': zone_check['zone'].name if zone_check['zone'] else None,
+            'within_zone': zone_check['within'],
+            'distance_meters': zone_check['distance_meters'],
+        })
+
+    month_start = today.replace(day=1)
+    month_sessions = (
+        WorkSession.objects
+        .filter(employee=employee, work_date__gte=month_start, work_date__lte=today)
+        .order_by('-work_date')
+    )
+    month_sessions = list(month_sessions)
+    for row in month_sessions:
+        row.worked_display = row.worked_hours_display()
+    month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
+
+    return render(request, 'portal/timekeeping.html', {
+        'employee': employee,
+        'today_session': session,
+        'active_zones': _active_zones_for_employee(employee, today),
+        'month_sessions': month_sessions[:15],
+        'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
+    })
+
+
+@login_required
+def admin_timekeeping(request):
+    """Report mensile marcature con dettaglio giornaliero per dipendente."""
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    today = timezone.localdate()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'correct_day':
+            employee_id = request.POST.get('employee_id')
+            target_date_raw = request.POST.get('target_date')
+            start_time = _parse_time_or_none(request.POST.get('start_time'))
+            end_time = _parse_time_or_none(request.POST.get('end_time'))
+            note = (request.POST.get('note') or '').strip()
+
+            employee = Employee.objects.filter(id=employee_id).first()
+            try:
+                target_date = datetime.strptime(target_date_raw or '', '%Y-%m-%d').date()
+            except ValueError:
+                target_date = None
+
+            if employee and target_date:
+                session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=target_date)
+
+                if start_time:
+                    corrected_start = datetime.combine(target_date, start_time)
+                    session.corrected_started_at = timezone.make_aware(corrected_start, timezone.get_current_timezone())
+                else:
+                    session.corrected_started_at = None
+
+                if end_time:
+                    corrected_end = datetime.combine(target_date, end_time)
+                    session.corrected_ended_at = timezone.make_aware(corrected_end, timezone.get_current_timezone())
+                else:
+                    session.corrected_ended_at = None
+
+                session.correction_note = note or None
+                session.corrected_by = request.user
+                session.corrected_at = timezone.now()
+                session.save()
+
+                _create_audit_event(
+                    request,
+                    'timekeeping_corrected',
+                    employee=employee,
+                    metadata={
+                        'work_date': str(target_date),
+                        'corrected_started_at': session.corrected_started_at.isoformat() if session.corrected_started_at else None,
+                        'corrected_ended_at': session.corrected_ended_at.isoformat() if session.corrected_ended_at else None,
+                        'note': session.correction_note,
+                    },
+                )
+
+                return redirect(
+                    f"{request.path}?employee={employee.id}&month={target_date.month}&year={target_date.year}"
+                )
+
+    try:
+        year = int(request.GET.get('year', today.year))
+    except (TypeError, ValueError):
+        year = today.year
+
+    try:
+        month = int(request.GET.get('month', today.month))
+    except (TypeError, ValueError):
+        month = today.month
+
+    month = max(1, min(month, 12))
+
+    employees = Employee.objects.order_by('last_name', 'first_name')
+
+    selected_employee = None
+    employee_id = request.GET.get('employee')
+    if employee_id:
+        selected_employee = employees.filter(id=employee_id).first()
+    if not selected_employee:
+        selected_employee = employees.first()
+
+    rows = []
+    total_minutes = 0
+    incomplete_days = 0
+
+    month_last_day = calendar.monthrange(year, month)[1]
+    start_date = date(year, month, 1)
+    end_date = date(year, month, month_last_day)
+
+    if selected_employee:
+        sessions = (
+            WorkSession.objects
+            .filter(employee=selected_employee, work_date__range=(start_date, end_date))
+            .select_related('start_zone', 'end_zone', 'corrected_by')
+            .order_by('work_date')
+        )
+        by_day = {s.work_date: s for s in sessions}
+
+        export_format = request.GET.get('format')
+        if export_format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="marcature_{selected_employee.id}_{year}_{month}.csv"'
+            writer = csv.writer(response)
+            writer.writerow([
+                'Data',
+                'Ingresso',
+                'Uscita',
+                'Totale',
+                'Zona ingresso',
+                'Zona uscita',
+                'In zona ingresso',
+                'In zona uscita',
+                'Corretto da admin',
+                'Nota correzione',
+            ])
+
+            for day in range(1, month_last_day + 1):
+                current_date = date(year, month, day)
+                session = by_day.get(current_date)
+                if not session:
+                    writer.writerow([current_date.strftime('%d/%m/%Y'), '', '', '00:00', '', '', '', '', '', ''])
+                    continue
+                writer.writerow([
+                    current_date.strftime('%d/%m/%Y'),
+                    session.effective_started_at().strftime('%H:%M') if session.effective_started_at() else '',
+                    session.effective_ended_at().strftime('%H:%M') if session.effective_ended_at() else '',
+                    session.worked_hours_display(),
+                    session.start_zone.name if session.start_zone else '',
+                    session.end_zone.name if session.end_zone else '',
+                    'si' if session.start_within_zone else 'no',
+                    'si' if session.end_within_zone else 'no',
+                    'si' if session.corrected_at else 'no',
+                    session.correction_note or '',
+                ])
+            return response
+
+        if export_format == 'xlsx':
+            from openpyxl import Workbook
+            from openpyxl.styles import Font
+
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Marcature'
+
+            headers = [
+                'Data',
+                'Ingresso',
+                'Uscita',
+                'Totale',
+                'Zona ingresso',
+                'Zona uscita',
+                'In zona ingresso',
+                'In zona uscita',
+                'Corretto da admin',
+                'Nota correzione',
+            ]
+            ws.append(headers)
+            for cell in ws[1]:
+                cell.font = Font(bold=True)
+
+            total_month_minutes = 0
+            for day in range(1, month_last_day + 1):
+                current_date = date(year, month, day)
+                session = by_day.get(current_date)
+                if not session:
+                    ws.append([current_date.strftime('%d/%m/%Y'), '', '', '00:00', '', '', '', '', '', ''])
+                    continue
+
+                minutes = session.worked_minutes()
+                total_month_minutes += minutes
+                ws.append([
+                    current_date.strftime('%d/%m/%Y'),
+                    session.effective_started_at().strftime('%H:%M') if session.effective_started_at() else '',
+                    session.effective_ended_at().strftime('%H:%M') if session.effective_ended_at() else '',
+                    session.worked_hours_display(),
+                    session.start_zone.name if session.start_zone else '',
+                    session.end_zone.name if session.end_zone else '',
+                    'si' if session.start_within_zone else 'no',
+                    'si' if session.end_within_zone else 'no',
+                    'si' if session.corrected_at else 'no',
+                    session.correction_note or '',
+                ])
+
+            summary_row = month_last_day + 3
+            ws.cell(row=summary_row, column=1, value='Totale mese')
+            ws.cell(
+                row=summary_row,
+                column=4,
+                value=f"{total_month_minutes // 60:02d}:{total_month_minutes % 60:02d}",
+            )
+            ws.cell(row=summary_row, column=1).font = Font(bold=True)
+            ws.cell(row=summary_row, column=4).font = Font(bold=True)
+
+            # Larghezze minime utili per una lettura immediata del file.
+            for idx, width in {
+                1: 12,
+                2: 10,
+                3: 10,
+                4: 10,
+                5: 22,
+                6: 22,
+                7: 14,
+                8: 14,
+                9: 16,
+                10: 30,
+            }.items():
+                ws.column_dimensions[chr(64 + idx)].width = width
+
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = (
+                f'attachment; filename="marcature_{selected_employee.id}_{year}_{month}.xlsx"'
+            )
+            wb.save(response)
+            return response
+
+        for day in range(1, month_last_day + 1):
+            current_date = date(year, month, day)
+            session = by_day.get(current_date)
+
+            if not session:
+                rows.append({
+                    'date': current_date,
+                    'entry': None,
+                    'exit': None,
+                    'total': '00:00',
+                    'status': 'missing',
+                    'start_zone': None,
+                    'end_zone': None,
+                })
+                continue
+
+            worked = session.worked_minutes()
+            total_minutes += worked
+            effective_start = session.effective_started_at()
+            effective_end = session.effective_ended_at()
+            if effective_start and not effective_end:
+                incomplete_days += 1
+
+            rows.append({
+                'date': current_date,
+                'entry': effective_start,
+                'exit': effective_end,
+                'total': session.worked_hours_display(),
+                'status': 'ok' if effective_start and effective_end else 'partial',
+                'start_zone': session.start_zone,
+                'end_zone': session.end_zone,
+                'start_within_zone': session.start_within_zone,
+                'end_within_zone': session.end_within_zone,
+                'corrected': bool(session.corrected_at),
+                'correction_note': session.correction_note,
+            })
+
+    return render(request, 'portal/admin_timekeeping.html', {
+        'employees': employees,
+        'selected_employee': selected_employee,
+        'selected_year': year,
+        'selected_month': month,
+        'rows': rows,
+        'month_total': f"{total_minutes // 60:02d}:{total_minutes % 60:02d}",
+        'incomplete_days': incomplete_days,
+    })
+
+
+@login_required
+def admin_work_zones(request):
+    """Configurazione zone di lavoro e assegnazioni dipendente-zona."""
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    feedback = None
+    feedback_level = 'info'
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'create_zone':
+            name = (request.POST.get('name') or '').strip()
+            radius_raw = request.POST.get('radius_meters') or '100'
+            latitude = _parse_coordinate(request.POST.get('latitude'))
+            longitude = _parse_coordinate(request.POST.get('longitude'))
+            try:
+                radius = max(int(radius_raw), 10)
+            except (TypeError, ValueError):
+                radius = 100
+
+            if not name or latitude is None or longitude is None:
+                feedback = 'Compila nome e coordinate valide per creare la zona.'
+                feedback_level = 'danger'
+            else:
+                WorkZone.objects.create(
+                    name=name,
+                    latitude=latitude,
+                    longitude=longitude,
+                    radius_meters=radius,
+                )
+                feedback = 'Zona creata correttamente.'
+                feedback_level = 'success'
+
+        if action == 'assign_zone':
+            employee_id = request.POST.get('employee_id')
+            zone_id = request.POST.get('zone_id')
+            valid_from = request.POST.get('valid_from')
+            strict_geofence = request.POST.get('strict_geofence') == '1'
+
+            employee = Employee.objects.filter(id=employee_id).first()
+            zone = WorkZone.objects.filter(id=zone_id, is_active=True).first()
+
+            if not employee or not zone:
+                feedback = 'Seleziona dipendente e zona validi.'
+                feedback_level = 'danger'
+            else:
+                try:
+                    EmployeeWorkZone.objects.create(
+                        employee=employee,
+                        zone=zone,
+                        valid_from=valid_from or timezone.localdate(),
+                        strict_geofence=strict_geofence,
+                    )
+                    feedback = 'Zona assegnata al dipendente.'
+                    feedback_level = 'success'
+                except IntegrityError:
+                    feedback = 'Assegnazione gia presente con la stessa data di validita.'
+                    feedback_level = 'warning'
+
+        if action == 'deactivate_assignment':
+            assignment_id = request.POST.get('assignment_id')
+            assignment = EmployeeWorkZone.objects.filter(id=assignment_id).first()
+
+            if not assignment:
+                feedback = 'Assegnazione non trovata.'
+                feedback_level = 'danger'
+            else:
+                assignment.is_active = False
+                assignment.valid_to = assignment.valid_to or timezone.localdate()
+                assignment.save(update_fields=['is_active', 'valid_to'])
+                feedback = 'Assegnazione disattivata.'
+                feedback_level = 'warning'
+
+    employees = Employee.objects.order_by('last_name', 'first_name')
+    zones = WorkZone.objects.order_by('name')
+    assignments = (
+        EmployeeWorkZone.objects
+        .select_related('employee', 'zone')
+        .order_by('-is_active', '-created_at')
+    )
+
+    return render(request, 'portal/admin_work_zones.html', {
+        'employees': employees,
+        'zones': zones,
+        'assignments': assignments,
+        'feedback': feedback,
+        'feedback_level': feedback_level,
     })
 
 

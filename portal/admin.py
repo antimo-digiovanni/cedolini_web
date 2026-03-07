@@ -5,7 +5,16 @@ from django.utils.crypto import get_random_string
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Employee, Payslip, Cud, AuditEvent, InviteToken
+from .models import (
+    Employee,
+    Payslip,
+    Cud,
+    AuditEvent,
+    InviteToken,
+    WorkZone,
+    EmployeeWorkZone,
+    WorkSession,
+)
 
 
 admin.site.site_header = "Amministrazione Portale Cedolini"
@@ -156,3 +165,33 @@ class CudAdmin(admin.ModelAdmin):
 class AuditEventAdmin(admin.ModelAdmin):
     list_display = ('created_at', 'action', 'actor_user', 'employee')
     list_filter = ('action',)
+
+
+@admin.register(WorkZone)
+class WorkZoneAdmin(admin.ModelAdmin):
+    list_display = ('name', 'latitude', 'longitude', 'radius_meters', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+
+
+@admin.register(EmployeeWorkZone)
+class EmployeeWorkZoneAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'zone', 'strict_geofence', 'valid_from', 'valid_to', 'is_active')
+    list_filter = ('is_active', 'strict_geofence', 'zone')
+    search_fields = ('employee__first_name', 'employee__last_name', 'zone__name')
+
+
+@admin.register(WorkSession)
+class WorkSessionAdmin(admin.ModelAdmin):
+    list_display = (
+        'employee',
+        'work_date',
+        'started_at',
+        'ended_at',
+        'corrected_started_at',
+        'corrected_ended_at',
+        'start_within_zone',
+        'end_within_zone',
+    )
+    list_filter = ('work_date', 'start_within_zone', 'end_within_zone')
+    search_fields = ('employee__first_name', 'employee__last_name')

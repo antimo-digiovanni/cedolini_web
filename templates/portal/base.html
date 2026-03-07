@@ -242,9 +242,18 @@ main {
         <div id="sidebarMenuContent">
             <div class="sidebar-title">Menu</div>
 
+            {% if user.is_staff %}
             <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
+            {% else %}
+            <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="{% url 'timekeeping' %}" class="{% if request.resolver_match.url_name == 'timekeeping' %}active{% endif %}">
+                <i class="bi bi-stopwatch"></i> Marcatura
+            </a>
+            {% endif %}
 
             {% if user.is_staff %}
             <a href="{% url 'admin:index' %}">
@@ -256,6 +265,12 @@ main {
             </a>
             <a href="{% url 'admin_report' %}">
                 <i class="bi bi-graph-up"></i> Report cedolini
+            </a>
+            <a href="{% url 'admin_timekeeping' %}">
+                <i class="bi bi-calendar-week"></i> Report marcature
+            </a>
+            <a href="{% url 'admin_work_zones' %}">
+                <i class="bi bi-geo-alt"></i> Zone di lavoro
             </a>
             <a href="{% url 'admin_audit_events' %}">
                 <i class="bi bi-clipboard-data"></i> Storico azioni

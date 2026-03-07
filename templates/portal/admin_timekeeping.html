@@ -1,0 +1,146 @@
+{% extends "portal/base.html" %}
+{% block title %}Report Marcature{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Report Marcature</h2>
+    <p class="mb-0 opacity-75">Controllo giornaliero ingressi, uscite e totale ore mensili.</p>
+</div>
+
+<div class="card-modern bg-white mb-4">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Dipendente</label>
+            <select name="employee" class="form-select">
+                {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if selected_employee and selected_employee.id == emp.id %}selected{% endif %}>{{ emp.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Mese</label>
+            <input type="number" min="1" max="12" name="month" value="{{ selected_month }}" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Anno</label>
+            <input type="number" min="2020" max="2100" name="year" value="{{ selected_year }}" class="form-control">
+        </div>
+        <div class="col-md-2 d-grid">
+            <button class="btn btn-primary" type="submit">Aggiorna</button>
+        </div>
+        {% if selected_employee %}
+        <div class="col-md-2 d-grid">
+            <a class="btn btn-outline-secondary" href="?employee={{ selected_employee.id }}&month={{ selected_month }}&year={{ selected_year }}&format=csv">Export CSV</a>
+        </div>
+        <div class="col-md-2 d-grid">
+            <a class="btn btn-outline-success" href="?employee={{ selected_employee.id }}&month={{ selected_month }}&year={{ selected_year }}&format=xlsx">Export XLSX</a>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+{% if selected_employee %}
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card-modern bg-white text-center">
+            <div class="small text-muted">Dipendente</div>
+            <div class="fs-5 fw-semibold">{{ selected_employee.full_name }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-modern bg-white text-center">
+            <div class="small text-muted">Totale mese</div>
+            <div class="fs-4 fw-bold">{{ month_total }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-modern bg-white text-center">
+            <div class="small text-muted">Giorni incompleti</div>
+            <div class="fs-4 fw-bold text-warning">{{ incomplete_days }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card-modern bg-white">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Ingresso</th>
+                    <th>Uscita</th>
+                    <th>Totale</th>
+                    <th>Zona ingresso</th>
+                    <th>Zona uscita</th>
+                    <th>Stato</th>
+                    <th>Correzione admin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.date|date:"d/m/Y" }}</td>
+                    <td>{% if row.entry %}{{ row.entry|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                    <td>{% if row.exit %}{{ row.exit|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                    <td>{{ row.total }}</td>
+                    <td>
+                        {% if row.start_zone %}
+                            {{ row.start_zone.name }}
+                            {% if row.start_within_zone %}
+                                <span class="badge bg-success">in zona</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">fuori zona</span>
+                            {% endif %}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.end_zone %}
+                            {{ row.end_zone.name }}
+                            {% if row.end_within_zone %}
+                                <span class="badge bg-success">in zona</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">fuori zona</span>
+                            {% endif %}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.status == 'ok' %}
+                            <span class="badge bg-success">Completa</span>
+                        {% elif row.status == 'partial' %}
+                            <span class="badge bg-warning text-dark">Parziale</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Nessuna</span>
+                        {% endif %}
+                        {% if row.corrected %}
+                            <span class="badge bg-info text-dark">Corretta</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" class="d-flex flex-column gap-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="correct_day">
+                            <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+                            <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
+
+                            <input type="time" name="start_time" class="form-control form-control-sm" value="{% if row.entry %}{{ row.entry|date:'H:i' }}{% endif %}">
+                            <input type="time" name="end_time" class="form-control form-control-sm" value="{% if row.exit %}{{ row.exit|date:'H:i' }}{% endif %}">
+                            <input type="text" name="note" class="form-control form-control-sm" placeholder="Nota" value="{{ row.correction_note|default:'' }}">
+                            <button class="btn btn-sm btn-outline-primary" type="submit">Salva</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card-modern bg-white">
+    <p class="text-muted mb-0">Nessun dipendente disponibile.</p>
+</div>
+{% endif %}
+{% endblock %}
