@@ -134,11 +134,12 @@ h4 {
 }
 
 .brand-logo {
-    height: 38px;
+    height: 50px;
     width: auto;
     border-radius: 0;
     background: transparent;
     padding: 0;
+    filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.35));
 }
 
 .header-logo-right {
@@ -150,10 +151,28 @@ h4 {
 }
 
 .header-logo-mark {
-    height: 52px;
+    height: 66px;
     width: auto;
     display: block;
     filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.34));
+}
+
+.hero-logo-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.9rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.hero-logo-mark {
+    height: 120px;
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 12px 22px rgba(15, 23, 42, 0.5));
 }
 
 .btn-access {
@@ -698,6 +717,20 @@ h4 {
     margin-bottom: 0.4rem;
 }
 
+.footer-brand-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.25rem;
+}
+
+.footer-logo-mark {
+    height: 54px;
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 5px 12px rgba(15, 23, 42, 0.3));
+}
+
 .footer-copy {
     color: #64748b;
     max-width: 460px;
@@ -774,8 +807,16 @@ h4 {
         font-size: 1.05rem;
     }
 
+    .brand-logo {
+        height: 44px;
+    }
+
     .header-logo-mark {
         height: 44px;
+    }
+
+    .hero-logo-mark {
+        height: 92px;
     }
 
     .hero-metrics {

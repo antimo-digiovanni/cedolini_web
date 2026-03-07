@@ -1,3 +1,4 @@
+{% load static %}
 {% extends 'site/base.html' %}
 
 {% block title %}San Vincenzo SRL | Servizi e Soluzioni Professionali{% endblock %}
@@ -23,6 +24,9 @@
 <section class="hero-section">
   <div class="container">
     <div class="hero-box reveal-up">
+      <div class="hero-logo-wrap">
+        <img src="{% static 'portal/logo.png' %}" alt="Logo San Vincenzo SRL" class="hero-logo-mark" loading="eager">
+      </div>
       <p class="hero-kicker">Soluzioni aziendali</p>
       <h1>Professionalità operativa per aziende che vogliono crescere senza compromessi.</h1>
       <p class="hero-sub">Con San Vincenzo SRL trovi un partner concreto: servizi strutturati, processi efficienti e supporto continuo in ogni fase del lavoro, con un approccio orientato ai risultati.</p>
