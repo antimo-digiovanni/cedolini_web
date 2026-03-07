@@ -23,24 +23,13 @@ body {
     overflow-x: hidden;
 }
 
+
 .site-page {
-    opacity: 0;
-    transform: translateY(10px) scale(0.995);
-    filter: blur(6px);
-    transition: opacity 0.26s ease, transform 0.28s ease, filter 0.28s ease;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
     position: relative;
-}
-
-.site-page.is-ready {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-}
-
-.site-page.is-leaving {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.995);
-    filter: blur(4px);
 }
 
 .site-page::before {
