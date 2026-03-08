@@ -52,7 +52,17 @@
       "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'portal/icons/icon-192.png' %}",
       "width": 192,
       "height": 192
-    }
+    },
+    "image": "{{ request.scheme }}://{{ request.get_host }}{% static 'portal/logo.png' %}",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Via B. Cellini 154",
+      "addressLocality": "Grumo Nevano",
+      "postalCode": "80028",
+      "addressRegion": "NA",
+      "addressCountry": "IT"
+    },
+    "priceRange": "€€"
   }
   </script>
   {% block extra_head %}{% endblock %}
