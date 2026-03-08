@@ -89,9 +89,15 @@
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_digital_services' %}is-active{% endif %}" href="{% url 'public_digital_services' %}">Servizi digitali</a></li>
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_machinery' %}is-active{% endif %}" href="{% url 'public_machinery' %}">Macchinari</a></li>
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_contacts' %}is-active{% endif %}" href="{% url 'public_contacts' %}">Contatti</a></li>
-            <li class="nav-item ms-lg-2"><a class="btn btn-access" href="{% url 'login' %}">Area Dipendenti</a></li>
-          </ul>
-          <script type="application/ld+json">
+            <<li class="nav-item ms-lg-2"><a class="btn btn-access" href="{% url 'login' %}">Area Dipendenti</a></li>
+        </ul>
+      </div>
+      <a class="header-logo-right" href="{% url 'public_home' %}" aria-label="San Vincenzo SRL">
+        <img src="{% static 'portal/logo.png' %}" alt="Logo San Vincenzo" class="header-logo-mark">
+      </a>
+    </div>
+  </nav>
+</header>
           {
             "@context": "https://schema.org",
             "@type": "LocalBusiness",
