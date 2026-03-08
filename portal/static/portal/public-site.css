@@ -55,8 +55,13 @@ h4 {
     letter-spacing: -0.02em;
 }
 
+}
 .bg-orb {
     position: fixed;
+.site-page.is-ready .reveal-up {
+    opacity: 1 !important;
+    transform: none !important;
+}
     width: 360px;
     height: 360px;
     border-radius: 50%;
