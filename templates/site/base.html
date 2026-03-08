@@ -91,6 +91,27 @@
             <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'public_contacts' %}is-active{% endif %}" href="{% url 'public_contacts' %}">Contatti</a></li>
             <li class="nav-item ms-lg-2"><a class="btn btn-access" href="{% url 'login' %}">Area Dipendenti</a></li>
           </ul>
+          </script>
+          <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "San Vincenzo SRL",
+            "description": "Azienda multiservizi per aziende, industrie e attività commerciali.",
+            "email": "sanvincenzosrl@gmail.com",
+            "telephone": "+39 0818801972",
+            "url": "{{ request.scheme }}://{{ request.get_host }}",
+            "image": "{{ request.scheme }}://{{ request.get_host }}{% static 'portal/logo.png' %}",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Via B. Cellini 154",
+              "addressLocality": "Grumo Nevano",
+              "postalCode": "80028",
+              "addressRegion": "NA",
+              "addressCountry": "IT"
+            },
+            "priceRange": "€€"
+          }
         </div>
         <a class="header-logo-right" href="{% url 'public_home' %}" aria-label="San Vincenzo SRL">
           <img src="{% static 'portal/logo.png' %}" alt="Logo San Vincenzo" class="header-logo-mark">
