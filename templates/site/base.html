@@ -28,11 +28,11 @@
   <meta property="og:description" content="{% block og_description %}Servizi aziendali, macchinari professionali e supporto dedicato.{% endblock %}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ request.build_absolute_uri }}">
-  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'portal/logo.png' %}">
+  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'portal/icons/icon-192.png' %}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{% block twitter_title %}San Vincenzo SRL{% endblock %}">
   <meta name="twitter:description" content="{% block twitter_description %}Servizi aziendali, macchinari professionali e supporto dedicato.{% endblock %}">
-  <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'portal/logo.png' %}">
+  <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'portal/icons/icon-192.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
@@ -47,7 +47,12 @@
     "url": "{{ request.scheme }}://{{ request.get_host }}",
     "email": "sanvincenzosrl@gmail.com",
     "telephone": "+39 0818801972",
-    "logo": "{{ request.scheme }}://{{ request.get_host }}{% static 'portal/logo.png' %}"
+    "logo": {
+      "@type": "ImageObject",
+      "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'portal/icons/icon-192.png' %}",
+      "width": 192,
+      "height": 192
+    }
   }
   </script>
   {% block extra_head %}{% endblock %}
