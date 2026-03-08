@@ -1,0 +1,334 @@
+[33m1ecb5a9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Fix definitivo: rimosso conflitto merge home.html, ripristinata struttura corretta
+[33mb044333[m Fix: rimosso conflitto merge home.html, ripristinata sezione servizi
+[33mc1fc3c8[m Ritorno a stato stabile: team grid con foto reali, layout e contatti aggiornati
+[33mb4fa87a[m Fix layout: elimina sezione annidata, ripristina homepage
+[33m56fc4a8[m Aggiungi sezione Servizi omogenea sopra servizi digitali
+[33mb4ce070[m Aggiungi schema LocalBusiness separato con address, image e priceRange
+[33m0a9a5c5[m Aggiungi address, image e priceRange a JSON-LD Organization
+[33mf112518[m Aggiorna meta e JSON-LD per logo Google quadrato
+[33m25eaf5d[m Fix schermata nera: forza visibilità site-page e disabilita transizione JS
+[33m41cad8c[m Aggiunge geolocalizzazione e spiegazione utilità alle marcature digitali
+[33m28c535a[m Aggiunge gestione marcature/presenze tra i servizi digitali
+[33m0d78cc4[m Ripristina riferimenti diretti nei profili contatti
+[33m005f48f[m Allunga riquadri foto contatti e migliora ritaglio
+[33me5549e2[m Rimuove riquadro attorno alle foto team
+[33mea9496d[m Convert contacts to team grid with profile photos
+[33mee908f4[m Harden Render startup command and PORT expansion
+[33m6bb3cac[m Redesign direct contacts cards with profile visuals
+[33m5d4d339[m Add employee tutorial PDF access and update HR contact details
+[33mbbc18c8[m Harden home template to avoid extends/load parsing issues
+[33m7d3f02c[m Fix site home template extends tag order
+[33m8671036[m Enhance public branding and update direct contacts
+[33md877499[m Update brand logo and app icons
+[33m86cc438[m Fix Render port binding to use
+[33mb5e0bf1[m Default timekeeping report to all employees and month names
+[33m261630d[m Set default coordinates for new work zones
+[33me470e94[m Redesign admin dashboard metrics and quick actions
+[33m7f8c5bc[m Sync approved out-of-zone requests into work sessions
+[33m873cc14[m Improve admin/dashboard and out-of-zone request UI
+[33m879051d[m Separate out-of-zone requests for entry and exit marking
+[33m7b75fc2[m Fix approved end-marking fallback and add no-scroll month view
+[33md855e84[m Harden Render startup config for port binding
+[33mb5938b9[m Update admin dashboard with pending requests and daily markings
+[33m4df7142[m Fix approved out-of-zone exit marking and matrix scrolling
+[33m99d5f51[m Handle missing employee profile on /portal/ dashboard
+[33mb1f1164[m Add Render web start command and zone management updates
+[33m4b42542[m Fix all-employees report horizontal navigation
+[33ma8f0b2d[m Add admin-approved out-of-zone marking request workflow
+[33m55f26bd[m Improve all-employees report scrolling and export visibility
+[33me7a73cb[m Add interactive map preview for work zones
+[33m79217d1[m Add all-employees monthly matrix to timekeeping report
+[33me72aafe[m Block time marking when employee has no active work zone
+[33md4d32b8[m Make InviteToken migration idempotent for existing tables
+[33md228abb[m Add timekeeping module with geofencing and admin reporting
+[33m560775a[m Rinforza icone Home con endpoint legacy iOS/Android
+[33m7946253[m Fix icona Home anche su login e pagine portale
+[33m9186441[m Aggiorna progetto
+[33maad97dc[m Corregge icona segnalibro home con favicon dedicata
+[33m6669307[m Usa icone app dedicate per Android e iPhone
+[33m23beddc[m Abilita icona app su Android e iPhone
+[33m33c8599[m Corregge ortografia e accenti nelle pagine sito
+[33m69243e0[m Aggiorna testo invito: login con username o email
+[33m62d76c6[m Aggiunge meta tag verifica Google Search Console
+[33mab99507[m Aggiunge endpoint verifica Google Search Console
+[33m0d6ba3d[m Rende piu professionali i testi della pagina servizi
+[33m4dc94fc[m Aggiorna contatti e amplia servizi operativi
+[33m8d85060[m Separa servizi digitali con pagina dedicata
+[33meb8b827[m Elimina file R2 quando si cancella un cedolino o CUD
+[33m82e7189[m Aggiunge link sito aziendale nella dashboard cedolini
+[33mbb3ce97[m Aggiunge box servizi digitali in home
+[33m2f2d6b8[m Aggiorna header/footer e aggiunge servizi digitali
+[33mfe9cd5d[m Aggiorna contatti con form email e crediti sito
+[33mc244a76[m Aggiunge pagine Chi siamo e Servizi complete per sito pubblico
+[33m3d12cf8[m Backfill stato Registrato per dipendenti esistenti
+[33m27bd5c1[m Aggiunge stato Registrato in gestione dipendenti
+[33m94c0d60[m Sostituisce effetto scrittura con transizione elegante
+[33m0720a38[m Aggiunge effetto scrittura veloce tra pagine
+[33mb57bf7a[m Corregge blocchi duplicati meta social
+[33m89e529b[m Migliora SEO homepage e transizione pagine
+[33m2b5b519[m Restyling premium sito vetrina pubblico
+[33mf676de6[m Aggiunge dominio custom ad ALLOWED_HOSTS e CSRF
+[33mb6e6e3a[m Rende piu chiara apertura anni cedolini
+[33m409cec3[m Aggiunge tendina anni cedolini e inverte gradiente menu
+[33m3497f92[m Aggiunge sito vetrina pubblico con SEO base
+[33m2de3f80[m[33m ([m[1;33mtag: [m[1;33mrestore-pre-sito-vetrina-20260305-211215[m[33m, [m[1;31morigin/backup/pre-sito-vetrina-20260305-211215[m[33m, [m[1;32mbackup/pre-sito-vetrina-20260305-211215[m[33m)[m Personalizza grafica admin Django in italiano
+[33mf25041e[m Permette login con username o email
+[33m49a1ae3[m Aggiunge consenso privacy obbligatorio in registrazione
+[33m79fb94c[m Uniforma direzione gradiente header admin
+[33m465b215[m Uniforma gradient hero e layout admin
+[33m6128500[m Make mobile login fullscreen and move footer bottom-left
+[33m2b5f6a9[m Fix login mobile layout responsiveness
+[33m45f6d8d[m Improve employee mobile dashboard UX
+[33m5127c79[m Improve mobile UX for employee flows
+[33m5c0689f[m Add prefilled invite message for manual sending
+[33mb92c776[m Add manual invite link and require email on activation
+[33mfc068cc[m Fix cancel import behavior on confirm page
+[33m44fc78d[m Fix admin employee detail column alignment
+[33mc42327a[m Fix admin CUD upload template filter usage
+[33mb43ac54[m Add admin CUD upload page and dashboard button
+[33mb5e0639[m Improve name parsing for compound surnames and add payslip view reset
+[33m3460e2c[m Fix CUD section rendering on admin employee detail page
+[33m9c45bd3[m Show CUDs with view status in admin payslips list
+[33med015ff[m Track CUD views and show status for employees and admin
+[33m0ac3949[m Add CUD model and employee dashboard section
+[33mb1bf80b[m style: unify admin report and import pages UI
+[33m8246621[m feat: explain integrity status with percentage thresholds
+[33m51e9b63[m feat: restyle admin payslip integrity page UX
+[33m97ca40d[m chore: update tracked cache files for deploy
+[33mb75ab47[m Add audit logging for payslip actions and logins
+[33md233781[m Fix admin report to use payslips related_name
+[33m6d56ada[m Add admin payslip integrity template
+[33m43ffd95[m Add admin report, payslip filters/CSV, and upload safety note
+[33ma79b1ff[m Redirect payslip view directly to public PDF URL
+[33mc81e00e[m Open payslips in new tab for better mobile navigation
+[33m312249d[m Configure STORAGES to use R2PublicStorage as default
+[33mcc3bbfc[m Fix R2 public URLs without bucket segment
+[33m5ea6697[m Use R2PublicStorage with public base URL
+[33mfd58bf0[m Polish invite email styling
+[33mdc82f0a[m Improve invite email and registration UX
+[33m8963ea8[m Add upload history views and quick access to payslips
+[33m8736615[m feat(admin): add Storico audit events page + menu link
+[33mb408280[m fix(open): serve payslip via Django storage or redirect to file URL; handle FileNotFound
+[33m40e33af[m ui: add 'Apri' action in admin employee detail to open payslip
+[33m024ccb3[m chore(logging): trace payslips in admin_employee_detail; ui: show message when none
+[33m31836c2[m feat(admin): inline payslips - AJAX fragment and endpoint
+[33m44b2983[m dev: add visible debug button to detect and highlight element overlaying modal
+[33m107fcbf[m fix(ui): detect and temporarily disable overlaying element when modal shown to ensure inputs clickable
+[33me86ad29[m feat(admin): show payslip count per employee and add quick link to view cedolini
+[33m5db550a[m fix(ui): ensure modal z-index higher than backdrop and make modal fixed centered to avoid overlay issues
+[33m0e019f8[m chore(logging): trace admin_send_invite requests, token creation and send errors
+[33m3b268db[m fix(ui): force modal/backdrop z-index and pointer-events to ensure inputs clickable
+[33m673ffc4[m fix(ui): modal z-index and constrain dashboard chart size
+[33m9ce5c05[m fix(admin): bootstrap + chart load order; import rollback and cancel endpoint; make cancel POST
+[33m0f89965[m ui: add employees admin link and dashboard shortcut
+[33mcdadf2e[m feat(admin): add internal admin pages for payslips and employees + invite endpoint
+[33m4807240[m fix: add Employee.full_name property and use it in __str__ to avoid AttributeError
+[33m565b782[m fix: handle errors during bulk payslip import (atomic per file, catch exceptions)
+[33mfc49fb3[m ui: add admin upload button to admin dashboard
+[33m70a0a5d[m feat: admin import - upload multiple payslips and auto-create employees
+[33mc8d53da[m chore: enable console logging (INFO) for Render debugging
+[33mfeaea1d[m instrument: add logging to dashboard view for debugging render hang
+[33mfd9134b[m fix dashboard view check
+[33m4f689a4[m fix campo viewed_at in dashboard
+[33me2a8eba[m sistemata sidebar - rimosso import mese
+[33m0e0e35b[m commentata di nuovo url admin_upload_period_folder
+[33md54445c[m riattivata url admin_upload_period_folder
+[33m672b4ff[m Remove route admin_upload_period_folder not present in this version
+[33mb3c8639[m Remove old admin_dashboard template
+[33ma4132fd[m[33m ([m[1;32mbackup-b08[m[33m)[m Fix admin_dashboard + dashboard grouping
+[33mb08ee94[m Dashboard raggruppata per anno con stato visualizzazione
+[33md9f494c[m Fix indentation and improve invite email
+[33mf7e2be4[m Improve invite email with username visible
+[33m125b636[m Clean full views with professional invite email
+[33med86b4c[m Final corporate register page
+[33m469f2b3[m Register page with first name and last name
+[33m445af06[m Register welcome page + fix views
+[33m489143a[m Fix syntax migration 0007
+[33m775e5dd[m Fix migration 0007 remove InviteToken duplication
+[33m172532e[m Fix migration first and last name
+[33m386f7c0[m Registration page layout
+[33mc35006d[m Clean full views with token registration
+[33m9a6bc49[m Fix indentation error in models
+[33m1307391[m Split first_name and last_name
+[33m0403623[m Email HTML corporate design
+[33mf68ed12[m Fix CC email using EmailMessage
+[33mc7e1878[m Email invito con CC fissa
+[33ma873657[m Fix admin 500 error
+[33m2fe9934[m Fix register flow
+[33m1e36ede[m Register flow completed
+[33m454f8ce[m Add register and invite system
+[33m5a2fe46[m Add Aruba SMTP config
+[33md53a099[m Add InviteToken model
+[33mc62c5f5[m Fixed base.html removed broken links
+[33ma818eff[m Fix urls final cleanup
+[33m3dfccd6[m Fix urls aligned with views
+[33m6b26394[m Fix urls cleaned
+[33m227ece8[m Configurazione R2 storage Cloudflare
+[33m5c40597[m Full optimized views with 100 file support
+[33ma27033e[m Fix cognomi doppi import
+[33mb0d1786[m Full working views
+[33m8d471fa[m Fix upload folder form
+[33mfba9e08[m Fix full period folder import
+[33mdc6f849[m Full clean rebuild views and urls
+[33m1c85d62[m Add missing admin_audit_dashboard
+[33m44defbf[m Fix missing admin_upload_payslip
+[33m779e547[m Full working views file
+[33m2017081[m Enable automatic user creation on import
+[33mfbc593e[m Restore admin_report and fix reverse error
+[33m9e0e300[m Fix missing admin_employees and clean URLs
+[33me3bddd3[m Full stable views file
+[33m95b487a[m Fix import folder logic
+[33mfc83300[m Add folder upload template
+[33m6a55f0a[m Full admin dashboard with charts
+[33me9009a5[m Rebuild complete admin logic
+[33mcfb6e99[m Test build
+[33md0305ad[m Fix template structure + dashboard + register
+[33m9b8dc26[m Fix percorso template register
+[33mfacd4eb[m Fix link registrazione + mese leggibile admin
+[33m3267697[m Report + dettaglio dipendenti + stato lettura completo
+[33m0640ad9[m Report + dettaglio dipendenti + stato lettura completo
+[33m6f87997[m Admin custom completa integrata
+[33m148c0d8[m Fix form upload multiple files
+[33m8af7090[m Sistema automatico creazione utenti + associazione cedolini + password obbligatoria
+[33mcaf3cc5[m Views stabilizzate + fix upload loop definitivo
+[33m5d033e3[m Watermark logo migliorato + restyling pagina Import Mese
+[33m67282c1[m Aggiunto watermark logo centrale in background
+[33maaca18d[m Restyling completo UI: login moderno + dashboard nuova + topbar compatta + miglioramento layout
+[33m693fcec[m Login ultra premium + mobile optimization + animated transitions
+[33ma3cace3[m Complete UI upgrade with animated dashboard and modern layout
+[33m0158bed[m Add password_change urls
+[33m42806b7[m Fix base template - removed broken url
+[33m5d15be9[m Fix missing url admin_manage_employees
+[33m326b394[m Fix path admin dashboard template
+[33m4af27ae[m Attivato SMTP Gmail reale definitivo
+[33m160a543[m Aggiunto admin_dashboard.html
+[33m888519d[m Aggiunto login.html
+[33mc889984[m Fix completo rotte + test email
+[33m739453a[m Aggiunta test email admin protetto
+[33m9a5d546[m Fix finale: aggiunta admin_upload_payslip e sincronizzazione
+[33m9cd44af[m Fix: aggiunta admin_audit_dashboard e sincronizzazione completa
+[33mb656eaf[m Sincronizzazione totale views e urls
+[33mffbbcda[m Sincronizzazione completa views-urls
+[33m241b628[m Fix finale: aggiunta activate_account
+[33mace53e0[m Fix: aggiunta activate_account e funzioni mancanti
+[33m102cc33[m Fix: aggiunto complete_profile e allineamento urls
+[33m6933a18[m Fix finale: ripristinate tutte le funzioni mancanti
+[33m4a876ab[m Fix finale: aggiunte tutte le view richieste
+[33mca30cab[m Fix finale: ripristinate tutte le funzioni per urls.py
+[33mc5daafc[m Fix: ripristinate funzioni home e dashboard
+[33mcb95bc8[m Fix finale: Domain e Registration by Username
+[33mb1b0db7[m Fix circular import in models.py
+[33ma75b6d0[m Reset totale: fix domain e link manuali
+[33m2fa6a81[m Admin fix: usando username come token
+[33ma9d3457[m Admin ultra-safe senza save
+[33mdd47b3e[m Admin ultra-safe senza save
+[33m5d056b3[m aggiunto tasto copia nella scheda dettaglio
+[33m38f7e51[m aggiunto tasto copia nella scheda dettaglio
+[33m8898ec2[m Fix 500: admin ultra-safe
+[33m12e09e4[m Attivazione definitiva Piano B
+[33m1c6d96f[m switch to aruba port 587 with timeout
+[33mccd3f60[m switch to aruba mail
+[33md7bdbe3[m update email port 2525 and remove password spaces
+[33m2b40fc5[m fix missing DEFAULT_DOMAIN
+[33m9ad0847[m final email fix
+[33m35786a5[m switch to port 587
+[33mb9b71e4[m fix signals syntax
+[33m55e94ac[m update email password
+[33mb3ffbeb[m update email password
+[33m8258a63[m fix email async
+[33m744d60f[m hardcoded email
+[33m5cb78e8[m fix settings paths
+[33m1497d12[m reset
+[33m4c6cd5d[m Fix finale segnali senza crash
+[33mee8cccf[m Disattivati segnali email per test
+[33m093419c[m Disattivati segnali email per test
+[33m3b94ba7[m Admin semplificato
+[33m065001c[m Aggiornamento admin e modelli
+[33mff3162b[m Aggiornamento admin e modelli
+[33mbd0fe16[m Sincronizzazione finale modelli e segnali email
+[33m8c46ed7[m Sincronizzazione finale modelli e segnali
+[33mab8ea86[m Fix finale build e campi mancanti
+[33me7f7161[m Fix finale build e log email
+[33mb50f497[m Fix ImportError PayslipView
+[33m5ff378b[m Aggiornamento modelli e segnali
+[33mc1bfd61[m Fix definitivo signals e apps
+[33mc99070a[m Fix definitivo signals e apps
+[33m9f87171[m Fix email da user
+[33m97c46ce[m Fix email da user
+[33m13f7ad3[m Fix email da user
+[33mdb23f4e[m Automatizzazione completa email invito e cedolini
+[33m3b369a5[m Configurata email maggiordomodifabbrica@gmail.com
+[33m0afdd30[m Log dettagliati per invio email
+[33m2cb643b[m Fix finale statici e email prioritizzata
+[33mc320910[m Fix grafica admin e statici
+[33m600af4d[m Aggiunto python-dotenv
+[33m518c9fb[m Aggiunta gestione invio email e segnali
+[33mf724712[m Fix logout: cambiato da GET a POST per evitare errore 405
+[33m5550895[m Fix finale percorsi template
+[33m296bb29[m Configurazione completa settings e fix redirect
+[33md5d3756[m Spostato login.html in templates/registration
+[33m32986b4[m Spostati template nella root corretta per fix 500
+[33mec3a0a4[m Ripristino manuale file critici
+[33md0c96d4[m Risolto errore 500: aggiunto template login
+[33m36357a9[m Final perfect views
+[33m5a1e7c4[m Final perfect views
+[33m4d7b3fc[m Configurazione Aruba SMTP e correzione LoginView
+[33macc9c78[m Final perfect views
+[33m4ef016f[m Final perfect views
+[33mdee030b[m Fix syntax error in views
+[33m6deb71b[m Fix syntax error in views
+[33m74ec5cb[m Fix syntax error in views
+[33mab0f863[m Fix syntax error in views
+[33m9fe48c6[m Fix syntax error in views
+[33me83599c[m Fix syntax error in views
+[33m52ea005[m Fix home view definitiva
+[33mcbee31e[m Fix AttributeError: aggiunta funzione open_payslip
+[33m24e7d66[m Fix AttributeError: aggiunta funzione open_payslip
+[33m7467006[m Fix AttributeError: aggiunta funzione open_payslip
+[33m9b2edfa[m Ripristino home e check_password
+[33md35e915[m Fix home view definitiva
+[33md5dede3[m Reset completo views stabile
+[33mb0b6788[m Reset completo views stabile
+[33m7bf7a11[m Fix parsing import cedolini
+[33mbf75263[m Ripristino admin_manage_employees
+[33m4818009[m Aggiorno template import con conferma
+[33m2d714a4[m Attivo import con conferma nuovi dipendenti
+[33mcfb87f2[m Ripristino views funzionante
+[33mc7d777e[m Fix login_required import and import confirmation
+[33mbfad36f[m Import con conferma nuovi dipendenti
+[33m5a6324a[m Fix SMTP Aruba host
+[33m53aac90[m Fix finale: rimosso test_email e pulito requirements
+[33m1517439[m Corretto definitivamente import views in config/urls.py
+[33m7cccb93[m Fix finale: corretto import views in config e portal
+[33m4afa115[m Fix finale ImportError in urls.py
+[33m0d36414[m Fix ImportError: importato views da portal invece che locale
+[33mf01d2d0[m Corretto requirements.txt: rimosso codice python errato
+[33m26f40e5[m Fix finale: aggiunte dipendenze e configurazione PostgreSQL
+[33mdb2d35b[m Aggiungi modifiche a requirements.txt
+[33m47f6ef2[m Aggiorna configurazione email e runtime.txt
+[33mcbfcbef[m Aggiornato settings.py con configurazione email e variabili d'ambiente
+[33m4256eb6[m Aggiunto script per creazione automatica admin
+[33mb9febb3[m Configurato WhiteNoise per logo e file statici
+[33m070c60b[m Configurazione completa ALLOWED_HOSTS per Render
+[33m00e1eb6[m Aggiunto ALLOWED_HOSTS per Render
+[33m765fec7[m Aggiornamento gunicorn per risolvere errore pkg_resources
+[33m7183f18[m Aggiungi file di test per verificare la versione di Python
+[33m94519cd[m Aggiungi script per forzare Python 3.10.13
+[33m6770600[m Aggiungi setuptools a requirements.txt
+[33m992c5236[m Aggiungi script di build per forzare Python 3.10.13
+[33m4e30bc8[m Sposta runtime.txt nella radice del progetto
+[33m726a6eb[m Imposta Python 3.10.13 in runtime.txt
+[33mbae9506[m Aggiungi script per testare la versione di Python
+[33m0d41fdd[m Fix Python version
+[33m8de2109[m Updated requirements for Render
+[33m29f6dc0[m Updated requirements for Render
+[33mbcc331c[m Rimosso pywin32 e pypiwin32 dal requirements.txt
+[33m56ee023[m Rimosso xdis==6.1.2 dal requirements.txt
+[33m1d4baee[m Rimosso shiboken2 dal requirements.txt
+[33m2594a23[m Rimosso pywin32 dal requirements.txt
+[33mabee21b[m Rimosso PySide2 dalla lista delle dipendenze
+[33m69988b9[m Rimosso kivy_deps.sdl2
+[33ma198310[m Rimosso kivy-deps.glew e kivy
+[33m633fa3a[m Rimosso kivy-deps.angle
+[33mee6b621[m Aggiunto requirements.txt
+[33m24a7c2f[m First commit
