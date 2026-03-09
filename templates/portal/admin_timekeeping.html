@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load tz %}
 {% block title %}Report Marcature{% endblock %}
 
 {% block extra_css %}
@@ -224,8 +225,8 @@
                 {% for row in rows %}
                 <tr>
                     <td>{{ row.date|date:"d/m/Y" }}</td>
-                    <td>{% if row.entry %}{{ row.entry|date:"H:i" }}{% else %}--:--{% endif %}</td>
-                    <td>{% if row.exit %}{{ row.exit|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                    <td>{% if row.entry %}{{ row.entry|localtime|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                    <td>{% if row.exit %}{{ row.exit|localtime|date:"H:i" }}{% else %}--:--{% endif %}</td>
                     <td>{{ row.total }}</td>
                     <td>
                         {% if row.start_zone %}
@@ -270,8 +271,8 @@
                             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
                             <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
 
-                            <input type="time" name="start_time" class="form-control form-control-sm" value="{% if row.entry %}{{ row.entry|date:'H:i' }}{% endif %}">
-                            <input type="time" name="end_time" class="form-control form-control-sm" value="{% if row.exit %}{{ row.exit|date:'H:i' }}{% endif %}">
+                            <input type="time" name="start_time" class="form-control form-control-sm" value="{% if row.entry %}{{ row.entry|localtime|date:'H:i' }}{% endif %}">
+                            <input type="time" name="end_time" class="form-control form-control-sm" value="{% if row.exit %}{{ row.exit|localtime|date:'H:i' }}{% endif %}">
                             <input type="text" name="note" class="form-control form-control-sm" placeholder="Nota" value="{{ row.correction_note|default:'' }}">
                             <button class="btn btn-sm btn-outline-primary" type="submit">Salva</button>
                         </form>

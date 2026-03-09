@@ -651,14 +651,23 @@ def _session_cell_text(session):
     if not session:
         return ''
 
+    def fmt(dt):
+        try:
+            from django.utils import timezone as djtz
+            if djtz.is_aware(dt):
+                dt = djtz.localtime(dt)
+        except Exception:
+            pass
+        return dt.strftime('%H:%M')
+
     start = session.effective_started_at()
     end = session.effective_ended_at()
     if start and end:
-        return f"{start.strftime('%H:%M')}-{end.strftime('%H:%M')} ({session.worked_hours_display()})"
+        return f"{fmt(start)}-{fmt(end)} ({session.worked_hours_display()})"
     if start:
-        return f"IN {start.strftime('%H:%M')}"
+        return f"IN {fmt(start)}"
     if end:
-        return f"OUT {end.strftime('%H:%M')}"
+        return f"OUT {fmt(end)}"
     return ''
 
 
