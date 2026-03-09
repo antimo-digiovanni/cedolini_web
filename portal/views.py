@@ -500,8 +500,8 @@ def dashboard(request):
                 'mark_type': mark_type,
                 'reason': reason,
             },
-        )
-                return redirect(f"{request.path}?request_status=sent_{mark_type}")
+                )
+        return redirect(f"{request.path}?request_status=sent_{mark_type}")
 
     payslips = (
         Payslip.objects
