@@ -73,51 +73,184 @@
 
 <div class="fade-in">
 
-    <div class="employee-mobile-quickbar d-md-none">
-        <div class="employee-mobile-quickbar-title">Accesso rapido</div>
+    <!-- Blocco Marcatura in alto -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mx-auto">
+            <div class="card-modern bg-white">
+                <h5 class="fw-semibold">Marcatura di oggi</h5>
+                <p class="text-muted mb-3">Data: {{ today_session.work_date|date:"d/m/Y" }}</p>
 
-        {% for year, payslips in grouped_payslips.items %}
-            {% if forloop.first %}
-                {% for payslip in payslips %}
-                    {% if forloop.first %}
-                        <a href="{% url 'open_payslip' payslip.id %}" class="btn btn-sm btn-light w-100 mb-2" target="_blank" rel="noopener">
-                            Apri ultimo cedolino
-                        </a>
+                {% if not has_active_zone %}
+                <div class="alert alert-warning py-2" role="alert">
+                    Marcatura disabilitata: non hai una zona di lavoro attiva assegnata.
+                </div>
+                {% endif %}
+
+                <div class="mb-2">
+                    <strong>Ingresso:</strong>
+                    {% if today_session.started_at %}
+                        {{ today_session.started_at|date:"H:i" }}
+                    {% else %}
+                        --:--
                     {% endif %}
-                {% endfor %}
-            {% endif %}
-        {% endfor %}
+                </div>
+                <div class="mb-2">
+                    <strong>Uscita:</strong>
+                    {% if today_session.ended_at %}
+                        {{ today_session.ended_at|date:"H:i" }}
+                    {% else %}
+                        --:--
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <strong>Totale:</strong>
+                    {{ today_session.worked_display }}
+                </div>
 
-        <div class="employee-mobile-chips">
-            {% for year, payslips in grouped_payslips.items %}
-                <a href="#year-{{ year }}" class="employee-mobile-chip {% if forloop.first %}active{% endif %}">{{ year }}</a>
-            {% endfor %}
-            {% if cuds %}
-                <a href="#cud-section" class="employee-mobile-chip">CUD</a>
-            {% endif %}
+                <div class="d-grid gap-2">
+                    <button id="btnStart" class="btn btn-success" {% if today_session.started_at or not has_active_zone %}disabled{% endif %}>
+                        <i class="bi bi-play-circle"></i> Inizio lavori
+                    </button>
+                    <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at or not has_active_zone %}disabled{% endif %}>
+                        <i class="bi bi-stop-circle"></i> Fine lavori
+                    </button>
+                </div>
+
+                <div id="timekeepingFeedback" class="alert mt-3 d-none" role="alert"></div>
+
+                <div class="card-modern bg-white mt-4">
+                    <h6 class="fw-semibold">Richiesta marcatura fuori zona</h6>
+                    <div class="mb-2">
+                        <strong>Stato richiesta Entrata:</strong>
+                        {% if today_mark_request_start %}
+                            {% if today_mark_request_start.status == 'approved' %}
+                                <span class="badge bg-success">Approvata</span>
+                            {% elif today_mark_request_start.status == 'rejected' %}
+                                <span class="badge bg-danger">Rifiutata</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">In attesa</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">Nessuna</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Stato richiesta Uscita:</strong>
+                        {% if today_mark_request_end %}
+                            {% if today_mark_request_end.status == 'approved' %}
+                                <span class="badge bg-success">Approvata</span>
+                            {% elif today_mark_request_end.status == 'rejected' %}
+                                <span class="badge bg-danger">Rifiutata</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">In attesa</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">Nessuna</span>
+                        {% endif %}
+                    </div>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="request_out_of_zone">
+                        <label class="form-label">Tipo richiesta</label>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="mark_type" id="markTypeStart" value="start" required>
+                                <label class="btn btn-outline-success w-100 fw-semibold" for="markTypeStart">Entrata</label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="mark_type" id="markTypeEnd" value="end" required>
+                                <label class="btn btn-outline-danger w-100 fw-semibold" for="markTypeEnd">Uscita</label>
+                            </div>
+                        </div>
+                        <label class="form-label">Messaggio al preposto</label>
+                        <textarea name="reason" rows="3" class="form-control" placeholder="Es: Prima di entrare in cantiere devo acquistare materiali, richiedo marcatura autorizzata fuori zona." required></textarea>
+                        <button class="btn btn-outline-primary mt-2" type="submit">Invia richiesta</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
-    <h2 class="mb-4">I tuoi Cedolini</h2>
+    <!-- ...existing code... -->
 
-    <div class="alert alert-primary py-2 px-3 mb-3 d-flex justify-content-between align-items-center" role="alert">
-        <span><strong>Guida rapida:</strong> scarica il tutorial completo del portale dipendenti.</span>
-        <a href="{% static 'portal/docs/Tutorial_Completo_Dipendenti_Cedolini.pdf' %}" target="_blank" rel="noopener" class="btn btn-sm btn-primary ms-2">Apri tutorial PDF</a>
-    </div>
+<script>
+function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+}
 
-    <div class="alert alert-info py-2 px-3 mb-3" role="alert">
-        <strong>Come visualizzare i mesi:</strong> clicca su <strong>2025</strong>, <strong>2026</strong> o sull'anno disponibile per aprire la lista dei cedolini.
-    </div>
+function showFeedback(level, text) {
+    const box = document.getElementById('timekeepingFeedback');
+    if (!box) return;
+    box.className = 'alert mt-3';
+    if (level === 'success') box.classList.add('alert-success');
+    else box.classList.add('alert-danger');
+    box.textContent = text;
+}
 
-    <div id="employeeYearsAccordion">
-    {% for year, payslips in grouped_payslips.items %}
-        <div class="card-modern mb-3" id="year-{{ year }}">
-            <button
-                class="btn btn-link text-decoration-none text-start w-100 p-0 d-flex justify-content-between align-items-center"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#year-collapse-{{ year }}"
-                aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+async function submitMark(action, latitude, longitude) {
+    const csrf = getCookie('csrftoken');
+    const payload = new URLSearchParams({ action: action });
+    if (latitude !== null && longitude !== null) {
+        payload.append('latitude', String(latitude));
+        payload.append('longitude', String(longitude));
+    }
+
+    const response = await fetch("{% url 'timekeeping' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: payload.toString(),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Errore durante la marcatura.');
+    }
+
+    const zoneText = data.zone ? ` Zona: ${data.zone}.` : '';
+    const geoText = data.distance_meters !== null ? ` Distanza: ${data.distance_meters}m.` : '';
+    showFeedback('success', 'Marcatura registrata con successo.' + zoneText + geoText);
+    setTimeout(() => window.location.reload(), 700);
+}
+
+function withGeolocation(action) {
+    if (!navigator.geolocation) {
+        submitMark(action, null, null).catch(err => showFeedback('danger', err.message));
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            submitMark(action, position.coords.latitude, position.coords.longitude)
+                .catch(err => showFeedback('danger', err.message));
+        },
+        () => {
+            submitMark(action, null, null).catch(err => showFeedback('danger', err.message));
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 0,
+        }
+    );
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnStart = document.getElementById('btnStart');
+    const btnEnd = document.getElementById('btnEnd');
+
+    if (btnStart) {
+        btnStart.addEventListener('click', () => withGeolocation('start'));
+    }
+    if (btnEnd) {
+        btnEnd.addEventListener('click', () => withGeolocation('end'));
+    }
+});
+</script>
                 aria-controls="year-collapse-{{ year }}">
                 <h4 class="mb-0">Anno {{ year }}</h4>
                 <span class="small text-muted">Clicca per vedere i mesi ({{ payslips|length }})</span>
