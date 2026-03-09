@@ -517,7 +517,7 @@ def dashboard(request):
         p.viewed_at = first_view.viewed_at if first_view else None
         grouped.setdefault(p.year, []).append(p)
 
-    cuds = (
+        cuds = (
         Cud.objects
         .filter(employee=employee)
         .prefetch_related('cudview_set')
@@ -539,7 +539,7 @@ def dashboard(request):
         row.worked_display = row.worked_hours_display()
     month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
 
-            return render(request, 'portal/dashboard.html', {
+    return render(request, 'portal/dashboard.html', {
         'employee': employee,
         'grouped_payslips': grouped,
         'latest_payslip': latest_payslip,
