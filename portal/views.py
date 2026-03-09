@@ -501,9 +501,9 @@ def dashboard(request):
                 'reason': reason,
             },
         )
-        return redirect(f"{request.path}?request_status=sent_{mark_type}")
+                return redirect(f"{request.path}?request_status=sent_{mark_type}")
 
-        payslips = (
+    payslips = (
         Payslip.objects
         .filter(employee=employee)
         .prefetch_related('payslipview_set')
@@ -539,7 +539,7 @@ def dashboard(request):
         row.worked_display = row.worked_hours_display()
     month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
 
-        return render(request, 'portal/dashboard.html', {
+            return render(request, 'portal/dashboard.html', {
         'employee': employee,
         'grouped_payslips': grouped,
         'latest_payslip': latest_payslip,
