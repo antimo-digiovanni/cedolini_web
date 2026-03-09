@@ -73,9 +73,10 @@
 
 <div class="fade-in">
 
-    <!-- Blocco Marcatura in alto -->
-    <div class="row mb-4">
-        <div class="col-lg-6 mx-auto">
+        <h2 class="mb-3">Marcature</h2>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
             <div class="card-modern bg-white">
                 <h5 class="fw-semibold">Marcatura di oggi</h5>
                 <p class="text-muted mb-3">Data: {{ today_session.work_date|date:"d/m/Y" }}</p>
@@ -118,7 +119,7 @@
 
                 <div id="timekeepingFeedback" class="alert mt-3 d-none" role="alert"></div>
 
-                                <div class="card-modern bg-white mt-4">
+                <div class="card-modern bg-white mt-4">
                     <h6 class="fw-semibold">Richiesta marcatura fuori zona</h6>
 
                     {% if request_status == 'sent_start' %}
@@ -182,11 +183,9 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-lg-6">
-            <div class="card-modern bg-white h-100">
+        <div class="col-lg-5">
+            <div class="card-modern bg-white mb-4">
                 <h5 class="fw-semibold">Zone assegnate</h5>
                 {% if active_zones %}
                     <ul class="mb-0">
@@ -198,9 +197,8 @@
                     <p class="text-muted mb-0">Nessuna zona attiva assegnata: non puoi effettuare marcature.</p>
                 {% endif %}
             </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="card-modern bg-white h-100">
+
+            <div class="card-modern bg-white">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h5 class="fw-semibold mb-0">Riepilogo mese corrente</h5>
                     <span class="badge bg-primary">Totale {{ month_total_hours }}</span>
@@ -216,7 +214,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in month_sessions %}
+                                                        {% for row in month_sessions %}
                             <tr>
                                 <td>{{ row.work_date|date:"d/m/Y" }}</td>
                                 <td>{% if row.started_at %}{{ row.started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
@@ -234,8 +232,6 @@
             </div>
         </div>
     </div>
-
-
 
 <script>
 function getCookie(name) {
@@ -315,6 +311,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+
+        <div class="mt-5" id="quick-start-section">
+        <h2 class="mb-3">Avvio rapido</h2>
+        <div class="card-modern bg-white">
+            {% if latest_payslip %}
+                <p class="mb-2">Apri velocemente l'ultimo cedolino caricato.</p>
+                <a href="{% url 'open_payslip' latest_payslip.id %}" class="btn btn-primary" target="_blank" rel="noopener">
+                    Apri ultimo cedolino
+                </a>
+            {% else %}
+                <p class="text-muted mb-0">Nessun cedolino disponibile al momento.</p>
+            {% endif %}
+        </div>
+    </div>
 
     <div class="mt-5" id="payslip-section">
         <h2 class="mb-3">I tuoi cedolini</h2>
