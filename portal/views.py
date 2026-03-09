@@ -405,35 +405,34 @@ def dashboard(request):
         c.is_viewed = bool(first_view)
         c.viewed_at = first_view.viewed_at if first_view else None
 
-    logger.info("about to render template")
-        # --- Marcatura ---
-        today = timezone.localdate()
-        from .models import WorkSession, WorkMarkRequest
-        session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
-        session.worked_display = session.worked_hours_display()
-        active_assignments = _active_assignments_for_employee(employee, today)
-        has_active_zone = bool(active_assignments)
-        today_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
-        today_mark_request_start = (
-            today_requests_qs
-            .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH])
-            .first()
-        )
-        today_mark_request_end = (
-            today_requests_qs
-            .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH])
-            .first()
-        )
-        # --- Fine Marcatura ---
-        return render(request, 'portal/dashboard.html', {
-            'employee': employee,
-            'grouped_payslips': grouped,
-            'cuds': cuds,
-            'today_session': session,
-            'has_active_zone': has_active_zone,
-            'today_mark_request_start': today_mark_request_start,
-            'today_mark_request_end': today_mark_request_end,
-        })
+        logger.info("about to render template")
+    # --- Marcatura ---
+    today = timezone.localdate()
+    session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
+    session.worked_display = session.worked_hours_display()
+    active_assignments = _active_assignments_for_employee(employee, today)
+    has_active_zone = bool(active_assignments)
+    today_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
+    today_mark_request_start = (
+        today_requests_qs
+        .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH])
+        .first()
+    )
+    today_mark_request_end = (
+        today_requests_qs
+        .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH])
+        .first()
+    )
+    # --- Fine Marcatura ---
+    return render(request, 'portal/dashboard.html', {
+        'employee': employee,
+        'grouped_payslips': grouped,
+        'cuds': cuds,
+        'today_session': session,
+        'has_active_zone': has_active_zone,
+        'today_mark_request_start': today_mark_request_start,
+        'today_mark_request_end': today_mark_request_end,
+    })
 
 
 @login_required
