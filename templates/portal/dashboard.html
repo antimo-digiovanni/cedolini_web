@@ -118,8 +118,21 @@
 
                 <div id="timekeepingFeedback" class="alert mt-3 d-none" role="alert"></div>
 
-                <div class="card-modern bg-white mt-4">
+                                <div class="card-modern bg-white mt-4">
                     <h6 class="fw-semibold">Richiesta marcatura fuori zona</h6>
+
+                    {% if request_status == 'sent_start' %}
+                    <div class="alert alert-success py-2">Richiesta inviata per marcare l'ingresso fuori zona.</div>
+                    {% elif request_status == 'sent_end' %}
+                    <div class="alert alert-success py-2">Richiesta inviata per marcare l'uscita fuori zona.</div>
+                    {% elif request_status == 'already_pending' %}
+                    <div class="alert alert-warning py-2">Hai gia una richiesta in attesa di questo tipo per oggi.</div>
+                    {% elif request_status == 'invalid' %}
+                    <div class="alert alert-danger py-2">Inserisci un messaggio piu dettagliato.</div>
+                    {% elif request_status == 'invalid_type' %}
+                    <div class="alert alert-danger py-2">Seleziona il tipo di marcatura da autorizzare.</div>
+                    {% endif %}
+
                     <div class="mb-2">
                         <strong>Stato richiesta Entrata:</strong>
                         {% if today_mark_request_start %}
@@ -171,7 +184,58 @@
         </div>
     </div>
 
-    <!-- ...existing code... -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card-modern bg-white h-100">
+                <h5 class="fw-semibold">Zone assegnate</h5>
+                {% if active_zones %}
+                    <ul class="mb-0">
+                        {% for zone in active_zones %}
+                            <li>{{ zone.name }} (raggio {{ zone.radius_meters }}m)</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">Nessuna zona attiva assegnata: non puoi effettuare marcature.</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card-modern bg-white h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-semibold mb-0">Riepilogo mese corrente</h5>
+                    <span class="badge bg-primary">Totale {{ month_total_hours }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Ingresso</th>
+                                <th>Uscita</th>
+                                <th>Totale</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in month_sessions %}
+                            <tr>
+                                <td>{{ row.work_date|date:"d/m/Y" }}</td>
+                                <td>{% if row.started_at %}{{ row.started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                <td>{% if row.ended_at %}{{ row.ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                <td>{{ row.worked_display }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Nessuna marcatura nel mese.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 
 <script>
 function getCookie(name) {
@@ -251,7 +315,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
-                aria-controls="year-collapse-{{ year }}">
+
+    <div class="mt-5" id="payslip-section">
+        <h2 class="mb-3">I tuoi cedolini</h2>
+
+        {% if grouped_payslips %}
+        <div class="accordion" id="employeeYearsAccordion">
+            {% for year, payslips in grouped_payslips.items %}
+            <div class="card-modern mb-3">
+                <button class="btn btn-light w-100 text-start d-flex justify-content-between align-items-center"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#year-collapse-{{ year }}"
+                        aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                        aria-controls="year-collapse-{{ year }}">
                 <h4 class="mb-0">Anno {{ year }}</h4>
                 <span class="small text-muted">Clicca per vedere i mesi ({{ payslips|length }})</span>
             </button>
@@ -355,8 +432,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     {% endfor %}
                 </div>
             </div>
+                </div>
+            {% endfor %}
         </div>
-    {% endfor %}
+        {% else %}
+        <div class="card-modern">
+            <p class="text-muted mb-0">Nessun cedolino disponibile.</p>
+        </div>
+        {% endif %}
     </div>
 
     {% if cuds %}

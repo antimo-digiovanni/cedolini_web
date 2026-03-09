@@ -436,6 +436,124 @@ def dashboard(request):
         })
 
 
+@login_required
+def dashboard(request):
+    if request.user.is_staff:
+        return redirect('admin_dashboard')
+
+    employee = Employee.objects.filter(user=request.user).first()
+    if not employee:
+        return HttpResponse("Profilo dipendente non trovato. Contatta l'amministratore.", status=403)
+
+    today = timezone.localdate()
+    _sync_approved_requests_for_range(today, today, employee=employee)
+
+    session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
+    session.worked_display = session.worked_hours_display()
+    active_assignments = _active_assignments_for_employee(employee, today)
+    has_active_zone = bool(active_assignments)
+    active_zones = _active_zones_for_employee(employee, today)
+
+    today_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
+    today_mark_request_start = (
+        today_requests_qs
+        .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH])
+        .first()
+    )
+    today_mark_request_end = (
+        today_requests_qs
+        .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH])
+        .first()
+    )
+    request_status = request.GET.get('request_status', '')
+
+    if request.method == 'POST' and request.POST.get('action') == 'request_out_of_zone':
+        reason = (request.POST.get('reason') or '').strip()
+        mark_type = (request.POST.get('mark_type') or '').strip()
+
+        if mark_type not in {WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_END}:
+            return redirect(f"{request.path}?request_status=invalid_type")
+        if len(reason) < 8:
+            return redirect(f"{request.path}?request_status=invalid")
+
+        latest_request = (
+            WorkMarkRequest.objects
+            .filter(employee=employee, work_date=today, mark_type=mark_type)
+            .order_by('-created_at')
+            .first()
+        )
+        if latest_request and latest_request.status == WorkMarkRequest.STATUS_PENDING:
+            return redirect(f"{request.path}?request_status=already_pending")
+
+        WorkMarkRequest.objects.create(
+            employee=employee,
+            work_date=today,
+            mark_type=mark_type,
+            reason=reason,
+        )
+
+        _create_audit_event(
+            request,
+            'timekeeping_out_of_zone_requested',
+            employee=employee,
+            metadata={
+                'work_date': str(today),
+                'mark_type': mark_type,
+                'reason': reason,
+            },
+        )
+        return redirect(f"{request.path}?request_status=sent_{mark_type}")
+
+    payslips = (
+        Payslip.objects
+        .filter(employee=employee)
+        .prefetch_related('payslipview_set')
+        .order_by('-year', '-month')
+    )
+    grouped = {}
+    for p in payslips:
+        first_view = p.payslipview_set.order_by('viewed_at').first() if p.payslipview_set.all() else None
+        p.is_viewed = bool(first_view)
+        p.viewed_at = first_view.viewed_at if first_view else None
+        grouped.setdefault(p.year, []).append(p)
+
+    cuds = (
+        Cud.objects
+        .filter(employee=employee)
+        .prefetch_related('cudview_set')
+        .order_by('-year')
+    )
+    for c in cuds:
+        first_view = c.cudview_set.order_by('viewed_at').first() if c.cudview_set.all() else None
+        c.is_viewed = bool(first_view)
+        c.viewed_at = first_view.viewed_at if first_view else None
+
+    month_start = today.replace(day=1)
+    month_sessions = (
+        WorkSession.objects
+        .filter(employee=employee, work_date__gte=month_start, work_date__lte=today)
+        .order_by('-work_date')
+    )
+    month_sessions = list(month_sessions)
+    for row in month_sessions:
+        row.worked_display = row.worked_hours_display()
+    month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
+
+    return render(request, 'portal/dashboard.html', {
+        'employee': employee,
+        'grouped_payslips': grouped,
+        'cuds': cuds,
+        'today_session': session,
+        'has_active_zone': has_active_zone,
+        'active_zones': active_zones,
+        'today_mark_request_start': today_mark_request_start,
+        'today_mark_request_end': today_mark_request_end,
+        'request_status': request_status,
+        'month_sessions': month_sessions[:15],
+        'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
+    })
+
+
 def _haversine_meters(lat1, lon1, lat2, lon2):
     """Distanza geodetica approssimata in metri tra due coordinate."""
     earth_radius = 6371000
