@@ -122,12 +122,32 @@ class InviteToken(models.Model):
 
 
 class WorkZone(models.Model):
-    """Zona di lavoro geolocalizzata configurata dall'admin."""
+    """Zona di lavoro geolocalizzata configurata dall'admin.
+
+    Supporta cerchio (centro + raggio) e rettangolo (bbox nord/sud/est/ovest).
+    """
+
+    SHAPE_CIRCLE = 'circle'
+    SHAPE_RECT = 'rect'
+    SHAPE_CHOICES = [
+        (SHAPE_CIRCLE, 'Cerchio'),
+        (SHAPE_RECT, 'Rettangolo'),
+    ]
 
     name = models.CharField(max_length=120)
+    shape = models.CharField(max_length=10, choices=SHAPE_CHOICES, default=SHAPE_CIRCLE)
+
+    # Cerchio
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
     radius_meters = models.PositiveIntegerField(default=100)
+
+    # Rettangolo (bbox)
+    rect_north = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    rect_south = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    rect_east = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    rect_west = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
     is_active = models.BooleanField(default=True)
     notes = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -136,6 +156,13 @@ class WorkZone(models.Model):
         ordering = ["name"]
 
     def __str__(self):
+        if self.shape == self.SHAPE_RECT and all([
+            self.rect_north is not None,
+            self.rect_south is not None,
+            self.rect_east is not None,
+            self.rect_west is not None,
+        ]):
+            return f"{self.name} [rettangolo]"
         return f"{self.name} ({self.radius_meters}m)"
 
 

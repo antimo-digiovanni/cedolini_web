@@ -609,22 +609,42 @@ def _evaluate_location_for_employee_zone(employee, lat, lon, on_date):
             "distance_meters": None,
         }
 
+    def distance_to_zone(z, plat, plon):
+        # Ritorna (within_bool, distance_meters_to_perimeter)
+        if getattr(z, 'shape', 'circle') == getattr(WorkZone, 'SHAPE_RECT', 'rect') and \
+           z.rect_north is not None and z.rect_south is not None and z.rect_east is not None and z.rect_west is not None:
+            n, s, e, w = float(z.rect_north), float(z.rect_south), float(z.rect_east), float(z.rect_west)
+            within = (s <= plat <= n) and (w <= plon <= e)
+            # distanza al rettangolo: 0 se dentro, altrimenti distanza al punto proiettato sul perimetro
+            clamped_lat = min(max(plat, s), n)
+            clamped_lon = min(max(plon, w), e)
+            dist = 0.0 if within else _haversine_meters(plat, plon, clamped_lat, clamped_lon)
+            return within, dist
+        # default cerchio
+        center_dist = _haversine_meters(plat, plon, float(z.latitude), float(z.longitude))
+        within = center_dist <= float(z.radius_meters)
+        dist = 0.0 if within else max(center_dist - float(z.radius_meters), 0.0)
+        return within, dist
+
     best_assignment = None
     best_zone = None
     best_distance = None
+    best_within = False
+
     for assignment in assignments:
         zone = assignment.zone
-        distance = _haversine_meters(lat, lon, float(zone.latitude), float(zone.longitude))
-        if best_distance is None or distance < best_distance:
-            best_distance = distance
+        within, dist = distance_to_zone(zone, lat, lon)
+        # Scegli la zona piu vicina; preferisci "within" in caso di pari distanza
+        if best_distance is None or dist < best_distance or (dist == best_distance and within and not best_within):
+            best_distance = dist
             best_zone = zone
             best_assignment = assignment
+            best_within = within
 
-    within = best_distance is not None and best_distance <= float(best_zone.radius_meters)
     return {
         "assignment": best_assignment,
         "zone": best_zone,
-        "within": within,
+        "within": best_within,
         "distance_meters": round(best_distance, 1) if best_distance is not None else None,
     }
 
@@ -1347,28 +1367,122 @@ def admin_work_zones(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        if action == 'create_zone':
+                if action == 'create_zone':
             name = (request.POST.get('name') or '').strip()
-            radius_raw = request.POST.get('radius_meters') or '100'
-            latitude = _parse_coordinate(request.POST.get('latitude'))
-            longitude = _parse_coordinate(request.POST.get('longitude'))
-            try:
-                radius = max(int(radius_raw), 10)
-            except (TypeError, ValueError):
-                radius = 100
+            shape = (request.POST.get('shape') or 'circle').strip()
 
-            if not name or latitude is None or longitude is None:
-                feedback = 'Compila nome e coordinate valide per creare la zona.'
+            if shape == 'rect':
+                n = _parse_coordinate(request.POST.get('rect_north'))
+                s = _parse_coordinate(request.POST.get('rect_south'))
+                e = _parse_coordinate(request.POST.get('rect_east'))
+                w = _parse_coordinate(request.POST.get('rect_west'))
+                if not name or None in (n, s, e, w) or not (n > s and e > w):
+                    feedback = 'Rettangolo non valido. Inserisci Nord>Sud ed Est>Ovest.'
+                    feedback_level = 'danger'
+                else:
+                    # Centro per compatibilita con viste esistenti
+                    center_lat = (float(n) + float(s)) / 2.0
+                    center_lon = (float(e) + float(w)) / 2.0
+                    WorkZone.objects.create(
+                        name=name,
+                        shape=WorkZone.SHAPE_RECT,
+                        latitude=center_lat,
+                        longitude=center_lon,
+                        radius_meters=100,
+                        rect_north=n,
+                        rect_south=s,
+                        rect_east=e,
+                        rect_west=w,
+                    )
+                    feedback = 'Zona rettangolare creata correttamente.'
+                    feedback_level = 'success'
+            else:
+                radius_raw = request.POST.get('radius_meters') or '100'
+                latitude = _parse_coordinate(request.POST.get('latitude'))
+                longitude = _parse_coordinate(request.POST.get('longitude'))
+                try:
+                    radius = max(int(radius_raw), 10)
+                except (TypeError, ValueError):
+                    radius = 100
+
+                if not name or latitude is None or longitude is None:
+                    feedback = 'Compila nome e coordinate valide per creare la zona.'
+                    feedback_level = 'danger'
+                else:
+                    WorkZone.objects.create(
+                        name=name,
+                        shape=WorkZone.SHAPE_CIRCLE,
+                        latitude=latitude,
+                        longitude=longitude,
+                        radius_meters=radius,
+                        rect_north=None,
+                        rect_south=None,
+                        rect_east=None,
+                        rect_west=None,
+                    )
+                    feedback = 'Zona circolare creata correttamente.'
+                    feedback_level = 'success'
+
+        if action == 'update_zone':
+            zone_id = request.POST.get('zone_id')
+            zone = WorkZone.objects.filter(id=zone_id).first()
+            if not zone:
+                feedback = 'Zona non trovata.'
                 feedback_level = 'danger'
             else:
-                WorkZone.objects.create(
-                    name=name,
-                    latitude=latitude,
-                    longitude=longitude,
-                    radius_meters=radius,
-                )
-                feedback = 'Zona creata correttamente.'
-                feedback_level = 'success'
+                name = (request.POST.get('name') or '').strip()
+                shape = (request.POST.get('shape') or 'circle').strip()
+                if not name:
+                    feedback = 'Inserisci un nome valido.'
+                    feedback_level = 'danger'
+                else:
+                    zone.name = name
+                    if shape == 'rect':
+                        n = _parse_coordinate(request.POST.get('rect_north'))
+                        s = _parse_coordinate(request.POST.get('rect_south'))
+                        e = _parse_coordinate(request.POST.get('rect_east'))
+                        w = _parse_coordinate(request.POST.get('rect_west'))
+                        if None in (n, s, e, w) or not (n > s and e > w):
+                            feedback = 'Rettangolo non valido. Inserisci Nord>Sud ed Est>Ovest.'
+                            feedback_level = 'danger'
+                        else:
+                            center_lat = (float(n) + float(s)) / 2.0
+                            center_lon = (float(e) + float(w)) / 2.0
+                            zone.shape = WorkZone.SHAPE_RECT
+                            zone.latitude = center_lat
+                            zone.longitude = center_lon
+                            zone.rect_north = n
+                            zone.rect_south = s
+                            zone.rect_east = e
+                            zone.rect_west = w
+                            # mantieni radius invariato ma irrilevante
+                            zone.save()
+                            feedback = 'Zona aggiornata (rettangolo).'
+                            feedback_level = 'success'
+                    else:
+                        latitude = _parse_coordinate(request.POST.get('latitude'))
+                        longitude = _parse_coordinate(request.POST.get('longitude'))
+                        radius_raw = request.POST.get('radius_meters') or '100'
+                        try:
+                            radius = max(int(radius_raw), 10)
+                        except (TypeError, ValueError):
+                            radius = 100
+                        if latitude is None or longitude is None:
+                            feedback = 'Coordinate non valide.'
+                            feedback_level = 'danger'
+                        else:
+                            zone.shape = WorkZone.SHAPE_CIRCLE
+                            zone.latitude = latitude
+                            zone.longitude = longitude
+                            zone.radius_meters = radius
+                            zone.rect_north = None
+                            zone.rect_south = None
+                            zone.rect_east = None
+                            zone.rect_west = None
+                            zone.save()
+                            feedback = 'Zona aggiornata (cerchio).'
+                            feedback_level = 'success'
+
 
         if action == 'assign_zone':
             employee_id = request.POST.get('employee_id')

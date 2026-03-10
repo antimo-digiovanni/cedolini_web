@@ -41,29 +41,71 @@
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
         <div class="card-modern bg-white h-100">
-            <h5 class="fw-semibold mb-3">Nuova zona</h5>
-            <form method="post" class="row g-2">
+                        <h5 class="fw-semibold mb-3">Crea o modifica zona</h5>
+            <form method="post" class="row g-2" id="zoneForm">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="create_zone">
+                <input type="hidden" id="zoneId" name="zone_id" value="">
 
                 <div class="col-12">
                     <label class="form-label">Nome zona</label>
-                    <input name="name" class="form-control" required>
+                    <input id="zoneName" name="name" class="form-control" required>
                 </div>
-                <div class="col-md-6">
-                                        <label class="form-label">Latitudine</label>
-                    <input id="zoneLatitude" name="latitude" class="form-control" placeholder="40.983778" value="40.983778" required>
+
+                <div class="col-12">
+                    <label class="form-label me-3">Forma</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="shape" id="shapeCircle" value="circle" checked>
+                            <label class="form-check-label" for="shapeCircle">Cerchio</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="shape" id="shapeRect" value="rect">
+                            <label class="form-check-label" for="shapeRect">Rettangolo</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                                        <label class="form-label">Longitudine</label>
-                    <input id="zoneLongitude" name="longitude" class="form-control" placeholder="14.297982" value="14.297982" required>
+
+                <div id="circleFields" class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Latitudine</label>
+                        <input id="zoneLatitude" name="latitude" class="form-control" placeholder="40.983778" value="40.983778">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Longitudine</label>
+                        <input id="zoneLongitude" name="longitude" class="form-control" placeholder="14.297982" value="14.297982">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Raggio (metri)</label>
+                        <input id="zoneRadius" name="radius_meters" type="number" min="10" value="100" class="form-control">
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Raggio (metri)</label>
-                    <input id="zoneRadius" name="radius_meters" type="number" min="10" value="100" class="form-control" required>
+
+                <div id="rectFields" class="row g-2 d-none">
+                    <div class="col-md-6">
+                        <label class="form-label">Nord (lat)</label>
+                        <input id="rectNorth" name="rect_north" class="form-control" placeholder="41.000000">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Sud (lat)</label>
+                        <input id="rectSouth" name="rect_south" class="form-control" placeholder="40.900000">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Est (lon)</label>
+                        <input id="rectEast" name="rect_east" class="form-control" placeholder="14.350000">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ovest (lon)</label>
+                        <input id="rectWest" name="rect_west" class="form-control" placeholder="14.250000">
+                    </div>
+                    <div class="col-12 small text-muted">
+                        Suggerimento: con forma Rettangolo, clicca due volte in mappa per impostare angolo sud-ovest e nord-est.
+                    </div>
                 </div>
-                <div class="col-12 d-grid">
-                    <button class="btn btn-primary" type="submit">Crea zona</button>
+
+                <div class="col-12 d-flex gap-2">
+                    <button class="btn btn-primary" type="submit" name="action" value="create_zone">Crea zona</button>
+                    <button class="btn btn-outline-success" type="submit" name="action" value="update_zone">Salva modifiche</button>
+                    <button class="btn btn-outline-secondary ms-auto" type="button" id="resetFormBtn">Reset</button>
                 </div>
             </form>
         </div>
@@ -127,9 +169,13 @@
             <div class="d-flex align-items-center gap-2">
                 <input id="geocodeQuery" class="form-control form-control-sm" placeholder="Cerca indirizzo...">
                 <button id="geocodeBtn" class="btn btn-sm btn-outline-primary" type="button">Cerca</button>
-                <div class="form-check ms-auto">
+                                <div class="form-check ms-auto">
                     <input class="form-check-input" type="checkbox" id="toggleAssignments" checked>
                     <label class="form-check-label small" for="toggleAssignments">Mostra assegnazioni</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="toggleZones" checked>
+                    <label class="form-check-label small" for="toggleZones">Mostra zone</label>
                 </div>
             </div>
             <div id="geocodeResults" class="list-group small mt-1"></div>
@@ -148,8 +194,9 @@
                     <th>Coordinate</th>
                     <th>Raggio</th>
                     <th>Stato</th>
-                    <th>Mappa</th>
+                                        <th>Mappa</th>
                     <th>Azioni</th>
+                    <th>Modifica</th>
                 </tr>
             </thead>
             <tbody>
@@ -168,10 +215,17 @@
                     <td>
                         <button
                             type="button"
-                            class="btn btn-sm btn-outline-primary zone-preview-btn"
-                                                        data-lat="{{ zone.latitude|unlocalize }}"
+                                                        class="btn btn-sm btn-outline-primary zone-preview-btn"
+                            data-id="{{ zone.id }}"
+                            data-name="{{ zone.name|escapejs }}"
+                            data-shape="{{ zone.shape|default:'circle' }}"
+                            data-lat="{{ zone.latitude|unlocalize }}"
                             data-lon="{{ zone.longitude|unlocalize }}"
                             data-radius="{{ zone.radius_meters|unlocalize }}"
+                            data-north="{{ zone.rect_north|default_if_none:''|unlocalize }}"
+                            data-south="{{ zone.rect_south|default_if_none:''|unlocalize }}"
+                            data-east="{{ zone.rect_east|default_if_none:''|unlocalize }}"
+                            data-west="{{ zone.rect_west|default_if_none:''|unlocalize }}"
                         >
                             Mostra
                         </button>
@@ -183,6 +237,24 @@
                             <input type="hidden" name="zone_id" value="{{ zone.id }}">
                             <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
                         </form>
+                    </td>
+                    <td>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary zone-edit-btn"
+                            data-id="{{ zone.id }}"
+                            data-name="{{ zone.name|escapejs }}"
+                            data-shape="{{ zone.shape|default:'circle' }}"
+                            data-lat="{{ zone.latitude|unlocalize }}"
+                            data-lon="{{ zone.longitude|unlocalize }}"
+                            data-radius="{{ zone.radius_meters|unlocalize }}"
+                            data-north="{{ zone.rect_north|default_if_none:''|unlocalize }}"
+                            data-south="{{ zone.rect_south|default_if_none:''|unlocalize }}"
+                            data-east="{{ zone.rect_east|default_if_none:''|unlocalize }}"
+                            data-west="{{ zone.rect_west|default_if_none:''|unlocalize }}"
+                        >
+                            Modifica
+                        </button>
                     </td>
                 </tr>
                 {% empty %}
@@ -282,13 +354,75 @@ document.addEventListener('DOMContentLoaded', function () {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-        let marker = null;
+            let marker = null;
     let circle = null;
+    let rectOverlay = null;
+    let rectFirstCorner = null;
 
-    const toggleAssignments = document.getElementById('toggleAssignments');
+        const toggleAssignments = document.getElementById('toggleAssignments');
+    const toggleZones = document.getElementById('toggleZones');
     const geocodeInput = document.getElementById('geocodeQuery');
     const geocodeBtn = document.getElementById('geocodeBtn');
     const geocodeResults = document.getElementById('geocodeResults');
+
+    function toggleShapeFields(shape) {
+        const circle = document.getElementById('circleFields');
+        const rect = document.getElementById('rectFields');
+        if (shape === 'rect') {
+            circle.classList.add('d-none');
+            rect.classList.remove('d-none');
+        } else {
+            rect.classList.add('d-none');
+            circle.classList.remove('d-none');
+        }
+        updateMapFromInputs(true);
+    }
+
+    document.getElementById('shapeCircle').addEventListener('change', () => toggleShapeFields('circle'));
+    document.getElementById('shapeRect').addEventListener('change', () => toggleShapeFields('rect'));
+
+    document.getElementById('resetFormBtn').addEventListener('click', () => {
+        document.getElementById('zoneForm').reset();
+        document.getElementById('zoneId').value = '';
+        document.getElementById('shapeCircle').checked = true;
+        toggleShapeFields('circle');
+    });
+
+    function fillFormForEdit(d) {
+        document.getElementById('zoneId').value = d.id || '';
+        document.getElementById('zoneName').value = d.name || '';
+        const shape = (d.shape || 'circle');
+        if (shape === 'rect') {
+            document.getElementById('shapeRect').checked = true;
+        } else {
+            document.getElementById('shapeCircle').checked = true;
+        }
+        toggleShapeFields(shape);
+        document.getElementById('zoneLatitude').value = d.lat || '';
+        document.getElementById('zoneLongitude').value = d.lon || '';
+        document.getElementById('zoneRadius').value = d.radius || '100';
+        document.getElementById('rectNorth').value = d.north || '';
+        document.getElementById('rectSouth').value = d.south || '';
+        document.getElementById('rectEast').value = d.east || '';
+        document.getElementById('rectWest').value = d.west || '';
+        updateMapFromInputs(true);
+        mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.querySelectorAll('.zone-edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => fillFormForEdit({
+            id: btn.dataset.id,
+            name: btn.dataset.name,
+            shape: btn.dataset.shape,
+            lat: btn.dataset.lat,
+            lon: btn.dataset.lon,
+            radius: btn.dataset.radius,
+            north: btn.dataset.north,
+            south: btn.dataset.south,
+            east: btn.dataset.east,
+            west: btn.dataset.west,
+        }));
+    });
 
     const assignmentsData = [
         {% for row in assignments %}
@@ -341,16 +475,41 @@ document.addEventListener('DOMContentLoaded', function () {
         return Number.isFinite(n) ? n : null;
     }
 
-    function updateMapFromInputs(fitBounds) {
-        const lat = parseInputNumber(latInput.value);
-        const lon = parseInputNumber(lonInput.value);
-        const radius = Math.max(parseInputNumber(radiusInput.value) || 100, 10);
+        function updateMapFromInputs(fitBounds) {
+        const isRect = document.getElementById('shapeRect').checked;
+        map.invalidateSize();
 
-        if (lat === null || lon === null) {
+        if (isRect) {
+            const n = parseInputNumber(document.getElementById('rectNorth').value);
+            const s = parseInputNumber(document.getElementById('rectSouth').value);
+            const e = parseInputNumber(document.getElementById('rectEast').value);
+            const w = parseInputNumber(document.getElementById('rectWest').value);
+
+            if (rectOverlay) {
+                map.removeLayer(rectOverlay);
+                rectOverlay = null;
+            }
+            if (circle) { map.removeLayer(circle); circle = null; }
+            if (marker) { map.removeLayer(marker); marker = null; }
+
+            if (n != null && s != null && e != null && w != null && n > s && e > w) {
+                rectOverlay = L.rectangle([[s, w], [n, e]], {
+                    color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.15,
+                }).addTo(map);
+                if (fitBounds) {
+                    map.fitBounds(rectOverlay.getBounds(), { padding: [24, 24] });
+                }
+            }
             return;
         }
 
-                if (!marker) {
+        const lat = parseInputNumber(latInput.value);
+        const lon = parseInputNumber(lonInput.value);
+        const radius = Math.max(parseInputNumber(radiusInput.value) || 100, 10);
+        if (lat === null || lon === null) {
+            return;
+        }
+        if (!marker) {
             marker = L.marker([lat, lon], { draggable: true }).addTo(map);
             marker.on('dragend', function (ev) {
                 const pos = ev.target.getLatLng();
@@ -361,7 +520,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             marker.setLatLng([lat, lon]);
         }
-
         if (!circle) {
             circle = L.circle([lat, lon], {
                 radius: radius,
@@ -373,9 +531,6 @@ document.addEventListener('DOMContentLoaded', function () {
             circle.setLatLng([lat, lon]);
             circle.setRadius(radius);
         }
-
-                map.invalidateSize();
-
         if (fitBounds) {
             map.fitBounds(circle.getBounds(), { padding: [24, 24] });
         }
@@ -417,7 +572,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    map.on('click', function (ev) {
+        map.on('click', function (ev) {
+        if (document.getElementById('shapeRect').checked) {
+            if (!rectFirstCorner) {
+                rectFirstCorner = ev.latlng;
+                return;
+            }
+            const a = rectFirstCorner; const b = ev.latlng;
+            rectFirstCorner = null;
+            const n = Math.max(a.lat, b.lat).toFixed(6);
+            const s = Math.min(a.lat, b.lat).toFixed(6);
+            const e = Math.max(a.lng, b.lng).toFixed(6);
+            const w = Math.min(a.lng, b.lng).toFixed(6);
+            document.getElementById('rectNorth').value = n;
+            document.getElementById('rectSouth').value = s;
+            document.getElementById('rectEast').value = e;
+            document.getElementById('rectWest').value = w;
+            updateMapFromInputs(true);
+            return;
+        }
+        rectFirstCorner = null;
         latInput.value = ev.latlng.lat.toFixed(6);
         lonInput.value = ev.latlng.lng.toFixed(6);
         updateMapFromInputs(true);
@@ -427,12 +601,22 @@ document.addEventListener('DOMContentLoaded', function () {
     lonInput.addEventListener('input', function () { updateMapFromInputs(false); });
     radiusInput.addEventListener('input', function () { updateMapFromInputs(false); });
 
-        document.querySelectorAll('.zone-preview-btn').forEach(function (btn) {
+            document.querySelectorAll('.zone-preview-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            latInput.value = btn.dataset.lat || '';
-            lonInput.value = btn.dataset.lon || '';
-            radiusInput.value = btn.dataset.radius || '100';
-            updateMapFromInputs(true);
+            // riempi form e mappa
+            const d = {
+                id: btn.dataset.id,
+                name: btn.dataset.name,
+                shape: btn.dataset.shape,
+                lat: btn.dataset.lat,
+                lon: btn.dataset.lon,
+                radius: btn.dataset.radius,
+                north: btn.dataset.north,
+                south: btn.dataset.south,
+                east: btn.dataset.east,
+                west: btn.dataset.west,
+            };
+            fillFormForEdit(d);
             map.invalidateSize();
             mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
@@ -443,6 +627,50 @@ document.addEventListener('DOMContentLoaded', function () {
             setAssignmentsVisible(toggleAssignments.checked);
         });
         setAssignmentsVisible(toggleAssignments.checked);
+    }
+
+        // Layer con tutte le zone cliccabili
+    const zonesData = [
+        {% for z in zones %}
+        {
+            id: {{ z.id }},
+            name: "{{ z.name|escapejs }}",
+            shape: "{{ z.shape|default:'circle' }}",
+            lat: {{ z.latitude|unlocalize }},
+            lon: {{ z.longitude|unlocalize }},
+            radius: {{ z.radius_meters|unlocalize }},
+            north: "{{ z.rect_north|default_if_none:''|unlocalize }}",
+            south: "{{ z.rect_south|default_if_none:''|unlocalize }}",
+            east: "{{ z.rect_east|default_if_none:''|unlocalize }}",
+            west: "{{ z.rect_west|default_if_none:''|unlocalize }}",
+        },
+        {% endfor %}
+    ];
+    const zonesLayer = L.layerGroup();
+    function refreshZonesLayer() {
+        zonesLayer.clearLayers();
+        zonesData.forEach(z => {
+            let layer = null;
+            if (z.shape === 'rect' && z.north && z.south && z.east && z.west) {
+                const n = parseFloat(z.north), s = parseFloat(z.south), e = parseFloat(z.east), w = parseFloat(z.west);
+                layer = L.rectangle([[s, w], [n, e]], { color: '#9a3412', fillColor: '#f97316', fillOpacity: 0.12 });
+            } else {
+                layer = L.circle([z.lat, z.lon], { radius: z.radius, color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.12 });
+            }
+            layer.on('click', () => fillFormForEdit(z));
+            zonesLayer.addLayer(layer);
+        });
+    }
+    function setZonesVisible(visible) {
+        if (visible) { refreshZonesLayer(); map.addLayer(zonesLayer); }
+        else { map.removeLayer(zonesLayer); }
+    }
+
+    if (toggleZones) {
+        toggleZones.addEventListener('change', function () {
+            setZonesVisible(toggleZones.checked);
+        });
+        setZonesVisible(toggleZones.checked);
     }
 
     updateMapFromInputs(true);
