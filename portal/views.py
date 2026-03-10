@@ -1365,7 +1365,7 @@ def admin_work_zones(request):
     feedback_level = 'info'
 
     if request.method == 'POST':
-                action = request.POST.get('action')
+        action = request.POST.get('action')
 
         if action == 'create_zone':
             name = (request.POST.get('name') or '').strip()
@@ -1482,7 +1482,6 @@ def admin_work_zones(request):
                             zone.save()
                             feedback = 'Zona aggiornata (cerchio).'
                             feedback_level = 'success'
-
 
         if action == 'assign_zone':
             employee_id = request.POST.get('employee_id')
@@ -2111,7 +2110,7 @@ def admin_send_invite(request):
         return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
 
     if request.method != 'POST':
-        return JsonResponse({'ok': False, 'error': 'method'}, status=405)
+            action = request.POST.get('action')
 
     emp_id = request.POST.get('employee_id')
     email = request.POST.get('email')
