@@ -1365,9 +1365,9 @@ def admin_work_zones(request):
     feedback_level = 'info'
 
     if request.method == 'POST':
-        action = request.POST.get('action')
+                action = request.POST.get('action')
 
-                if action == 'create_zone':
+        if action == 'create_zone':
             name = (request.POST.get('name') or '').strip()
             shape = (request.POST.get('shape') or 'circle').strip()
 
