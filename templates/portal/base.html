@@ -273,6 +273,9 @@ main {
             <a href="{% url 'admin_timekeeping' %}">
                 <i class="bi bi-calendar-week"></i> Report marcature
             </a>
+            <a href="{% url 'admin_out_of_zone_requests' %}" class="{% if request.resolver_match.url_name == 'admin_out_of_zone_requests' %}active{% endif %}">
+                <i class="bi bi-clock-history"></i> Storico richieste fuori zona
+            </a>
             <a href="{% url 'admin_work_zones' %}">
                 <i class="bi bi-geo-alt"></i> Zone di lavoro
             </a>

@@ -1083,24 +1083,6 @@ def admin_timekeeping(request):
         .order_by('-created_at')[:20]
     )
 
-    history_status = (request.GET.get('history_status') or 'all').strip()
-    if history_status not in {
-        'all',
-        WorkMarkRequest.STATUS_PENDING,
-        WorkMarkRequest.STATUS_APPROVED,
-        WorkMarkRequest.STATUS_REJECTED,
-    }:
-        history_status = 'all'
-
-    history_employee_filter = (request.GET.get('history_employee') or 'all').strip()
-    history_requests_qs = WorkMarkRequest.objects.select_related('employee', 'reviewed_by').order_by('-created_at')
-    if history_status != 'all':
-        history_requests_qs = history_requests_qs.filter(status=history_status)
-    if history_employee_filter != 'all':
-        history_requests_qs = history_requests_qs.filter(employee_id=history_employee_filter)
-
-    history_requests_page = Paginator(history_requests_qs, 25).get_page(request.GET.get('history_page') or 1)
-
     # Backfill in lettura: include nel report mensile eventuali approvazioni storiche.
     if all_mode:
         _sync_approved_requests_for_range(start_date, end_date)
@@ -1188,9 +1170,6 @@ def admin_timekeeping(request):
             'matrix_rows': matrix_rows,
             'employee_filter': 'all',
             'pending_mark_requests': pending_mark_requests,
-            'history_requests_page': history_requests_page,
-            'history_status': history_status,
-            'history_employee_filter': history_employee_filter,
         })
 
     if selected_employee:
@@ -1373,9 +1352,44 @@ def admin_timekeeping(request):
         'matrix_rows': [],
         'employee_filter': str(selected_employee.id) if selected_employee else '',
         'pending_mark_requests': pending_mark_requests,
+    })
+
+
+@login_required
+def admin_out_of_zone_requests(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    employees = Employee.objects.order_by('last_name', 'first_name')
+    history_status = (request.GET.get('status') or 'all').strip()
+    if history_status not in {
+        'all',
+        WorkMarkRequest.STATUS_PENDING,
+        WorkMarkRequest.STATUS_APPROVED,
+        WorkMarkRequest.STATUS_REJECTED,
+    }:
+        history_status = 'all'
+
+    history_employee_filter = (request.GET.get('employee') or 'all').strip()
+    history_requests_qs = (
+        WorkMarkRequest.objects
+        .select_related('employee', 'reviewed_by')
+        .order_by('-created_at')
+    )
+    if history_status != 'all':
+        history_requests_qs = history_requests_qs.filter(status=history_status)
+    if history_employee_filter != 'all':
+        history_requests_qs = history_requests_qs.filter(employee_id=history_employee_filter)
+
+    history_requests_page = Paginator(history_requests_qs, 25).get_page(request.GET.get('page') or 1)
+    pending_requests_count = WorkMarkRequest.objects.filter(status=WorkMarkRequest.STATUS_PENDING).count()
+
+    return render(request, 'portal/admin_out_of_zone_requests.html', {
+        'employees': employees,
         'history_requests_page': history_requests_page,
         'history_status': history_status,
         'history_employee_filter': history_employee_filter,
+        'pending_requests_count': pending_requests_count,
     })
 
 
