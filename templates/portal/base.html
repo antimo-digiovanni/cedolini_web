@@ -21,7 +21,7 @@ body {
     position: fixed;
     /* Desktop layout has a 260px sidebar and topbar; offset center to the content area. */
     top: calc(50% + 28px);
-    left: calc(50% + 130px);
+    left: calc(50% + 140px);
     transform: translate(-50%, -50%);
     width: 900px;
     max-width: 70%;
@@ -41,6 +41,11 @@ body {
     overflow-y: auto;
 }
 
+.sidebar-desktop {
+    width: 280px !important;
+    flex: 0 0 280px;
+}
+
 .sidebar-title {
     color: #94a3b8;
     font-size: 0.8rem;
@@ -53,12 +58,23 @@ body {
     color: #cbd5e1;
     text-decoration: none;
     padding: 12px 18px;
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
     border-radius: 10px;
     margin-bottom: 8px;
     border: none;
     background: transparent;
     transition: all 0.25s ease;
+    line-height: 1.35;
+    width: 100%;
+    text-align: left;
+}
+
+.sidebar a i,
+.sidebar button i {
+    flex: 0 0 18px;
+    margin-top: 1px;
 }
 
 .sidebar a:hover, .sidebar button:hover {
