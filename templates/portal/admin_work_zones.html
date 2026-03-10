@@ -122,7 +122,7 @@
 
                 <div class="col-12 d-flex gap-2">
                     <button class="btn btn-primary" type="submit" name="action" value="create_zone">Crea zona</button>
-                    <button class="btn btn-outline-success" type="submit" name="action" value="update_zone">Salva modifiche</button>
+                    <button class="btn btn-outline-success" type="submit" name="action" value="update_zone" data-confirm-title="Salva modifiche zona" data-confirm-message="Stai per aggiornare configurazione e coordinate della zona di lavoro." data-confirm-note="Verifica forma, coordinate e assegnazioni prima di confermare." data-confirm-button="Salva modifiche" data-confirm-class="btn-success">Salva modifiche</button>
                     <button class="btn btn-outline-secondary ms-auto" type="button" id="resetFormBtn">Reset</button>
                 </div>
             </form>
@@ -249,11 +249,11 @@
                         </button>
                     </td>
                     <td>
-                        <form method="post" class="m-0" onsubmit="return confirm('Eliminare definitivamente questa zona?');">
+                        <form method="post" class="m-0">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="delete_zone">
                             <input type="hidden" name="zone_id" value="{{ zone.id }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
+                            <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Elimina zona" data-confirm-message="Stai per eliminare definitivamente la zona {{ zone.name }}." data-confirm-note="L'azione rimuove anche il riferimento operativo dalla configurazione corrente." data-confirm-button="Elimina zona" data-confirm-class="btn-danger">Elimina</button>
                         </form>
                     </td>
                     <td>
@@ -328,14 +328,14 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="deactivate_assignment">
                                 <input type="hidden" name="assignment_id" value="{{ row.id }}">
-                                <button class="btn btn-sm btn-outline-warning" type="submit">Disattiva</button>
+                                <button class="btn btn-sm btn-outline-warning" type="submit" data-confirm-title="Disattiva assegnazione" data-confirm-message="Stai per disattivare questa assegnazione dipendente-zona." data-confirm-note="La disattivazione chiude la validita corrente dell'assegnazione." data-confirm-button="Disattiva" data-confirm-class="btn-warning">Disattiva</button>
                             </form>
                             {% endif %}
-                            <form method="post" class="m-0" onsubmit="return confirm('Eliminare definitivamente questa assegnazione?');">
+                            <form method="post" class="m-0">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="delete_assignment">
                                 <input type="hidden" name="assignment_id" value="{{ row.id }}">
-                                <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Elimina assegnazione" data-confirm-message="Stai per eliminare definitivamente questa assegnazione." data-confirm-note="Usa questa azione solo se non vuoi mantenere traccia della relazione corrente." data-confirm-button="Elimina assegnazione" data-confirm-class="btn-danger">Elimina</button>
                             </form>
                         </div>
                     </td>

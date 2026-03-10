@@ -1722,6 +1722,10 @@ def admin_dashboard(request):
         .filter(status=WorkMarkRequest.STATUS_PENDING)
         .order_by('-created_at')[:15]
     )
+    pending_mark_requests_count = WorkMarkRequest.objects.filter(status=WorkMarkRequest.STATUS_PENDING).count()
+
+    month_start = today.replace(day=1)
+    monthly_requests = WorkMarkRequest.objects.filter(created_at__date__gte=month_start, created_at__date__lte=today)
 
     today_marked_sessions = (
         WorkSession.objects
@@ -1743,10 +1747,33 @@ def admin_dashboard(request):
         (Q(started_at__isnull=False) | Q(corrected_started_at__isnull=False))
         & (Q(ended_at__isnull=False) | Q(corrected_ended_at__isnull=False))
     ).count()
+    incomplete_today_count = max(entered_today_count - completed_today_count, 0)
+    outside_today_count = today_marked_sessions.filter(
+        (Q(start_zone__isnull=False) & Q(start_within_zone=False))
+        | (Q(end_zone__isnull=False) & Q(end_within_zone=False))
+    ).count()
+    approved_month_count = monthly_requests.filter(status=WorkMarkRequest.STATUS_APPROVED).count()
+    rejected_month_count = monthly_requests.filter(status=WorkMarkRequest.STATUS_REJECTED).count()
+    active_zone_count = WorkZone.objects.filter(is_active=True).count()
+    active_assignment_count = EmployeeWorkZone.objects.filter(
+        is_active=True,
+        valid_from__lte=today,
+    ).filter(
+        Q(valid_to__isnull=True) | Q(valid_to__gte=today)
+    ).count()
+    employee_count = Employee.objects.count()
 
     return render(request, "portal/admin_dashboard.html", {
         "entered_today_count": entered_today_count,
         "completed_today_count": completed_today_count,
+        "incomplete_today_count": incomplete_today_count,
+        "outside_today_count": outside_today_count,
+        "approved_month_count": approved_month_count,
+        "rejected_month_count": rejected_month_count,
+        "pending_mark_requests_count": pending_mark_requests_count,
+        "active_zone_count": active_zone_count,
+        "active_assignment_count": active_assignment_count,
+        "employee_count": employee_count,
         "today": today,
         "pending_mark_requests": pending_mark_requests,
         "today_marked_sessions": today_marked_sessions,

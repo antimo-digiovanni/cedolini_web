@@ -37,6 +37,22 @@
     color: #0f172a;
 }
 
+.pending-request-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.pending-request-card + .pending-request-card {
+    margin-top: 0.9rem;
+}
+
+.pending-request-meta {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
 @media (max-width: 1199.98px) {
     .month-grid {
         grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -65,7 +81,7 @@
             <a href="{% url 'admin_out_of_zone_requests' %}" class="btn btn-sm btn-outline-primary">Apri storico</a>
         </div>
     </div>
-    <div class="table-responsive">
+    <div class="table-responsive d-none d-md-block">
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
@@ -98,14 +114,14 @@
                                 <input type="hidden" name="action" value="approve_mark_request">
                                 <input type="hidden" name="request_id" value="{{ req.id }}">
                                 <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Nota (opzionale)">
-                                <button class="btn btn-sm btn-success" type="submit">Approva</button>
+                                <button class="btn btn-sm btn-success" type="submit" data-confirm-title="Approva richiesta" data-confirm-message="Stai per approvare la richiesta fuori zona di {{ req.employee.full_name }} del {{ req.work_date|date:'d/m/Y' }}." data-confirm-note="Se presente, la nota verra salvata nella revisione." data-confirm-button="Approva" data-confirm-class="btn-success">Approva</button>
                             </form>
                             <form method="post" class="d-flex gap-1">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="reject_mark_request">
                                 <input type="hidden" name="request_id" value="{{ req.id }}">
                                 <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Motivo rifiuto">
-                                <button class="btn btn-sm btn-outline-danger" type="submit">Rifiuta</button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Rifiuta richiesta" data-confirm-message="Stai per rifiutare la richiesta fuori zona di {{ req.employee.full_name }} del {{ req.work_date|date:'d/m/Y' }}." data-confirm-note="Aggiungi un motivo per mantenere la revisione chiara e tracciabile." data-confirm-button="Rifiuta" data-confirm-class="btn-danger">Rifiuta</button>
                             </form>
                         </div>
                     </td>
@@ -117,6 +133,44 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    <div class="d-md-none">
+        {% for req in pending_mark_requests %}
+        <div class="pending-request-card">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                <div>
+                    <div class="fw-semibold">{{ req.employee.full_name }}</div>
+                    <div class="pending-request-meta">{{ req.work_date|date:"d/m/Y" }}</div>
+                </div>
+                <div>
+                    {% if req.mark_type == 'start' %}
+                        <span class="badge bg-info text-dark">Entrata</span>
+                    {% elif req.mark_type == 'end' %}
+                        <span class="badge bg-primary">Uscita</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Entrata/Uscita</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="small mb-3">{{ req.reason }}</div>
+            <form method="post" class="d-grid gap-2 mb-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve_mark_request">
+                <input type="hidden" name="request_id" value="{{ req.id }}">
+                <input type="text" name="review_note" class="form-control" placeholder="Nota approvazione (opzionale)">
+                <button class="btn btn-success" type="submit" data-confirm-title="Approva richiesta" data-confirm-message="Confermi l'approvazione della richiesta di {{ req.employee.full_name }}?" data-confirm-button="Approva" data-confirm-class="btn-success">Approva</button>
+            </form>
+            <form method="post" class="d-grid gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject_mark_request">
+                <input type="hidden" name="request_id" value="{{ req.id }}">
+                <input type="text" name="review_note" class="form-control" placeholder="Motivo rifiuto">
+                <button class="btn btn-outline-danger" type="submit" data-confirm-title="Rifiuta richiesta" data-confirm-message="Confermi il rifiuto della richiesta di {{ req.employee.full_name }}?" data-confirm-note="Puoi inserire un motivo per dare un feedback piu utile al dipendente." data-confirm-button="Rifiuta" data-confirm-class="btn-danger">Rifiuta</button>
+            </form>
+        </div>
+        {% empty %}
+        <div class="text-center text-muted py-3">Nessuna richiesta in attesa.</div>
+        {% endfor %}
     </div>
 </div>
 
