@@ -2292,6 +2292,49 @@ def admin_employee_detail(request, emp_id):
         return redirect('dashboard')
 
     employee = get_object_or_404(Employee, id=emp_id)
+
+    feedback = None
+    feedback_level = 'success'
+
+    if request.method == 'POST' and request.POST.get('action') == 'delete_payslip':
+        payslip_id = request.POST.get('payslip_id')
+        payslip = Payslip.objects.filter(id=payslip_id, employee=employee).first()
+
+        if not payslip:
+            return redirect(f'{request.path}?outcome=missing')
+
+        payload = {
+            'payslip_id': payslip.id,
+            'year': payslip.year,
+            'month': payslip.month,
+            'pdf': payslip.pdf.name,
+        }
+
+        try:
+            if payslip.pdf:
+                payslip.pdf.delete(save=False)
+        except Exception:
+            logger.exception('Errore eliminazione file cedolino id=%s', payslip.id)
+
+        payslip.delete()
+
+        _create_audit_event(
+            request,
+            'payslip_deleted',
+            employee=employee,
+            metadata=payload,
+        )
+
+        return redirect(f'{request.path}?outcome=deleted')
+
+    outcome = (request.GET.get('outcome') or '').strip()
+    if outcome == 'deleted':
+        feedback = 'Cedolino eliminato definitivamente.'
+        feedback_level = 'warning'
+    elif outcome == 'missing':
+        feedback = 'Cedolino non trovato o gia eliminato.'
+        feedback_level = 'danger'
+
     payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
 
     logger.info('admin_employee_detail: employee=%s payslip_count=%d', getattr(employee, 'id', None), payslips.count())
@@ -2317,6 +2360,8 @@ def admin_employee_detail(request, emp_id):
         'employee': employee,
         'detailed': detailed,
         'cuds_detailed': cuds_detailed,
+        'feedback': feedback,
+        'feedback_level': feedback_level,
     })
 
 

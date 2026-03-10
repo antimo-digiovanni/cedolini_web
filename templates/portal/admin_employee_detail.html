@@ -8,6 +8,10 @@
     <p class="mb-0 opacity-75">{{ employee.full_name }}</p>
 </div>
 
+{% if feedback %}
+<div class="alert alert-{{ feedback_level }} mb-3">{{ feedback }}</div>
+{% endif %}
+
 {% regroup detailed by payslip.year as year_list %}
 
 {% if not detailed %}
@@ -82,11 +86,26 @@
                     </td>
 
                     <td>
+                        <div class="d-flex flex-wrap gap-2">
                         <a href="{% url 'open_payslip' item.payslip.id %}" class="btn btn-sm btn-primary" target="_blank">Apri</a>
-                        <form method="post" action="{% url 'admin_reset_payslip_view' item.payslip.id %}" style="display:inline-block;margin-left:6px;">
+                        <form method="post" action="{% url 'admin_reset_payslip_view' item.payslip.id %}" style="display:inline-block;">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-outline-secondary">Reset visualizzazione</button>
                         </form>
+                        <form method="post"
+                              action="{% url 'admin_employee_detail' employee.id %}"
+                              style="display:inline-block;"
+                              data-confirm-title="Elimina cedolino"
+                              data-confirm-message="Stai per eliminare definitivamente questo cedolino."
+                              data-confirm-note="L'operazione rimuove il PDF e non puo essere annullata."
+                              data-confirm-button="Elimina cedolino"
+                              data-confirm-class="btn-danger">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_payslip">
+                            <input type="hidden" name="payslip_id" value="{{ item.payslip.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                        </form>
+                        </div>
                     </td>
 
                 </tr>
