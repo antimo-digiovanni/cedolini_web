@@ -297,8 +297,8 @@ document.addEventListener('DOMContentLoaded', function () {
             lon: {{ row.zone.longitude|unlocalize }},
             employee: "{{ row.employee.full_name|escapejs }}",
             zone: "{{ row.zone.name|escapejs }}",
-            active: {{ 'true' if row.is_active else 'false' }},
-            strict: {{ 'true' if row.strict_geofence else 'false' }},
+                        active: {{ row.is_active|yesno:"true,false" }},
+            strict: {{ row.strict_geofence|yesno:"true,false" }},
             valid_from: "{{ row.valid_from|date:'d/m/Y' }}",
             valid_to: "{% if row.valid_to %}{{ row.valid_to|date:'d/m/Y' }}{% else %}--{% endif %}"
         },
