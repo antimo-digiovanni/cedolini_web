@@ -5,6 +5,7 @@ urlpatterns = [
 
     path('', views.dashboard, name='dashboard'),
     path('marcatura/', views.timekeeping, name='timekeeping'),
+    path('tutorial/', views.portal_tutorial, name='portal_tutorial'),
 
     path('register/<str:token>/', views.register_with_token, name='register_with_token'),
 

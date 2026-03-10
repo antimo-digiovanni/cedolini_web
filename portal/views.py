@@ -2401,6 +2401,20 @@ def admin_employee_payslips(request, emp_id):
 
 
 @login_required
+def portal_tutorial(request):
+    if request.user.is_staff:
+        return redirect('admin_dashboard')
+
+    employee = Employee.objects.filter(user=request.user).first()
+    if not employee:
+        return HttpResponse("Profilo dipendente non trovato. Contatta l'amministratore.", status=403)
+
+    return render(request, 'portal/tutorial.html', {
+        'employee': employee,
+    })
+
+
+@login_required
 def admin_send_invite(request):
     if not request.user.is_staff:
         return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)

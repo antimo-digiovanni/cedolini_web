@@ -1,0 +1,103 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Tutorial Portale{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Tutorial Portale Dipendenti</h2>
+    <p class="mb-0 opacity-75">Guida rapida aggiornata per accesso, recupero password, cedolini e marcature.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card-modern mb-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                    <span class="badge bg-primary-subtle text-primary-emphasis mb-2">Aggiornato</span>
+                    <h4 class="mb-1">Come usare il portale</h4>
+                    <p class="text-muted mb-0">Questa guida sostituisce il vecchio tutorial PDF e include le funzioni aggiunte di recente.</p>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h5>1. Accesso</h5>
+                <p class="mb-2">Accedi dall'Area Dipendenti con username oppure email e la password del tuo account.</p>
+                <ul class="mb-0">
+                    <li>Se è il primo accesso, usa le credenziali ricevute dall'azienda.</li>
+                    <li>Dopo il login trovi i tuoi cedolini, i CUD e la sezione marcatura.</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <h5>2. Password dimenticata</h5>
+                <p class="mb-2">Nella schermata di login è disponibile il link Password dimenticata?.</p>
+                <ul class="mb-0">
+                    <li>Inserisci la tua email aziendale associata all'account.</li>
+                    <li>Riceverai un link per impostare una nuova password.</li>
+                    <li>Se il link scade, puoi richiederne uno nuovo dalla stessa pagina.</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <h5>3. Cedolini</h5>
+                <p class="mb-2">Nella dashboard trovi i cedolini raggruppati per anno.</p>
+                <ul class="mb-0">
+                    <li>Apri un anno per vedere i mesi disponibili.</li>
+                    <li>Usa il pulsante Apri PDF per consultare o scaricare il documento.</li>
+                    <li>Il sistema mostra se il cedolino risulta gia visualizzato.</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <h5>4. CUD</h5>
+                <p class="mb-2">Nella stessa dashboard trovi anche i CUD disponibili.</p>
+                <ul class="mb-0">
+                    <li>Ogni CUD viene mostrato con l'anno di riferimento.</li>
+                    <li>Puoi aprirlo direttamente dal pulsante dedicato.</li>
+                </ul>
+            </div>
+
+            <div class="mb-0">
+                <h5>5. Marcatura entrata e uscita</h5>
+                <p class="mb-2">Dalla sezione Marcatura puoi registrare ingresso e uscita della giornata.</p>
+                <ul class="mb-0">
+                    <li>Se sei dentro una zona lavoro valida, il sistema registra la posizione.</li>
+                    <li>Se sei fuori zona, puoi inviare una richiesta motivata all'amministrazione.</li>
+                    <li>Lo stato della richiesta viene mostrato direttamente nel portale.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card-modern">
+            <h4 class="mb-3">Assistenza rapida</h4>
+            <p class="mb-3">Se non riesci ad accedere, non trovi un documento o hai problemi con la marcatura, contatta l'amministrazione aziendale indicando:</p>
+            <ul class="mb-0">
+                <li>nome e cognome;</li>
+                <li>problema riscontrato;</li>
+                <li>giorno e orario del problema, se riguarda la marcatura.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card-modern mb-4">
+            <h5 class="mb-3">Scorciatoie</h5>
+            <div class="d-grid gap-2">
+                <a href="{% url 'dashboard' %}" class="btn btn-primary">Vai alla dashboard</a>
+                <a href="{% url 'timekeeping' %}" class="btn btn-outline-primary">Apri marcatura</a>
+                <a href="{% url 'password_reset' %}" class="btn btn-outline-secondary">Recupera password</a>
+            </div>
+        </div>
+
+        <div class="card-modern">
+            <h5 class="mb-3">Il tuo account</h5>
+            <dl class="mb-0">
+                <dt class="text-muted small mb-1">Dipendente</dt>
+                <dd class="mb-3">{{ employee.full_name }}</dd>
+                <dt class="text-muted small mb-1">Username</dt>
+                <dd class="mb-0">{{ request.user.username }}</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+{% endblock %}
