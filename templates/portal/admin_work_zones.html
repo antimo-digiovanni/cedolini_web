@@ -4,6 +4,8 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin=""/>
 <style>
 #zoneMap {
     width: 100%;
@@ -15,6 +17,13 @@
 .zone-map-hint {
     font-size: 0.9rem;
     color: #64748b;
+}
+
+#geocodeResults .list-group-item {
+    cursor: pointer;
+}
+#geocodeResults .list-group-item:hover {
+    background: #f1f5f9;
 }
 </style>
 {% endblock %}
@@ -109,6 +118,22 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="fw-semibold mb-0">Mappa Zona</h5>
         <span class="zone-map-hint">Clicca in mappa per impostare coordinate, il cerchio mostra il raggio selezionato.</span>
+    </div>
+    <div class="row g-2 align-items-center mb-2">
+        <div class="col-lg-6">
+            <span class="zone-map-hint">Clicca in mappa per impostare coordinate, il cerchio mostra il raggio selezionato.</span>
+        </div>
+        <div class="col-lg-6">
+            <div class="d-flex align-items-center gap-2">
+                <input id="geocodeQuery" class="form-control form-control-sm" placeholder="Cerca indirizzo...">
+                <button id="geocodeBtn" class="btn btn-sm btn-outline-primary" type="button">Cerca</button>
+                <div class="form-check ms-auto">
+                    <input class="form-check-input" type="checkbox" id="toggleAssignments" checked>
+                    <label class="form-check-label small" for="toggleAssignments">Mostra assegnazioni</label>
+                </div>
+            </div>
+            <div id="geocodeResults" class="list-group small mt-1"></div>
+        </div>
     </div>
     <div id="zoneMap"></div>
 </div>
@@ -236,6 +261,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const latInput = document.getElementById('zoneLatitude');
@@ -256,8 +282,55 @@ document.addEventListener('DOMContentLoaded', function () {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    let marker = null;
+        let marker = null;
     let circle = null;
+
+    const toggleAssignments = document.getElementById('toggleAssignments');
+    const geocodeInput = document.getElementById('geocodeQuery');
+    const geocodeBtn = document.getElementById('geocodeBtn');
+    const geocodeResults = document.getElementById('geocodeResults');
+
+    const assignmentsData = [
+        {% for row in assignments %}
+        {
+            lat: {{ row.zone.latitude|unlocalize }},
+            lon: {{ row.zone.longitude|unlocalize }},
+            employee: "{{ row.employee.full_name|escapejs }}",
+            zone: "{{ row.zone.name|escapejs }}",
+            active: {{ 'true' if row.is_active else 'false' }},
+            strict: {{ 'true' if row.strict_geofence else 'false' }},
+            valid_from: "{{ row.valid_from|date:'d/m/Y' }}",
+            valid_to: "{% if row.valid_to %}{{ row.valid_to|date:'d/m/Y' }}{% else %}--{% endif %}"
+        },
+        {% endfor %}
+    ];
+
+    const assignmentCluster = L.markerClusterGroup();
+    function refreshAssignmentMarkers() {
+        assignmentCluster.clearLayers();
+        assignmentsData.forEach(a => {
+            if (!a.active) return;
+            if (a.lat == null || a.lon == null) return;
+            const m = L.marker([a.lat, a.lon]);
+            m.bindPopup(
+                `<div><strong>${a.employee}</strong><br>` +
+                `Zona: ${a.zone}<br>` +
+                `Valida dal: ${a.valid_from}${a.valid_to && a.valid_to !== '--' ? ' al ' + a.valid_to : ''}<br>` +
+                `${a.strict ? '<span class="badge bg-danger">Geofence rigida</span>' : '<span class=\"badge bg-secondary\">Geofence soft</span>'}` +
+                `</div>`
+            );
+            assignmentCluster.addLayer(m);
+        });
+    }
+
+    function setAssignmentsVisible(visible) {
+        if (visible) {
+            refreshAssignmentMarkers();
+            map.addLayer(assignmentCluster);
+        } else {
+            map.removeLayer(assignmentCluster);
+        }
+    }
 
         function parseInputNumber(value) {
         const normalized = String(value ?? '').trim().replace(',', '.');
@@ -277,8 +350,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        if (!marker) {
-            marker = L.marker([lat, lon]).addTo(map);
+                if (!marker) {
+            marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+            marker.on('dragend', function (ev) {
+                const pos = ev.target.getLatLng();
+                latInput.value = pos.lat.toFixed(6);
+                lonInput.value = pos.lng.toFixed(6);
+                updateMapFromInputs(false);
+            });
         } else {
             marker.setLatLng([lat, lon]);
         }
@@ -302,6 +381,42 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    async function geocodeAddress(query) {
+        geocodeResults.innerHTML = '';
+        if (!query || query.trim().length < 3) return;
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&q=${encodeURIComponent(query)}`;
+        try {
+            const res = await fetch(url, { headers: { 'Accept-Language': 'it' } });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!Array.isArray(data) || !data.length) return;
+            data.forEach(item => {
+                const el = document.createElement('a');
+                el.className = 'list-group-item list-group-item-action';
+                el.textContent = item.display_name;
+                el.addEventListener('click', () => {
+                    latInput.value = Number(item.lat).toFixed(6);
+                    lonInput.value = Number(item.lon).toFixed(6);
+                    updateMapFromInputs(true);
+                    geocodeResults.innerHTML = '';
+                });
+                geocodeResults.appendChild(el);
+            });
+        } catch (e) {
+            // ignora errori di rete
+        }
+    }
+
+    if (geocodeBtn && geocodeInput) {
+        geocodeBtn.addEventListener('click', () => geocodeAddress(geocodeInput.value));
+        geocodeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                geocodeAddress(geocodeInput.value);
+            }
+        });
+    }
+
     map.on('click', function (ev) {
         latInput.value = ev.latlng.lat.toFixed(6);
         lonInput.value = ev.latlng.lng.toFixed(6);
@@ -312,8 +427,8 @@ document.addEventListener('DOMContentLoaded', function () {
     lonInput.addEventListener('input', function () { updateMapFromInputs(false); });
     radiusInput.addEventListener('input', function () { updateMapFromInputs(false); });
 
-    document.querySelectorAll('.zone-preview-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
+        document.querySelectorAll('.zone-preview-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             latInput.value = btn.dataset.lat || '';
             lonInput.value = btn.dataset.lon || '';
             radiusInput.value = btn.dataset.radius || '100';
@@ -322,6 +437,13 @@ document.addEventListener('DOMContentLoaded', function () {
             mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
     });
+
+    if (toggleAssignments) {
+        toggleAssignments.addEventListener('change', function () {
+            setAssignmentsVisible(toggleAssignments.checked);
+        });
+        setAssignmentsVisible(toggleAssignments.checked);
+    }
 
     updateMapFromInputs(true);
     setTimeout(function () { map.invalidateSize(); }, 120);
