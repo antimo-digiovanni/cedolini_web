@@ -1,67 +1,224 @@
 {% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+.employee-overview {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.employee-stat {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1rem 1.1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.employee-stat-label {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.employee-stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.employee-section-card {
+    border: none;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+}
+
+.employee-section-trigger {
+    width: 100%;
+    border: 0;
+    background: linear-gradient(90deg, #ffffff 0%, #f8fafc 100%);
+    padding: 1.1rem 1.25rem;
+    text-align: left;
+}
+
+.employee-section-trigger:not(.collapsed) {
+    background: linear-gradient(90deg, #eff6ff 0%, #f8fafc 100%);
+}
+
+.employee-section-trigger .bi-chevron-down {
+    transition: transform 0.2s ease;
+}
+
+.employee-section-trigger:not(.collapsed) .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+.employee-section-subtitle {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.employee-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1rem;
+    background: #fff;
+}
+
+.employee-card + .employee-card {
+    margin-top: 0.85rem;
+}
+
+.employee-card-meta {
+    color: #64748b;
+    font-size: 0.88rem;
+}
+
+.employee-inline-payslips {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 991.98px) {
+    .employee-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .employee-overview {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 
 <div class="page-hero mb-4">
     <h2 class="fw-bold mb-1">Gestione Dipendenti</h2>
-    <p class="mb-0 opacity-75">Visualizza dipendenti, inviti e accesso rapido ai cedolini.</p>
+    <p class="mb-0 opacity-75">Organizza registrati, invitati e non invitati in sezioni piu leggibili e richiudibili.</p>
 </div>
 
-{% if user.is_staff %}
-<div class="mb-3">
-    <button id="debugOverlayBtn" class="btn btn-sm btn-outline-danger">Debug Modal Overlay</button>
-    <button id="debugRestoreBtn" class="btn btn-sm btn-outline-secondary ms-2" style="display:none;">Restore Overlay</button>
-    <small class="text-muted ms-2">(clicca e poi apri il modal)</small>
+<div class="employee-overview mb-4">
+    <div class="employee-stat">
+        <div class="employee-stat-label">Totale dipendenti</div>
+        <div class="employee-stat-value">{{ employee_total_count }}</div>
+    </div>
+    {% for section in employee_sections %}
+    <div class="employee-stat">
+        <div class="employee-stat-label">{{ section.title }}</div>
+        <div class="employee-stat-value">{{ section.count }}</div>
+    </div>
+    {% endfor %}
 </div>
-{% endif %}
 
-<div class="card-modern">
-<div class="table-responsive">
-<table class="table table-hover">
-    <thead>
-        <tr>
-            <th>Nome</th>
-            <th>Email</th>
-            <th>Cedolini</th>
-            <th>Invito</th>
-            <th>Azioni</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for emp in employees %}
-        <tr data-employee-id="{{ emp.id }}">
-            <td>{{ emp.full_name }}</td>
-            <td class="emp-email">{{ emp.email_invio }}</td>
-            <td>
-                <button class="btn btn-outline-secondary btn-sm show-payslips-btn" data-emp-id="{{ emp.id }}">
-                    {{ emp.payslip_count }}
-                </button>
-            </td>
-            <td>
-                {% if emp.privacy_accepted %}
-                    <span class="badge" style="background:#1e3a8a; color:#fff;">
-                        <i class="bi bi-patch-check-fill me-1"></i>Registrato
+<div class="accordion d-grid gap-4" id="employeeSectionsAccordion">
+    {% for section in employee_sections %}
+    <div class="employee-section-card">
+        <h3 class="mb-0">
+            <button
+                class="employee-section-trigger d-flex justify-content-between align-items-center {% if not section.expanded %}collapsed{% endif %}"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#{{ section.id }}"
+                aria-expanded="{% if section.expanded %}true{% else %}false{% endif %}"
+                aria-controls="{{ section.id }}"
+            >
+                <span>
+                    <span class="d-flex align-items-center gap-2 mb-1">
+                        <span class="fw-semibold fs-5">{{ section.title }}</span>
+                        <span class="badge {{ section.badge_class }}">{{ section.count }}</span>
                     </span>
-                {% elif emp.invito_inviato %}
-                    <span class="badge bg-success">Invitato</span>
-                {% else %}
-                    <span class="badge bg-warning text-dark">Non invitato</span>
-                {% endif %}
-            </td>
-            <td>
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary btn-sm">Vedi Cedolini</a>
-                    <button class="btn btn-sm btn-outline-primary send-invite-btn">Invia Invito</button>
-                    <button class="btn btn-sm btn-outline-secondary create-invite-link-btn">Crea invito</button>
+                    <span class="employee-section-subtitle">{{ section.subtitle }}</span>
+                </span>
+                <i class="bi bi-chevron-down fs-5 text-muted"></i>
+            </button>
+        </h3>
+        <div id="{{ section.id }}" class="collapse {% if section.expanded %}show{% endif %}" data-bs-parent="#employeeSectionsAccordion">
+            <div class="p-3 p-md-4">
+                <div class="table-responsive d-none d-md-block">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Cedolini</th>
+                                <th>Stato</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for emp in section.employees %}
+                            <tr data-employee-id="{{ emp.id }}">
+                                <td>{{ emp.full_name }}</td>
+                                <td class="emp-email">{{ emp.email_invio|default:'--' }}</td>
+                                <td>
+                                    <button class="btn btn-outline-secondary btn-sm show-payslips-btn" data-emp-id="{{ emp.id }}">
+                                        {{ emp.payslip_count }}
+                                    </button>
+                                </td>
+                                <td>
+                                    {% if emp.privacy_accepted %}
+                                        <span class="badge bg-primary"><i class="bi bi-patch-check-fill me-1"></i>Registrato</span>
+                                    {% elif emp.invito_inviato %}
+                                        <span class="badge bg-success">Invitato</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Non invitato</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary btn-sm">Vedi Cedolini</a>
+                                        <button class="btn btn-sm btn-outline-primary send-invite-btn">Invia Invito</button>
+                                        <button class="btn btn-sm btn-outline-secondary create-invite-link-btn">Crea invito</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">{{ section.empty_message }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-</div>
+
+                <div class="d-md-none">
+                    {% for emp in section.employees %}
+                    <div class="employee-card" data-employee-id="{{ emp.id }}">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                            <div>
+                                <div class="fw-semibold">{{ emp.full_name }}</div>
+                                <div class="employee-card-meta emp-email">{{ emp.email_invio|default:'Email non impostata' }}</div>
+                            </div>
+                            <div>
+                                {% if emp.privacy_accepted %}
+                                    <span class="badge bg-primary">Registrato</span>
+                                {% elif emp.invito_inviato %}
+                                    <span class="badge bg-success">Invitato</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Non invitato</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="employee-card-meta mb-3">Cedolini caricati: {{ emp.payslip_count }}</div>
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'admin_employee_detail' emp.id %}" class="btn btn-primary">Vedi Cedolini</a>
+                            <button class="btn btn-outline-primary send-invite-btn" type="button">Invia Invito</button>
+                            <button class="btn btn-outline-secondary create-invite-link-btn" type="button">Crea invito</button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-3">{{ section.empty_message }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 </div>
 
-<!-- Modal per inserire email -->
 <div class="modal" tabindex="-1" id="emailModal">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -83,251 +240,153 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function(){
+document.addEventListener('DOMContentLoaded', function () {
     let currentEmployeeId = null;
-// Load payslips fragment when clicking the payslip count button
-document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('.show-payslips-btn').forEach(btn => {
-        btn.addEventListener('click', async function(){
-            const empId = this.dataset.empId;
-            const tr = this.closest('tr');
+    const emailModalEl = document.getElementById('emailModal');
+    const modalEmailInput = document.getElementById('modalEmail');
+    const modalSendBtn = document.getElementById('modalSend');
+    const modal = emailModalEl ? new bootstrap.Modal(emailModalEl) : null;
+    const sendInviteUrl = '{% url "admin_send_invite" %}';
+    const createInviteLinkUrl = '{% url "admin_create_invite_link" %}';
+    const payslipsUrlTemplate = '{% url "admin_employee_payslips" 0 %}';
 
-            // if already loaded, toggle
-            const next = tr.nextElementSibling;
-            if(next && next.classList.contains('employee-payslips-row')){
-                next.remove();
-                return;
-            }
+    function getCookie(name) {
+        const value = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return value ? value[2] : null;
+    }
 
-            try{
-                const urlTemplate = '{% url "admin_employee_payslips" 0 %}';
-                const url = urlTemplate.replace('/0/', `/${empId}/`);
-                const resp = await fetch(url, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-                if(!resp.ok) throw new Error('Network');
-                const html = await resp.text();
-                const wrap = document.createElement('tr');
-                wrap.className = 'employee-payslips-row';
-                const td = document.createElement('td');
-                td.colSpan = 5;
-                td.innerHTML = html;
-                wrap.appendChild(td);
-                tr.parentNode.insertBefore(wrap, tr.nextSibling);
-            }catch(e){
-                console.error('Errore caricamento cedolini', e);
-                alert('Impossibile caricare i cedolini');
-            }
-        });
-    });
-});
-
-    const modal = new bootstrap.Modal(document.getElementById('emailModal'));
-
-    document.querySelectorAll('.send-invite-btn').forEach(btn => {
-        btn.addEventListener('click', async function(){
-            const tr = this.closest('tr');
-            const empId = tr.dataset.employeeId;
-            const emailCell = tr.querySelector('.emp-email');
-            const email = emailCell ? emailCell.textContent.trim() : '';
-
-            currentEmployeeId = empId;
-
-            const resp = await fetch('{% url "admin_send_invite" %}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: new URLSearchParams({ employee_id: empId })
-            });
-
-            const data = await resp.json();
-            if(data.need_email){
-                // show modal
-                modal.show();
-            } else if(data.ok){
-                location.reload();
-            } else {
-                alert('Errore: ' + (data.error || 'unknown'));
-            }
-        });
-    });
-
-    document.getElementById('modalSend').addEventListener('click', async function(){
-        const email = document.getElementById('modalEmail').value.trim();
-        if(!email) return alert('Inserisci una email');
-
-        const resp = await fetch('{% url "admin_send_invite" %}', {
+    async function postForm(url, params) {
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken')
             },
-            body: new URLSearchParams({ employee_id: currentEmployeeId, email: email })
+            body: new URLSearchParams(params)
         });
-        const data = await resp.json();
-        if(data.ok){
-            modal.hide();
-            location.reload();
-        } else {
-            alert('Errore: ' + (data.error || 'unknown'));
-        }
-    });
+        return response.json();
+    }
 
-    // Crea link di invito per invio manuale (WhatsApp/SMS)
-    document.querySelectorAll('.create-invite-link-btn').forEach(btn => {
-        btn.addEventListener('click', async function(){
-            const tr = this.closest('tr');
-            const empId = tr.dataset.employeeId;
+    document.addEventListener('click', async function (event) {
+        const payslipButton = event.target.closest('.show-payslips-btn');
+        if (payslipButton) {
+            const empId = payslipButton.dataset.empId;
+            const row = payslipButton.closest('tr');
+            if (!row) {
+                return;
+            }
+
+            const nextRow = row.nextElementSibling;
+            if (nextRow && nextRow.classList.contains('employee-payslips-row')) {
+                nextRow.remove();
+                return;
+            }
 
             try {
-                const resp = await fetch('{% url "admin_create_invite_link" %}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: new URLSearchParams({ employee_id: empId })
+                const url = payslipsUrlTemplate.replace('/0/', `/${empId}/`);
+                const response = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
-
-                const data = await resp.json();
-                if(data.ok && data.message){
-                    const msg = 'Messaggio di invito precompilato (copialo e incollalo in WhatsApp o via SMS):';
-                    window.prompt(msg, data.message);
-                } else {
-                    alert('Errore creazione invito: ' + (data.error || 'unknown'));
+                if (!response.ok) {
+                    throw new Error('network');
                 }
-            } catch(e){
-                console.error('Errore creazione link invito', e);
-                alert('Errore di rete nella creazione del link invito');
+                const html = await response.text();
+                const wrap = document.createElement('tr');
+                wrap.className = 'employee-payslips-row employee-inline-payslips';
+                const cell = document.createElement('td');
+                cell.colSpan = 5;
+                cell.innerHTML = html;
+                wrap.appendChild(cell);
+                row.parentNode.insertBefore(wrap, row.nextSibling);
+            } catch (error) {
+                console.error('Errore caricamento cedolini', error);
+                window.alert('Impossibile caricare i cedolini');
+            }
+            return;
+        }
+
+        const sendInviteButton = event.target.closest('.send-invite-btn');
+        if (sendInviteButton) {
+            const container = sendInviteButton.closest('[data-employee-id]');
+            if (!container) {
+                return;
+            }
+            currentEmployeeId = container.dataset.employeeId;
+            try {
+                const data = await postForm(sendInviteUrl, { employee_id: currentEmployeeId });
+                if (data.need_email) {
+                    if (modalEmailInput) {
+                        modalEmailInput.value = '';
+                    }
+                    modal.show();
+                } else if (data.ok) {
+                    location.reload();
+                } else {
+                    window.alert('Errore: ' + (data.error || 'unknown'));
+                }
+            } catch (error) {
+                console.error('Errore invio invito', error);
+                window.alert('Errore di rete durante l\'invio invito');
+            }
+            return;
+        }
+
+        const createInviteButton = event.target.closest('.create-invite-link-btn');
+        if (createInviteButton) {
+            const container = createInviteButton.closest('[data-employee-id]');
+            if (!container) {
+                return;
+            }
+            try {
+                const data = await postForm(createInviteLinkUrl, { employee_id: container.dataset.employeeId });
+                if (data.ok && data.message) {
+                    window.prompt('Messaggio di invito precompilato (copialo e incollalo in WhatsApp o via SMS):', data.message);
+                } else {
+                    window.alert('Errore creazione invito: ' + (data.error || 'unknown'));
+                }
+            } catch (error) {
+                console.error('Errore creazione link invito', error);
+                window.alert('Errore di rete nella creazione del link invito');
+            }
+        }
+    });
+
+    if (modalSendBtn) {
+        modalSendBtn.addEventListener('click', async function () {
+            const email = (modalEmailInput?.value || '').trim();
+            if (!email) {
+                window.alert('Inserisci una email');
+                return;
+            }
+
+            try {
+                const data = await postForm(sendInviteUrl, {
+                    employee_id: currentEmployeeId,
+                    email: email,
+                });
+                if (data.ok) {
+                    modal.hide();
+                    location.reload();
+                } else {
+                    window.alert('Errore: ' + (data.error || 'unknown'));
+                }
+            } catch (error) {
+                console.error('Errore invio invito con email', error);
+                window.alert('Errore di rete durante l\'invio invito');
             }
         });
-    });
+    }
+
+    if (emailModalEl) {
+        emailModalEl.addEventListener('shown.bs.modal', function () {
+            if (modalEmailInput) {
+                modalEmailInput.focus();
+            }
+        });
+    }
 });
-
-function getCookie(name) {
-    let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-    return v ? v[2] : null;
-}
 </script>
-
-<script>
-// Debug button behaviour: highlight element overlaying modal center
-(() => {
-    const dbg = document.getElementById('debugOverlayBtn');
-    const restoreBtn = document.getElementById('debugRestoreBtn');
-    let highlighted = null;
-    let infoBox = null;
-
-    function clearHighlight(){
-        if(highlighted){
-            highlighted.style.outline = highlighted.dataset._dbg_origOutline || '';
-            highlighted.style.pointerEvents = highlighted.dataset._dbg_origPointer || '';
-            delete highlighted.dataset._dbg_origOutline;
-            delete highlighted.dataset._dbg_origPointer;
-            highlighted = null;
-        }
-        if(infoBox && infoBox.parentNode){ infoBox.parentNode.removeChild(infoBox); infoBox = null; }
-        if(restoreBtn) restoreBtn.style.display = 'none';
-    }
-
-    function showInfo(el){
-        clearHighlight();
-        if(!el) return;
-        highlighted = el;
-        highlighted.dataset._dbg_origOutline = highlighted.style.outline || '';
-        highlighted.dataset._dbg_origPointer = highlighted.style.pointerEvents || '';
-        highlighted.style.outline = '4px solid rgba(255,0,0,0.9)';
-        highlighted.style.pointerEvents = 'none';
-
-        infoBox = document.createElement('div');
-        infoBox.style.position = 'fixed';
-        infoBox.style.right = '20px';
-        infoBox.style.bottom = '20px';
-        infoBox.style.background = 'rgba(0,0,0,0.75)';
-        infoBox.style.color = 'white';
-        infoBox.style.padding = '10px 14px';
-        infoBox.style.borderRadius = '6px';
-        infoBox.style.zIndex = 1000000;
-        infoBox.innerText = `Overlay element: ${el.tagName} ${el.id?('#'+el.id):''} ${el.className?('.'+el.className.split(' ').join('.')):''} zIndex=${getComputedStyle(el).zIndex}`;
-        document.body.appendChild(infoBox);
-        if(restoreBtn) restoreBtn.style.display = 'inline-block';
-    }
-
-    function detectOverlay(){
-        const modal = document.getElementById('emailModal') || document.querySelector('.modal');
-        if(!modal){ alert('Modal non trovato'); return; }
-        const rect = modal.getBoundingClientRect();
-        const cx = Math.round(rect.left + rect.width/2);
-        const cy = Math.round(rect.top + rect.height/2);
-        const el = document.elementFromPoint(cx, cy);
-        if(el && !modal.contains(el)){
-            showInfo(el);
-            return el;
-        }
-        alert('Nessun overlay esterno rilevato al centro del modal.');
-        return null;
-    }
-
-    if(dbg){
-        dbg.addEventListener('click', function(){
-            // instruct user to open modal after clicking button
-            alert('Ora apri il modal "Invia Invito"; il debug evidenzierà l\'elemento che lo copre.');
-        });
-    }
-
-    if(restoreBtn){
-        restoreBtn.addEventListener('click', function(){
-            clearHighlight();
-        });
-    }
-
-    // Also run detection automatically when modal is shown
-    document.addEventListener('DOMContentLoaded', function(){
-        const modal = document.getElementById('emailModal');
-        if(modal){
-            modal.addEventListener('shown.bs.modal', function(){
-                setTimeout(() => detectOverlay(), 120);
-            });
-        }
-    });
-})();
-</script>
-
 {% endblock %}
-
-<script>
-// Diagnostic and mitigation: if another element overlays the modal, temporarily disable its pointer-events
-document.addEventListener('DOMContentLoaded', function(){
-    const modalEl = document.getElementById('emailModal');
-    if(!modalEl) return;
-
-    let disabledEl = null;
-
-    modalEl.addEventListener('shown.bs.modal', function(){
-        try {
-            const rect = modalEl.getBoundingClientRect();
-            const cx = rect.left + rect.width/2;
-            const cy = rect.top + rect.height/2;
-            const topEl = document.elementFromPoint(cx, cy);
-            console.log('Modal center top element:', topEl);
-            if(topEl && !modalEl.contains(topEl)){
-                // temporarily disable pointer events on the overlaying element
-                disabledEl = topEl;
-                disabledEl.__oldPointer = disabledEl.style.pointerEvents;
-                disabledEl.style.pointerEvents = 'none';
-                console.warn('Temporarily disabled pointer-events on overlaying element', disabledEl);
-            }
-
-            const input = modalEl.querySelector('#modalEmail');
-            if(input) input.focus();
-        } catch(e){ console.error('modal diagnostic error', e); }
-    });
-
-    modalEl.addEventListener('hidden.bs.modal', function(){
-        if(disabledEl){
-            disabledEl.style.pointerEvents = disabledEl.__oldPointer || '';
-            disabledEl = null;
-        }
-    });
-});
-</script>

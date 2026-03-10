@@ -2132,9 +2132,54 @@ def admin_import_job_payslips(request, job_id):
 def admin_employees(request):
     if not request.user.is_staff:
         return redirect('dashboard')
-    employees = Employee.objects.select_related('user').annotate(payslip_count=Count('payslips')).all().order_by('last_name', 'first_name')
+    employees = list(
+        Employee.objects
+        .select_related('user')
+        .annotate(payslip_count=Count('payslips'))
+        .order_by('last_name', 'first_name')
+    )
+
+    registered_employees = [employee for employee in employees if employee.privacy_accepted]
+    invited_employees = [employee for employee in employees if not employee.privacy_accepted and employee.invito_inviato]
+    not_invited_employees = [employee for employee in employees if not employee.privacy_accepted and not employee.invito_inviato]
+
+    employee_sections = [
+        {
+            'id': 'registeredEmployees',
+            'title': 'Utenti registrati',
+            'subtitle': 'Dipendenti che hanno completato la registrazione e accettato la privacy.',
+            'employees': registered_employees,
+            'count': len(registered_employees),
+            'expanded': False,
+            'badge_class': 'bg-primary',
+            'empty_message': 'Nessun dipendente registrato al momento.',
+        },
+        {
+            'id': 'invitedEmployees',
+            'title': 'Invitati',
+            'subtitle': 'Dipendenti che hanno ricevuto l\'invito ma non hanno ancora completato la registrazione.',
+            'employees': invited_employees,
+            'count': len(invited_employees),
+            'expanded': True,
+            'badge_class': 'bg-success',
+            'empty_message': 'Nessun dipendente nello stato invitato.',
+        },
+        {
+            'id': 'notInvitedEmployees',
+            'title': 'Non invitati',
+            'subtitle': 'Dipendenti da contattare o da invitare per l\'accesso al portale.',
+            'employees': not_invited_employees,
+            'count': len(not_invited_employees),
+            'expanded': True,
+            'badge_class': 'bg-warning text-dark',
+            'empty_message': 'Nessun dipendente da invitare.',
+        },
+    ]
+
     return render(request, 'portal/admin_employees.html', {
-        'employees': employees
+        'employees': employees,
+        'employee_sections': employee_sections,
+        'employee_total_count': len(employees),
     })
 
 
