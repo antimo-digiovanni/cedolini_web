@@ -19,6 +19,16 @@
     color: #64748b;
 }
 
+.rect-selection-status {
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.rect-selection-count {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
 #geocodeResults .list-group-item {
     cursor: pointer;
 }
@@ -97,8 +107,16 @@
                         <label class="form-label">Ovest (lon)</label>
                         <input id="rectWest" name="rect_west" class="form-control" placeholder="14.250000">
                     </div>
-                    <div class="col-12 small text-muted">
-                        Suggerimento: con forma Rettangolo, clicca due volte in mappa per impostare angolo sud-ovest e nord-est.
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-sm btn-outline-primary" type="button" id="rectStartSelectionBtn">Seleziona 4 angoli in mappa</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" id="rectUndoBtn">Annulla ultimo punto</button>
+                            <button class="btn btn-sm btn-outline-danger" type="button" id="rectClearBtn">Pulisci rettangolo</button>
+                        </div>
+                        <div class="rect-selection-status mt-2" id="rectSelectionHelp">
+                            Seleziona quattro angoli sulla mappa. Il sistema calcola automaticamente il rettangolo che li contiene.
+                        </div>
+                        <div class="rect-selection-count" id="rectSelectionCount">Angoli selezionati: 0/4</div>
                     </div>
                 </div>
 
@@ -132,7 +150,7 @@
                     <select name="zone_id" class="form-select" required>
                         <option value="">Seleziona...</option>
                         {% for zone in zones %}
-                            <option value="{{ zone.id }}">{{ zone.name }} ({{ zone.radius_meters }}m)</option>
+                            <option value="{{ zone.id }}">{{ zone.name }} {% if zone.shape == 'rect' %}(rettangolo){% else %}({{ zone.radius_meters }}m){% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -159,11 +177,11 @@
 <div class="card-modern bg-white mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="fw-semibold mb-0">Mappa Zona</h5>
-        <span class="zone-map-hint">Clicca in mappa per impostare coordinate, il cerchio mostra il raggio selezionato.</span>
+        <span class="zone-map-hint" id="mapInteractionHint">Clicca in mappa per impostare coordinate; in modalita rettangolo puoi selezionare fino a 4 angoli.</span>
     </div>
     <div class="row g-2 align-items-center mb-2">
         <div class="col-lg-6">
-            <span class="zone-map-hint">Clicca in mappa per impostare coordinate, il cerchio mostra il raggio selezionato.</span>
+            <span class="zone-map-hint">Cerchio: scegli centro e raggio. Rettangolo: usa i pulsanti del form e clicca i vertici sulla mappa.</span>
         </div>
         <div class="col-lg-6">
             <div class="d-flex align-items-center gap-2">
@@ -345,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-        const defaultLat = 40.983778;
+    const defaultLat = 40.983778;
     const defaultLon = 14.297982;
     const map = L.map('zoneMap').setView([defaultLat, defaultLon], 11);
 
@@ -354,16 +372,222 @@ document.addEventListener('DOMContentLoaded', function () {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-            let marker = null;
+    let marker = null;
     let circle = null;
     let rectOverlay = null;
-    let rectFirstCorner = null;
+    let rectCornerPoints = [];
+    const rectCornerLayer = L.layerGroup().addTo(map);
 
-        const toggleAssignments = document.getElementById('toggleAssignments');
+    const toggleAssignments = document.getElementById('toggleAssignments');
     const toggleZones = document.getElementById('toggleZones');
     const geocodeInput = document.getElementById('geocodeQuery');
     const geocodeBtn = document.getElementById('geocodeBtn');
     const geocodeResults = document.getElementById('geocodeResults');
+    const shapeCircleInput = document.getElementById('shapeCircle');
+    const shapeRectInput = document.getElementById('shapeRect');
+    const rectNorthInput = document.getElementById('rectNorth');
+    const rectSouthInput = document.getElementById('rectSouth');
+    const rectEastInput = document.getElementById('rectEast');
+    const rectWestInput = document.getElementById('rectWest');
+    const rectSelectionHelp = document.getElementById('rectSelectionHelp');
+    const rectSelectionCount = document.getElementById('rectSelectionCount');
+    const rectStartSelectionBtn = document.getElementById('rectStartSelectionBtn');
+    const rectUndoBtn = document.getElementById('rectUndoBtn');
+    const rectClearBtn = document.getElementById('rectClearBtn');
+    const mapInteractionHint = document.getElementById('mapInteractionHint');
+
+    function isRectMode() {
+        return shapeRectInput.checked;
+    }
+
+    function parseInputNumber(value) {
+        const normalized = String(value ?? '').trim().replace(',', '.');
+        if (!normalized) {
+            return null;
+        }
+        const n = Number(normalized);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function setRectInputsFromPoints(points) {
+        if (!points.length) {
+            rectNorthInput.value = '';
+            rectSouthInput.value = '';
+            rectEastInput.value = '';
+            rectWestInput.value = '';
+            return;
+        }
+        const latitudes = points.map(point => point.lat);
+        const longitudes = points.map(point => point.lng);
+        rectNorthInput.value = Math.max(...latitudes).toFixed(6);
+        rectSouthInput.value = Math.min(...latitudes).toFixed(6);
+        rectEastInput.value = Math.max(...longitudes).toFixed(6);
+        rectWestInput.value = Math.min(...longitudes).toFixed(6);
+    }
+
+    function renderRectCornerPoints() {
+        rectCornerLayer.clearLayers();
+        if (!isRectMode()) {
+            return;
+        }
+        rectCornerPoints.forEach((point, index) => {
+            const cornerMarker = L.circleMarker([point.lat, point.lng], {
+                radius: 6,
+                color: '#b45309',
+                fillColor: '#f59e0b',
+                fillOpacity: 0.9,
+                weight: 2,
+            }).addTo(rectCornerLayer);
+            cornerMarker.bindTooltip(`Angolo ${index + 1}`, {
+                permanent: true,
+                direction: 'top',
+                offset: [0, -6],
+            });
+        });
+    }
+
+    function updateRectSelectionUi() {
+        if (rectSelectionCount) {
+            rectSelectionCount.textContent = `Angoli selezionati: ${rectCornerPoints.length}/4`;
+        }
+
+        if (!isRectMode()) {
+            if (rectSelectionHelp) {
+                rectSelectionHelp.textContent = 'Attiva la forma rettangolo per selezionare gli angoli sulla mappa.';
+            }
+            if (mapInteractionHint) {
+                mapInteractionHint.textContent = 'Clicca in mappa per impostare coordinate; in modalita rettangolo puoi selezionare fino a 4 angoli.';
+            }
+            return;
+        }
+
+        if (rectCornerPoints.length === 0) {
+            if (rectSelectionHelp) {
+                rectSelectionHelp.textContent = 'Clicca sulla mappa per scegliere il primo angolo del rettangolo.';
+            }
+        } else if (rectCornerPoints.length < 4) {
+            if (rectSelectionHelp) {
+                rectSelectionHelp.textContent = `Seleziona ancora ${4 - rectCornerPoints.length} angoli. Il rettangolo si aggiorna automaticamente.`;
+            }
+        } else if (rectSelectionHelp) {
+            rectSelectionHelp.textContent = 'Rettangolo completato. Puoi salvarlo oppure riavviare la selezione.';
+        }
+
+        if (mapInteractionHint) {
+            mapInteractionHint.textContent = 'Modalita rettangolo attiva: clicca fino a 4 angoli sulla mappa oppure inserisci manualmente nord, sud, est e ovest.';
+        }
+    }
+
+    function syncRectPointsFromInputs() {
+        const north = parseInputNumber(rectNorthInput.value);
+        const south = parseInputNumber(rectSouthInput.value);
+        const east = parseInputNumber(rectEastInput.value);
+        const west = parseInputNumber(rectWestInput.value);
+
+        if (north != null && south != null && east != null && west != null && north > south && east > west) {
+            rectCornerPoints = [
+                L.latLng(south, west),
+                L.latLng(north, west),
+                L.latLng(north, east),
+                L.latLng(south, east),
+            ];
+        } else if (!rectNorthInput.value && !rectSouthInput.value && !rectEastInput.value && !rectWestInput.value) {
+            rectCornerPoints = [];
+        }
+
+        renderRectCornerPoints();
+        updateRectSelectionUi();
+    }
+
+    function updateMapFromInputs(fitBounds) {
+        const rectMode = isRectMode();
+        map.invalidateSize();
+
+        if (rectMode) {
+            const n = parseInputNumber(rectNorthInput.value);
+            const s = parseInputNumber(rectSouthInput.value);
+            const e = parseInputNumber(rectEastInput.value);
+            const w = parseInputNumber(rectWestInput.value);
+
+            if (rectOverlay) {
+                map.removeLayer(rectOverlay);
+                rectOverlay = null;
+            }
+            if (circle) {
+                map.removeLayer(circle);
+                circle = null;
+            }
+            if (marker) {
+                map.removeLayer(marker);
+                marker = null;
+            }
+
+            if (n != null && s != null && e != null && w != null && n > s && e > w) {
+                rectOverlay = L.rectangle([[s, w], [n, e]], {
+                    color: '#16a34a',
+                    fillColor: '#22c55e',
+                    fillOpacity: 0.15,
+                }).addTo(map);
+                if (fitBounds) {
+                    map.fitBounds(rectOverlay.getBounds(), { padding: [24, 24] });
+                }
+            }
+
+            renderRectCornerPoints();
+            updateRectSelectionUi();
+            return;
+        }
+
+        rectCornerLayer.clearLayers();
+        updateRectSelectionUi();
+
+        if (rectOverlay) {
+            map.removeLayer(rectOverlay);
+            rectOverlay = null;
+        }
+
+        const lat = parseInputNumber(latInput.value);
+        const lon = parseInputNumber(lonInput.value);
+        const radius = Math.max(parseInputNumber(radiusInput.value) || 100, 10);
+        if (lat === null || lon === null) {
+            return;
+        }
+        if (!marker) {
+            marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+            marker.on('dragend', function (ev) {
+                const pos = ev.target.getLatLng();
+                latInput.value = pos.lat.toFixed(6);
+                lonInput.value = pos.lng.toFixed(6);
+                updateMapFromInputs(false);
+            });
+        } else {
+            marker.setLatLng([lat, lon]);
+        }
+        if (!circle) {
+            circle = L.circle([lat, lon], {
+                radius: radius,
+                color: '#1d4ed8',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.15,
+            }).addTo(map);
+        } else {
+            circle.setLatLng([lat, lon]);
+            circle.setRadius(radius);
+        }
+        if (fitBounds) {
+            map.fitBounds(circle.getBounds(), { padding: [24, 24] });
+        }
+    }
+
+    function clearRectSelection(resetInputs) {
+        rectCornerPoints = [];
+        rectCornerLayer.clearLayers();
+        if (resetInputs) {
+            setRectInputsFromPoints([]);
+        }
+        updateRectSelectionUi();
+        updateMapFromInputs(false);
+    }
 
     function toggleShapeFields(shape) {
         const circle = document.getElementById('circleFields');
@@ -375,36 +599,65 @@ document.addEventListener('DOMContentLoaded', function () {
             rect.classList.add('d-none');
             circle.classList.remove('d-none');
         }
+        syncRectPointsFromInputs();
         updateMapFromInputs(true);
     }
 
-    document.getElementById('shapeCircle').addEventListener('change', () => toggleShapeFields('circle'));
-    document.getElementById('shapeRect').addEventListener('change', () => toggleShapeFields('rect'));
+    shapeCircleInput.addEventListener('change', () => toggleShapeFields('circle'));
+    shapeRectInput.addEventListener('change', () => toggleShapeFields('rect'));
 
     document.getElementById('resetFormBtn').addEventListener('click', () => {
         document.getElementById('zoneForm').reset();
         document.getElementById('zoneId').value = '';
-        document.getElementById('shapeCircle').checked = true;
+        clearRectSelection(true);
+        shapeCircleInput.checked = true;
         toggleShapeFields('circle');
     });
+
+    if (rectStartSelectionBtn) {
+        rectStartSelectionBtn.addEventListener('click', () => {
+            shapeRectInput.checked = true;
+            clearRectSelection(true);
+            toggleShapeFields('rect');
+            mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
+    if (rectUndoBtn) {
+        rectUndoBtn.addEventListener('click', () => {
+            if (!rectCornerPoints.length) {
+                return;
+            }
+            rectCornerPoints.pop();
+            setRectInputsFromPoints(rectCornerPoints);
+            renderRectCornerPoints();
+            updateRectSelectionUi();
+            updateMapFromInputs(false);
+        });
+    }
+
+    if (rectClearBtn) {
+        rectClearBtn.addEventListener('click', () => clearRectSelection(true));
+    }
 
     function fillFormForEdit(d) {
         document.getElementById('zoneId').value = d.id || '';
         document.getElementById('zoneName').value = d.name || '';
         const shape = (d.shape || 'circle');
         if (shape === 'rect') {
-            document.getElementById('shapeRect').checked = true;
+            shapeRectInput.checked = true;
         } else {
-            document.getElementById('shapeCircle').checked = true;
+            shapeCircleInput.checked = true;
         }
+        latInput.value = d.lat || '';
+        lonInput.value = d.lon || '';
+        radiusInput.value = d.radius || '100';
+        rectNorthInput.value = d.north || '';
+        rectSouthInput.value = d.south || '';
+        rectEastInput.value = d.east || '';
+        rectWestInput.value = d.west || '';
+        syncRectPointsFromInputs();
         toggleShapeFields(shape);
-        document.getElementById('zoneLatitude').value = d.lat || '';
-        document.getElementById('zoneLongitude').value = d.lon || '';
-        document.getElementById('zoneRadius').value = d.radius || '100';
-        document.getElementById('rectNorth').value = d.north || '';
-        document.getElementById('rectSouth').value = d.south || '';
-        document.getElementById('rectEast').value = d.east || '';
-        document.getElementById('rectWest').value = d.west || '';
         updateMapFromInputs(true);
         mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -466,76 +719,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-        function parseInputNumber(value) {
-        const normalized = String(value ?? '').trim().replace(',', '.');
-        if (!normalized) {
-            return null;
-        }
-        const n = Number(normalized);
-        return Number.isFinite(n) ? n : null;
-    }
-
-        function updateMapFromInputs(fitBounds) {
-        const isRect = document.getElementById('shapeRect').checked;
-        map.invalidateSize();
-
-        if (isRect) {
-            const n = parseInputNumber(document.getElementById('rectNorth').value);
-            const s = parseInputNumber(document.getElementById('rectSouth').value);
-            const e = parseInputNumber(document.getElementById('rectEast').value);
-            const w = parseInputNumber(document.getElementById('rectWest').value);
-
-            if (rectOverlay) {
-                map.removeLayer(rectOverlay);
-                rectOverlay = null;
-            }
-            if (circle) { map.removeLayer(circle); circle = null; }
-            if (marker) { map.removeLayer(marker); marker = null; }
-
-            if (n != null && s != null && e != null && w != null && n > s && e > w) {
-                rectOverlay = L.rectangle([[s, w], [n, e]], {
-                    color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.15,
-                }).addTo(map);
-                if (fitBounds) {
-                    map.fitBounds(rectOverlay.getBounds(), { padding: [24, 24] });
-                }
-            }
-            return;
-        }
-
-        const lat = parseInputNumber(latInput.value);
-        const lon = parseInputNumber(lonInput.value);
-        const radius = Math.max(parseInputNumber(radiusInput.value) || 100, 10);
-        if (lat === null || lon === null) {
-            return;
-        }
-        if (!marker) {
-            marker = L.marker([lat, lon], { draggable: true }).addTo(map);
-            marker.on('dragend', function (ev) {
-                const pos = ev.target.getLatLng();
-                latInput.value = pos.lat.toFixed(6);
-                lonInput.value = pos.lng.toFixed(6);
-                updateMapFromInputs(false);
-            });
-        } else {
-            marker.setLatLng([lat, lon]);
-        }
-        if (!circle) {
-            circle = L.circle([lat, lon], {
-                radius: radius,
-                color: '#1d4ed8',
-                fillColor: '#3b82f6',
-                fillOpacity: 0.15,
-            }).addTo(map);
-        } else {
-            circle.setLatLng([lat, lon]);
-            circle.setRadius(radius);
-        }
-        if (fitBounds) {
-            map.fitBounds(circle.getBounds(), { padding: [24, 24] });
-        }
-    }
-
     async function geocodeAddress(query) {
         geocodeResults.innerHTML = '';
         if (!query || query.trim().length < 3) return;
@@ -550,8 +733,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 el.className = 'list-group-item list-group-item-action';
                 el.textContent = item.display_name;
                 el.addEventListener('click', () => {
-                    latInput.value = Number(item.lat).toFixed(6);
-                    lonInput.value = Number(item.lon).toFixed(6);
+                    if (isRectMode()) {
+                        map.setView([Number(item.lat), Number(item.lon)], 16);
+                    } else {
+                        latInput.value = Number(item.lat).toFixed(6);
+                        lonInput.value = Number(item.lon).toFixed(6);
+                    }
                     updateMapFromInputs(true);
                     geocodeResults.innerHTML = '';
                 });
@@ -572,26 +759,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-        map.on('click', function (ev) {
-        if (document.getElementById('shapeRect').checked) {
-            if (!rectFirstCorner) {
-                rectFirstCorner = ev.latlng;
-                return;
+    map.on('click', function (ev) {
+        if (isRectMode()) {
+            if (rectCornerPoints.length >= 4) {
+                rectCornerPoints = [];
             }
-            const a = rectFirstCorner; const b = ev.latlng;
-            rectFirstCorner = null;
-            const n = Math.max(a.lat, b.lat).toFixed(6);
-            const s = Math.min(a.lat, b.lat).toFixed(6);
-            const e = Math.max(a.lng, b.lng).toFixed(6);
-            const w = Math.min(a.lng, b.lng).toFixed(6);
-            document.getElementById('rectNorth').value = n;
-            document.getElementById('rectSouth').value = s;
-            document.getElementById('rectEast').value = e;
-            document.getElementById('rectWest').value = w;
+            rectCornerPoints.push(ev.latlng);
+            setRectInputsFromPoints(rectCornerPoints);
+            renderRectCornerPoints();
+            updateRectSelectionUi();
             updateMapFromInputs(true);
             return;
         }
-        rectFirstCorner = null;
         latInput.value = ev.latlng.lat.toFixed(6);
         lonInput.value = ev.latlng.lng.toFixed(6);
         updateMapFromInputs(true);
@@ -600,6 +779,12 @@ document.addEventListener('DOMContentLoaded', function () {
     latInput.addEventListener('input', function () { updateMapFromInputs(false); });
     lonInput.addEventListener('input', function () { updateMapFromInputs(false); });
     radiusInput.addEventListener('input', function () { updateMapFromInputs(false); });
+    [rectNorthInput, rectSouthInput, rectEastInput, rectWestInput].forEach(input => {
+        input.addEventListener('input', function () {
+            syncRectPointsFromInputs();
+            updateMapFromInputs(false);
+        });
+    });
 
             document.querySelectorAll('.zone-preview-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -674,6 +859,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     updateMapFromInputs(true);
+    updateRectSelectionUi();
     setTimeout(function () { map.invalidateSize(); }, 120);
 });
 </script>
