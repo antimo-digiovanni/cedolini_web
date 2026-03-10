@@ -66,6 +66,42 @@ def _create_audit_event(request, action, *, employee=None, payslip=None, metadat
         logger.exception("Errore nella creazione di AuditEvent (%s)", action)
 
 
+def _send_out_of_zone_request_admin_notification(request_obj):
+    recipients = [email for email in getattr(settings, 'ADMIN_NOTIFICATION_EMAILS', []) if email]
+    if not recipients:
+        return
+
+    employee = request_obj.employee
+    mark_type_label = dict(WorkMarkRequest.MARK_TYPE_CHOICES).get(request_obj.mark_type, request_obj.mark_type)
+    app_base_url = getattr(settings, 'APP_BASE_URL', '').rstrip('/')
+    admin_url = f"{app_base_url}/portal/admin-richieste-fuori-zona/" if app_base_url else '/portal/admin-richieste-fuori-zona/'
+
+    subject = f"Nuova richiesta fuori zona - {employee.full_name}"
+    body = (
+        "E' stata inviata una nuova richiesta di marcatura fuori zona.\n\n"
+        f"Dipendente: {employee.full_name}\n"
+        f"Data lavoro: {request_obj.work_date:%d/%m/%Y}\n"
+        f"Tipo: {mark_type_label}\n"
+        f"Motivazione: {request_obj.reason}\n"
+        f"Richiesta ID: {request_obj.id}\n\n"
+        f"Apri lo storico richieste: {admin_url}\n"
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=recipients,
+        )
+        email.send(fail_silently=False)
+    except Exception:
+        logger.exception(
+            'Errore invio notifica admin per richiesta fuori zona id=%s',
+            request_obj.id,
+        )
+
+
 # =========================================================
 # HOME
 # =========================================================
@@ -484,12 +520,13 @@ def dashboard(request):
         if latest_request and latest_request.status == WorkMarkRequest.STATUS_PENDING:
             return redirect(f"{request.path}?request_status=already_pending")
 
-        WorkMarkRequest.objects.create(
+        request_obj = WorkMarkRequest.objects.create(
             employee=employee,
             work_date=today,
             mark_type=mark_type,
             reason=reason,
         )
+        _send_out_of_zone_request_admin_notification(request_obj)
 
         _create_audit_event(
             request,
@@ -805,12 +842,13 @@ def timekeeping(request):
             if latest_request and latest_request.status == WorkMarkRequest.STATUS_PENDING:
                 return redirect(f"{request.path}?request_status=already_pending")
 
-            WorkMarkRequest.objects.create(
+            request_obj = WorkMarkRequest.objects.create(
                 employee=employee,
                 work_date=today,
                 mark_type=mark_type,
                 reason=reason,
             )
+            _send_out_of_zone_request_admin_notification(request_obj)
 
             _create_audit_event(
                 request,

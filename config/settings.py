@@ -31,6 +31,8 @@ BASE_CSRF_TRUSTED_ORIGINS = [
     "https://www.sanvincenzoservice.it",
 ]
 
+APP_BASE_URL = os.environ.get("APP_BASE_URL", "https://cedolini-web.onrender.com").rstrip("/")
+
 extra_csrf_origins = [o.strip() for o in os.environ.get("EXTRA_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 CSRF_TRUSTED_ORIGINS = BASE_CSRF_TRUSTED_ORIGINS + extra_csrf_origins
 
@@ -186,6 +188,15 @@ EMAIL_HOST_USER = "cedolini@sanvincenzosrl.com"
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 
 DEFAULT_FROM_EMAIL = "Cedolini San Vincenzo <cedolini@sanvincenzosrl.com>"
+
+ADMIN_NOTIFICATION_EMAILS = [
+    email.strip()
+    for email in os.environ.get(
+        "ADMIN_NOTIFICATION_EMAILS",
+        "antimo.digiovanni@sanvincenzosrl.com",
+    ).split(",")
+    if email.strip()
+]
 
 # Basic logging configuration: send INFO+ logs to stdout so Render captures them
 LOGGING = {
