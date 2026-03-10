@@ -1398,6 +1398,64 @@ def admin_out_of_zone_requests(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
+    feedback = None
+    feedback_level = 'info'
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'delete_out_of_zone_request':
+            req_id = request.POST.get('request_id')
+            redirect_query = (request.POST.get('redirect_query') or '').strip()
+            request_obj = (
+                WorkMarkRequest.objects
+                .select_related('employee', 'reviewed_by')
+                .filter(id=req_id)
+                .first()
+            )
+
+            if request_obj:
+                employee = request_obj.employee
+                request_payload = {
+                    'request_id': request_obj.id,
+                    'work_date': str(request_obj.work_date),
+                    'status': request_obj.status,
+                    'mark_type': request_obj.mark_type,
+                    'reason': request_obj.reason,
+                    'review_note': request_obj.review_note,
+                    'reviewed_at': request_obj.reviewed_at.isoformat() if request_obj.reviewed_at else None,
+                    'reviewed_by': request_obj.reviewed_by.username if request_obj.reviewed_by else None,
+                }
+                request_obj.delete()
+
+                _create_audit_event(
+                    request,
+                    'timekeeping_out_of_zone_deleted',
+                    employee=employee,
+                    metadata=request_payload,
+                )
+
+                redirect_url = request.path
+                if redirect_query:
+                    redirect_url = f'{redirect_url}?{redirect_query}&outcome=deleted'
+                else:
+                    redirect_url = f'{redirect_url}?outcome=deleted'
+                return redirect(redirect_url)
+
+            redirect_url = request.path
+            if redirect_query:
+                redirect_url = f'{redirect_url}?{redirect_query}&outcome=missing'
+            else:
+                redirect_url = f'{redirect_url}?outcome=missing'
+            return redirect(redirect_url)
+
+    outcome = (request.GET.get('outcome') or '').strip()
+    if outcome == 'deleted':
+        feedback = 'Richiesta fuori zona eliminata definitivamente.'
+        feedback_level = 'warning'
+    elif outcome == 'missing':
+        feedback = 'Richiesta non trovata o gia eliminata.'
+        feedback_level = 'danger'
+
     employees = Employee.objects.order_by('last_name', 'first_name')
     history_status = (request.GET.get('status') or 'all').strip()
     if history_status not in {
@@ -1428,6 +1486,9 @@ def admin_out_of_zone_requests(request):
         'history_status': history_status,
         'history_employee_filter': history_employee_filter,
         'pending_requests_count': pending_requests_count,
+        'feedback': feedback,
+        'feedback_level': feedback_level,
+        'current_query_string': request.GET.urlencode,
     })
 
 

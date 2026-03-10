@@ -8,6 +8,10 @@
     <p class="mb-0 opacity-75">Consulta tutte le richieste di marcatura fuori zona con filtri per dipendente e stato.</p>
 </div>
 
+{% if feedback %}
+<div class="alert alert-{{ feedback_level }}">{{ feedback }}</div>
+{% endif %}
+
 <div class="row g-4 mb-4">
     <div class="col-md-4">
         <div class="card-modern bg-white text-center">
@@ -67,6 +71,7 @@
                     <th>Stato</th>
                     <th>Motivazione</th>
                     <th>Revisione</th>
+                    <th>Azioni</th>
                 </tr>
             </thead>
             <tbody>
@@ -110,10 +115,19 @@
                             <span class="text-muted small">Non ancora revisionata</span>
                         {% endif %}
                     </td>
+                    <td>
+                        <form method="post" class="m-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_out_of_zone_request">
+                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                            <input type="hidden" name="redirect_query" value="{{ current_query_string }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Elimina richiesta" data-confirm-message="Stai per eliminare definitivamente la richiesta #{{ req.id }} di {{ req.employee.full_name }}." data-confirm-note="L'operazione e irreversibile e la richiesta sparira dallo storico visibile." data-confirm-button="Elimina richiesta" data-confirm-class="btn-danger">Elimina</button>
+                        </form>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted">Nessuna richiesta trovata per i filtri selezionati.</td>
+                    <td colspan="8" class="text-center text-muted">Nessuna richiesta trovata per i filtri selezionati.</td>
                 </tr>
                 {% endfor %}
             </tbody>
