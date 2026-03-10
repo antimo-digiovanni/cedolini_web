@@ -36,7 +36,25 @@ from django.core.paginator import Paginator
 import logging
 import secrets
 
+from .utils_import import parse_payslip_filename
+
 logger = logging.getLogger(__name__)
+
+
+MONTH_LABELS_IT = {
+    1: 'Gennaio',
+    2: 'Febbraio',
+    3: 'Marzo',
+    4: 'Aprile',
+    5: 'Maggio',
+    6: 'Giugno',
+    7: 'Luglio',
+    8: 'Agosto',
+    9: 'Settembre',
+    10: 'Ottobre',
+    11: 'Novembre',
+    12: 'Dicembre',
+}
 
 
 # =========================================================
@@ -100,6 +118,23 @@ def _send_out_of_zone_request_admin_notification(request_obj):
             'Errore invio notifica admin per richiesta fuori zona id=%s',
             request_obj.id,
         )
+
+
+def _attach_payslip_display_period(payslip):
+    display_month = payslip.month
+    display_year = payslip.year
+
+    try:
+        _, _, parsed_month, parsed_year = parse_payslip_filename(os.path.basename(payslip.pdf.name))
+        display_month = parsed_month
+        display_year = parsed_year
+    except Exception:
+        pass
+
+    payslip.display_month = display_month
+    payslip.display_year = display_year
+    payslip.display_month_name = MONTH_LABELS_IT.get(display_month, str(display_month))
+    return payslip
 
 
 # =========================================================
@@ -546,15 +581,22 @@ def dashboard(request):
         .prefetch_related('payslipview_set')
         .order_by('-year', '-month')
     )
-    latest_payslip = payslips.first()
-    grouped = {}
+
+    payslip_items = []
     for p in payslips:
         first_view = p.payslipview_set.order_by('viewed_at').first() if p.payslipview_set.all() else None
         p.is_viewed = bool(first_view)
         p.viewed_at = first_view.viewed_at if first_view else None
-        grouped.setdefault(p.year, []).append(p)
+        payslip_items.append(_attach_payslip_display_period(p))
 
-        cuds = (
+    payslip_items.sort(key=lambda item: (item.display_year, item.display_month, item.id), reverse=True)
+
+    latest_payslip = payslip_items[0] if payslip_items else None
+    grouped = {}
+    for p in payslip_items:
+        grouped.setdefault(p.display_year, []).append(p)
+
+    cuds = (
         Cud.objects
         .filter(employee=employee)
         .prefetch_related('cudview_set')

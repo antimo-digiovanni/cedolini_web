@@ -358,18 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     {% for payslip in payslips %}
                         <tr>
                             <td>
-                                {% if payslip.month == 1 %}Gennaio{% endif %}
-                                {% if payslip.month == 2 %}Febbraio{% endif %}
-                                {% if payslip.month == 3 %}Marzo{% endif %}
-                                {% if payslip.month == 4 %}Aprile{% endif %}
-                                {% if payslip.month == 5 %}Maggio{% endif %}
-                                {% if payslip.month == 6 %}Giugno{% endif %}
-                                {% if payslip.month == 7 %}Luglio{% endif %}
-                                {% if payslip.month == 8 %}Agosto{% endif %}
-                                {% if payslip.month == 9 %}Settembre{% endif %}
-                                {% if payslip.month == 10 %}Ottobre{% endif %}
-                                {% if payslip.month == 11 %}Novembre{% endif %}
-                                {% if payslip.month == 12 %}Dicembre{% endif %}
+                                {{ payslip.display_month_name }}
                             </td>
 
                             <td>
@@ -407,18 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <div>
                                     <div class="employee-doc-title">
-                                        {% if payslip.month == 1 %}Gennaio{% endif %}
-                                        {% if payslip.month == 2 %}Febbraio{% endif %}
-                                        {% if payslip.month == 3 %}Marzo{% endif %}
-                                        {% if payslip.month == 4 %}Aprile{% endif %}
-                                        {% if payslip.month == 5 %}Maggio{% endif %}
-                                        {% if payslip.month == 6 %}Giugno{% endif %}
-                                        {% if payslip.month == 7 %}Luglio{% endif %}
-                                        {% if payslip.month == 8 %}Agosto{% endif %}
-                                        {% if payslip.month == 9 %}Settembre{% endif %}
-                                        {% if payslip.month == 10 %}Ottobre{% endif %}
-                                        {% if payslip.month == 11 %}Novembre{% endif %}
-                                        {% if payslip.month == 12 %}Dicembre{% endif %}
+                                        {{ payslip.display_month_name }}
                                     </div>
                                     <div class="employee-doc-meta">
                                         {% if payslip.is_viewed %}
