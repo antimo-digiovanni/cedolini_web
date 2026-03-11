@@ -3,6 +3,7 @@ import csv
 import json
 import math
 import calendar
+from collections import OrderedDict
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -1743,13 +1744,34 @@ def admin_work_zones(request):
     assignments = (
         EmployeeWorkZone.objects
         .select_related('employee', 'zone')
-        .order_by('-is_active', '-created_at')
+        .order_by('employee__last_name', 'employee__first_name', '-is_active', 'zone__name', '-created_at')
     )
+    assignment_groups_map = OrderedDict()
+
+    for assignment in assignments:
+        employee_id = assignment.employee_id
+        group = assignment_groups_map.get(employee_id)
+        if group is None:
+            group = {
+                'employee': assignment.employee,
+                'assignments': [],
+                'total_count': 0,
+                'active_count': 0,
+            }
+            assignment_groups_map[employee_id] = group
+
+        group['assignments'].append(assignment)
+        group['total_count'] += 1
+        if assignment.is_active:
+            group['active_count'] += 1
+
+    assignment_groups = list(assignment_groups_map.values())
 
     return render(request, 'portal/admin_work_zones.html', {
         'employees': employees,
         'zones': zones,
         'assignments': assignments,
+        'assignment_groups': assignment_groups,
         'feedback': feedback,
         'feedback_level': feedback_level,
     })

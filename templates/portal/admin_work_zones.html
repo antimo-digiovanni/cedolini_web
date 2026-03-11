@@ -35,6 +35,34 @@
 #geocodeResults .list-group-item:hover {
     background: #f1f5f9;
 }
+
+.assignment-employee-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #0f172a;
+    font-weight: 600;
+    text-align: left;
+}
+
+.assignment-employee-toggle:hover {
+    color: #0d6efd;
+}
+
+.assignment-employee-toggle .bi {
+    transition: transform 0.2s ease;
+}
+
+.assignment-employee-toggle[aria-expanded="true"] .bi {
+    transform: rotate(90deg);
+}
+
+.assignment-group-detail {
+    background: #f8fafc;
+}
 </style>
 {% endblock %}
 
@@ -292,57 +320,99 @@
             <thead>
                 <tr>
                     <th>Dipendente</th>
-                    <th>Zona</th>
-                    <th>Valida dal</th>
-                    <th>Valida al</th>
-                    <th>Geofence</th>
-                    <th>Stato</th>
-                    <th>Azioni</th>
+                    <th>Zone assegnate</th>
+                    <th>Attive</th>
+                    <th>Dettaglio</th>
                 </tr>
             </thead>
             <tbody>
-                {% for row in assignments %}
+                {% for group in assignment_groups %}
                 <tr>
-                    <td>{{ row.employee.full_name }}</td>
-                    <td>{{ row.zone.name }}</td>
-                    <td>{{ row.valid_from|date:"d/m/Y" }}</td>
-                    <td>{% if row.valid_to %}{{ row.valid_to|date:"d/m/Y" }}{% else %}--{% endif %}</td>
                     <td>
-                        {% if row.strict_geofence %}
-                            <span class="badge bg-danger">Rigida</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Soft</span>
-                        {% endif %}
+                        <button
+                            class="assignment-employee-toggle"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#assignment-group-{{ group.employee.id }}"
+                            aria-expanded="false"
+                            aria-controls="assignment-group-{{ group.employee.id }}"
+                        >
+                            <i class="bi bi-chevron-right"></i>
+                            <span>{{ group.employee.full_name }}</span>
+                        </button>
                     </td>
+                    <td>{{ group.total_count }}</td>
+                    <td>{{ group.active_count }}</td>
                     <td>
-                        {% if row.is_active %}
-                            <span class="badge bg-success">Attiva</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Chiusa</span>
-                        {% endif %}
+                        <span class="text-muted small">Clicca sul dipendente per vedere le zone</span>
                     </td>
-                    <td>
-                        <div class="d-flex flex-wrap gap-2">
-                            {% if row.is_active %}
-                            <form method="post" class="m-0">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="deactivate_assignment">
-                                <input type="hidden" name="assignment_id" value="{{ row.id }}">
-                                <button class="btn btn-sm btn-outline-warning" type="submit" data-confirm-title="Disattiva assegnazione" data-confirm-message="Stai per disattivare questa assegnazione dipendente-zona." data-confirm-note="La disattivazione chiude la validita corrente dell'assegnazione." data-confirm-button="Disattiva" data-confirm-class="btn-warning">Disattiva</button>
-                            </form>
-                            {% endif %}
-                            <form method="post" class="m-0">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete_assignment">
-                                <input type="hidden" name="assignment_id" value="{{ row.id }}">
-                                <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Elimina assegnazione" data-confirm-message="Stai per eliminare definitivamente questa assegnazione." data-confirm-note="Usa questa azione solo se non vuoi mantenere traccia della relazione corrente." data-confirm-button="Elimina assegnazione" data-confirm-class="btn-danger">Elimina</button>
-                            </form>
+                </tr>
+                <tr class="assignment-group-detail">
+                    <td colspan="4" class="p-0 border-0">
+                        <div class="collapse" id="assignment-group-{{ group.employee.id }}">
+                        <div class="p-3">
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Zona</th>
+                                            <th>Valida dal</th>
+                                            <th>Valida al</th>
+                                            <th>Geofence</th>
+                                            <th>Stato</th>
+                                            <th>Azioni</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in group.assignments %}
+                                        <tr>
+                                            <td>{{ row.zone.name }}</td>
+                                            <td>{{ row.valid_from|date:"d/m/Y" }}</td>
+                                            <td>{% if row.valid_to %}{{ row.valid_to|date:"d/m/Y" }}{% else %}--{% endif %}</td>
+                                            <td>
+                                                {% if row.strict_geofence %}
+                                                    <span class="badge bg-danger">Rigida</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Soft</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if row.is_active %}
+                                                    <span class="badge bg-success">Attiva</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Chiusa</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    {% if row.is_active %}
+                                                    <form method="post" class="m-0">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="deactivate_assignment">
+                                                        <input type="hidden" name="assignment_id" value="{{ row.id }}">
+                                                        <button class="btn btn-sm btn-outline-warning" type="submit" data-confirm-title="Disattiva assegnazione" data-confirm-message="Stai per disattivare questa assegnazione dipendente-zona." data-confirm-note="La disattivazione chiude la validita corrente dell'assegnazione." data-confirm-button="Disattiva" data-confirm-class="btn-warning">Disattiva</button>
+                                                    </form>
+                                                    {% endif %}
+                                                    <form method="post" class="m-0">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="delete_assignment">
+                                                        <input type="hidden" name="assignment_id" value="{{ row.id }}">
+                                                        <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Elimina assegnazione" data-confirm-message="Stai per eliminare definitivamente questa assegnazione." data-confirm-note="Usa questa azione solo se non vuoi mantenere traccia della relazione corrente." data-confirm-button="Elimina assegnazione" data-confirm-class="btn-danger">Elimina</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                         </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted">Nessuna assegnazione disponibile.</td>
+                    <td colspan="4" class="text-center text-muted">Nessuna assegnazione disponibile.</td>
                 </tr>
                 {% endfor %}
             </tbody>
