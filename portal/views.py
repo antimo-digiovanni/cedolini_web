@@ -57,6 +57,13 @@ MONTH_LABELS_IT = {
 }
 
 
+def _disable_response_cache(response):
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
+
+
 # =========================================================
 # Utility: Audit logging
 # =========================================================
@@ -618,7 +625,7 @@ def dashboard(request):
         row.worked_display = row.worked_hours_display()
     month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
 
-    return render(request, 'portal/dashboard.html', {
+    response = render(request, 'portal/dashboard.html', {
         'employee': employee,
         'grouped_payslips': grouped,
         'latest_payslip': latest_payslip,
@@ -632,6 +639,7 @@ def dashboard(request):
         'month_sessions': month_sessions[:15],
         'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
     })
+    return _disable_response_cache(response)
 
 
 def _haversine_meters(lat1, lon1, lat2, lon2):
@@ -1006,7 +1014,7 @@ def timekeeping(request):
         row.worked_display = row.worked_hours_display()
     month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
 
-    return render(request, 'portal/timekeeping.html', {
+    response = render(request, 'portal/timekeeping.html', {
         'employee': employee,
         'today_session': session,
         'active_zones': _active_zones_for_employee(employee, today),
@@ -1017,6 +1025,7 @@ def timekeeping(request):
         'month_sessions': month_sessions[:15],
         'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
     })
+    return _disable_response_cache(response)
 
 
 @login_required

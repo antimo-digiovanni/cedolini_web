@@ -270,7 +270,7 @@ main {
 {% block extra_css %}{% endblock %}
 </head>
 
-<body>
+<body {% block body_data_attrs %}{% endblock %}>
 
 <img src="{% static 'portal/logo.png' %}" class="background-logo" alt="Background Logo">
 
@@ -489,6 +489,34 @@ document.addEventListener('DOMContentLoaded', function() {
     if (confirmModalEl) {
         confirmModalEl.addEventListener('hidden.bs.modal', function () {
             pendingConfirmation = null;
+        });
+    }
+
+    if (document.body.dataset.autoRefreshOnReturn === '1') {
+        let hiddenAt = null;
+        let hasReloaded = false;
+
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted && !hasReloaded) {
+                hasReloaded = true;
+                window.location.reload();
+            }
+        });
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') {
+                hiddenAt = Date.now();
+                return;
+            }
+
+            if (!hiddenAt || hasReloaded) {
+                return;
+            }
+
+            if (Date.now() - hiddenAt > 800) {
+                hasReloaded = true;
+                window.location.reload();
+            }
         });
     }
 });

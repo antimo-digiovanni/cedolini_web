@@ -1,6 +1,8 @@
 {% extends "portal/base.html" %}
 {% load static %}
 
+{% block body_data_attrs %}data-auto-refresh-on-return="1"{% endblock %}
+
 {% block extra_css %}
 <style>
 @media (max-width: 767.98px) {
