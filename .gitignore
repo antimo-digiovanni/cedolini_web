@@ -2,3 +2,10 @@
 __pycache__/
 *.py[cod]
 db.sqlite3
+gestionalepreventivi/build/
+gestionalepreventivi/dist/
+gestionalepreventivi/generated_pdfs/
+gestionalepreventivi/generated_excels/
+gestionalepreventivi/preventivi.db
+gestionalepreventivi/GestionalePreventivi.spec
+gestionalepreventivi/Logo timbro/

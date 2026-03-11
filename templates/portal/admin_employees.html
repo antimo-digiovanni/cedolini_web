@@ -219,37 +219,12 @@
     {% endfor %}
 </div>
 
-<div class="modal" tabindex="-1" id="emailModal">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Inserisci email</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" id="modalEmail" class="form-control">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-        <button type="button" class="btn btn-primary" id="modalSend">Invia Invito</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     let currentEmployeeId = null;
-    const emailModalEl = document.getElementById('emailModal');
-    const modalEmailInput = document.getElementById('modalEmail');
-    const modalSendBtn = document.getElementById('modalSend');
-    const modal = emailModalEl ? new bootstrap.Modal(emailModalEl) : null;
     const sendInviteUrl = '{% url "admin_send_invite" %}';
     const createInviteLinkUrl = '{% url "admin_create_invite_link" %}';
     const payslipsUrlTemplate = '{% url "admin_employee_payslips" 0 %}';
@@ -268,6 +243,43 @@ document.addEventListener('DOMContentLoaded', function () {
             body: new URLSearchParams(params)
         });
         return response.json();
+    }
+
+    function getEmployeeEmail(container) {
+        const emailEl = container ? container.querySelector('.emp-email') : null;
+        const rawEmail = (emailEl?.textContent || '').trim();
+        if (!rawEmail || rawEmail === '--' || rawEmail === 'Email non impostata') {
+            return '';
+        }
+        return rawEmail;
+    }
+
+    async function requestEmailAndSend(employeeId, currentEmail) {
+        const typedEmail = window.prompt('Inserisci l\'email del dipendente:', currentEmail || '');
+        if (typedEmail === null) {
+            return;
+        }
+
+        const email = typedEmail.trim();
+        if (!email) {
+            window.alert('Inserisci una email valida.');
+            return;
+        }
+
+        try {
+            const data = await postForm(sendInviteUrl, {
+                employee_id: employeeId,
+                email: email,
+            });
+            if (data.ok) {
+                location.reload();
+            } else {
+                window.alert('Errore: ' + (data.error || 'unknown'));
+            }
+        } catch (error) {
+            console.error('Errore invio invito con email', error);
+            window.alert('Errore di rete durante l\'invio invito');
+        }
     }
 
     document.addEventListener('click', async function (event) {
@@ -318,10 +330,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 const data = await postForm(sendInviteUrl, { employee_id: currentEmployeeId });
                 if (data.need_email) {
-                    if (modalEmailInput) {
-                        modalEmailInput.value = '';
-                    }
-                    modal.show();
+                    await requestEmailAndSend(currentEmployeeId, getEmployeeEmail(container));
                 } else if (data.ok) {
                     location.reload();
                 } else {
@@ -353,40 +362,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
-
-    if (modalSendBtn) {
-        modalSendBtn.addEventListener('click', async function () {
-            const email = (modalEmailInput?.value || '').trim();
-            if (!email) {
-                window.alert('Inserisci una email');
-                return;
-            }
-
-            try {
-                const data = await postForm(sendInviteUrl, {
-                    employee_id: currentEmployeeId,
-                    email: email,
-                });
-                if (data.ok) {
-                    modal.hide();
-                    location.reload();
-                } else {
-                    window.alert('Errore: ' + (data.error || 'unknown'));
-                }
-            } catch (error) {
-                console.error('Errore invio invito con email', error);
-                window.alert('Errore di rete durante l\'invio invito');
-            }
-        });
-    }
-
-    if (emailModalEl) {
-        emailModalEl.addEventListener('shown.bs.modal', function () {
-            if (modalEmailInput) {
-                modalEmailInput.focus();
-            }
-        });
-    }
 });
 </script>
 {% endblock %}
