@@ -761,6 +761,46 @@ def _session_has_markings(session):
     )
 
 
+def _clear_session_marking(session, delete_target):
+    if delete_target == 'start':
+        session.started_at = None
+        session.corrected_started_at = None
+        session.start_latitude = None
+        session.start_longitude = None
+        session.start_zone = None
+        session.start_within_zone = False
+        session.save(update_fields=[
+            'started_at',
+            'corrected_started_at',
+            'start_latitude',
+            'start_longitude',
+            'start_zone',
+            'start_within_zone',
+            'updated_at',
+        ])
+        return
+
+    if delete_target == 'end':
+        session.ended_at = None
+        session.corrected_ended_at = None
+        session.end_latitude = None
+        session.end_longitude = None
+        session.end_zone = None
+        session.end_within_zone = False
+        session.save(update_fields=[
+            'ended_at',
+            'corrected_ended_at',
+            'end_latitude',
+            'end_longitude',
+            'end_zone',
+            'end_within_zone',
+            'updated_at',
+        ])
+        return
+
+    session.delete()
+
+
 def _session_cell_text(session):
     if not session:
         return ''
@@ -1144,6 +1184,8 @@ def admin_timekeeping(request):
         return redirect('dashboard')
 
     today = timezone.localdate()
+    feedback = None
+    feedback_level = 'info'
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1235,6 +1277,53 @@ def admin_timekeeping(request):
                     f"{request.path}?employee={employee.id}&month={target_date.month}&year={target_date.year}"
                 )
 
+        if action == 'delete_marking':
+            employee_id = request.POST.get('employee_id')
+            target_date_raw = request.POST.get('target_date')
+            delete_target = (request.POST.get('delete_target') or '').strip()
+
+            employee = Employee.objects.filter(id=employee_id).first()
+            try:
+                target_date = datetime.strptime(target_date_raw or '', '%Y-%m-%d').date()
+            except ValueError:
+                target_date = None
+
+            redirect_employee = request.POST.get('redirect_employee') or 'all'
+            redirect_month = request.POST.get('redirect_month') or str(today.month)
+            redirect_year = request.POST.get('redirect_year') or str(today.year)
+
+            redirect_url = f"{request.path}?employee={redirect_employee}&month={redirect_month}&year={redirect_year}"
+
+            if not employee or not target_date or delete_target not in {'start', 'end', 'day'}:
+                return redirect(f"{redirect_url}&outcome=delete_invalid")
+
+            session = WorkSession.objects.filter(employee=employee, work_date=target_date).first()
+            if not session:
+                return redirect(f"{redirect_url}&outcome=delete_missing")
+
+            payload = {
+                'work_date': str(target_date),
+                'delete_target': delete_target,
+                'started_at': session.started_at.isoformat() if session.started_at else None,
+                'ended_at': session.ended_at.isoformat() if session.ended_at else None,
+                'corrected_started_at': session.corrected_started_at.isoformat() if session.corrected_started_at else None,
+                'corrected_ended_at': session.corrected_ended_at.isoformat() if session.corrected_ended_at else None,
+            }
+
+            _clear_session_marking(session, delete_target)
+
+            if delete_target != 'day' and not _session_has_markings(session):
+                session.delete()
+
+            _create_audit_event(
+                request,
+                'timekeeping_marking_deleted',
+                employee=employee,
+                metadata=payload,
+            )
+
+            return redirect(f"{redirect_url}&outcome=deleted_{delete_target}")
+
     try:
         year = int(request.GET.get('year', today.year))
     except (TypeError, ValueError):
@@ -1246,6 +1335,23 @@ def admin_timekeeping(request):
         month = today.month
 
     month = max(1, min(month, 12))
+
+    outcome = (request.GET.get('outcome') or '').strip()
+    if outcome == 'deleted_start':
+        feedback = 'Marcatura di ingresso eliminata.'
+        feedback_level = 'warning'
+    elif outcome == 'deleted_end':
+        feedback = 'Marcatura di uscita eliminata.'
+        feedback_level = 'warning'
+    elif outcome == 'deleted_day':
+        feedback = 'Giornata di marcatura eliminata.'
+        feedback_level = 'warning'
+    elif outcome == 'delete_missing':
+        feedback = 'Marcatura non trovata o gia eliminata.'
+        feedback_level = 'danger'
+    elif outcome == 'delete_invalid':
+        feedback = 'Richiesta di cancellazione non valida.'
+        feedback_level = 'danger'
 
     employees = Employee.objects.order_by('last_name', 'first_name')
 
@@ -1376,6 +1482,8 @@ def admin_timekeeping(request):
             'matrix_rows': matrix_rows,
             'employee_filter': 'all',
             'pending_mark_requests': pending_mark_requests,
+            'feedback': feedback,
+            'feedback_level': feedback_level,
         })
 
     if selected_employee:
@@ -1558,6 +1666,8 @@ def admin_timekeeping(request):
         'matrix_rows': [],
         'employee_filter': str(selected_employee.id) if selected_employee else '',
         'pending_mark_requests': pending_mark_requests,
+        'feedback': feedback,
+        'feedback_level': feedback_level,
     })
 
 

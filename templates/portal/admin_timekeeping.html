@@ -73,6 +73,10 @@
     <p class="mb-0 opacity-75">Controllo giornaliero ingressi, uscite e totale ore mensili.</p>
 </div>
 
+{% if feedback %}
+<div class="alert alert-{{ feedback_level }} mb-4">{{ feedback }}</div>
+{% endif %}
+
 <div class="card-modern bg-white mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="mb-0">Richieste marcatura fuori zona</h5>
@@ -333,6 +337,79 @@
                             <input type="text" name="note" class="form-control form-control-sm" placeholder="Nota" value="{{ row.correction_note|default:'' }}">
                             <button class="btn btn-sm btn-outline-primary" type="submit">Salva</button>
                         </form>
+                        {% if row.entry or row.exit %}
+                        <div class="d-flex flex-column gap-1 mt-2">
+                            {% if row.entry %}
+                            <form method="post"
+                                  data-confirm-title="Cancella ingresso"
+                                  data-confirm-message="Stai per eliminare la marcatura di ingresso del {{ row.date|date:'d/m/Y' }}."
+                                  data-confirm-note="Il dato verra rimosso dal riepilogo mensile."
+                                  data-confirm-button="Continua"
+                                  data-confirm-class="btn-danger"
+                                  data-confirm-second-title="Conferma finale"
+                                  data-confirm-second-message="Sei sicuro di voler cancellare l'ingresso?"
+                                  data-confirm-second-note="Questa operazione non puo essere annullata automaticamente."
+                                  data-confirm-second-button="Si, cancella"
+                                  data-confirm-second-class="btn-danger">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_marking">
+                                <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+                                <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
+                                <input type="hidden" name="delete_target" value="start">
+                                <input type="hidden" name="redirect_employee" value="{{ employee_filter }}">
+                                <input type="hidden" name="redirect_month" value="{{ selected_month }}">
+                                <input type="hidden" name="redirect_year" value="{{ selected_year }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Cancella ingresso</button>
+                            </form>
+                            {% endif %}
+
+                            {% if row.exit %}
+                            <form method="post"
+                                  data-confirm-title="Cancella uscita"
+                                  data-confirm-message="Stai per eliminare la marcatura di uscita del {{ row.date|date:'d/m/Y' }}."
+                                  data-confirm-note="Il totale ore del giorno verra ricalcolato subito."
+                                  data-confirm-button="Continua"
+                                  data-confirm-class="btn-danger"
+                                  data-confirm-second-title="Conferma finale"
+                                  data-confirm-second-message="Sei sicuro di voler cancellare l'uscita?"
+                                  data-confirm-second-note="Questa operazione non puo essere annullata automaticamente."
+                                  data-confirm-second-button="Si, cancella"
+                                  data-confirm-second-class="btn-danger">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_marking">
+                                <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+                                <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
+                                <input type="hidden" name="delete_target" value="end">
+                                <input type="hidden" name="redirect_employee" value="{{ employee_filter }}">
+                                <input type="hidden" name="redirect_month" value="{{ selected_month }}">
+                                <input type="hidden" name="redirect_year" value="{{ selected_year }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Cancella uscita</button>
+                            </form>
+                            {% endif %}
+
+                            <form method="post"
+                                  data-confirm-title="Cancella giornata"
+                                  data-confirm-message="Stai per eliminare tutte le marcature del {{ row.date|date:'d/m/Y' }}."
+                                  data-confirm-note="Verranno rimossi ingresso, uscita ed eventuali correzioni admin di questa giornata."
+                                  data-confirm-button="Continua"
+                                  data-confirm-class="btn-danger"
+                                  data-confirm-second-title="Conferma finale"
+                                  data-confirm-second-message="Sei sicuro di voler cancellare tutta la giornata?"
+                                  data-confirm-second-note="L'operazione e irreversibile."
+                                  data-confirm-second-button="Si, elimina tutto"
+                                  data-confirm-second-class="btn-danger">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_marking">
+                                <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+                                <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
+                                <input type="hidden" name="delete_target" value="day">
+                                <input type="hidden" name="redirect_employee" value="{{ employee_filter }}">
+                                <input type="hidden" name="redirect_month" value="{{ selected_month }}">
+                                <input type="hidden" name="redirect_year" value="{{ selected_year }}">
+                                <button class="btn btn-sm btn-danger" type="submit">Cancella giornata</button>
+                            </form>
+                        </div>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

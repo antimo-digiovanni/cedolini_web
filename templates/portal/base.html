@@ -426,6 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmSubmitBtn = document.getElementById('actionConfirmModalSubmit');
     const confirmModal = confirmModalEl ? new bootstrap.Modal(confirmModalEl) : null;
     let pendingConfirmation = null;
+    let confirmStep = 1;
 
     document.addEventListener('submit', function (event) {
         const form = event.target;
@@ -444,13 +445,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const note = submitter?.dataset.confirmNote || form.dataset.confirmNote || '';
         const confirmLabel = submitter?.dataset.confirmButton || form.dataset.confirmButton || 'Conferma';
         const confirmClass = submitter?.dataset.confirmClass || form.dataset.confirmClass || 'btn-primary';
+        const secondTitle = submitter?.dataset.confirmSecondTitle || form.dataset.confirmSecondTitle || '';
+        const secondMessage = submitter?.dataset.confirmSecondMessage || form.dataset.confirmSecondMessage || '';
+        const secondNote = submitter?.dataset.confirmSecondNote || form.dataset.confirmSecondNote || '';
+        const secondLabel = submitter?.dataset.confirmSecondButton || form.dataset.confirmSecondButton || 'Conferma';
+        const secondClass = submitter?.dataset.confirmSecondClass || form.dataset.confirmSecondClass || 'btn-danger';
 
         if (!confirmModal || !message) {
             return;
         }
 
         event.preventDefault();
-        pendingConfirmation = { form, submitter };
+        confirmStep = 1;
+        pendingConfirmation = { form, submitter, secondTitle, secondMessage, secondNote, secondLabel, secondClass };
         confirmTitleEl.textContent = title || 'Conferma azione';
         confirmMessageEl.textContent = message;
         confirmSubmitBtn.textContent = confirmLabel;
@@ -473,8 +480,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            const { form, submitter } = pendingConfirmation;
+            const { form, submitter, secondTitle, secondMessage, secondNote, secondLabel, secondClass } = pendingConfirmation;
+
+            if (confirmStep === 1 && secondMessage) {
+                confirmStep = 2;
+                confirmTitleEl.textContent = secondTitle || 'Conferma finale';
+                confirmMessageEl.textContent = secondMessage;
+                confirmSubmitBtn.textContent = secondLabel;
+                confirmSubmitBtn.className = `btn ${secondClass}`;
+
+                if (secondNote) {
+                    confirmNoteEl.textContent = secondNote;
+                    confirmNoteEl.classList.remove('d-none');
+                } else {
+                    confirmNoteEl.textContent = '';
+                    confirmNoteEl.classList.add('d-none');
+                }
+                return;
+            }
+
             pendingConfirmation = null;
+            confirmStep = 1;
             form.dataset.confirmed = '1';
             confirmModal.hide();
 
@@ -489,6 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (confirmModalEl) {
         confirmModalEl.addEventListener('hidden.bs.modal', function () {
             pendingConfirmation = null;
+            confirmStep = 1;
         });
     }
 
