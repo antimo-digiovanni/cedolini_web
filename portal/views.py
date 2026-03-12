@@ -57,6 +57,8 @@ MONTH_LABELS_IT = {
     12: 'Dicembre',
 }
 
+MAX_SHIFT_DURATION_HOURS = 18
+
 
 def _disable_response_cache(response):
     response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -524,22 +526,26 @@ def dashboard(request):
         return HttpResponse("Profilo dipendente non trovato. Contatta l'amministratore.", status=403)
 
     today = timezone.localdate()
-    _sync_approved_requests_for_range(today, today, employee=employee)
+    month_start = today.replace(day=1)
+    _sync_approved_requests_for_range(month_start, today, employee=employee)
+    _reconcile_overnight_sessions(employee=employee, start_date=month_start, end_date=today)
 
-    session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
+    session, _ = _get_timekeeping_session(employee)
     session.worked_display = session.worked_hours_display()
     active_assignments = _active_assignments_for_employee(employee, today)
     has_active_zone = bool(active_assignments)
     active_zones = _active_zones_for_employee(employee, today)
 
-    today_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
+    end_request_work_date = session.work_date if session.effective_started_at() and not session.effective_ended_at() else today
+    start_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
+    end_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=end_request_work_date).order_by('-created_at')
     today_mark_request_start = (
-        today_requests_qs
+        start_requests_qs
         .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH])
         .first()
     )
     today_mark_request_end = (
-        today_requests_qs
+        end_requests_qs
         .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH])
         .first()
     )
@@ -554,9 +560,10 @@ def dashboard(request):
         if len(reason) < 8:
             return redirect(f"{request.path}?request_status=invalid")
 
+        target_work_date = end_request_work_date if mark_type == WorkMarkRequest.MARK_TYPE_END else today
         latest_request = (
             WorkMarkRequest.objects
-            .filter(employee=employee, work_date=today, mark_type=mark_type)
+            .filter(employee=employee, work_date=target_work_date, mark_type=mark_type)
             .order_by('-created_at')
             .first()
         )
@@ -565,7 +572,7 @@ def dashboard(request):
 
         request_obj = WorkMarkRequest.objects.create(
             employee=employee,
-            work_date=today,
+            work_date=target_work_date,
             mark_type=mark_type,
             reason=reason,
         )
@@ -576,7 +583,7 @@ def dashboard(request):
             'timekeeping_out_of_zone_requested',
             employee=employee,
             metadata={
-                'work_date': str(today),
+                'work_date': str(target_work_date),
                 'mark_type': mark_type,
                 'reason': reason,
             },
@@ -615,7 +622,6 @@ def dashboard(request):
         c.is_viewed = bool(first_view)
         c.viewed_at = first_view.viewed_at if first_view else None
 
-    month_start = today.replace(day=1)
     month_sessions = (
         WorkSession.objects
         .filter(employee=employee, work_date__gte=month_start, work_date__lte=today)
@@ -779,18 +785,113 @@ def _session_cell_text(session):
     return ''
 
 
+def _get_open_shift_session(employee, reference_ts=None):
+    reference_ts = timezone.localtime(reference_ts or timezone.now())
+    candidate_start_date = reference_ts.date() - timedelta(days=1)
+    sessions = (
+        WorkSession.objects
+        .filter(employee=employee, work_date__gte=candidate_start_date)
+        .select_related('start_zone', 'end_zone')
+        .order_by('-work_date', '-created_at')
+    )
+
+    for session in sessions:
+        start_dt = session.effective_started_at()
+        end_dt = session.effective_ended_at()
+        if not start_dt or end_dt:
+            continue
+
+        elapsed_hours = (reference_ts - start_dt).total_seconds() / 3600
+        if 0 <= elapsed_hours <= MAX_SHIFT_DURATION_HOURS:
+            return session
+
+    return None
+
+
+def _get_timekeeping_session(employee, reference_ts=None):
+    reference_ts = timezone.localtime(reference_ts or timezone.now())
+    open_session = _get_open_shift_session(employee, reference_ts)
+    if open_session:
+        return open_session, False
+    return WorkSession.objects.get_or_create(employee=employee, work_date=reference_ts.date())
+
+
+def _reconcile_overnight_sessions(employee=None, start_date=None, end_date=None):
+    sessions_qs = WorkSession.objects.filter(
+        Q(started_at__isnull=False)
+        | Q(ended_at__isnull=False)
+        | Q(corrected_started_at__isnull=False)
+        | Q(corrected_ended_at__isnull=False)
+    ).select_related('employee', 'end_zone')
+
+    if employee is not None:
+        sessions_qs = sessions_qs.filter(employee=employee)
+    if start_date and end_date:
+        sessions_qs = sessions_qs.filter(work_date__range=(start_date - timedelta(days=1), end_date))
+
+    sessions = list(sessions_qs.order_by('employee_id', 'work_date', 'created_at'))
+    previous_by_employee = {}
+
+    for session in sessions:
+        previous = previous_by_employee.get(session.employee_id)
+        if not previous:
+            previous_by_employee[session.employee_id] = session
+            continue
+
+        previous_start = previous.effective_started_at()
+        previous_end = previous.effective_ended_at()
+        current_start = session.effective_started_at()
+        current_end = session.effective_ended_at()
+
+        can_merge = (
+            previous.work_date + timedelta(days=1) == session.work_date
+            and previous_start is not None
+            and previous_end is None
+            and current_start is None
+            and current_end is not None
+        )
+
+        if can_merge:
+            elapsed_hours = (current_end - previous_start).total_seconds() / 3600
+            if 0 <= elapsed_hours <= MAX_SHIFT_DURATION_HOURS:
+                previous.ended_at = session.ended_at or previous.ended_at
+                previous.corrected_ended_at = session.corrected_ended_at or previous.corrected_ended_at
+                previous.end_latitude = session.end_latitude
+                previous.end_longitude = session.end_longitude
+                previous.end_zone = session.end_zone
+                previous.end_within_zone = session.end_within_zone
+                previous.correction_note = previous.correction_note or session.correction_note
+                previous.corrected_by = previous.corrected_by or session.corrected_by
+                previous.corrected_at = previous.corrected_at or session.corrected_at
+                previous.save()
+
+                session.delete()
+                previous_by_employee[session.employee_id] = previous
+                continue
+
+        previous_by_employee[session.employee_id] = session
+
+
 def _apply_approved_mark_request_to_session(request_obj):
     """Trasforma una richiesta fuori zona approvata in marcatura effettiva.
 
     Usa il timestamp della richiesta (created_at), non il momento dell'approvazione,
     per mantenere l'orario reale comunicato dal dipendente.
     """
-    session, _ = WorkSession.objects.get_or_create(
-        employee=request_obj.employee,
-        work_date=request_obj.work_date,
-    )
-
     mark_ts = request_obj.created_at
+    if request_obj.mark_type == WorkMarkRequest.MARK_TYPE_END:
+        session = _get_open_shift_session(request_obj.employee, mark_ts)
+        if session is None:
+            session, _ = WorkSession.objects.get_or_create(
+                employee=request_obj.employee,
+                work_date=request_obj.work_date,
+            )
+    else:
+        session, _ = WorkSession.objects.get_or_create(
+            employee=request_obj.employee,
+            work_date=request_obj.work_date,
+        )
+
     changed_fields = []
 
     if request_obj.mark_type in {WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH}:
@@ -837,23 +938,27 @@ def timekeeping(request):
 
     employee = get_object_or_404(Employee, user=request.user)
     today = timezone.localdate()
+    month_start = today.replace(day=1)
 
     # Rende visibili immediatamente nel riepilogo le richieste gia approvate.
-    _sync_approved_requests_for_range(today, today, employee=employee)
+    _sync_approved_requests_for_range(month_start, today, employee=employee)
+    _reconcile_overnight_sessions(employee=employee, start_date=month_start, end_date=today)
 
-    session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
+    session, _ = _get_timekeeping_session(employee)
     session.worked_display = session.worked_hours_display()
     active_assignments = _active_assignments_for_employee(employee, today)
     has_active_zone = bool(active_assignments)
-    today_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
+    end_request_work_date = session.work_date if session.effective_started_at() and not session.effective_ended_at() else today
+    start_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
+    end_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=end_request_work_date).order_by('-created_at')
 
     today_mark_request_start = (
-        today_requests_qs
+        start_requests_qs
         .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH])
         .first()
     )
     today_mark_request_end = (
-        today_requests_qs
+        end_requests_qs
         .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH])
         .first()
     )
@@ -861,13 +966,15 @@ def timekeeping(request):
 
     def has_approved_request_for_action(action_name):
         mark_types = [WorkMarkRequest.MARK_TYPE_BOTH]
+        target_work_date = today
         if action_name == 'start':
             mark_types.append(WorkMarkRequest.MARK_TYPE_START)
         if action_name == 'end':
             mark_types.append(WorkMarkRequest.MARK_TYPE_END)
+            target_work_date = end_request_work_date
         return WorkMarkRequest.objects.filter(
             employee=employee,
-            work_date=today,
+            work_date=target_work_date,
             status=WorkMarkRequest.STATUS_APPROVED,
             mark_type__in=mark_types,
         ).exists()
@@ -883,9 +990,11 @@ def timekeeping(request):
             if len(reason) < 8:
                 return redirect(f"{request.path}?request_status=invalid")
 
+            target_work_date = end_request_work_date if mark_type == WorkMarkRequest.MARK_TYPE_END else today
+
             latest_request = (
                 WorkMarkRequest.objects
-                .filter(employee=employee, work_date=today, mark_type=mark_type)
+                .filter(employee=employee, work_date=target_work_date, mark_type=mark_type)
                 .order_by('-created_at')
                 .first()
             )
@@ -895,7 +1004,7 @@ def timekeeping(request):
 
             request_obj = WorkMarkRequest.objects.create(
                 employee=employee,
-                work_date=today,
+                work_date=target_work_date,
                 mark_type=mark_type,
                 reason=reason,
             )
@@ -906,7 +1015,7 @@ def timekeeping(request):
                 'timekeeping_out_of_zone_requested',
                 employee=employee,
                 metadata={
-                    'work_date': str(today),
+                    'work_date': str(target_work_date),
                     'mark_type': mark_type,
                     'reason': reason,
                 },
@@ -927,13 +1036,13 @@ def timekeeping(request):
 
         approved_out_of_zone = has_approved_request_for_action(action)
 
-        if action == 'start' and session.started_at:
-            return JsonResponse({'ok': False, 'error': 'Ingresso gia marcato oggi.'}, status=400)
+        if action == 'start' and session.effective_started_at() and not session.effective_ended_at():
+            return JsonResponse({'ok': False, 'error': 'Hai gia un turno aperto. Completa prima l\'uscita.'}, status=400)
 
-        if action == 'end' and not session.started_at:
+        if action == 'end' and not session.effective_started_at():
             return JsonResponse({'ok': False, 'error': 'Devi marcare prima l\'ingresso.'}, status=400)
 
-        if action == 'end' and session.ended_at:
+        if action == 'end' and session.effective_ended_at():
             return JsonResponse({'ok': False, 'error': 'Uscita gia marcata oggi.'}, status=400)
 
         now_ts = timezone.now()
@@ -1004,7 +1113,6 @@ def timekeeping(request):
             'distance_meters': zone_check['distance_meters'],
         })
 
-    month_start = today.replace(day=1)
     month_sessions = (
         WorkSession.objects
         .filter(employee=employee, work_date__gte=month_start, work_date__lte=today)
@@ -1087,15 +1195,21 @@ def admin_timekeeping(request):
 
             if employee and target_date:
                 session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=target_date)
+                reference_start_dt = session.corrected_started_at or session.started_at
 
                 if start_time:
                     corrected_start = datetime.combine(target_date, start_time)
                     session.corrected_started_at = timezone.make_aware(corrected_start, timezone.get_current_timezone())
+                    reference_start_dt = session.corrected_started_at
                 else:
                     session.corrected_started_at = None
+                    reference_start_dt = session.started_at
 
                 if end_time:
-                    corrected_end = datetime.combine(target_date, end_time)
+                    end_date_for_correction = target_date
+                    if reference_start_dt and end_time <= reference_start_dt.timetz().replace(tzinfo=None):
+                        end_date_for_correction = target_date + timedelta(days=1)
+                    corrected_end = datetime.combine(end_date_for_correction, end_time)
                     session.corrected_ended_at = timezone.make_aware(corrected_end, timezone.get_current_timezone())
                 else:
                     session.corrected_ended_at = None
@@ -1176,8 +1290,10 @@ def admin_timekeeping(request):
     # Backfill in lettura: include nel report mensile eventuali approvazioni storiche.
     if all_mode:
         _sync_approved_requests_for_range(start_date, end_date)
+        _reconcile_overnight_sessions(start_date=start_date, end_date=end_date)
     elif selected_employee:
         _sync_approved_requests_for_range(start_date, end_date, employee=selected_employee)
+        _reconcile_overnight_sessions(employee=selected_employee, start_date=start_date, end_date=end_date)
 
     if all_mode:
         marked_sessions_qs = (
