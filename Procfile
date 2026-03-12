@@ -1,1 +1,1 @@
-web: sh -c 'python manage.py migrate --noinput && python -m gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-10000} --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile -'
+web: python -m gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-10000} --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile -
