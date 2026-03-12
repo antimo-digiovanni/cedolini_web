@@ -1310,7 +1310,30 @@ def admin_timekeeping(request):
                 'corrected_ended_at': session.corrected_ended_at.isoformat() if session.corrected_ended_at else None,
             }
 
+            request_types = []
+            if delete_target in {'start', 'day'}:
+                request_types.extend([WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH])
+            if delete_target in {'end', 'day'}:
+                request_types.extend([WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH])
+
+            related_requests = list(
+                WorkMarkRequest.objects
+                .filter(
+                    employee=employee,
+                    work_date=target_date,
+                    mark_type__in=request_types,
+                    status__in=[WorkMarkRequest.STATUS_APPROVED, WorkMarkRequest.STATUS_PENDING],
+                )
+                .order_by('-created_at')
+            )
+
+            payload['related_request_ids'] = [req.id for req in related_requests]
+            payload['related_request_statuses'] = [req.status for req in related_requests]
+
             _clear_session_marking(session, delete_target)
+
+            if related_requests:
+                WorkMarkRequest.objects.filter(id__in=[req.id for req in related_requests]).delete()
 
             if delete_target != 'day' and not _session_has_markings(session):
                 session.delete()
