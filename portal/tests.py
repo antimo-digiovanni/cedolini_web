@@ -81,3 +81,15 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Chi ha marcato oggi")
 		self.assertContains(response, "Luca Verdi")
+
+	def test_limited_user_can_view_previous_day_markings(self):
+		WorkSession.objects.create(
+			employee=self.employee,
+			work_date=timezone.localdate() - timezone.timedelta(days=1),
+			started_at=timezone.now() - timezone.timedelta(days=1),
+		)
+		self.client.force_login(self.owner_user)
+		response = self.client.get(reverse("today_markings_dashboard"), {"date": (timezone.localdate() - timezone.timedelta(days=1)).isoformat()})
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Elenco marcature del")
+		self.assertContains(response, "Luca Verdi")

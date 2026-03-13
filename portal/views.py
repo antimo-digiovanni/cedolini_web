@@ -2227,12 +2227,33 @@ def today_markings_dashboard(request):
         return redirect('dashboard')
 
     today = timezone.localdate()
+    selected_date_raw = (request.GET.get('date') or '').strip()
+    try:
+        selected_date = datetime.strptime(selected_date_raw, '%Y-%m-%d').date() if selected_date_raw else today
+    except ValueError:
+        selected_date = today
+
+    if selected_date > today:
+        selected_date = today
+
     _sync_approved_requests_for_range(today, today)
     today_marked_sessions = _today_marked_sessions_queryset(today)
 
+    selected_marked_sessions = None
+    if selected_date != today:
+        _sync_approved_requests_for_range(selected_date, selected_date)
+        selected_marked_sessions = _today_marked_sessions_queryset(selected_date)
+
+    previous_date = selected_date - timedelta(days=1)
+    next_date = selected_date + timedelta(days=1) if selected_date < today else None
+
     response = render(request, 'portal/today_markings_dashboard.html', {
         'today': today,
+        'selected_date': selected_date,
         'today_marked_sessions': today_marked_sessions,
+        'selected_marked_sessions': selected_marked_sessions,
+        'previous_date': previous_date,
+        'next_date': next_date,
     })
     return _disable_response_cache(response)
 
