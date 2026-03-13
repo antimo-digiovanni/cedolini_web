@@ -75,6 +75,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "portal.context_processors.portal_access",
             ],
         },
     },
@@ -167,7 +168,7 @@ STORAGES = {
 # ==============================
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "admin_dashboard"
+LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"
 AUTHENTICATION_BACKENDS = [
     "portal.auth_backends.EmailOrUsernameBackend",

@@ -280,9 +280,13 @@ main {
         <div id="sidebarMenuContent">
             <div class="sidebar-title">Menu</div>
 
-            {% if user.is_staff %}
+            {% if has_full_admin_access %}
             <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
                 <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            {% elif has_today_markings_access %}
+            <a href="{% url 'today_markings_dashboard' %}" class="{% if request.resolver_match.url_name == 'today_markings_dashboard' %}active{% endif %}">
+                <i class="bi bi-calendar-check"></i> Chi ha marcato oggi
             </a>
             {% else %}
             <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
@@ -296,7 +300,7 @@ main {
             </a>
             {% endif %}
 
-            {% if user.is_staff %}
+            {% if has_full_admin_access %}
             <a href="{% url 'admin:index' %}">
                 <i class="bi bi-gear"></i> Admin Django
             </a>

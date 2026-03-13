@@ -19,10 +19,14 @@ class EmailOrUsernameBackend(ModelBackend):
         try:
             user = UserModel._default_manager.get_by_natural_key(username)
         except UserModel.DoesNotExist:
-            users = UserModel._default_manager.filter(Q(email__iexact=username))
-            if users.count() != 1:
-                return None
-            user = users.first()
+            username_matches = UserModel._default_manager.filter(username__iexact=username)
+            if username_matches.count() == 1:
+                user = username_matches.first()
+            else:
+                users = UserModel._default_manager.filter(Q(email__iexact=username))
+                if users.count() != 1:
+                    return None
+                user = users.first()
 
         if user.check_password(password) and self.user_can_authenticate(user):
             return user

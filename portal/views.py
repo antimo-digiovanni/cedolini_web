@@ -38,6 +38,7 @@ import logging
 import secrets
 
 from .utils_import import parse_payslip_filename
+from .access import user_has_full_admin_access, user_has_today_markings_access, user_home_url_name
 
 logger = logging.getLogger(__name__)
 
@@ -153,9 +154,7 @@ def _attach_payslip_display_period(payslip):
 
 def home(request):
     if request.user.is_authenticated:
-        if request.user.is_staff:
-            return redirect('admin_dashboard')
-        return redirect('dashboard')
+        return redirect(user_home_url_name(request.user))
     return render(request, 'site/home.html')
 
 
@@ -518,8 +517,10 @@ def dashboard(request):
 
 @login_required
 def dashboard(request):
-    if request.user.is_staff:
+    if user_has_full_admin_access(request.user):
         return redirect('admin_dashboard')
+    if user_has_today_markings_access(request.user):
+        return redirect('today_markings_dashboard')
 
     employee = Employee.objects.filter(user=request.user).first()
     if not employee:
@@ -973,8 +974,10 @@ def _sync_approved_requests_for_range(start_date, end_date, employee=None):
 @login_required
 def timekeeping(request):
     """Marcatura dipendente: avvio/fine giornata con supporto geolocalizzazione."""
-    if request.user.is_staff:
+    if user_has_full_admin_access(request.user):
         return redirect('admin_timekeeping')
+    if user_has_today_markings_access(request.user):
+        return redirect('today_markings_dashboard')
 
     employee = get_object_or_404(Employee, user=request.user)
     today = timezone.localdate()
@@ -2097,7 +2100,9 @@ def open_cud(request, cud_id):
 
 @login_required
 def admin_dashboard(request):
-    if not request.user.is_staff:
+    if not user_has_full_admin_access(request.user):
+        if user_has_today_markings_access(request.user):
+            return redirect('today_markings_dashboard')
         return redirect('dashboard')
 
     if request.method == 'POST':
@@ -2199,6 +2204,37 @@ def admin_dashboard(request):
         "pending_mark_requests": pending_mark_requests,
         "today_marked_sessions": today_marked_sessions,
     })
+
+
+def _today_marked_sessions_queryset(today):
+    return (
+        WorkSession.objects
+        .select_related('employee')
+        .filter(work_date=today)
+        .filter(
+            Q(started_at__isnull=False)
+            | Q(ended_at__isnull=False)
+            | Q(corrected_started_at__isnull=False)
+            | Q(corrected_ended_at__isnull=False)
+        )
+        .order_by('employee__last_name', 'employee__first_name')
+    )
+
+
+@login_required
+def today_markings_dashboard(request):
+    if not user_has_today_markings_access(request.user) and not user_has_full_admin_access(request.user):
+        return redirect('dashboard')
+
+    today = timezone.localdate()
+    _sync_approved_requests_for_range(today, today)
+    today_marked_sessions = _today_marked_sessions_queryset(today)
+
+    response = render(request, 'portal/today_markings_dashboard.html', {
+        'today': today,
+        'today_marked_sessions': today_marked_sessions,
+    })
+    return _disable_response_cache(response)
 
 
 @login_required
