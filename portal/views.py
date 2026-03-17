@@ -17,6 +17,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from django.templatetags.static import static
+from django.urls import reverse
 
 from .models import (
     Employee,
@@ -312,6 +313,161 @@ def site_webmanifest(request):
         json.dumps(manifest),
         content_type='application/manifest+json',
     )
+
+
+def employee_webmanifest(request):
+        """Manifest PWA dedicato al portale dipendenti."""
+        icon_192_url = request.build_absolute_uri(static('portal/icons/icon-192.png'))
+        icon_512_url = request.build_absolute_uri(static('portal/icons/icon-512.png'))
+        dashboard_url = reverse('dashboard')
+        timekeeping_url = reverse('timekeeping')
+        tutorial_url = reverse('portal_tutorial')
+        manifest = {
+                "id": dashboard_url,
+                "name": "Portale Dipendenti San Vincenzo",
+                "short_name": "Cedolini SV",
+                "start_url": dashboard_url,
+                "scope": "/",
+                "display": "standalone",
+                "orientation": "portrait",
+                "background_color": "#f1f5f9",
+                "theme_color": "#0f172a",
+                "description": "Cedolini, CUD e marcature per i dipendenti San Vincenzo.",
+                "icons": [
+                        {
+                                "src": icon_192_url,
+                                "sizes": "192x192",
+                                "type": "image/png",
+                                "purpose": "any maskable"
+                        },
+                        {
+                                "src": icon_512_url,
+                                "sizes": "512x512",
+                                "type": "image/png",
+                                "purpose": "any maskable"
+                        }
+                ],
+                "shortcuts": [
+                        {
+                                "name": "Dashboard",
+                                "short_name": "Dashboard",
+                                "url": dashboard_url,
+                                "icons": [{
+                                        "src": icon_192_url,
+                                        "sizes": "192x192",
+                                        "type": "image/png"
+                                }]
+                        },
+                        {
+                                "name": "Marcatura",
+                                "short_name": "Marcatura",
+                                "url": timekeeping_url,
+                                "icons": [{
+                                        "src": icon_192_url,
+                                        "sizes": "192x192",
+                                        "type": "image/png"
+                                }]
+                        },
+                        {
+                                "name": "Tutorial",
+                                "short_name": "Tutorial",
+                                "url": tutorial_url,
+                                "icons": [{
+                                        "src": icon_192_url,
+                                        "sizes": "192x192",
+                                        "type": "image/png"
+                                }]
+                        }
+                ]
+        }
+        return HttpResponse(
+                json.dumps(manifest),
+                content_type='application/manifest+json',
+        )
+
+
+def service_worker(request):
+        """Service worker root-level per installazione PWA del portale."""
+        static_assets = [
+                static('portal/logo.png'),
+                static('portal/icons/icon-192.png'),
+                static('portal/icons/icon-512.png'),
+                static('portal/icons/apple-touch-icon.png'),
+        ]
+        script = f"""
+const CACHE_NAME = 'cedolini-portal-v1';
+const STATIC_ASSETS = {json.dumps(static_assets)};
+
+self.addEventListener('install', (event) => {{
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(STATIC_ASSETS))
+            .catch(() => undefined)
+            .then(() => self.skipWaiting())
+    );
+}});
+
+self.addEventListener('activate', (event) => {{
+    event.waitUntil(
+        caches.keys().then((keys) => Promise.all(
+            keys
+                .filter((key) => key !== CACHE_NAME)
+                .map((key) => caches.delete(key))
+        )).then(() => self.clients.claim())
+    );
+}});
+
+self.addEventListener('fetch', (event) => {{
+    const request = event.request;
+    if (request.method !== 'GET') {{
+        return;
+    }}
+
+    const url = new URL(request.url);
+    const isSameOrigin = url.origin === self.location.origin;
+    const isStaticAsset = isSameOrigin && url.pathname.startsWith('/static/');
+
+    if (request.mode === 'navigate') {{
+        event.respondWith(
+            fetch(request).catch(async () => {{
+                const cachedDashboard = await caches.match('/portal/');
+                if (cachedDashboard) {{
+                    return cachedDashboard;
+                }}
+                return new Response(
+                    '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title><style>body{{font-family:Segoe UI,sans-serif;background:#f1f5f9;color:#0f172a;padding:24px}}.box{{max-width:420px;margin:10vh auto;background:#fff;border-radius:18px;padding:24px;box-shadow:0 12px 32px rgba(15,23,42,.12)}}h1{{font-size:1.2rem;margin:0 0 12px}}p{{margin:0;line-height:1.5;color:#475569}}</style></head><body><div class="box"><h1>Connessione assente</h1><p>Riapri l\'app quando la rete torna disponibile per consultare il portale dipendenti.</p></div></body></html>',
+                    {{ headers: {{ 'Content-Type': 'text/html; charset=utf-8' }} }}
+                );
+            }})
+        );
+        return;
+    }}
+
+    if (!isStaticAsset) {{
+        return;
+    }}
+
+    event.respondWith(
+        caches.match(request).then((cachedResponse) => {{
+            const networkFetch = fetch(request)
+                .then((networkResponse) => {{
+                    if (networkResponse && networkResponse.ok) {{
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+                    }}
+                    return networkResponse;
+                }})
+                .catch(() => cachedResponse);
+
+            return cachedResponse || networkFetch;
+        }})
+    );
+}});
+""".strip()
+        response = HttpResponse(script, content_type='application/javascript; charset=utf-8')
+        response['Service-Worker-Allowed'] = '/'
+        response['Cache-Control'] = 'no-cache'
+        return response
 
 
 def google_site_verification(request):
