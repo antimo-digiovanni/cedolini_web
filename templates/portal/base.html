@@ -280,6 +280,90 @@ main {
     color: #475569;
     font-size: 0.92rem;
 }
+
+.pwa-install-banner {
+    display: none;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #bfdbfe;
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.12);
+    margin-bottom: 1rem;
+}
+
+.pwa-install-banner.is-visible {
+    display: flex;
+}
+
+.pwa-install-copy {
+    flex: 1;
+}
+
+.pwa-install-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1d4ed8;
+    margin-bottom: 0.35rem;
+}
+
+.pwa-install-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.2rem;
+}
+
+.pwa-install-text {
+    margin: 0;
+    color: #334155;
+    line-height: 1.5;
+}
+
+.pwa-install-actions {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.pwa-install-actions .btn {
+    white-space: nowrap;
+}
+
+.pwa-install-instructions {
+    display: none;
+    margin-top: 0.75rem;
+    margin-bottom: 0;
+    padding-left: 1rem;
+    color: #475569;
+}
+
+.pwa-install-instructions.is-visible {
+    display: block;
+}
+
+.pwa-install-instructions li + li {
+    margin-top: 0.3rem;
+}
+
+@media (max-width: 767.98px) {
+    .pwa-install-banner.is-visible {
+        flex-direction: column;
+    }
+
+    .pwa-install-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
 </style>
 {% block extra_css %}{% endblock %}
 </head>
@@ -384,6 +468,27 @@ main {
         </div>
 
         <main class="container-fluid page-main">
+            {% if not has_full_admin_access and not has_today_markings_access %}
+            <section class="pwa-install-banner" id="pwaInstallBanner" aria-live="polite">
+                <div class="pwa-install-copy">
+                    <div class="pwa-install-eyebrow">
+                        <i class="bi bi-phone"></i>
+                        App Portale Dipendenti
+                    </div>
+                    <div class="pwa-install-title" id="pwaInstallTitle">Installa il portale sul telefono</div>
+                    <p class="pwa-install-text" id="pwaInstallText">Aggiungi questa app alla schermata Home per aprire cedolini e marcature piu rapidamente.</p>
+                    <ol class="pwa-install-instructions" id="pwaInstallInstructions">
+                        <li>Apri il menu Condividi di Safari.</li>
+                        <li>Tocca Aggiungi a Home.</li>
+                        <li>Conferma per avere l'icona del portale sul telefono.</li>
+                    </ol>
+                </div>
+                <div class="pwa-install-actions">
+                    <button type="button" class="btn btn-primary btn-sm d-none" id="pwaInstallAction">Installa app</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="pwaInstallDismiss">Chiudi</button>
+                </div>
+            </section>
+            {% endif %}
             {% block content %}{% endblock %}
         </main>
 
@@ -443,8 +548,115 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmNoteEl = document.getElementById('actionConfirmModalNote');
     const confirmSubmitBtn = document.getElementById('actionConfirmModalSubmit');
     const confirmModal = confirmModalEl ? new bootstrap.Modal(confirmModalEl) : null;
+    const pwaInstallBanner = document.getElementById('pwaInstallBanner');
+    const pwaInstallTitle = document.getElementById('pwaInstallTitle');
+    const pwaInstallText = document.getElementById('pwaInstallText');
+    const pwaInstallInstructions = document.getElementById('pwaInstallInstructions');
+    const pwaInstallAction = document.getElementById('pwaInstallAction');
+    const pwaInstallDismiss = document.getElementById('pwaInstallDismiss');
     let pendingConfirmation = null;
     let confirmStep = 1;
+    let deferredInstallPrompt = null;
+    const pwaDismissStorageKey = 'portal-pwa-install-dismissed';
+
+    function isStandaloneMode() {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function isIosSafari() {
+        const ua = window.navigator.userAgent.toLowerCase();
+        const isAppleMobile = /iphone|ipad|ipod/.test(ua);
+        const isWebkit = /webkit/.test(ua);
+        const isCriOS = /crios/.test(ua);
+        const isFxiOS = /fxios/.test(ua);
+        return isAppleMobile && isWebkit && !isCriOS && !isFxiOS;
+    }
+
+    function showPwaBanner() {
+        if (pwaInstallBanner) {
+            pwaInstallBanner.classList.add('is-visible');
+        }
+    }
+
+    function hidePwaBanner(remember) {
+        if (pwaInstallBanner) {
+            pwaInstallBanner.classList.remove('is-visible');
+        }
+        if (remember) {
+            window.localStorage.setItem(pwaDismissStorageKey, '1');
+        }
+    }
+
+    function configurePwaBanner() {
+        if (!pwaInstallBanner || isStandaloneMode()) {
+            return;
+        }
+
+        if (window.localStorage.getItem(pwaDismissStorageKey) === '1') {
+            return;
+        }
+
+        if (isIosSafari()) {
+            if (pwaInstallTitle) {
+                pwaInstallTitle.textContent = 'Aggiungi il portale alla Home di iPhone';
+            }
+            if (pwaInstallText) {
+                pwaInstallText.textContent = 'Su iPhone l\'installazione passa da Safari: usa Condividi e poi Aggiungi a Home.';
+            }
+            if (pwaInstallInstructions) {
+                pwaInstallInstructions.classList.add('is-visible');
+            }
+            showPwaBanner();
+        }
+    }
+
+    window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+
+        if (!pwaInstallBanner || isStandaloneMode() || window.localStorage.getItem(pwaDismissStorageKey) === '1') {
+            return;
+        }
+
+        if (pwaInstallTitle) {
+            pwaInstallTitle.textContent = 'Installa l\'app del portale dipendenti';
+        }
+        if (pwaInstallText) {
+            pwaInstallText.textContent = 'Tocca Installa app per aggiungere il portale alla schermata Home del telefono.';
+        }
+        if (pwaInstallInstructions) {
+            pwaInstallInstructions.classList.remove('is-visible');
+        }
+        if (pwaInstallAction) {
+            pwaInstallAction.classList.remove('d-none');
+        }
+
+        showPwaBanner();
+    });
+
+    if (pwaInstallAction) {
+        pwaInstallAction.addEventListener('click', async function () {
+            if (!deferredInstallPrompt) {
+                return;
+            }
+
+            deferredInstallPrompt.prompt();
+            const choice = await deferredInstallPrompt.userChoice;
+            deferredInstallPrompt = null;
+
+            if (choice && choice.outcome === 'accepted') {
+                hidePwaBanner(true);
+            }
+        });
+    }
+
+    if (pwaInstallDismiss) {
+        pwaInstallDismiss.addEventListener('click', function () {
+            hidePwaBanner(true);
+        });
+    }
+
+    configurePwaBanner();
 
     document.addEventListener('submit', function (event) {
         const form = event.target;
