@@ -281,88 +281,22 @@ main {
     font-size: 0.92rem;
 }
 
-.pwa-install-banner {
-    display: none;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.1rem;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 1px solid #bfdbfe;
-    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.12);
-    margin-bottom: 1rem;
+.sidebar-install-button {
+    display: none !important;
 }
 
-.pwa-install-banner.is-visible {
-    display: flex;
+.sidebar-install-button.is-visible {
+    display: flex !important;
 }
 
-.pwa-install-copy {
-    flex: 1;
-}
-
-.pwa-install-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #1d4ed8;
-    margin-bottom: 0.35rem;
-}
-
-.pwa-install-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 0.2rem;
-}
-
-.pwa-install-text {
+.install-modal-steps {
     margin: 0;
-    color: #334155;
-    line-height: 1.5;
-}
-
-.pwa-install-actions {
-    display: flex;
-    gap: 0.65rem;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.pwa-install-actions .btn {
-    white-space: nowrap;
-}
-
-.pwa-install-instructions {
-    display: none;
-    margin-top: 0.75rem;
-    margin-bottom: 0;
     padding-left: 1rem;
     color: #475569;
 }
 
-.pwa-install-instructions.is-visible {
-    display: block;
-}
-
-.pwa-install-instructions li + li {
-    margin-top: 0.3rem;
-}
-
-@media (max-width: 767.98px) {
-    .pwa-install-banner.is-visible {
-        flex-direction: column;
-    }
-
-    .pwa-install-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
+.install-modal-steps li + li {
+    margin-top: 0.35rem;
 }
 </style>
 {% block extra_css %}{% endblock %}
@@ -396,6 +330,9 @@ main {
             <a href="{% url 'portal_tutorial' %}" class="{% if request.resolver_match.url_name == 'portal_tutorial' %}active{% endif %}">
                 <i class="bi bi-journal-text"></i> Tutorial Portale
             </a>
+            <button type="button" id="sidebarInstallAppButton" class="sidebar-install-button" aria-label="Installa app del portale">
+                <i class="bi bi-phone"></i> Installa app
+            </button>
             {% endif %}
 
             {% if has_full_admin_access %}
@@ -468,27 +405,6 @@ main {
         </div>
 
         <main class="container-fluid page-main">
-            {% if not has_full_admin_access and not has_today_markings_access %}
-            <section class="pwa-install-banner" id="pwaInstallBanner" aria-live="polite">
-                <div class="pwa-install-copy">
-                    <div class="pwa-install-eyebrow">
-                        <i class="bi bi-phone"></i>
-                        App Portale Dipendenti
-                    </div>
-                    <div class="pwa-install-title" id="pwaInstallTitle">Installa il portale sul telefono</div>
-                    <p class="pwa-install-text" id="pwaInstallText">Aggiungi questa app alla schermata Home per aprire cedolini e marcature piu rapidamente.</p>
-                    <ol class="pwa-install-instructions" id="pwaInstallInstructions">
-                        <li>Apri il menu Condividi di Safari.</li>
-                        <li>Tocca Aggiungi a Home.</li>
-                        <li>Conferma per avere l'icona del portale sul telefono.</li>
-                    </ol>
-                </div>
-                <div class="pwa-install-actions">
-                    <button type="button" class="btn btn-primary btn-sm d-none" id="pwaInstallAction">Installa app</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="pwaInstallDismiss">Chiudi</button>
-                </div>
-            </section>
-            {% endif %}
             {% block content %}{% endblock %}
         </main>
 
@@ -532,6 +448,34 @@ main {
     </div>
 </div>
 
+<div class="modal fade" id="installAppModal" tabindex="-1" aria-labelledby="installAppModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-body p-4">
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <div class="confirm-modal-icon">
+                        <i class="bi bi-phone"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title mb-1" id="installAppModalLabel">Installa app</h5>
+                        <p class="text-muted mb-0" id="installAppModalMessage">Aggiungi il portale alla schermata Home del telefono.</p>
+                    </div>
+                </div>
+                <ol class="install-modal-steps d-none" id="installAppModalSteps">
+                    <li>Apri il menu Condividi di Safari.</li>
+                    <li>Tocca Aggiungi a Home.</li>
+                    <li>Conferma per avere l'icona del portale sul telefono.</li>
+                </ol>
+                <p class="text-muted mb-0 d-none" id="installAppModalFallback">Se il browser non mostra il pulsante automatico, usa il menu del browser e scegli Aggiungi a schermata Home.</p>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="button" class="btn btn-primary d-none" id="installAppModalAction">Installa app</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -548,16 +492,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmNoteEl = document.getElementById('actionConfirmModalNote');
     const confirmSubmitBtn = document.getElementById('actionConfirmModalSubmit');
     const confirmModal = confirmModalEl ? new bootstrap.Modal(confirmModalEl) : null;
-    const pwaInstallBanner = document.getElementById('pwaInstallBanner');
-    const pwaInstallTitle = document.getElementById('pwaInstallTitle');
-    const pwaInstallText = document.getElementById('pwaInstallText');
-    const pwaInstallInstructions = document.getElementById('pwaInstallInstructions');
-    const pwaInstallAction = document.getElementById('pwaInstallAction');
-    const pwaInstallDismiss = document.getElementById('pwaInstallDismiss');
+    const sidebarInstallAppButton = document.getElementById('sidebarInstallAppButton');
+    const installAppModalEl = document.getElementById('installAppModal');
+    const installAppModal = installAppModalEl ? new bootstrap.Modal(installAppModalEl) : null;
+    const installAppModalLabel = document.getElementById('installAppModalLabel');
+    const installAppModalMessage = document.getElementById('installAppModalMessage');
+    const installAppModalSteps = document.getElementById('installAppModalSteps');
+    const installAppModalFallback = document.getElementById('installAppModalFallback');
+    const installAppModalAction = document.getElementById('installAppModalAction');
     let pendingConfirmation = null;
     let confirmStep = 1;
     let deferredInstallPrompt = null;
-    const pwaDismissStorageKey = 'portal-pwa-install-dismissed';
 
     function isStandaloneMode() {
         return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -572,70 +517,76 @@ document.addEventListener('DOMContentLoaded', function() {
         return isAppleMobile && isWebkit && !isCriOS && !isFxiOS;
     }
 
-    function showPwaBanner() {
-        if (pwaInstallBanner) {
-            pwaInstallBanner.classList.add('is-visible');
+    function updateInstallMenuVisibility(visible) {
+        if (sidebarInstallAppButton) {
+            sidebarInstallAppButton.classList.toggle('is-visible', visible);
         }
     }
 
-    function hidePwaBanner(remember) {
-        if (pwaInstallBanner) {
-            pwaInstallBanner.classList.remove('is-visible');
+    function openInstallModal(options) {
+        if (!installAppModal) {
+            return;
         }
-        if (remember) {
-            window.localStorage.setItem(pwaDismissStorageKey, '1');
+
+        if (installAppModalLabel) {
+            installAppModalLabel.textContent = options.title;
         }
+        if (installAppModalMessage) {
+            installAppModalMessage.textContent = options.message;
+        }
+        if (installAppModalSteps) {
+            installAppModalSteps.classList.toggle('d-none', !options.showSteps);
+        }
+        if (installAppModalFallback) {
+            installAppModalFallback.classList.toggle('d-none', !options.showFallback);
+        }
+        if (installAppModalAction) {
+            installAppModalAction.classList.toggle('d-none', !options.showAction);
+        }
+
+        installAppModal.show();
     }
 
-    function configurePwaBanner() {
-        if (!pwaInstallBanner || isStandaloneMode()) {
-            return;
-        }
-
-        if (window.localStorage.getItem(pwaDismissStorageKey) === '1') {
-            return;
-        }
-
+    function handleInstallMenuClick() {
         if (isIosSafari()) {
-            if (pwaInstallTitle) {
-                pwaInstallTitle.textContent = 'Aggiungi il portale alla Home di iPhone';
-            }
-            if (pwaInstallText) {
-                pwaInstallText.textContent = 'Su iPhone l\'installazione passa da Safari: usa Condividi e poi Aggiungi a Home.';
-            }
-            if (pwaInstallInstructions) {
-                pwaInstallInstructions.classList.add('is-visible');
-            }
-            showPwaBanner();
+            openInstallModal({
+                title: 'Aggiungi il portale alla Home di iPhone',
+                message: 'Su iPhone l\'installazione passa da Safari: usa Condividi e poi Aggiungi a Home.',
+                showSteps: true,
+                showFallback: false,
+                showAction: false,
+            });
+            return;
         }
+
+        if (deferredInstallPrompt) {
+            openInstallModal({
+                title: 'Installa l\'app del portale dipendenti',
+                message: 'Tocca Installa app per aggiungere il portale alla schermata Home del telefono.',
+                showSteps: false,
+                showFallback: false,
+                showAction: true,
+            });
+            return;
+        }
+
+        openInstallModal({
+            title: 'Aggiungi il portale alla Home',
+            message: 'Il browser non ha mostrato il prompt automatico, ma puoi comunque aggiungere il portale alla Home dal menu del browser.',
+            showSteps: false,
+            showFallback: true,
+            showAction: false,
+        });
     }
 
     window.addEventListener('beforeinstallprompt', function (event) {
         event.preventDefault();
         deferredInstallPrompt = event;
-
-        if (!pwaInstallBanner || isStandaloneMode() || window.localStorage.getItem(pwaDismissStorageKey) === '1') {
-            return;
-        }
-
-        if (pwaInstallTitle) {
-            pwaInstallTitle.textContent = 'Installa l\'app del portale dipendenti';
-        }
-        if (pwaInstallText) {
-            pwaInstallText.textContent = 'Tocca Installa app per aggiungere il portale alla schermata Home del telefono.';
-        }
-        if (pwaInstallInstructions) {
-            pwaInstallInstructions.classList.remove('is-visible');
-        }
-        if (pwaInstallAction) {
-            pwaInstallAction.classList.remove('d-none');
-        }
-
-        showPwaBanner();
+        updateInstallMenuVisibility(!isStandaloneMode());
     });
 
-    if (pwaInstallAction) {
-        pwaInstallAction.addEventListener('click', async function () {
+    if (installAppModalAction) {
+        installAppModalAction.addEventListener('click', async function () {
             if (!deferredInstallPrompt) {
                 return;
             }
@@ -645,18 +596,21 @@ document.addEventListener('DOMContentLoaded', function() {
             deferredInstallPrompt = null;
 
             if (choice && choice.outcome === 'accepted') {
-                hidePwaBanner(true);
+                updateInstallMenuVisibility(false);
+                if (installAppModal) {
+                    installAppModal.hide();
+                }
             }
         });
     }
 
-    if (pwaInstallDismiss) {
-        pwaInstallDismiss.addEventListener('click', function () {
-            hidePwaBanner(true);
+    if (sidebarInstallAppButton) {
+        sidebarInstallAppButton.addEventListener('click', function () {
+            handleInstallMenuClick();
         });
     }
 
-    configurePwaBanner();
+    updateInstallMenuVisibility(!isStandaloneMode());
 
     document.addEventListener('submit', function (event) {
         const form = event.target;
