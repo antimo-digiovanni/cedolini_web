@@ -179,6 +179,95 @@
 </div>
 
 <div class="card-modern bg-white mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Richieste ferie</h5>
+        <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted">In attesa: {{ pending_vacation_requests|length }}</span>
+            <a href="{% url 'admin_vacation_requests' %}" class="btn btn-sm btn-outline-primary">Apri storico</a>
+        </div>
+    </div>
+    <div class="table-responsive d-none d-md-block">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Dal</th>
+                    <th>Al</th>
+                    <th>Giorni</th>
+                    <th>Motivazione</th>
+                    <th>Azione</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in pending_vacation_requests %}
+                <tr>
+                    <td>{{ req.employee.full_name }}</td>
+                    <td>{{ req.start_date|date:"d/m/Y" }}</td>
+                    <td>{{ req.end_date|date:"d/m/Y" }}</td>
+                    <td>{{ req.day_count }}</td>
+                    <td class="small">{{ req.reason }}</td>
+                    <td>
+                        <div class="d-flex flex-column gap-1">
+                            <form method="post" class="d-flex gap-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="approve_vacation_request">
+                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Nota (opzionale)">
+                                <button class="btn btn-sm btn-success" type="submit">Approva</button>
+                            </form>
+                            <form method="post" class="d-flex gap-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="reject_vacation_request">
+                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Motivo rifiuto">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Rifiuta</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Nessuna richiesta ferie in attesa.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="d-md-none">
+        {% for req in pending_vacation_requests %}
+        <div class="pending-request-card">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                <div>
+                    <div class="fw-semibold">{{ req.employee.full_name }}</div>
+                    <div class="pending-request-meta">{{ req.start_date|date:"d/m/Y" }} - {{ req.end_date|date:"d/m/Y" }}</div>
+                </div>
+                <div>
+                    <span class="badge bg-info text-dark">{{ req.day_count }} gg</span>
+                </div>
+            </div>
+            <div class="small mb-3">{{ req.reason }}</div>
+            <form method="post" class="d-grid gap-2 mb-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve_vacation_request">
+                <input type="hidden" name="request_id" value="{{ req.id }}">
+                <input type="text" name="review_note" class="form-control" placeholder="Nota approvazione (opzionale)">
+                <button class="btn btn-success" type="submit">Approva</button>
+            </form>
+            <form method="post" class="d-grid gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject_vacation_request">
+                <input type="hidden" name="request_id" value="{{ req.id }}">
+                <input type="text" name="review_note" class="form-control" placeholder="Motivo rifiuto">
+                <button class="btn btn-outline-danger" type="submit">Rifiuta</button>
+            </form>
+        </div>
+        {% empty %}
+        <div class="text-center text-muted py-3">Nessuna richiesta ferie in attesa.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card-modern bg-white mb-4">
     <form method="get" class="row g-2 align-items-end">
         <div class="col-md-4">
             <label class="form-label">Dipendente</label>
@@ -222,7 +311,7 @@
 <div class="card-modern bg-white mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="mb-0">Report mensile dipendenti</h5>
-        <span class="small text-muted">Righe: {{ matrix_rows|length }} (esclusi dipendenti senza marcature)</span>
+        <span class="small text-muted">Righe: {{ matrix_rows|length }} (esclusi dipendenti senza marcature o ferie)</span>
     </div>
     <p class="small text-muted mb-3">Ogni riquadro mostra la marcatura del giorno. Nessuno scroll orizzontale richiesto.</p>
 
@@ -314,7 +403,9 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if row.status == 'ok' %}
+                        {% if row.status == 'vacation' %}
+                            <span class="badge bg-info text-dark">Ferie</span>
+                        {% elif row.status == 'ok' %}
                             <span class="badge bg-success">Completa</span>
                         {% elif row.status == 'partial' %}
                             <span class="badge bg-warning text-dark">Parziale</span>
@@ -326,6 +417,9 @@
                         {% endif %}
                     </td>
                     <td>
+                        {% if row.status == 'vacation' %}
+                        <div class="small text-muted">Giornata impostata come ferie approvate.</div>
+                        {% else %}
                         <form method="post" class="d-flex flex-column gap-1">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="correct_day">
@@ -409,6 +503,7 @@
                                 <button class="btn btn-sm btn-danger" type="submit">Cancella giornata</button>
                             </form>
                         </div>
+                        {% endif %}
                         {% endif %}
                     </td>
                 </tr>

@@ -20,6 +20,12 @@
             </div>
             {% endif %}
 
+            {% if is_vacation_today %}
+            <div class="alert alert-info py-2" role="alert">
+                Oggi risulti in ferie approvate. Le marcature sono disabilitate per questa giornata.
+            </div>
+            {% endif %}
+
             <div class="mb-2">
                 <strong>Ingresso:</strong>
                 {% if today_session.started_at %}
@@ -36,16 +42,13 @@
                     --:--
                 {% endif %}
             </div>
-            <div class="mb-3">
-                <strong>Totale:</strong>
-                {{ today_session.worked_display }}
-            </div>
+
 
             <div class="d-grid gap-2">
-                <button id="btnStart" class="btn btn-success" {% if today_session.started_at or not has_active_zone %}disabled{% endif %}>
+                <button id="btnStart" class="btn btn-success" {% if today_session.started_at or not has_active_zone or is_vacation_today %}disabled{% endif %}>
                     <i class="bi bi-play-circle"></i> Inizio lavori
                 </button>
-                <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at or not has_active_zone %}disabled{% endif %}>
+                <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at or not has_active_zone or is_vacation_today %}disabled{% endif %}>
                     <i class="bi bi-stop-circle"></i> Fine lavori
                 </button>
             </div>
@@ -139,38 +142,6 @@
             {% endif %}
         </div>
 
-        <div class="card-modern bg-white">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="fw-semibold mb-0">Riepilogo mese corrente</h5>
-                <span class="badge bg-primary">Totale {{ month_total_hours }}</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Ingresso</th>
-                            <th>Uscita</th>
-                            <th>Totale</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in month_sessions %}
-                        <tr>
-                            <td>{{ row.work_date|date:"d/m/Y" }}</td>
-                            <td>{% if row.started_at %}{{ row.started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
-                            <td>{% if row.ended_at %}{{ row.ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
-                            <td>{{ row.worked_display }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">Nessuna marcatura nel mese.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 </div>
 

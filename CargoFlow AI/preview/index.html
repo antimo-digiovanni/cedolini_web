@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CargoFlow Preview</title>
+    <style>
+      :root {
+        --bg: #d6e4f1;
+        --bg-deep: #cbdceb;
+        --ink: #102033;
+        --muted: #5f7184;
+        --line: rgba(17, 32, 51, 0.08);
+        --panel: rgba(255, 255, 255, 0.82);
+        --blue: #1f5c9f;
+        --blue-soft: #deefff;
+        --amber-soft: #ffefca;
+        --mint-soft: #daf5eb;
+        --night: #0d1628;
+        --shadow: 0 20px 50px rgba(25, 43, 65, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", "Inter", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(255, 255, 255, 0.84), transparent 24%),
+          radial-gradient(circle at top right, rgba(172, 202, 235, 0.55), transparent 26%),
+          linear-gradient(180deg, #eef4f9 0%, var(--bg) 38%, var(--bg-deep) 100%);
+      }
+
+      .shell {
+        max-width: 430px;
+        margin: 0 auto;
+        padding: 18px 16px 32px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p,
+      small {
+        margin: 0;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .glass,
+      .market-card,
+      .assistant,
+      .sheet,
+      .footer,
+      .bottom-nav {
+        backdrop-filter: blur(18px);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+
+      .topbar {
+        border-radius: 26px;
+        padding: 18px;
+      }
+
+      .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .status-pill,
+      .tiny-pill,
+      .nav-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      .status-pill {
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(17, 32, 51, 0.06);
+        color: #617386;
+      }
+
+      .eyebrow {
+        margin: 0 0 4px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #6e7f94;
+      }
+
+      h1 {
+        font-size: 28px;
+        line-height: 1.05;
+      }
+
+      .sub {
+        margin-top: 8px;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+
+      .switch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .switch button {
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 14px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #edf2f7;
+        color: #516174;
+        transition: 160ms ease;
+      }
+
+      .switch button.active {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .hero {
+        margin-top: 14px;
+        border-radius: 28px;
+        padding: 22px;
+        color: white;
+        background:
+          radial-gradient(circle at top right, rgba(138, 180, 255, 0.34), transparent 34%),
+          radial-gradient(circle at bottom left, rgba(71, 118, 180, 0.22), transparent 28%),
+          linear-gradient(135deg, #0f172a 0%, #182847 100%);
+        box-shadow: 0 24px 60px rgba(9, 18, 36, 0.2);
+      }
+
+      .hero small {
+        display: block;
+        margin-bottom: 8px;
+        color: #95b8f9;
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+
+      .hero h2 {
+        font-size: 30px;
+        line-height: 1.04;
+      }
+
+      .hero p {
+        margin-top: 8px;
+        color: #cad8ef;
+        font-size: 14px;
+      }
+
+      .hero-meta {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+      }
+
+      .tiny-pill {
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #d8e6f7;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .stat {
+        padding: 14px 12px;
+        border-radius: 22px;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .stat span {
+        display: block;
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .stat.blue {
+        background: var(--blue-soft);
+      }
+
+      .stat.amber {
+        background: var(--amber-soft);
+      }
+
+      .stat.mint {
+        background: var(--mint-soft);
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 18px;
+        margin-bottom: 10px;
+      }
+
+      .section-head h3 {
+        font-size: 16px;
+      }
+
+      .section-head a {
+        color: var(--blue);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .market-card {
+        border-radius: 24px;
+        padding: 14px;
+        display: grid;
+        grid-template-columns: 74px 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .badge {
+        min-height: 74px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .badge.cold {
+        background: var(--blue-soft);
+      }
+
+      .badge.warm {
+        background: var(--amber-soft);
+      }
+
+      .badge.mint {
+        background: var(--mint-soft);
+      }
+
+      .market-card h3 {
+        font-size: 20px;
+        line-height: 1.1;
+      }
+
+      .market-card .desc {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .tag-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .tag {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(17, 32, 51, 0.05);
+        color: #55677b;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .meta {
+        margin-top: 10px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .meta .left {
+        color: #c2410c;
+      }
+
+      .sheet {
+        margin-top: 14px;
+        border-radius: 26px;
+        padding: 16px;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 12px;
+        margin-top: 10px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 34px 1fr auto;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .dot {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 800;
+        background: #e8f1fb;
+        color: var(--blue);
+      }
+
+      .dot.live {
+        background: #d7f7eb;
+        color: #0d8a5d;
+      }
+
+      .step strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .step span {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .step time {
+        font-size: 12px;
+        font-weight: 700;
+        color: #718398;
+      }
+
+      .assistant {
+        margin-top: 14px;
+        border-radius: 24px;
+        padding: 16px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(241, 247, 255, 0.9) 100%);
+      }
+
+      .assistant-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .assistant-head strong {
+        font-size: 16px;
+      }
+
+      .assistant p {
+        margin-top: 8px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .assistant-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .assistant-actions button {
+        flex: 1;
+        border: 0;
+        border-radius: 16px;
+        padding: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .assistant-actions .primary {
+        background: var(--blue);
+        color: white;
+      }
+
+      .assistant-actions .ghost {
+        background: rgba(31, 92, 159, 0.08);
+        color: var(--blue);
+      }
+
+      .footer {
+        margin-top: 14px;
+        border-radius: 24px;
+        padding: 18px;
+      }
+
+      .footer p {
+        margin-top: 6px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .bottom-nav {
+        position: sticky;
+        bottom: 12px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 16px;
+        padding: 10px;
+        border-radius: 22px;
+      }
+
+      .nav-chip {
+        padding: 10px 8px;
+        color: #607183;
+        background: rgba(17, 32, 51, 0.04);
+      }
+
+      .nav-chip.active {
+        background: var(--blue);
+        color: white;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @media (min-width: 700px) {
+        .shell {
+          max-width: 760px;
+        }
+
+        .top-grid {
+          display: grid;
+          grid-template-columns: 1.05fr 0.95fr;
+          gap: 14px;
+          align-items: start;
+        }
+
+        .topbar {
+          margin-bottom: 0;
+        }
+
+        .hero {
+          margin-top: 0;
+          min-height: 100%;
+        }
+
+        .insight-grid {
+          display: grid;
+          grid-template-columns: 1.15fr 0.85fr;
+          gap: 14px;
+        }
+
+        .stack {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="top-grid">
+        <section class="topbar glass">
+          <div class="status-row">
+            <span class="status-pill">CargoFlow AI</span>
+            <span class="status-pill">16 Marzo · Demo</span>
+          </div>
+          <p class="eyebrow">Preview browser</p>
+          <h1>Marketplace operativo mobile-first</h1>
+          <p class="sub">Una demo visiva credibile per testare la direzione del prodotto senza dipendere dal runtime Expo web.</p>
+          <div class="switch" id="mode-switch">
+            <button class="active" type="button" data-mode="carrier">Vettore</button>
+            <button type="button" data-mode="driver">Autista</button>
+          </div>
+          <div class="stats" id="stats"></div>
+        </section>
+
+        <section class="hero" id="hero">
+          <small id="hero-label">Vista vettore</small>
+          <h2 id="hero-title">Logistica Veloce</h2>
+          <p id="hero-copy">Marketplace operativo compatto, con aste, viaggi e carichi in evidenza.</p>
+          <div class="hero-meta" id="hero-meta"></div>
+        </section>
+      </div>
+
+      <div class="section-head">
+        <h3 id="market-title">Marketplace live</h3>
+        <a href="#">Aggiorna feed</a>
+      </div>
+      <section class="stack" id="market"></section>
+
+      <div class="insight-grid">
+        <section class="sheet">
+          <div class="section-head" style="margin-top: 0;">
+            <h3 id="timeline-title">Progressione viaggi</h3>
+            <a href="#">Apri mappa</a>
+          </div>
+          <div class="timeline" id="timeline"></div>
+        </section>
+
+        <section>
+          <article class="assistant" id="assistant"></article>
+
+          <article class="footer">
+            <p class="eyebrow">Stato</p>
+            <h2>Preview visibile</h2>
+            <p>Questa demo resta stabile nel browser mentre rifiniamo UI, gerarchia visiva e densita delle informazioni prima di riportare tutto nell'app mobile.</p>
+          </article>
+        </section>
+      </div>
+
+      <nav class="bottom-nav glass" id="bottom-nav"></nav>
+    </main>
+
+    <script>
+      const views = {
+        carrier: {
+          heroLabel: 'Vista vettore',
+          heroTitle: 'Logistica Veloce',
+          heroCopy: 'Marketplace operativo compatto, con aste, viaggi e carichi in evidenza.',
+          heroMeta: ['12 mezzi attivi', '4 aste live', 'Servizio 98,2%'],
+          marketTitle: 'Marketplace live',
+          timelineTitle: 'Avanzamento viaggi',
+          stats: [
+            { tone: 'blue', value: '18', label: 'carichi oggi' },
+            { tone: 'amber', value: '4', label: 'aste aperte' },
+            { tone: 'mint', value: '92%', label: 'slot coperti' },
+          ],
+          market: [
+            {
+              badgeTone: 'cold',
+              badge: 'Frigo',
+              title: 'MILANO → BERLINO',
+              desc: 'Bilico frigo · farmaco · priorita alta',
+              tags: ['ADR leggero', 'Baia 05:45', 'Ritorno utile'],
+              left: '01h 14m rimasti',
+              right: '€1.450',
+            },
+            {
+              badgeTone: 'warm',
+              badge: 'Telonato',
+              title: 'ROMA → PARIGI',
+              desc: 'Asta live · 11 vettori invitati',
+              tags: ['52 pallet', 'Pagamento 15gg', 'Chat aperta'],
+              left: 'Termina in 45m',
+              right: '€1.700',
+            },
+            {
+              badgeTone: 'mint',
+              badge: 'Rapido',
+              title: 'VERONA → MONACO',
+              desc: 'Partenza in fascia serale · slot premium',
+              tags: ['2 autisti', 'ETA 05:30', 'Firma digitale'],
+              left: 'Pronto al match',
+              right: '€980',
+            },
+            {
+              badgeTone: 'cold',
+              badge: 'Flotta',
+              title: 'TORINO → LIONE',
+              desc: 'Viaggio assegnato · monitoraggio geofence',
+              tags: ['Check-in ok', 'CMR in attesa', '2 eventi'],
+              left: 'In consegna',
+              right: 'Dal vivo',
+            },
+          ],
+          timeline: [
+            { dot: '1', title: 'Carico Milano', text: 'Confermato e in attesa ingresso ribalta', time: '05:40' },
+            { dot: '2', title: 'Controllo confine', text: 'Tratta autostradale libera, ETA aggiornata', time: '09:20' },
+            { dot: 'OK', live: true, title: 'Consegna Berlino', text: 'Slot scarico prenotato dall assistente AI', time: '14:05' },
+          ],
+          assistantTitle: 'Assistente CargoFlow',
+          assistantTag: 'Suggerimento IA',
+          assistantCopy: 'Conviene chiudere l asta Roma → Parigi adesso: il miglior offerente ha saturazione ritorno al 78% e puo confermare in meno di 3 minuti.',
+          assistantActions: ['Accetta offerta', 'Apri dettagli'],
+          nav: ['Panoramica', 'Carichi', 'Aste', 'Profilo'],
+          activeNav: 'Panoramica',
+        },
+        driver: {
+          heroLabel: 'Vista autista',
+          heroTitle: 'Luca Ferri',
+          heroCopy: 'Cruscotto giornaliero pulito, con missione attiva, documenti e messaggi operativi.',
+          heroMeta: ['Volvo FH 460', '2 missioni oggi', 'Valutazione 4,9'],
+          marketTitle: 'Missioni e turni',
+          timelineTitle: 'Roadbook dal vivo',
+          stats: [
+            { tone: 'blue', value: '2', label: 'missioni oggi' },
+            { tone: 'amber', value: '1', label: 'CMR da inviare' },
+            { tone: 'mint', value: '96%', label: 'puntualita' },
+          ],
+          market: [
+            {
+              badgeTone: 'cold',
+              badge: 'Frigo',
+              title: 'VERONA → MONACO',
+              desc: 'Missione attiva · geofence ok · ribalta prenotata',
+              tags: ['T -4°C', 'Dogana smart', 'Firma richiesta'],
+              left: 'In consegna',
+              right: '07:55 ETA',
+            },
+            {
+              badgeTone: 'warm',
+              badge: 'Hub',
+              title: 'TORINO → LIONE',
+              desc: 'Partenza prevista 05:30 · briefing letto',
+              tags: ['Pedaggio incluso', 'Badge attivo', '2 messaggi'],
+              left: 'Al carico',
+              right: 'Partenza 06:10',
+            },
+            {
+              badgeTone: 'mint',
+              badge: 'Doc',
+              title: 'CMR E CHECKLIST',
+              desc: 'Scansione guidata e invio automatico a fine scarico',
+              tags: ['OCR pronto', 'Template cliente', 'Upload rapido'],
+              left: '1 file mancante',
+              right: 'Apri',
+            },
+            {
+              badgeTone: 'cold',
+              badge: 'Chat',
+              title: 'SALA OPERATIVA',
+              desc: 'Canale operativo aperto con centrale e cliente',
+              tags: ['4 non letti', 'Posizione live', 'Voce rapida'],
+              left: 'Ultimo msg 2m fa',
+              right: 'Rispondi',
+            },
+          ],
+          timeline: [
+            { dot: 'A', title: 'Check mezzo', text: 'Checklist completata senza anomalie', time: '04:50' },
+            { dot: 'B', title: 'Carico Verona', text: 'Temperatura sigillata e documento validato', time: '05:35' },
+            { dot: 'OK', live: true, title: 'Scarico Monaco', text: 'Cliente pronto. Restano 18 minuti alla finestra', time: '07:55' },
+          ],
+          assistantTitle: 'Assistente di bordo',
+          assistantTag: 'Prossima azione',
+          assistantCopy: 'Prima dello scarico prepara il CMR digitale: appena entri nel geofence il cliente ricevera gia i dati del viaggio precompilati.',
+          assistantActions: ['Apri CMR', 'Chiama centrale'],
+          nav: ['Oggi', 'Chat', 'Documenti', 'Profilo'],
+          activeNav: 'Oggi',
+        },
+      };
+
+      const statsEl = document.getElementById('stats');
+      const heroLabelEl = document.getElementById('hero-label');
+      const heroTitleEl = document.getElementById('hero-title');
+      const heroCopyEl = document.getElementById('hero-copy');
+      const heroMetaEl = document.getElementById('hero-meta');
+      const marketTitleEl = document.getElementById('market-title');
+      const marketEl = document.getElementById('market');
+      const timelineTitleEl = document.getElementById('timeline-title');
+      const timelineEl = document.getElementById('timeline');
+      const assistantEl = document.getElementById('assistant');
+      const bottomNavEl = document.getElementById('bottom-nav');
+      const switchEl = document.getElementById('mode-switch');
+
+      function render(mode) {
+        const view = views[mode];
+
+        heroLabelEl.textContent = view.heroLabel;
+        heroTitleEl.textContent = view.heroTitle;
+        heroCopyEl.textContent = view.heroCopy;
+        marketTitleEl.textContent = view.marketTitle;
+        timelineTitleEl.textContent = view.timelineTitle;
+
+        heroMetaEl.innerHTML = view.heroMeta
+          .map((item) => '<span class="tiny-pill">' + item + '</span>')
+          .join('');
+
+        statsEl.innerHTML = view.stats
+          .map((item) => (
+            '<div class="stat ' + item.tone + '">' +
+              '<strong>' + item.value + '</strong>' +
+              '<span>' + item.label + '</span>' +
+            '</div>'
+          ))
+          .join('');
+
+        marketEl.innerHTML = view.market
+          .map((item) => (
+            '<article class="market-card">' +
+              '<div class="badge ' + item.badgeTone + '">' + item.badge + '</div>' +
+              '<div>' +
+                '<h3>' + item.title + '</h3>' +
+                '<p class="desc">' + item.desc + '</p>' +
+                '<div class="tag-row">' + item.tags.map((tag) => '<span class="tag">' + tag + '</span>').join('') + '</div>' +
+                '<div class="meta">' +
+                  '<span class="left">' + item.left + '</span>' +
+                  '<span>' + item.right + '</span>' +
+                '</div>' +
+              '</div>' +
+            '</article>'
+          ))
+          .join('');
+
+        timelineEl.innerHTML = view.timeline
+          .map((item) => (
+            '<div class="step">' +
+              '<div class="dot' + (item.live ? ' live' : '') + '">' + item.dot + '</div>' +
+              '<div>' +
+                '<strong>' + item.title + '</strong>' +
+                '<span>' + item.text + '</span>' +
+              '</div>' +
+              '<time>' + item.time + '</time>' +
+            '</div>'
+          ))
+          .join('');
+
+        assistantEl.innerHTML =
+          '<div class="assistant-head">' +
+            '<div>' +
+              '<p class="eyebrow">' + view.assistantTag + '</p>' +
+              '<strong>' + view.assistantTitle + '</strong>' +
+            '</div>' +
+            '<span class="status-pill">Attivo</span>' +
+          '</div>' +
+          '<p>' + view.assistantCopy + '</p>' +
+          '<div class="assistant-actions">' +
+            '<button class="primary" type="button">' + view.assistantActions[0] + '</button>' +
+            '<button class="ghost" type="button">' + view.assistantActions[1] + '</button>' +
+          '</div>';
+
+        bottomNavEl.innerHTML = view.nav
+          .map((item) => '<span class="nav-chip' + (item === view.activeNav ? ' active' : '') + '">' + item + '</span>')
+          .join('');
+
+        switchEl.querySelectorAll('button').forEach((button) => {
+          button.classList.toggle('active', button.dataset.mode === mode);
+        });
+      }
+
+      switchEl.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-mode]');
+        if (!button) {
+          return;
+        }
+
+        render(button.dataset.mode);
+      });
+
+      render('carrier');
+    </script>
+  </body>
+</html>

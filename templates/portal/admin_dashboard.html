@@ -190,6 +190,14 @@
                 <div class="fw-semibold">Assegnazioni attive</div>
             </div>
         </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="card-modern bg-white kpi-soft h-100">
+                <div class="kpi-icon"><i class="bi bi-airplane"></i></div>
+                <div class="fs-4 fw-bold">{{ approved_vacation_month_count }}</div>
+                <div class="fw-semibold">Richieste ferie approvate nel mese</div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4 mt-1">
@@ -312,6 +320,95 @@
                     </div>
                     {% empty %}
                     <div class="text-center text-muted py-3">Nessuna richiesta in attesa.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card-modern bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h5 class="fw-semibold mb-0">Richieste ferie in attesa</h5>
+                        <div class="small text-muted">Pendenti totali: {{ pending_vacation_requests_count }}</div>
+                    </div>
+                    <a href="{% url 'admin_vacation_requests' %}" class="btn btn-sm btn-outline-primary">Apri storico</a>
+                </div>
+                <div class="table-responsive d-none d-md-block">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Dipendente</th>
+                                <th>Dal</th>
+                                <th>Al</th>
+                                <th>Giorni</th>
+                                <th>Motivazione</th>
+                                <th>Azione</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in pending_vacation_requests %}
+                            <tr>
+                                <td>{{ req.employee.full_name }}</td>
+                                <td>{{ req.start_date|date:"d/m/Y" }}</td>
+                                <td>{{ req.end_date|date:"d/m/Y" }}</td>
+                                <td>{{ req.day_count }}</td>
+                                <td class="small">{{ req.reason }}</td>
+                                <td>
+                                    <div class="d-flex flex-column gap-1">
+                                        <form method="post" class="d-flex gap-1">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="approve_vacation_request">
+                                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                                            <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Nota (opzionale)">
+                                            <button class="btn btn-sm btn-success" type="submit">Approva</button>
+                                        </form>
+                                        <form method="post" class="d-flex gap-1">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="reject_vacation_request">
+                                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                                            <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Motivo rifiuto">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Rifiuta</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Nessuna richiesta ferie in attesa.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-md-none">
+                    {% for req in pending_vacation_requests %}
+                    <div class="request-card">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                            <div>
+                                <div class="fw-semibold">{{ req.employee.full_name }}</div>
+                                <div class="request-meta">{{ req.start_date|date:"d/m/Y" }} - {{ req.end_date|date:"d/m/Y" }}</div>
+                            </div>
+                            <span class="badge bg-info text-dark">{{ req.day_count }} gg</span>
+                        </div>
+                        <div class="small mb-3">{{ req.reason }}</div>
+                        <form method="post" class="d-grid gap-2 mb-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="approve_vacation_request">
+                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                            <input type="text" name="review_note" class="form-control" placeholder="Nota approvazione (opzionale)">
+                            <button class="btn btn-success" type="submit">Approva</button>
+                        </form>
+                        <form method="post" class="d-grid gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reject_vacation_request">
+                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                            <input type="text" name="review_note" class="form-control" placeholder="Motivo rifiuto">
+                            <button class="btn btn-outline-danger" type="submit">Rifiuta</button>
+                        </form>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-3">Nessuna richiesta ferie in attesa.</div>
                     {% endfor %}
                 </div>
             </div>

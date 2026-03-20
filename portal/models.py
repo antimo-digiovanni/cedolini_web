@@ -188,8 +188,16 @@ class EmployeeWorkZone(models.Model):
 class WorkSession(models.Model):
     """Marcatura giornaliera del dipendente (ingresso/uscita)."""
 
+    DAY_TYPE_WORK = 'work'
+    DAY_TYPE_VACATION = 'vacation'
+    DAY_TYPE_CHOICES = [
+        (DAY_TYPE_WORK, 'Lavoro'),
+        (DAY_TYPE_VACATION, 'Ferie'),
+    ]
+
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="work_sessions")
     work_date = models.DateField(default=timezone.localdate)
+    day_type = models.CharField(max_length=20, choices=DAY_TYPE_CHOICES, default=DAY_TYPE_WORK)
     started_at = models.DateTimeField(blank=True, null=True)
     ended_at = models.DateTimeField(blank=True, null=True)
 
@@ -303,3 +311,49 @@ class WorkMarkRequest(models.Model):
 
     def __str__(self):
         return f"{self.employee.full_name} {self.work_date} [{self.status}]"
+
+
+class VacationRequest(models.Model):
+    """Richiesta ferie dipendente con approvazione amministrativa."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'In attesa'),
+        (STATUS_APPROVED, 'Approvata'),
+        (STATUS_REJECTED, 'Rifiutata'),
+    ]
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='vacation_requests')
+    start_date = models.DateField(default=timezone.localdate)
+    end_date = models.DateField(default=timezone.localdate)
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    review_note = models.CharField(max_length=255, blank=True, null=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='reviewed_vacation_requests',
+    )
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def clean(self):
+        super().clean()
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({'end_date': 'La data fine non puo essere precedente alla data inizio.'})
+
+    def day_count(self):
+        return (self.end_date - self.start_date).days + 1
+
+    def __str__(self):
+        return f"{self.employee.full_name} {self.start_date} - {self.end_date} [{self.status}]"

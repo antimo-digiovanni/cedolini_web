@@ -31,6 +31,7 @@ from .models import (
     EmployeeWorkZone,
     WorkSession,
     WorkMarkRequest,
+    VacationRequest,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
@@ -130,6 +131,50 @@ def _send_out_of_zone_request_admin_notification(request_obj):
             'Errore invio notifica admin per richiesta fuori zona id=%s',
             request_obj.id,
         )
+
+
+def _send_vacation_request_admin_notification(request_obj):
+    recipients = [email for email in getattr(settings, 'ADMIN_NOTIFICATION_EMAILS', []) if email]
+    if not recipients:
+        return
+
+    employee = request_obj.employee
+    app_base_url = getattr(settings, 'APP_BASE_URL', '').rstrip('/')
+    admin_url = f"{app_base_url}/portal/admin-richieste-ferie/" if app_base_url else '/portal/admin-richieste-ferie/'
+
+    subject = f"Nuova richiesta ferie - {employee.full_name}"
+    body = (
+        "E' stata inviata una nuova richiesta ferie.\n\n"
+        f"Dipendente: {employee.full_name}\n"
+        f"Periodo: {request_obj.start_date:%d/%m/%Y} - {request_obj.end_date:%d/%m/%Y}\n"
+        f"Giorni richiesti: {request_obj.day_count()}\n"
+        f"Motivazione: {request_obj.reason}\n"
+        f"Richiesta ID: {request_obj.id}\n\n"
+        f"Apri lo storico richieste ferie: {admin_url}\n"
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=recipients,
+        )
+        email.send(fail_silently=False)
+    except Exception:
+        logger.exception(
+            'Errore invio notifica admin per richiesta ferie id=%s',
+            request_obj.id,
+        )
+
+
+def _parse_date_or_none(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError:
+        return None
 
 
 def _attach_payslip_display_period(payslip):
@@ -686,12 +731,14 @@ def dashboard(request):
     month_start = today.replace(day=1)
     _sync_approved_requests_for_range(month_start, today, employee=employee)
     _reconcile_overnight_sessions(employee=employee, start_date=month_start, end_date=today)
+    _sync_approved_vacations_for_range(month_start, today, employee=employee)
 
     session, _ = _get_timekeeping_session(employee)
     session.worked_display = session.worked_hours_display()
     active_assignments = _active_assignments_for_employee(employee, today)
     has_active_zone = bool(active_assignments)
     active_zones = _active_zones_for_employee(employee, today)
+    is_vacation_today = session.day_type == WorkSession.DAY_TYPE_VACATION
 
     end_request_work_date = session.work_date if session.effective_started_at() and not session.effective_ended_at() else today
     start_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
@@ -707,45 +754,99 @@ def dashboard(request):
         .first()
     )
     request_status = request.GET.get('request_status', '')
+    vacation_status = request.GET.get('vacation_status', '')
 
-    if request.method == 'POST' and request.POST.get('action') == 'request_out_of_zone':
-        reason = (request.POST.get('reason') or '').strip()
-        mark_type = (request.POST.get('mark_type') or '').strip()
+    if request.method == 'POST':
+        action = request.POST.get('action')
 
-        if mark_type not in {WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_END}:
-            return redirect(f"{request.path}?request_status=invalid_type")
-        if len(reason) < 8:
-            return redirect(f"{request.path}?request_status=invalid")
+        if action == 'request_out_of_zone':
+            reason = (request.POST.get('reason') or '').strip()
+            mark_type = (request.POST.get('mark_type') or '').strip()
 
-        target_work_date = end_request_work_date if mark_type == WorkMarkRequest.MARK_TYPE_END else today
-        latest_request = (
-            WorkMarkRequest.objects
-            .filter(employee=employee, work_date=target_work_date, mark_type=mark_type)
-            .order_by('-created_at')
-            .first()
-        )
-        if latest_request and latest_request.status == WorkMarkRequest.STATUS_PENDING:
-            return redirect(f"{request.path}?request_status=already_pending")
+            if mark_type not in {WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_END}:
+                return redirect(f"{request.path}?request_status=invalid_type")
+            if len(reason) < 8:
+                return redirect(f"{request.path}?request_status=invalid")
 
-        request_obj = WorkMarkRequest.objects.create(
-            employee=employee,
-            work_date=target_work_date,
-            mark_type=mark_type,
-            reason=reason,
-        )
-        _send_out_of_zone_request_admin_notification(request_obj)
+            target_work_date = end_request_work_date if mark_type == WorkMarkRequest.MARK_TYPE_END else today
+            latest_request = (
+                WorkMarkRequest.objects
+                .filter(employee=employee, work_date=target_work_date, mark_type=mark_type)
+                .order_by('-created_at')
+                .first()
+            )
+            if latest_request and latest_request.status == WorkMarkRequest.STATUS_PENDING:
+                return redirect(f"{request.path}?request_status=already_pending")
 
-        _create_audit_event(
-            request,
-            'timekeeping_out_of_zone_requested',
-            employee=employee,
-            metadata={
-                'work_date': str(target_work_date),
-                'mark_type': mark_type,
-                'reason': reason,
-            },
-                )
-        return redirect(f"{request.path}?request_status=sent_{mark_type}")
+            request_obj = WorkMarkRequest.objects.create(
+                employee=employee,
+                work_date=target_work_date,
+                mark_type=mark_type,
+                reason=reason,
+            )
+            _send_out_of_zone_request_admin_notification(request_obj)
+
+            _create_audit_event(
+                request,
+                'timekeeping_out_of_zone_requested',
+                employee=employee,
+                metadata={
+                    'work_date': str(target_work_date),
+                    'mark_type': mark_type,
+                    'reason': reason,
+                },
+            )
+            return redirect(f"{request.path}?request_status=sent_{mark_type}")
+
+        if action == 'request_vacation':
+            start_date = _parse_date_or_none(request.POST.get('start_date'))
+            end_date = _parse_date_or_none(request.POST.get('end_date'))
+            reason = (request.POST.get('vacation_reason') or '').strip()
+
+            if not start_date or not end_date:
+                return redirect(f"{request.path}?vacation_status=invalid_dates")
+            if end_date < start_date:
+                return redirect(f"{request.path}?vacation_status=invalid_range")
+            if len(reason) < 8:
+                return redirect(f"{request.path}?vacation_status=invalid_reason")
+
+            overlapping_pending = VacationRequest.objects.filter(
+                employee=employee,
+                status=VacationRequest.STATUS_PENDING,
+                start_date__lte=end_date,
+                end_date__gte=start_date,
+            ).exists()
+            if overlapping_pending:
+                return redirect(f"{request.path}?vacation_status=already_pending")
+
+            overlapping_approved = VacationRequest.objects.filter(
+                employee=employee,
+                status=VacationRequest.STATUS_APPROVED,
+                start_date__lte=end_date,
+                end_date__gte=start_date,
+            ).exists()
+            if overlapping_approved:
+                return redirect(f"{request.path}?vacation_status=already_approved")
+
+            request_obj = VacationRequest.objects.create(
+                employee=employee,
+                start_date=start_date,
+                end_date=end_date,
+                reason=reason,
+            )
+            _send_vacation_request_admin_notification(request_obj)
+            _create_audit_event(
+                request,
+                'vacation_requested',
+                employee=employee,
+                metadata={
+                    'request_id': request_obj.id,
+                    'start_date': str(start_date),
+                    'end_date': str(end_date),
+                    'reason': reason,
+                },
+            )
+            return redirect(f"{request.path}?vacation_status=sent")
 
     payslips = (
         Payslip.objects
@@ -779,15 +880,11 @@ def dashboard(request):
         c.is_viewed = bool(first_view)
         c.viewed_at = first_view.viewed_at if first_view else None
 
-    month_sessions = (
-        WorkSession.objects
-        .filter(employee=employee, work_date__gte=month_start, work_date__lte=today)
-        .order_by('-work_date')
+    recent_vacation_requests = list(
+        VacationRequest.objects
+        .filter(employee=employee)
+        .order_by('-created_at')[:6]
     )
-    month_sessions = list(month_sessions)
-    for row in month_sessions:
-        row.worked_display = row.worked_hours_display()
-    month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
 
     response = render(request, 'portal/dashboard.html', {
         'employee': employee,
@@ -800,8 +897,9 @@ def dashboard(request):
         'today_mark_request_start': today_mark_request_start,
         'today_mark_request_end': today_mark_request_end,
         'request_status': request_status,
-        'month_sessions': month_sessions[:15],
-        'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
+        'vacation_status': vacation_status,
+        'is_vacation_today': is_vacation_today,
+        'recent_vacation_requests': recent_vacation_requests,
     })
     return _disable_response_cache(response)
 
@@ -838,7 +936,6 @@ def _active_assignments_for_employee(employee, on_date):
             employee=employee,
             is_active=True,
             zone__is_active=True,
-            valid_from__lte=on_date,
         )
         .filter(Q(valid_to__isnull=True) | Q(valid_to__gte=on_date))
     )
@@ -847,35 +944,35 @@ def _active_assignments_for_employee(employee, on_date):
 
 def _active_zones_for_employee(employee, on_date):
     assignments = _active_assignments_for_employee(employee, on_date)
-    return [a.zone for a in assignments]
+    return [assignment.zone for assignment in assignments if assignment.zone_id]
 
 
 def _evaluate_location_for_employee_zone(employee, lat, lon, on_date):
     assignments = _active_assignments_for_employee(employee, on_date)
-    if not assignments or lat is None or lon is None:
-        return {
-            "assignment": None,
-            "zone": None,
-            "within": False,
-            "distance_meters": None,
-        }
+    plat = float(lat)
+    plon = float(lon)
 
-    def distance_to_zone(z, plat, plon):
-        # Ritorna (within_bool, distance_meters_to_perimeter)
-        if getattr(z, 'shape', 'circle') == getattr(WorkZone, 'SHAPE_RECT', 'rect') and \
-           z.rect_north is not None and z.rect_south is not None and z.rect_east is not None and z.rect_west is not None:
-            n, s, e, w = float(z.rect_north), float(z.rect_south), float(z.rect_east), float(z.rect_west)
-            within = (s <= plat <= n) and (w <= plon <= e)
-            # distanza al rettangolo: 0 se dentro, altrimenti distanza al punto proiettato sul perimetro
-            clamped_lat = min(max(plat, s), n)
-            clamped_lon = min(max(plon, w), e)
-            dist = 0.0 if within else _haversine_meters(plat, plon, clamped_lat, clamped_lon)
-            return within, dist
-        # default cerchio
-        center_dist = _haversine_meters(plat, plon, float(z.latitude), float(z.longitude))
-        within = center_dist <= float(z.radius_meters)
-        dist = 0.0 if within else max(center_dist - float(z.radius_meters), 0.0)
-        return within, dist
+    def _distance_to_zone(zone):
+        if zone.latitude is None or zone.longitude is None:
+            return False, None
+
+        center_dist = _haversine_meters(plat, plon, float(zone.latitude), float(zone.longitude))
+        if getattr(zone, 'shape', 'circle') == getattr(WorkZone, 'SHAPE_RECT', 'rect') and \
+           zone.rect_north is not None and zone.rect_south is not None and zone.rect_east is not None and zone.rect_west is not None:
+            north = float(zone.rect_north)
+            south = float(zone.rect_south)
+            east = float(zone.rect_east)
+            west = float(zone.rect_west)
+            within = (south <= plat <= north) and (west <= plon <= east)
+            clamped_lat = min(max(plat, south), north)
+            clamped_lon = min(max(plon, west), east)
+            distance = 0.0 if within else _haversine_meters(plat, plon, clamped_lat, clamped_lon)
+            return within, distance
+
+        radius = float(zone.radius_meters or 0)
+        within = center_dist <= radius
+        distance = 0.0 if within else max(center_dist - radius, 0.0)
+        return within, distance
 
     best_assignment = None
     best_zone = None
@@ -884,19 +981,22 @@ def _evaluate_location_for_employee_zone(employee, lat, lon, on_date):
 
     for assignment in assignments:
         zone = assignment.zone
-        within, dist = distance_to_zone(zone, lat, lon)
-        # Scegli la zona piu vicina; preferisci "within" in caso di pari distanza
-        if best_distance is None or dist < best_distance or (dist == best_distance and within and not best_within):
-            best_distance = dist
-            best_zone = zone
+        if zone is None:
+            continue
+        within, distance = _distance_to_zone(zone)
+        if distance is None:
+            continue
+        if best_distance is None or distance < best_distance:
             best_assignment = assignment
+            best_zone = zone
+            best_distance = distance
             best_within = within
 
     return {
-        "assignment": best_assignment,
-        "zone": best_zone,
-        "within": best_within,
-        "distance_meters": round(best_distance, 1) if best_distance is not None else None,
+        'assignment': best_assignment,
+        'zone': best_zone,
+        'distance_meters': round(best_distance, 1) if best_distance is not None else None,
+        'within': best_within,
     }
 
 
@@ -958,9 +1058,39 @@ def _clear_session_marking(session, delete_target):
     session.delete()
 
 
+def _set_session_as_vacation(session):
+    session.day_type = WorkSession.DAY_TYPE_VACATION
+    session.started_at = None
+    session.ended_at = None
+    session.start_latitude = None
+    session.start_longitude = None
+    session.end_latitude = None
+    session.end_longitude = None
+    session.start_zone = None
+    session.end_zone = None
+    session.start_within_zone = False
+    session.end_within_zone = False
+    session.corrected_started_at = None
+    session.corrected_ended_at = None
+    session.correction_note = None
+    session.corrected_by = None
+    session.corrected_at = None
+    session.save()
+
+
+def _iter_dates(start_date, end_date):
+    current_date = start_date
+    while current_date <= end_date:
+        yield current_date
+        current_date += timedelta(days=1)
+
+
 def _session_cell_text(session):
     if not session:
         return ''
+
+    if session.day_type == WorkSession.DAY_TYPE_VACATION:
+        return 'FERIE'
 
     def fmt(dt):
         try:
@@ -1093,15 +1223,17 @@ def _apply_approved_mark_request_to_session(request_obj):
 
     if request_obj.mark_type in {WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH}:
         if not session.started_at:
+            session.day_type = WorkSession.DAY_TYPE_WORK
             session.started_at = mark_ts
             session.start_within_zone = False
-            changed_fields.extend(['started_at', 'start_within_zone'])
+            changed_fields.extend(['day_type', 'started_at', 'start_within_zone'])
 
     if request_obj.mark_type in {WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH}:
         if not session.ended_at:
+            session.day_type = WorkSession.DAY_TYPE_WORK
             session.ended_at = mark_ts
             session.end_within_zone = False
-            changed_fields.extend(['ended_at', 'end_within_zone'])
+            changed_fields.extend(['day_type', 'ended_at', 'end_within_zone'])
 
     if changed_fields:
         session.save(update_fields=changed_fields + ['updated_at'])
@@ -1127,6 +1259,40 @@ def _sync_approved_requests_for_range(start_date, end_date, employee=None):
         _apply_approved_mark_request_to_session(req)
 
 
+def _apply_approved_vacation_request_to_sessions(request_obj):
+    for current_date in _iter_dates(request_obj.start_date, request_obj.end_date):
+        session, _ = WorkSession.objects.get_or_create(
+            employee=request_obj.employee,
+            work_date=current_date,
+        )
+        _set_session_as_vacation(session)
+
+
+def _sync_approved_vacations_for_range(start_date, end_date, employee=None):
+    qs = (
+        VacationRequest.objects
+        .select_related('employee')
+        .filter(
+            status=VacationRequest.STATUS_APPROVED,
+            start_date__lte=end_date,
+            end_date__gte=start_date,
+        )
+        .order_by('start_date', 'created_at')
+    )
+    if employee is not None:
+        qs = qs.filter(employee=employee)
+
+    for req in qs:
+        effective_start = max(req.start_date, start_date)
+        effective_end = min(req.end_date, end_date)
+        for current_date in _iter_dates(effective_start, effective_end):
+            session, _ = WorkSession.objects.get_or_create(
+                employee=req.employee,
+                work_date=current_date,
+            )
+            _set_session_as_vacation(session)
+
+
 @login_required
 def timekeeping(request):
     """Marcatura dipendente: avvio/fine giornata con supporto geolocalizzazione."""
@@ -1142,11 +1308,13 @@ def timekeeping(request):
     # Rende visibili immediatamente nel riepilogo le richieste gia approvate.
     _sync_approved_requests_for_range(month_start, today, employee=employee)
     _reconcile_overnight_sessions(employee=employee, start_date=month_start, end_date=today)
+    _sync_approved_vacations_for_range(month_start, today, employee=employee)
 
     session, _ = _get_timekeeping_session(employee)
     session.worked_display = session.worked_hours_display()
     active_assignments = _active_assignments_for_employee(employee, today)
     has_active_zone = bool(active_assignments)
+    is_vacation_today = session.day_type == WorkSession.DAY_TYPE_VACATION
     end_request_work_date = session.work_date if session.effective_started_at() and not session.effective_ended_at() else today
     start_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
     end_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=end_request_work_date).order_by('-created_at')
@@ -1220,6 +1388,12 @@ def timekeeping(request):
                 },
             )
             return redirect(f"{request.path}?request_status=sent_{mark_type}")
+
+        if is_vacation_today:
+            return JsonResponse(
+                {'ok': False, 'error': 'Marcatura non disponibile: la giornata e segnata come ferie approvate.'},
+                status=400,
+            )
 
         latitude = _parse_coordinate(request.POST.get('latitude'))
         longitude = _parse_coordinate(request.POST.get('longitude'))
@@ -1297,7 +1471,6 @@ def timekeeping(request):
                     'zone': zone_check['zone'].name if zone_check['zone'] else None,
                     'within_zone': zone_check['within'],
                     'distance_meters': zone_check['distance_meters'],
-                    'worked_minutes': session.worked_minutes(),
                 },
             )
 
@@ -1306,21 +1479,10 @@ def timekeeping(request):
             'action': action,
             'started_at': session.started_at.strftime('%H:%M') if session.started_at else None,
             'ended_at': session.ended_at.strftime('%H:%M') if session.ended_at else None,
-            'worked': session.worked_hours_display(),
             'zone': zone_check['zone'].name if zone_check['zone'] else None,
             'within_zone': zone_check['within'],
             'distance_meters': zone_check['distance_meters'],
         })
-
-    month_sessions = (
-        WorkSession.objects
-        .filter(employee=employee, work_date__gte=month_start, work_date__lte=today)
-        .order_by('-work_date')
-    )
-    month_sessions = list(month_sessions)
-    for row in month_sessions:
-        row.worked_display = row.worked_hours_display()
-    month_total_minutes = sum(s.worked_minutes() for s in month_sessions)
 
     response = render(request, 'portal/timekeeping.html', {
         'employee': employee,
@@ -1330,8 +1492,7 @@ def timekeeping(request):
         'today_mark_request_start': today_mark_request_start,
         'today_mark_request_end': today_mark_request_end,
         'request_status': request_status,
-        'month_sessions': month_sessions[:15],
-        'month_total_hours': f"{month_total_minutes // 60:02d}:{month_total_minutes % 60:02d}",
+        'is_vacation_today': is_vacation_today,
     })
     return _disable_response_cache(response)
 
@@ -1381,6 +1542,37 @@ def admin_timekeeping(request):
 
             return redirect(request.get_full_path() or request.path)
 
+        if action in {'approve_vacation_request', 'reject_vacation_request'}:
+            req_id = request.POST.get('request_id')
+            request_obj = VacationRequest.objects.filter(id=req_id).select_related('employee').first()
+            if request_obj:
+                request_obj.status = (
+                    VacationRequest.STATUS_APPROVED
+                    if action == 'approve_vacation_request'
+                    else VacationRequest.STATUS_REJECTED
+                )
+                request_obj.review_note = (request.POST.get('review_note') or '').strip() or None
+                request_obj.reviewed_by = request.user
+                request_obj.reviewed_at = timezone.now()
+                request_obj.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+                if request_obj.status == VacationRequest.STATUS_APPROVED:
+                    _apply_approved_vacation_request_to_sessions(request_obj)
+
+                _create_audit_event(
+                    request,
+                    'vacation_reviewed',
+                    employee=request_obj.employee,
+                    metadata={
+                        'request_id': request_obj.id,
+                        'start_date': str(request_obj.start_date),
+                        'end_date': str(request_obj.end_date),
+                        'status': request_obj.status,
+                    },
+                )
+
+            return redirect(request.get_full_path() or request.path)
+
         if action == 'correct_day':
             employee_id = request.POST.get('employee_id')
             target_date_raw = request.POST.get('target_date')
@@ -1397,6 +1589,9 @@ def admin_timekeeping(request):
             if employee and target_date:
                 session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=target_date)
                 reference_start_dt = session.corrected_started_at or session.started_at
+
+                if start_time or end_time:
+                    session.day_type = WorkSession.DAY_TYPE_WORK
 
                 if start_time:
                     corrected_start = datetime.combine(target_date, start_time)
@@ -1574,20 +1769,30 @@ def admin_timekeeping(request):
         .filter(status=WorkMarkRequest.STATUS_PENDING)
         .order_by('-created_at')[:20]
     )
+    pending_vacation_requests = (
+        VacationRequest.objects
+        .select_related('employee')
+        .filter(status=VacationRequest.STATUS_PENDING)
+        .order_by('-created_at')[:20]
+    )
 
     # Backfill in lettura: include nel report mensile eventuali approvazioni storiche.
     if all_mode:
         _sync_approved_requests_for_range(start_date, end_date)
         _reconcile_overnight_sessions(start_date=start_date, end_date=end_date)
+        _sync_approved_vacations_for_range(start_date, end_date)
     elif selected_employee:
         _sync_approved_requests_for_range(start_date, end_date, employee=selected_employee)
         _reconcile_overnight_sessions(employee=selected_employee, start_date=start_date, end_date=end_date)
+        _sync_approved_vacations_for_range(start_date, end_date, employee=selected_employee)
 
     if all_mode:
         marked_sessions_qs = (
             WorkSession.objects
             .filter(work_date__range=(start_date, end_date))
             .filter(
+                Q(day_type=WorkSession.DAY_TYPE_VACATION)
+                |
                 Q(started_at__isnull=False)
                 | Q(ended_at__isnull=False)
                 | Q(corrected_started_at__isnull=False)
@@ -1664,6 +1869,7 @@ def admin_timekeeping(request):
             'matrix_rows': matrix_rows,
             'employee_filter': 'all',
             'pending_mark_requests': pending_mark_requests,
+            'pending_vacation_requests': pending_vacation_requests,
             'feedback': feedback,
             'feedback_level': feedback_level,
         })
@@ -1685,6 +1891,7 @@ def admin_timekeeping(request):
             writer = csv.writer(response, delimiter=';')
             writer.writerow([
                 'Data',
+                'Tipologia giorno',
                 'Ingresso',
                 'Uscita',
                 'Totale',
@@ -1700,13 +1907,14 @@ def admin_timekeeping(request):
                 current_date = date(year, month, day)
                 session = by_day.get(current_date)
                 if not session:
-                    writer.writerow([current_date.strftime('%d/%m/%Y'), '', '', '00:00', '', '', '', '', '', ''])
+                    writer.writerow([current_date.strftime('%d/%m/%Y'), 'Lavoro', '', '', '00:00', '', '', '', '', '', ''])
                     continue
                 writer.writerow([
                     current_date.strftime('%d/%m/%Y'),
+                    'Ferie' if session.day_type == WorkSession.DAY_TYPE_VACATION else 'Lavoro',
                     session.effective_started_at().strftime('%H:%M') if session.effective_started_at() else '',
                     session.effective_ended_at().strftime('%H:%M') if session.effective_ended_at() else '',
-                    session.worked_hours_display(),
+                    'FERIE' if session.day_type == WorkSession.DAY_TYPE_VACATION else session.worked_hours_display(),
                     session.start_zone.name if session.start_zone else '',
                     session.end_zone.name if session.end_zone else '',
                     'si' if session.start_within_zone else 'no',
@@ -1726,6 +1934,7 @@ def admin_timekeeping(request):
 
             headers = [
                 'Data',
+                'Tipologia giorno',
                 'Ingresso',
                 'Uscita',
                 'Totale',
@@ -1745,16 +1954,17 @@ def admin_timekeeping(request):
                 current_date = date(year, month, day)
                 session = by_day.get(current_date)
                 if not session:
-                    ws.append([current_date.strftime('%d/%m/%Y'), '', '', '00:00', '', '', '', '', '', ''])
+                    ws.append([current_date.strftime('%d/%m/%Y'), 'Lavoro', '', '', '00:00', '', '', '', '', '', ''])
                     continue
 
                 minutes = session.worked_minutes()
                 total_month_minutes += minutes
                 ws.append([
                     current_date.strftime('%d/%m/%Y'),
+                    'Ferie' if session.day_type == WorkSession.DAY_TYPE_VACATION else 'Lavoro',
                     session.effective_started_at().strftime('%H:%M') if session.effective_started_at() else '',
                     session.effective_ended_at().strftime('%H:%M') if session.effective_ended_at() else '',
-                    session.worked_hours_display(),
+                    'FERIE' if session.day_type == WorkSession.DAY_TYPE_VACATION else session.worked_hours_display(),
                     session.start_zone.name if session.start_zone else '',
                     session.end_zone.name if session.end_zone else '',
                     'si' if session.start_within_zone else 'no',
@@ -1776,15 +1986,16 @@ def admin_timekeeping(request):
             # Larghezze minime utili per una lettura immediata del file.
             for idx, width in {
                 1: 12,
-                2: 10,
+                2: 16,
                 3: 10,
                 4: 10,
-                5: 22,
+                5: 10,
                 6: 22,
-                7: 14,
+                7: 22,
                 8: 14,
-                9: 16,
-                10: 30,
+                9: 14,
+                10: 16,
+                11: 30,
             }.items():
                 ws.column_dimensions[chr(64 + idx)].width = width
 
@@ -1804,6 +2015,7 @@ def admin_timekeeping(request):
             if not session:
                 rows.append({
                     'date': current_date,
+                    'day_type': WorkSession.DAY_TYPE_WORK,
                     'entry': None,
                     'exit': None,
                     'total': '00:00',
@@ -1817,15 +2029,18 @@ def admin_timekeeping(request):
             total_minutes += worked
             effective_start = session.effective_started_at()
             effective_end = session.effective_ended_at()
-            if effective_start and not effective_end:
+            if session.day_type != WorkSession.DAY_TYPE_VACATION and effective_start and not effective_end:
                 incomplete_days += 1
+
+            row_status = 'vacation' if session.day_type == WorkSession.DAY_TYPE_VACATION else ('ok' if effective_start and effective_end else 'partial')
 
             rows.append({
                 'date': current_date,
+                'day_type': session.day_type,
                 'entry': effective_start,
                 'exit': effective_end,
-                'total': session.worked_hours_display(),
-                'status': 'ok' if effective_start and effective_end else 'partial',
+                'total': 'FERIE' if session.day_type == WorkSession.DAY_TYPE_VACATION else session.worked_hours_display(),
+                'status': row_status,
                 'start_zone': session.start_zone,
                 'end_zone': session.end_zone,
                 'start_within_zone': session.start_within_zone,
@@ -1848,6 +2063,7 @@ def admin_timekeeping(request):
         'matrix_rows': [],
         'employee_filter': str(selected_employee.id) if selected_employee else '',
         'pending_mark_requests': pending_mark_requests,
+        'pending_vacation_requests': pending_vacation_requests,
         'feedback': feedback,
         'feedback_level': feedback_level,
     })
@@ -1941,6 +2157,140 @@ def admin_out_of_zone_requests(request):
     pending_requests_count = WorkMarkRequest.objects.filter(status=WorkMarkRequest.STATUS_PENDING).count()
 
     return render(request, 'portal/admin_out_of_zone_requests.html', {
+        'employees': employees,
+        'history_requests_page': history_requests_page,
+        'history_status': history_status,
+        'history_employee_filter': history_employee_filter,
+        'pending_requests_count': pending_requests_count,
+        'feedback': feedback,
+        'feedback_level': feedback_level,
+        'current_query_string': request.GET.urlencode,
+    })
+
+
+@login_required
+def admin_vacation_requests(request):
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    feedback = None
+    feedback_level = 'info'
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        req_id = request.POST.get('request_id')
+        redirect_query = (request.POST.get('redirect_query') or '').strip()
+        request_obj = (
+            VacationRequest.objects
+            .select_related('employee', 'reviewed_by')
+            .filter(id=req_id)
+            .first()
+        )
+
+        if action in {'approve_vacation_request', 'reject_vacation_request'} and request_obj:
+            request_obj.status = (
+                VacationRequest.STATUS_APPROVED
+                if action == 'approve_vacation_request'
+                else VacationRequest.STATUS_REJECTED
+            )
+            request_obj.review_note = (request.POST.get('review_note') or '').strip() or None
+            request_obj.reviewed_by = request.user
+            request_obj.reviewed_at = timezone.now()
+            request_obj.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+            if request_obj.status == VacationRequest.STATUS_APPROVED:
+                _apply_approved_vacation_request_to_sessions(request_obj)
+
+            _create_audit_event(
+                request,
+                'vacation_reviewed',
+                employee=request_obj.employee,
+                metadata={
+                    'request_id': request_obj.id,
+                    'start_date': str(request_obj.start_date),
+                    'end_date': str(request_obj.end_date),
+                    'status': request_obj.status,
+                    'via': 'admin_vacation_requests',
+                },
+            )
+
+            redirect_url = request.path
+            if redirect_query:
+                redirect_url = f'{redirect_url}?{redirect_query}&outcome=reviewed'
+            else:
+                redirect_url = f'{redirect_url}?outcome=reviewed'
+            return redirect(redirect_url)
+
+        if action == 'delete_vacation_request':
+            if request_obj:
+                employee = request_obj.employee
+                request_payload = {
+                    'request_id': request_obj.id,
+                    'start_date': str(request_obj.start_date),
+                    'end_date': str(request_obj.end_date),
+                    'status': request_obj.status,
+                    'reason': request_obj.reason,
+                    'review_note': request_obj.review_note,
+                }
+                request_obj.delete()
+
+                _create_audit_event(
+                    request,
+                    'vacation_deleted',
+                    employee=employee,
+                    metadata=request_payload,
+                )
+
+                redirect_url = request.path
+                if redirect_query:
+                    redirect_url = f'{redirect_url}?{redirect_query}&outcome=deleted'
+                else:
+                    redirect_url = f'{redirect_url}?outcome=deleted'
+                return redirect(redirect_url)
+
+            redirect_url = request.path
+            if redirect_query:
+                redirect_url = f'{redirect_url}?{redirect_query}&outcome=missing'
+            else:
+                redirect_url = f'{redirect_url}?outcome=missing'
+            return redirect(redirect_url)
+
+    outcome = (request.GET.get('outcome') or '').strip()
+    if outcome == 'deleted':
+        feedback = 'Richiesta ferie eliminata definitivamente.'
+        feedback_level = 'warning'
+    elif outcome == 'missing':
+        feedback = 'Richiesta ferie non trovata o gia eliminata.'
+        feedback_level = 'danger'
+    elif outcome == 'reviewed':
+        feedback = 'Richiesta ferie aggiornata correttamente.'
+        feedback_level = 'success'
+
+    employees = Employee.objects.order_by('last_name', 'first_name')
+    history_status = (request.GET.get('status') or 'all').strip()
+    if history_status not in {
+        'all',
+        VacationRequest.STATUS_PENDING,
+        VacationRequest.STATUS_APPROVED,
+        VacationRequest.STATUS_REJECTED,
+    }:
+        history_status = 'all'
+
+    history_employee_filter = (request.GET.get('employee') or 'all').strip()
+    history_requests_qs = (
+        VacationRequest.objects
+        .select_related('employee', 'reviewed_by')
+        .order_by('-created_at')
+    )
+    if history_status != 'all':
+        history_requests_qs = history_requests_qs.filter(status=history_status)
+    if history_employee_filter != 'all':
+        history_requests_qs = history_requests_qs.filter(employee_id=history_employee_filter)
+
+    history_requests_page = Paginator(history_requests_qs, 25).get_page(request.GET.get('page') or 1)
+    pending_requests_count = VacationRequest.objects.filter(status=VacationRequest.STATUS_PENDING).count()
+
+    return render(request, 'portal/admin_vacation_requests.html', {
         'employees': employees,
         'history_requests_page': history_requests_page,
         'history_status': history_status,
@@ -2296,18 +2646,59 @@ def admin_dashboard(request):
 
             return redirect('admin_dashboard')
 
+        if action in {'approve_vacation_request', 'reject_vacation_request'}:
+            req_id = request.POST.get('request_id')
+            request_obj = VacationRequest.objects.filter(id=req_id).select_related('employee').first()
+            if request_obj:
+                request_obj.status = (
+                    VacationRequest.STATUS_APPROVED
+                    if action == 'approve_vacation_request'
+                    else VacationRequest.STATUS_REJECTED
+                )
+                request_obj.review_note = (request.POST.get('review_note') or '').strip() or None
+                request_obj.reviewed_by = request.user
+                request_obj.reviewed_at = timezone.now()
+                request_obj.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+                if request_obj.status == VacationRequest.STATUS_APPROVED:
+                    _apply_approved_vacation_request_to_sessions(request_obj)
+
+                _create_audit_event(
+                    request,
+                    'vacation_reviewed',
+                    employee=request_obj.employee,
+                    metadata={
+                        'request_id': request_obj.id,
+                        'start_date': str(request_obj.start_date),
+                        'end_date': str(request_obj.end_date),
+                        'status': request_obj.status,
+                        'via': 'admin_dashboard',
+                    },
+                )
+
+            return redirect('admin_dashboard')
+
     today = timezone.localdate()
     _sync_approved_requests_for_range(today, today)
+    _sync_approved_vacations_for_range(today, today)
     pending_mark_requests = (
         WorkMarkRequest.objects
         .select_related('employee')
         .filter(status=WorkMarkRequest.STATUS_PENDING)
         .order_by('-created_at')[:15]
     )
+    pending_vacation_requests = (
+        VacationRequest.objects
+        .select_related('employee')
+        .filter(status=VacationRequest.STATUS_PENDING)
+        .order_by('-created_at')[:15]
+    )
     pending_mark_requests_count = WorkMarkRequest.objects.filter(status=WorkMarkRequest.STATUS_PENDING).count()
+    pending_vacation_requests_count = VacationRequest.objects.filter(status=VacationRequest.STATUS_PENDING).count()
 
     month_start = today.replace(day=1)
     monthly_requests = WorkMarkRequest.objects.filter(created_at__date__gte=month_start, created_at__date__lte=today)
+    monthly_vacation_requests = VacationRequest.objects.filter(created_at__date__gte=month_start, created_at__date__lte=today)
 
     today_marked_sessions = (
         WorkSession.objects
@@ -2336,6 +2727,7 @@ def admin_dashboard(request):
     ).count()
     approved_month_count = monthly_requests.filter(status=WorkMarkRequest.STATUS_APPROVED).count()
     rejected_month_count = monthly_requests.filter(status=WorkMarkRequest.STATUS_REJECTED).count()
+    approved_vacation_month_count = monthly_vacation_requests.filter(status=VacationRequest.STATUS_APPROVED).count()
     active_zone_count = WorkZone.objects.filter(is_active=True).count()
     active_assignment_count = EmployeeWorkZone.objects.filter(
         is_active=True,
@@ -2353,11 +2745,14 @@ def admin_dashboard(request):
         "approved_month_count": approved_month_count,
         "rejected_month_count": rejected_month_count,
         "pending_mark_requests_count": pending_mark_requests_count,
+        "pending_vacation_requests_count": pending_vacation_requests_count,
+        "approved_vacation_month_count": approved_vacation_month_count,
         "active_zone_count": active_zone_count,
         "active_assignment_count": active_assignment_count,
         "employee_count": employee_count,
         "today": today,
         "pending_mark_requests": pending_mark_requests,
+        "pending_vacation_requests": pending_vacation_requests,
         "today_marked_sessions": today_marked_sessions,
     })
 

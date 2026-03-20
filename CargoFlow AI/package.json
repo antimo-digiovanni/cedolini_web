@@ -1,0 +1,12 @@
+{
+  "name": "cargoflow-ai",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "packages/shared"
+  ],
+  "scripts": {
+    "mobile": "npm --workspace apps/mobile run start",
+    "typecheck:shared": "npm --workspace packages/shared exec tsc --noEmit"
+  }
+}

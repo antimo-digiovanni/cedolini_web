@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .access import TODAY_MARKINGS_GROUP_NAME
-from .models import Employee, WorkSession
+from .models import Employee, VacationRequest, WorkSession
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -93,3 +93,84 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Elenco marcature del")
 		self.assertContains(response, "Luca Verdi")
+
+
+class VacationRequestFlowTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.employee_user = get_user_model().objects.create_user(
+			username="operaio",
+			password="Password123!",
+		)
+		self.employee = Employee.objects.create(
+			user=self.employee_user,
+			first_name="Giovanni",
+			last_name="Neri",
+		)
+		self.admin_user = get_user_model().objects.create_user(
+			username="admin",
+			password="Password123!",
+			is_staff=True,
+		)
+
+	def test_employee_can_submit_vacation_request_from_dashboard(self):
+		self.client.force_login(self.employee_user)
+		start_date = timezone.localdate() + timezone.timedelta(days=2)
+		end_date = start_date + timezone.timedelta(days=1)
+
+		response = self.client.post(
+			reverse("dashboard"),
+			{
+				"action": "request_vacation",
+				"start_date": start_date.isoformat(),
+				"end_date": end_date.isoformat(),
+				"vacation_reason": "Ferie programmate con la famiglia.",
+			},
+		)
+
+		self.assertRedirects(response, f"{reverse('dashboard')}?vacation_status=sent")
+		request_obj = VacationRequest.objects.get(employee=self.employee)
+		self.assertEqual(request_obj.start_date, start_date)
+		self.assertEqual(request_obj.end_date, end_date)
+		self.assertEqual(request_obj.status, VacationRequest.STATUS_PENDING)
+
+	def test_admin_dashboard_approval_marks_days_as_vacation_in_report(self):
+		start_date = timezone.localdate() + timezone.timedelta(days=1)
+		end_date = start_date + timezone.timedelta(days=1)
+		request_obj = VacationRequest.objects.create(
+			employee=self.employee,
+			start_date=start_date,
+			end_date=end_date,
+			reason="Ferie gia concordate.",
+		)
+
+		self.client.force_login(self.admin_user)
+		response = self.client.post(
+			reverse("admin_dashboard"),
+			{
+				"action": "approve_vacation_request",
+				"request_id": str(request_obj.id),
+				"review_note": "Approvato",
+			},
+		)
+
+		self.assertRedirects(response, reverse("admin_dashboard"))
+		request_obj.refresh_from_db()
+		self.assertEqual(request_obj.status, VacationRequest.STATUS_APPROVED)
+
+		sessions = WorkSession.objects.filter(employee=self.employee, work_date__range=(start_date, end_date)).order_by("work_date")
+		self.assertEqual(sessions.count(), 2)
+		self.assertTrue(all(session.day_type == WorkSession.DAY_TYPE_VACATION for session in sessions))
+		self.assertTrue(all(session.started_at is None and session.ended_at is None for session in sessions))
+
+		report_response = self.client.get(
+			reverse("admin_timekeeping"),
+			{
+				"employee": str(self.employee.id),
+				"month": start_date.month,
+				"year": start_date.year,
+			},
+		)
+		self.assertEqual(report_response.status_code, 200)
+		self.assertContains(report_response, "Ferie")
+		self.assertContains(report_response, "FERIE")

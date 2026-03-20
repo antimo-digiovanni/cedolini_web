@@ -20,6 +20,7 @@ urlpatterns = [
     path('admin-employees/', views.admin_employees, name='admin_employees'),
     path('admin-marcature/', views.admin_timekeeping, name='admin_timekeeping'),
     path('admin-richieste-fuori-zona/', views.admin_out_of_zone_requests, name='admin_out_of_zone_requests'),
+    path('admin-richieste-ferie/', views.admin_vacation_requests, name='admin_vacation_requests'),
     path('admin-zone-lavoro/', views.admin_work_zones, name='admin_work_zones'),
     path('admin-payslip-integrity/', views.admin_payslip_integrity, name='admin_payslip_integrity'),
     path('admin-send-invite/', views.admin_send_invite, name='admin_send_invite'),

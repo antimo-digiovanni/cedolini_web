@@ -1,0 +1,20 @@
+[project]
+name = "cargoflow-backend"
+version = "0.1.0"
+description = "FastAPI backend for CargoFlow AI"
+requires-python = ">=3.9"
+dependencies = [
+  "alembic>=1.14,<2.0",
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "sqlalchemy>=2.0,<3.0",
+  "pydantic-settings>=2.4,<3.0",
+  "passlib[bcrypt]>=1.7,<2.0",
+  "PyJWT>=2.9,<3.0",
+  "email-validator>=2.2,<3.0",
+  "psycopg[binary]>=3.2,<4.0"
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

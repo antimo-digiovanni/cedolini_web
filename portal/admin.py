@@ -15,6 +15,7 @@ from .models import (
     EmployeeWorkZone,
     WorkSession,
     WorkMarkRequest,
+    VacationRequest,
 )
 
 
@@ -187,6 +188,7 @@ class WorkSessionAdmin(admin.ModelAdmin):
     list_display = (
         'employee',
         'work_date',
+        'day_type',
         'started_at',
         'ended_at',
         'corrected_started_at',
@@ -194,7 +196,7 @@ class WorkSessionAdmin(admin.ModelAdmin):
         'start_within_zone',
         'end_within_zone',
     )
-    list_filter = ('work_date', 'start_within_zone', 'end_within_zone')
+    list_filter = ('work_date', 'day_type', 'start_within_zone', 'end_within_zone')
     search_fields = ('employee__first_name', 'employee__last_name')
 
 
@@ -202,4 +204,11 @@ class WorkSessionAdmin(admin.ModelAdmin):
 class WorkMarkRequestAdmin(admin.ModelAdmin):
     list_display = ('employee', 'work_date', 'mark_type', 'status', 'reviewed_by', 'reviewed_at', 'created_at')
     list_filter = ('status', 'work_date')
+    search_fields = ('employee__first_name', 'employee__last_name', 'reason', 'review_note')
+
+
+@admin.register(VacationRequest)
+class VacationRequestAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'start_date', 'end_date', 'status', 'reviewed_by', 'reviewed_at', 'created_at')
+    list_filter = ('status', 'start_date', 'end_date')
     search_fields = ('employee__first_name', 'employee__last_name', 'reason', 'review_note')

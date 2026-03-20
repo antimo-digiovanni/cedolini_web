@@ -89,6 +89,12 @@
                 </div>
                 {% endif %}
 
+                {% if is_vacation_today %}
+                <div class="alert alert-info py-2" role="alert">
+                    Oggi risulti in ferie approvate. Le marcature sono disabilitate per questa giornata.
+                </div>
+                {% endif %}
+
                 <div class="mb-2">
                     <strong>Ingresso:</strong>
                     {% if today_session.started_at %}
@@ -105,16 +111,13 @@
                         --:--
                     {% endif %}
                 </div>
-                <div class="mb-3">
-                    <strong>Totale:</strong>
-                    {{ today_session.worked_display }}
-                </div>
+
 
                 <div class="d-grid gap-2">
-                    <button id="btnStart" class="btn btn-success" {% if today_session.started_at or not has_active_zone %}disabled{% endif %}>
+                    <button id="btnStart" class="btn btn-success" {% if today_session.started_at or not has_active_zone or is_vacation_today %}disabled{% endif %}>
                         <i class="bi bi-play-circle"></i> Inizio lavori
                     </button>
-                    <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at or not has_active_zone %}disabled{% endif %}>
+                    <button id="btnEnd" class="btn btn-danger" {% if not today_session.started_at or today_session.ended_at or not has_active_zone or is_vacation_today %}disabled{% endif %}>
                         <i class="bi bi-stop-circle"></i> Fine lavori
                     </button>
                 </div>
@@ -183,6 +186,71 @@
                         <button class="btn btn-outline-primary mt-2" type="submit">Invia richiesta</button>
                     </form>
                 </div>
+
+                <div class="card-modern bg-white mt-4">
+                    <h6 class="fw-semibold">Richiesta ferie</h6>
+
+                    {% if vacation_status == 'sent' %}
+                    <div class="alert alert-success py-2">Richiesta ferie inviata correttamente.</div>
+                    {% elif vacation_status == 'already_pending' %}
+                    <div class="alert alert-warning py-2">Esiste gia una richiesta ferie in attesa sul periodo selezionato.</div>
+                    {% elif vacation_status == 'already_approved' %}
+                    <div class="alert alert-warning py-2">Hai gia ferie approvate su almeno uno dei giorni selezionati.</div>
+                    {% elif vacation_status == 'invalid_dates' %}
+                    <div class="alert alert-danger py-2">Seleziona una data inizio e una data fine valide.</div>
+                    {% elif vacation_status == 'invalid_range' %}
+                    <div class="alert alert-danger py-2">La data fine non puo essere precedente alla data inizio.</div>
+                    {% elif vacation_status == 'invalid_reason' %}
+                    <div class="alert alert-danger py-2">Inserisci una motivazione piu dettagliata per la richiesta ferie.</div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="request_vacation">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Dal giorno</label>
+                                <input type="date" name="start_date" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Al giorno</label>
+                                <input type="date" name="end_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <label class="form-label mt-2">Motivazione</label>
+                        <textarea name="vacation_reason" rows="3" class="form-control" placeholder="Es: ferie programmate con la famiglia dal 12 al 16 agosto." required></textarea>
+                        <button class="btn btn-outline-primary mt-2" type="submit">Invia richiesta ferie</button>
+                    </form>
+
+                    <div class="mt-3">
+                        <h6 class="fw-semibold mb-2">Ultime richieste ferie</h6>
+                        {% for req in recent_vacation_requests %}
+                        <div class="border rounded-3 p-2 mb-2">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                    <div class="fw-semibold">{{ req.start_date|date:"d/m/Y" }} - {{ req.end_date|date:"d/m/Y" }}</div>
+                                    <div class="small text-muted">Inviata il {{ req.created_at|date:"d/m/Y H:i" }}</div>
+                                </div>
+                                <div>
+                                    {% if req.status == 'approved' %}
+                                        <span class="badge bg-success">Approvata</span>
+                                    {% elif req.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rifiutata</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">In attesa</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="small mt-2">{{ req.reason }}</div>
+                            {% if req.review_note %}
+                            <div class="small text-muted mt-1">Nota admin: {{ req.review_note }}</div>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <div class="text-muted small">Nessuna richiesta ferie inviata finora.</div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -198,39 +266,6 @@
                 {% else %}
                     <p class="text-muted mb-0">Nessuna zona attiva assegnata: non puoi effettuare marcature.</p>
                 {% endif %}
-            </div>
-
-            <div class="card-modern bg-white">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="fw-semibold mb-0">Riepilogo mese corrente</h5>
-                    <span class="badge bg-primary">Totale {{ month_total_hours }}</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Ingresso</th>
-                                <th>Uscita</th>
-                                <th>Totale</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                                                        {% for row in month_sessions %}
-                            <tr>
-                                <td>{{ row.work_date|date:"d/m/Y" }}</td>
-                                <td>{% if row.started_at %}{{ row.started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
-                                <td>{% if row.ended_at %}{{ row.ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
-                                <td>{{ row.worked_display }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted">Nessuna marcatura nel mese.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
     </div>
