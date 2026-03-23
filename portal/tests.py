@@ -289,3 +289,25 @@ class PayslipUploadImportTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(Payslip.objects.filter(employee=self.active_employee, year=2026, month=1).count(), 1)
 		self.assertEqual(Payslip.objects.filter(employee=duplicate_employee, year=2026, month=1).count(), 0)
+
+	def test_upload_matches_employee_from_username_when_names_are_missing(self):
+		username_user = get_user_model().objects.create_user(
+			username="daponte-giuseppe",
+			password="Password123!",
+			is_active=True,
+		)
+		username_employee = Employee.objects.create(
+			user=username_user,
+			first_name="",
+			last_name="",
+		)
+
+		response = self.client.post(
+			reverse("admin_upload_period_folder"),
+			{
+				"folder": [self._pdf_file("D'Aponte Giuseppe Gennaio 2026.pdf")]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(Payslip.objects.filter(employee=username_employee, year=2026, month=1).count(), 1)

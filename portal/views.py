@@ -72,6 +72,18 @@ def _normalize_import_name(value):
     return ' '.join(value.split())
 
 
+def _import_lookup_keys(left, right):
+    left_norm = _normalize_import_name(left)
+    right_norm = _normalize_import_name(right)
+    keys = []
+    if left_norm and right_norm:
+        keys.append(f'{left_norm}|{right_norm}')
+        left_compact = left_norm.replace(' ', '')
+        right_compact = right_norm.replace(' ', '')
+        keys.append(f'{left_compact}|{right_compact}')
+    return list(dict.fromkeys(keys))
+
+
 def _employee_candidate_priority(employee):
     user = employee.user
     return (
@@ -88,14 +100,10 @@ def _build_employee_import_lookup():
     employees = list(Employee.objects.select_related('user').prefetch_related('payslips'))
 
     def register(left, right, employee):
-        left_norm = _normalize_import_name(left)
-        right_norm = _normalize_import_name(right)
-        if not left_norm or not right_norm:
-            return
-        key = f'{left_norm}|{right_norm}'
-        bucket = lookup.setdefault(key, [])
-        if employee not in bucket:
-            bucket.append(employee)
+        for key in _import_lookup_keys(left, right):
+            bucket = lookup.setdefault(key, [])
+            if employee not in bucket:
+                bucket.append(employee)
 
     for employee in employees:
         pairs = [
@@ -108,6 +116,14 @@ def _build_employee_import_lookup():
             register(last_name, first_name, employee)
             register(first_name, last_name, employee)
 
+        username_parts = [part for part in re.split(r'[-_\s]+', employee.user.username or '') if part]
+        if len(username_parts) >= 2:
+            for i in range(1, len(username_parts)):
+                left = ' '.join(username_parts[:i]).strip()
+                right = ' '.join(username_parts[i:]).strip()
+                register(left, right, employee)
+                register(right, left, employee)
+
     return lookup
 
 
@@ -119,8 +135,8 @@ def _find_employee_for_import_tokens(name_tokens, employee_lookup):
         right = ' '.join(name_tokens[i:]).strip()
         if not left or not right:
             continue
-        key = f'{_normalize_import_name(left)}|{_normalize_import_name(right)}'
-        candidates.extend(employee_lookup.get(key, []))
+        for key in _import_lookup_keys(left, right):
+            candidates.extend(employee_lookup.get(key, []))
 
     unique_candidates = []
     seen_ids = set()
