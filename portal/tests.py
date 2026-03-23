@@ -1,12 +1,15 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
+import tempfile
 from django.test import Client
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from .access import TODAY_MARKINGS_GROUP_NAME
-from .models import Employee, VacationRequest, WorkSession
+from .models import Employee, ImportJob, Payslip, VacationRequest, WorkSession
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -174,3 +177,115 @@ class VacationRequestFlowTests(TestCase):
 		self.assertEqual(report_response.status_code, 200)
 		self.assertContains(report_response, "Ferie")
 		self.assertContains(report_response, "FERIE")
+
+
+class PayslipUploadImportTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls._temp_media = tempfile.TemporaryDirectory()
+		cls._override = override_settings(
+			MEDIA_ROOT=cls._temp_media.name,
+			STORAGES={
+				"default": {
+					"BACKEND": "django.core.files.storage.FileSystemStorage",
+				},
+				"staticfiles": {
+					"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+				},
+			},
+		)
+		cls._override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls._override.disable()
+		cls._temp_media.cleanup()
+		super().tearDownClass()
+
+	def setUp(self):
+		self.client = Client()
+		self.admin_user = get_user_model().objects.create_user(
+			username="staff.upload",
+			password="Password123!",
+			is_staff=True,
+		)
+		self.client.force_login(self.admin_user)
+
+		self.active_user = get_user_model().objects.create_user(
+			username="mario.rossi",
+			password="Password123!",
+			is_active=True,
+		)
+		self.active_employee = Employee.objects.create(
+			user=self.active_user,
+			first_name="Mario",
+			last_name="Rossi",
+		)
+
+		self.inactive_user = get_user_model().objects.create_user(
+			username="anna.bianchi",
+			password="Password123!",
+			is_active=False,
+		)
+		self.inactive_employee = Employee.objects.create(
+			user=self.inactive_user,
+			first_name="Anna",
+			last_name="Bianchi",
+		)
+
+	def _pdf_file(self, name):
+		return SimpleUploadedFile(name, b"%PDF-1.4\n%test pdf\n", content_type="application/pdf")
+
+	def test_upload_imports_only_employees_with_active_account(self):
+		response = self.client.post(
+			reverse("admin_upload_period_folder"),
+			{
+				"folder": [
+					self._pdf_file("Rossi Mario Gennaio 2026.pdf"),
+					self._pdf_file("Bianchi Anna Gennaio 2026.pdf"),
+					self._pdf_file("Verdi Luca Gennaio 2026.pdf"),
+				]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(Payslip.objects.filter(employee=self.active_employee, year=2026, month=1).count(), 1)
+		self.assertEqual(Payslip.objects.filter(employee=self.inactive_employee, year=2026, month=1).count(), 0)
+		self.assertEqual(Payslip.objects.count(), 1)
+		self.assertEqual(Employee.objects.count(), 2)
+
+		job = ImportJob.objects.latest("created_at")
+		self.assertEqual(job.created_users, 0)
+		self.assertEqual(job.created_payslips, 1)
+		self.assertEqual(job.skipped, 2)
+		self.assertEqual(job.status, "completed")
+
+		self.assertContains(response, "account non attivo")
+		self.assertContains(response, "dipendente non trovato o senza account")
+
+	def test_upload_prefers_existing_active_registered_employee_when_duplicate_name_exists(self):
+		duplicate_user = get_user_model().objects.create_user(
+			username="mario.rossi.duplicate",
+			password="Password123!",
+			is_active=False,
+		)
+		duplicate_employee = Employee.objects.create(
+			user=duplicate_user,
+			first_name="Mario",
+			last_name="Rossi",
+		)
+
+		self.active_employee.privacy_accepted = True
+		self.active_employee.save(update_fields=["privacy_accepted"])
+
+		response = self.client.post(
+			reverse("admin_upload_period_folder"),
+			{
+				"folder": [self._pdf_file("Mario Rossi Gennaio 2026.pdf")]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(Payslip.objects.filter(employee=self.active_employee, year=2026, month=1).count(), 1)
+		self.assertEqual(Payslip.objects.filter(employee=duplicate_employee, year=2026, month=1).count(), 0)

@@ -3,6 +3,8 @@ import csv
 import json
 import math
 import calendar
+import re
+import unicodedata
 from collections import OrderedDict
 from datetime import date
 from datetime import datetime
@@ -61,6 +63,78 @@ MONTH_LABELS_IT = {
 }
 
 MAX_SHIFT_DURATION_HOURS = 18
+
+
+def _normalize_import_name(value):
+    value = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode('ascii')
+    value = value.lower().replace("'", ' ')
+    value = re.sub(r'[^a-z0-9]+', ' ', value)
+    return ' '.join(value.split())
+
+
+def _employee_candidate_priority(employee):
+    user = employee.user
+    return (
+        1 if user.is_active else 0,
+        1 if employee.privacy_accepted else 0,
+        1 if employee.invito_inviato else 0,
+        employee.payslips.count(),
+        -employee.id,
+    )
+
+
+def _build_employee_import_lookup():
+    lookup = {}
+    employees = list(Employee.objects.select_related('user').prefetch_related('payslips'))
+
+    def register(left, right, employee):
+        left_norm = _normalize_import_name(left)
+        right_norm = _normalize_import_name(right)
+        if not left_norm or not right_norm:
+            return
+        key = f'{left_norm}|{right_norm}'
+        bucket = lookup.setdefault(key, [])
+        if employee not in bucket:
+            bucket.append(employee)
+
+    for employee in employees:
+        pairs = [
+            (employee.first_name, employee.last_name),
+            (employee.user.first_name, employee.user.last_name),
+        ]
+        for first_name, last_name in pairs:
+            if not first_name or not last_name:
+                continue
+            register(last_name, first_name, employee)
+            register(first_name, last_name, employee)
+
+    return lookup
+
+
+def _find_employee_for_import_tokens(name_tokens, employee_lookup):
+    candidates = []
+
+    for i in range(1, len(name_tokens)):
+        left = ' '.join(name_tokens[:i]).strip()
+        right = ' '.join(name_tokens[i:]).strip()
+        if not left or not right:
+            continue
+        key = f'{_normalize_import_name(left)}|{_normalize_import_name(right)}'
+        candidates.extend(employee_lookup.get(key, []))
+
+    unique_candidates = []
+    seen_ids = set()
+    for employee in candidates:
+        if employee.id in seen_ids:
+            continue
+        seen_ids.add(employee.id)
+        unique_candidates.append(employee)
+
+    if not unique_candidates:
+        return None
+
+    unique_candidates.sort(key=_employee_candidate_priority, reverse=True)
+    return unique_candidates[0]
 
 
 def _disable_response_cache(response):
@@ -3618,12 +3692,16 @@ def admin_upload_period_folder(request):
         'settembre': 9, 'ottobre': 10, 'novembre': 11, 'dicembre': 12,
     }
 
+    def employee_has_active_account(employee):
+        return bool(employee and getattr(employee, 'user_id', None) and getattr(employee.user, 'is_active', False))
+
     # Two-phase flow:
     # - initial POST with files: process files and create users/payslips, store created ids in session and show confirmation
     # - confirmation page has Annulla which will call admin_cancel_import to rollback created items
     if request.method == 'POST' and request.FILES:
         # accept either input name 'files' or legacy 'folder' from template
         files = request.FILES.getlist('files') or request.FILES.getlist('folder')
+        employee_lookup = _build_employee_import_lookup()
 
         total_files = len(files)
         job = ImportJob.objects.create(
@@ -3659,60 +3737,15 @@ def admin_upload_period_folder(request):
 
                 name_tokens = parts[:-2]
 
-                # Find existing employee trying different splits between last_name and first_name
-                employee = None
-                for i in range(1, len(name_tokens)):
-                    last = ' '.join(name_tokens[:i]).strip()
-                    first = ' '.join(name_tokens[i:]).strip()
-                    qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
-                    if qs.exists():
-                        employee = qs.first()
-                        break
+                employee = _find_employee_for_import_tokens(name_tokens, employee_lookup)
 
-                # fallback: gestisci cognomi composti (Del Prete, Di Stefano, ...)
-                # e, in generale, usa "prima parola = cognome" / resto = nome
                 if not employee:
-                    surname_particles = {
-                        'DE', 'DEL', 'DELLA', 'DI', 'DA', 'DAL', 'DEI', 'DEGLI', 'DELL', "D'", 'D',
-                    }
+                    skipped.append((f.name, 'dipendente non trovato o senza account'))
+                    continue
 
-                    last = None
-                    first = None
-
-                    tokens_upper = [t.upper() for t in name_tokens]
-
-                    # Esempio filename: "DEL PRETE RAFFAELE" -> cognome "DEL PRETE", nome "RAFFAELE"
-                    if len(name_tokens) >= 3 and tokens_upper[0] in surname_particles:
-                        last = ' '.join(name_tokens[:2]).strip()
-                        first = ' '.join(name_tokens[2:]).strip()
-                    else:
-                        last = name_tokens[0]
-                        first = ' '.join(name_tokens[1:]) if len(name_tokens) > 1 else ''
-
-                    # prova ancora a cercare un dipendente esistente con questa combinazione
-                    qs = Employee.objects.filter(last_name__iexact=last, first_name__iexact=first)
-                    if qs.exists():
-                        employee = qs.first()
-
-                # If still not found, create user+employee
-                if not employee:
-                    # create unique username from full surname (all name_tokens before month/year)
-                    base_username = '-'.join([t.lower() for t in name_tokens])
-                    base_username = base_username.replace("'", '').replace('"', '')
-                    username = base_username
-                    suffix = 1
-                    while User.objects.filter(username=username).exists():
-                        username = f"{base_username}{suffix}"
-                        suffix += 1
-
-                    password = secrets.token_urlsafe(8)
-                    user = User.objects.create_user(username=username, password=password, is_active=False)
-                    employee = Employee.objects.create(user=user, first_name=first, last_name=last)
-                    created_users.append(username)
-                    # keep a record for template
-                    if 'created_employees' not in locals():
-                        created_employees = []
-                    created_employees.append({'first_name': first, 'last_name': last, 'month': parts[-2], 'year': year, 'username': username})
+                if not employee_has_active_account(employee):
+                    skipped.append((f.name, 'account non attivo'))
+                    continue
 
                 # create payslip if not exists — make atomic per file to avoid partial DB state
                 try:
@@ -3782,7 +3815,6 @@ def admin_upload_period_folder(request):
 
         # render summary
         return render(request, 'portal/admin_confirm_import.html', {
-            'new_employees': created_employees if 'created_employees' in locals() else [],
             'created_users': created_users,
             'created_payslips': created_payslips,
             'skipped': skipped,
