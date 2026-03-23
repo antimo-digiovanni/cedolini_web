@@ -19,6 +19,12 @@
     </div>
     {% endif %}
 
+    {% if created_users %}
+    <div class="alert alert-success">
+        Account creati: {{ created_users|length }}
+    </div>
+    {% endif %}
+
     {% if skipped %}
     <div class="alert alert-warning">
         Alcuni file sono stati scartati perché il dipendente non esiste nel portale oppure non ha ancora attivato il proprio account.

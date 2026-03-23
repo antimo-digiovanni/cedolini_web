@@ -13,9 +13,15 @@
     <div class="alert alert-info">
         <strong>Riepilogo caricamento:</strong><br>
         File totali: {{ total_files }} | Processati: {{ processed_files }} |
-        CUD caricati: {{ created_cuds }} | Sostituiti: {{ replaced_count }} |
+        Account creati: {{ created_users|length }} | CUD caricati: {{ created_cuds }} | Sostituiti: {{ replaced_count }} |
         Scartati: {{ skipped|length }}
     </div>
+
+    {% if created_users %}
+    <div class="alert alert-success">
+        Sono stati creati {{ created_users|length }} nuovi account per i file selezionati.
+    </div>
+    {% endif %}
 
     {% if skipped %}
     <div class="alert alert-warning">

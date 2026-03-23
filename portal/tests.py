@@ -250,6 +250,16 @@ class PayslipUploadImportTests(TestCase):
 		)
 
 		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Conferma Account Mancanti")
+
+		confirm_response = self.client.post(
+			reverse("admin_upload_period_folder"),
+			{
+				"action": "resolve_pending_import",
+			},
+		)
+
+		self.assertEqual(confirm_response.status_code, 200)
 		self.assertEqual(Payslip.objects.filter(employee=self.active_employee, year=2026, month=1).count(), 1)
 		self.assertEqual(Payslip.objects.filter(employee=self.inactive_employee, year=2026, month=1).count(), 0)
 		self.assertEqual(Payslip.objects.count(), 1)
@@ -261,8 +271,35 @@ class PayslipUploadImportTests(TestCase):
 		self.assertEqual(job.skipped, 2)
 		self.assertEqual(job.status, "completed")
 
-		self.assertContains(response, "account non attivo")
-		self.assertContains(response, "dipendente non trovato o senza account")
+		self.assertContains(confirm_response, "account non attivo")
+		self.assertContains(confirm_response, "account non creato")
+
+	def test_upload_can_create_missing_employee_and_save_payslip(self):
+		response = self.client.post(
+			reverse("admin_upload_period_folder"),
+			{
+				"folder": [self._pdf_file("Verdi Luca Gennaio 2026.pdf")]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Conferma Account Mancanti")
+
+		confirm_response = self.client.post(
+			reverse("admin_upload_period_folder"),
+			{
+				"action": "resolve_pending_import",
+				"create_candidates": ["verdi-luca"],
+				"first_name_verdi-luca": "Luca",
+				"last_name_verdi-luca": "Verdi",
+			},
+		)
+
+		self.assertEqual(confirm_response.status_code, 200)
+		created_employee = Employee.objects.get(last_name="Verdi", first_name="Luca")
+		self.assertFalse(created_employee.user.is_active)
+		self.assertEqual(Payslip.objects.filter(employee=created_employee, year=2026, month=1).count(), 1)
+		self.assertContains(confirm_response, "Account creati: 1")
 
 	def test_upload_prefers_existing_active_registered_employee_when_duplicate_name_exists(self):
 		duplicate_user = get_user_model().objects.create_user(
@@ -384,11 +421,48 @@ class CudUploadImportTests(TestCase):
 		)
 
 		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Conferma Account Mancanti")
+
+		confirm_response = self.client.post(
+			reverse("admin_upload_cud"),
+			{
+				"action": "resolve_pending_import",
+			},
+		)
+
+		self.assertEqual(confirm_response.status_code, 200)
 		self.assertEqual(Cud.objects.filter(employee=self.active_employee, year=2026).count(), 1)
 		self.assertEqual(Cud.objects.filter(employee=self.inactive_employee, year=2026).count(), 0)
 		self.assertEqual(Cud.objects.count(), 1)
-		self.assertContains(response, "account non attivo")
-		self.assertContains(response, "dipendente non trovato o senza account")
+		self.assertContains(confirm_response, "account non attivo")
+		self.assertContains(confirm_response, "account non creato")
+
+	def test_upload_can_create_missing_employee_and_save_cud(self):
+		response = self.client.post(
+			reverse("admin_upload_cud"),
+			{
+				"files": [self._pdf_file("CU2026_VERDI_LUCA.pdf")]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Conferma Account Mancanti")
+
+		confirm_response = self.client.post(
+			reverse("admin_upload_cud"),
+			{
+				"action": "resolve_pending_import",
+				"create_candidates": ["verdi-luca"],
+				"first_name_verdi-luca": "Luca",
+				"last_name_verdi-luca": "Verdi",
+			},
+		)
+
+		self.assertEqual(confirm_response.status_code, 200)
+		created_employee = Employee.objects.get(last_name="Verdi", first_name="Luca")
+		self.assertFalse(created_employee.user.is_active)
+		self.assertEqual(Cud.objects.filter(employee=created_employee, year=2026).count(), 1)
+		self.assertContains(confirm_response, "Account creati: 1")
 
 	def test_upload_matches_employee_from_username_when_names_are_missing(self):
 		username_user = get_user_model().objects.create_user(

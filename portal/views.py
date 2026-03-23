@@ -4,6 +4,7 @@ import json
 import math
 import calendar
 import re
+import uuid
 import unicodedata
 from collections import OrderedDict
 from datetime import date
@@ -16,6 +17,8 @@ from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRe
 from django.db import transaction, IntegrityError
 from django.db.models import Count, Q
 from django.conf import settings
+from django.core.files.base import File
+from django.core.files.storage import default_storage
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from django.templatetags.static import static
@@ -172,6 +175,328 @@ def _parse_cud_import_filename(filename):
         return None, None, 'nome dipendente non riconosciuto nel filename'
 
     return year, name_tokens, None
+
+
+def _pending_import_session_key(document_type):
+    return f'pending_{document_type}_import'
+
+
+def _pending_import_storage_name(document_type, filename):
+    safe_name = os.path.basename(filename or 'documento.pdf')
+    safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', safe_name)
+    return f'pending/{document_type}/{uuid.uuid4().hex}_{safe_name}'
+
+
+def _store_pending_uploaded_file(uploaded_file, document_type):
+    return default_storage.save(_pending_import_storage_name(document_type, uploaded_file.name), uploaded_file)
+
+
+def _delete_pending_files(records):
+    for record in records or []:
+        temp_path = record.get('temp_path')
+        if not temp_path:
+            continue
+        try:
+            if default_storage.exists(temp_path):
+                default_storage.delete(temp_path)
+        except Exception:
+            logger.exception('Error deleting pending upload file %s', temp_path)
+
+
+def _clear_pending_import(request, document_type):
+    session_key = _pending_import_session_key(document_type)
+    pending_data = request.session.pop(session_key, None)
+    if pending_data:
+        _delete_pending_files(pending_data.get('records', []))
+
+
+def _display_name_from_tokens(name_tokens):
+    return ' '.join(token for token in (name_tokens or []) if token).strip()
+
+
+def _candidate_key_from_tokens(name_tokens):
+    normalized = _normalize_import_name(_display_name_from_tokens(name_tokens))
+    return normalized.replace(' ', '-') or uuid.uuid4().hex
+
+
+def _guess_identity_from_tokens(name_tokens):
+    parts = [part.strip() for part in (name_tokens or []) if part.strip()]
+    if not parts:
+        return '', ''
+    if len(parts) == 1:
+        return parts[0].title(), ''
+    last_name = parts[0].title()
+    first_name = ' '.join(parts[1:]).title()
+    return first_name, last_name
+
+
+def _username_slug_part(value):
+    value = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode('ascii')
+    value = value.lower().replace("'", '')
+    value = re.sub(r'[^a-z0-9]+', '-', value)
+    return value.strip('-')
+
+
+def _generate_unique_import_username(first_name, last_name):
+    base = '-'.join(part for part in [_username_slug_part(last_name), _username_slug_part(first_name)] if part)
+    if not base:
+        base = f'dipendente-{uuid.uuid4().hex[:8]}'
+
+    candidate = base
+    counter = 2
+    while User.objects.filter(username=candidate).exists():
+        candidate = f'{base}-{counter}'
+        counter += 1
+    return candidate
+
+
+def _create_employee_for_import(first_name, last_name):
+    username = _generate_unique_import_username(first_name, last_name)
+    user = User.objects.create_user(
+        username=username,
+        password=secrets.token_urlsafe(16),
+        is_active=False,
+        first_name=first_name,
+        last_name=last_name,
+    )
+    employee = Employee.objects.create(
+        user=user,
+        first_name=first_name,
+        last_name=last_name,
+    )
+    return employee, username
+
+
+def _build_pending_import_data(records, document_type):
+    missing_candidates = OrderedDict()
+    for record in records:
+        if record.get('status') != 'missing':
+            continue
+        key = record['candidate_key']
+        candidate = missing_candidates.setdefault(key, {
+            'key': key,
+            'display_name': record['display_name'],
+            'suggested_first_name': record['suggested_first_name'],
+            'suggested_last_name': record['suggested_last_name'],
+            'file_count': 0,
+        })
+        candidate['file_count'] += 1
+
+    return {
+        'document_type': document_type,
+        'records': records,
+        'missing_candidates': list(missing_candidates.values()),
+    }
+
+
+def _build_import_record(document_type, uploaded_file, *, name_tokens=None, employee=None, reason=None, year=None, month=None):
+    display_name = _display_name_from_tokens(name_tokens)
+    suggested_first_name, suggested_last_name = _guess_identity_from_tokens(name_tokens)
+
+    if reason:
+        status = 'skipped'
+    elif employee and employee.user_id and employee.user.is_active:
+        status = 'existing_active'
+    elif employee:
+        status = 'existing_inactive'
+        reason = 'account non attivo'
+    else:
+        status = 'missing'
+
+    return {
+        'document_type': document_type,
+        'filename': uploaded_file.name,
+        'temp_path': _store_pending_uploaded_file(uploaded_file, document_type),
+        'name_tokens': list(name_tokens or []),
+        'display_name': display_name,
+        'suggested_first_name': suggested_first_name,
+        'suggested_last_name': suggested_last_name,
+        'candidate_key': _candidate_key_from_tokens(name_tokens or []),
+        'employee_id': employee.id if employee else None,
+        'year': year,
+        'month': month,
+        'status': status,
+        'reason': reason,
+    }
+
+
+def _save_payslip_from_record(record, employee):
+    with transaction.atomic():
+        existing = Payslip.objects.filter(employee=employee, year=record['year'], month=record['month']).first()
+        if existing:
+            try:
+                existing.pdf.delete(save=False)
+            except Exception:
+                logger.exception('Error deleting existing payslip file for %s', existing.id)
+            existing.delete()
+
+        with default_storage.open(record['temp_path'], 'rb') as handle:
+            payslip = Payslip(employee=employee, year=record['year'], month=record['month'])
+            payslip.pdf.save(record['filename'], File(handle), save=True)
+        return payslip.id
+
+
+def _save_cud_from_record(record, employee):
+    replaced = False
+    with transaction.atomic():
+        existing = Cud.objects.filter(employee=employee, year=record['year']).first()
+        if existing:
+            try:
+                existing.pdf.delete(save=False)
+            except Exception:
+                logger.exception('Error deleting existing CUD file for %s', existing.id)
+            existing.delete()
+            replaced = True
+
+        with default_storage.open(record['temp_path'], 'rb') as handle:
+            cud_obj = Cud(employee=employee, year=record['year'])
+            cud_obj.pdf.save(record['filename'], File(handle), save=True)
+        return cud_obj.id, replaced
+
+
+def _render_missing_account_resolution(request, document_type, pending_data):
+    document_label = 'Cedolini' if document_type == 'payslip' else 'CUD'
+    return render(request, 'portal/admin_resolve_missing_accounts.html', {
+        'document_type': document_type,
+        'document_label': document_label,
+        'missing_candidates': pending_data.get('missing_candidates', []),
+        'records': pending_data.get('records', []),
+        'action_url_name': 'admin_upload_period_folder' if document_type == 'payslip' else 'admin_upload_cud',
+    })
+
+
+def _finalize_pending_import(request, document_type, pending_data, create_selected_keys, posted_data=None):
+    posted_data = posted_data or {}
+    created_usernames = []
+    created_payslip_ids = []
+    created_cuds = 0
+    replaced_cuds = 0
+    skipped = []
+    created_employees = {}
+    import_job = None
+    total_files = len(pending_data.get('records', []))
+    processed_files = 0
+
+    if document_type == 'payslip':
+        import_job = ImportJob.objects.create(total_files=total_files, status='processing')
+
+    for candidate in pending_data.get('missing_candidates', []):
+        key = candidate['key']
+        if key not in create_selected_keys:
+            continue
+
+        first_name = (posted_data.get(f'first_name_{key}') or candidate.get('suggested_first_name') or '').strip()
+        last_name = (posted_data.get(f'last_name_{key}') or candidate.get('suggested_last_name') or '').strip()
+
+        if not first_name or not last_name:
+            created_employees[key] = {'error': 'nome o cognome mancanti per la creazione account'}
+            continue
+
+        employee, username = _create_employee_for_import(first_name, last_name)
+        created_employees[key] = {'employee': employee}
+        created_usernames.append(username)
+
+    try:
+        for record in pending_data.get('records', []):
+            processed_files += 1
+            status = record.get('status')
+
+            if status == 'skipped':
+                skipped.append((record['filename'], record.get('reason') or 'file scartato'))
+                continue
+
+            if status == 'existing_inactive':
+                skipped.append((record['filename'], record.get('reason') or 'account non attivo'))
+                continue
+
+            employee = None
+            if status == 'existing_active' and record.get('employee_id'):
+                employee = Employee.objects.select_related('user').filter(id=record['employee_id']).first()
+            elif status == 'missing':
+                resolution = created_employees.get(record['candidate_key'])
+                if resolution and resolution.get('employee'):
+                    employee = resolution['employee']
+                elif resolution and resolution.get('error'):
+                    skipped.append((record['filename'], resolution['error']))
+                    continue
+                else:
+                    skipped.append((record['filename'], 'account non creato'))
+                    continue
+
+            if not employee:
+                skipped.append((record['filename'], 'dipendente non disponibile'))
+                continue
+
+            try:
+                if document_type == 'payslip':
+                    created_payslip_ids.append(_save_payslip_from_record(record, employee))
+                else:
+                    _, replaced = _save_cud_from_record(record, employee)
+                    created_cuds += 1
+                    if replaced:
+                        replaced_cuds += 1
+            except IntegrityError:
+                logger.exception('Integrity error during %s import for file %s', document_type, record['filename'])
+                skipped.append((record['filename'], 'integrity error'))
+            except Exception as exc:
+                logger.exception('Error during %s import for file %s', document_type, record['filename'])
+                skipped.append((record['filename'], str(exc)))
+    finally:
+        _delete_pending_files(pending_data.get('records', []))
+
+    if document_type == 'payslip':
+        import_job.processed_files = processed_files
+        import_job.created_users = len(created_usernames)
+        import_job.created_payslips = len(created_payslip_ids)
+        import_job.skipped = len(skipped)
+        import_job.status = 'completed'
+        import_job.save()
+
+        _create_audit_event(
+            request,
+            'payslip_import_completed',
+            metadata={
+                'import_job_id': import_job.id,
+                'total_files': total_files,
+                'processed_files': processed_files,
+                'created_users': len(created_usernames),
+                'created_payslips': len(created_payslip_ids),
+                'skipped': len(skipped),
+                'status': import_job.status,
+            },
+        )
+
+        request.session['last_import_created_users'] = created_usernames
+        request.session['last_import_created_payslips'] = created_payslip_ids
+
+        return render(request, 'portal/admin_confirm_import.html', {
+            'created_users': created_usernames,
+            'created_payslips': created_payslip_ids,
+            'skipped': skipped,
+            'import_job': import_job,
+        })
+
+    _create_audit_event(
+        request,
+        'cud_import_completed',
+        metadata={
+            'total_files': total_files,
+            'processed_files': processed_files,
+            'created_users': len(created_usernames),
+            'created_cuds': created_cuds,
+            'replaced': replaced_cuds,
+            'skipped': len(skipped),
+        },
+    )
+
+    return render(request, 'portal/admin_confirm_cud_import.html', {
+        'total_files': total_files,
+        'processed_files': processed_files,
+        'created_cuds': created_cuds,
+        'created_users': created_usernames,
+        'replaced_count': replaced_cuds,
+        'skipped': skipped,
+    })
 
 
 def _disable_response_cache(response):
@@ -2934,66 +3259,38 @@ def admin_upload_cud(request):
         pdf = forms.FileField()
 
     if request.method == 'POST':
+        if request.POST.get('action') == 'resolve_pending_import':
+            session_key = _pending_import_session_key('cud')
+            pending_data = request.session.pop(session_key, None)
+            if not pending_data:
+                return redirect('admin_upload_cud')
+            selected_keys = set(request.POST.getlist('create_candidates'))
+            return _finalize_pending_import(request, 'cud', pending_data, selected_keys, request.POST)
+
         if request.FILES and not {'employee', 'year'}.issubset(request.POST.keys()):
             files = request.FILES.getlist('files') or request.FILES.getlist('folder')
             if not files and request.FILES.get('pdf'):
                 files = [request.FILES['pdf']]
 
+            _clear_pending_import(request, 'cud')
             employee_lookup = _build_employee_import_lookup()
-            imported = []
-            skipped = []
-            replaced_count = 0
-            processed_files = 0
+            records = []
 
             for f in files:
-                processed_files += 1
                 year, name_tokens, error_reason = _parse_cud_import_filename(f.name)
                 if error_reason:
-                    skipped.append((f.name, error_reason))
+                    records.append(_build_import_record('cud', f, reason=error_reason))
                     continue
 
                 employee = _find_employee_for_import_tokens(name_tokens, employee_lookup)
-                if not employee:
-                    skipped.append((f.name, 'dipendente non trovato o senza account'))
-                    continue
+                records.append(_build_import_record('cud', f, name_tokens=name_tokens, employee=employee, year=year))
 
-                if not (employee.user_id and employee.user.is_active):
-                    skipped.append((f.name, 'account non attivo'))
-                    continue
+            pending_data = _build_pending_import_data(records, 'cud')
+            if pending_data['missing_candidates']:
+                request.session[_pending_import_session_key('cud')] = pending_data
+                return _render_missing_account_resolution(request, 'cud', pending_data)
 
-                with transaction.atomic():
-                    existing = Cud.objects.filter(employee=employee, year=year).first()
-                    if existing:
-                        try:
-                            existing.pdf.delete(save=False)
-                        except Exception:
-                            logger.exception('Error deleting existing CUD file for %s', existing.id)
-                        existing.delete()
-                        replaced_count += 1
-
-                    cud_obj = Cud(employee=employee, year=year)
-                    cud_obj.pdf.save(f.name, f, save=True)
-                    imported.append(cud_obj)
-
-            _create_audit_event(
-                request,
-                'cud_import_completed',
-                metadata={
-                    'total_files': len(files),
-                    'processed_files': processed_files,
-                    'created_cuds': len(imported),
-                    'replaced': replaced_count,
-                    'skipped': len(skipped),
-                },
-            )
-
-            return render(request, 'portal/admin_confirm_cud_import.html', {
-                'total_files': len(files),
-                'processed_files': processed_files,
-                'created_cuds': len(imported),
-                'replaced_count': replaced_count,
-                'skipped': skipped,
-            })
+            return _finalize_pending_import(request, 'cud', pending_data, set())
 
         form = CudUploadForm(request.POST, request.FILES)
         success = False
@@ -3780,144 +4077,56 @@ def admin_upload_period_folder(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    created_users = []
-    created_payslips = []
-    skipped = []
-
     months_map = {
         'gennaio': 1, 'febbraio': 2, 'marzo': 3, 'aprile': 4,
         'maggio': 5, 'giugno': 6, 'luglio': 7, 'agosto': 8,
         'settembre': 9, 'ottobre': 10, 'novembre': 11, 'dicembre': 12,
     }
+    if request.method == 'POST' and request.POST.get('action') == 'resolve_pending_import':
+        session_key = _pending_import_session_key('payslip')
+        pending_data = request.session.pop(session_key, None)
+        if not pending_data:
+            return redirect('admin_upload_period_folder')
+        selected_keys = set(request.POST.getlist('create_candidates'))
+        return _finalize_pending_import(request, 'payslip', pending_data, selected_keys, request.POST)
 
-    def employee_has_active_account(employee):
-        return bool(employee and getattr(employee, 'user_id', None) and getattr(employee.user, 'is_active', False))
-
-    # Two-phase flow:
-    # - initial POST with files: process files and create users/payslips, store created ids in session and show confirmation
-    # - confirmation page has Annulla which will call admin_cancel_import to rollback created items
     if request.method == 'POST' and request.FILES:
-        # accept either input name 'files' or legacy 'folder' from template
         files = request.FILES.getlist('files') or request.FILES.getlist('folder')
         employee_lookup = _build_employee_import_lookup()
+        records = []
 
-        total_files = len(files)
-        job = ImportJob.objects.create(
-            total_files=total_files,
-            status="processing",
-        )
+        _clear_pending_import(request, 'payslip')
 
-        processed_files = 0
+        for f in files:
+            name = os.path.splitext(f.name)[0].strip()
+            parts = name.split()
+            if len(parts) < 3:
+                records.append(_build_import_record('payslip', f, reason='filename too short'))
+                continue
 
-        try:
-            for f in files:
-                processed_files += 1
-                # filename without extension
-                name = os.path.splitext(f.name)[0].strip()
-                parts = name.split()
-                if len(parts) < 3:
-                    skipped.append((f.name, 'filename too short'))
-                    continue
+            year_token = parts[-1]
+            try:
+                year = int(year_token)
+            except Exception:
+                records.append(_build_import_record('payslip', f, reason='invalid year'))
+                continue
 
-                # last token = year
-                year_token = parts[-1]
-                try:
-                    year = int(year_token)
-                except Exception:
-                    skipped.append((f.name, 'invalid year'))
-                    continue
+            month_token = parts[-2].lower()
+            month = months_map.get(month_token)
+            if not month:
+                records.append(_build_import_record('payslip', f, reason=f'unknown month "{parts[-2]}"'))
+                continue
 
-                month_token = parts[-2].lower()
-                month = months_map.get(month_token)
-                if not month:
-                    skipped.append((f.name, f'unknown month "{parts[-2]}"'))
-                    continue
+            name_tokens = parts[:-2]
+            employee = _find_employee_for_import_tokens(name_tokens, employee_lookup)
+            records.append(_build_import_record('payslip', f, name_tokens=name_tokens, employee=employee, year=year, month=month))
 
-                name_tokens = parts[:-2]
+        pending_data = _build_pending_import_data(records, 'payslip')
+        if pending_data['missing_candidates']:
+            request.session[_pending_import_session_key('payslip')] = pending_data
+            return _render_missing_account_resolution(request, 'payslip', pending_data)
 
-                employee = _find_employee_for_import_tokens(name_tokens, employee_lookup)
-
-                if not employee:
-                    skipped.append((f.name, 'dipendente non trovato o senza account'))
-                    continue
-
-                if not employee_has_active_account(employee):
-                    skipped.append((f.name, 'account non attivo'))
-                    continue
-
-                # create payslip if not exists — make atomic per file to avoid partial DB state
-                try:
-                    with transaction.atomic():
-                        existing = Payslip.objects.filter(employee=employee, year=year, month=month).first()
-                        if existing:
-                            # delete existing file before replacing
-                            try:
-                                existing.pdf.delete(save=False)
-                            except Exception:
-                                logger.exception('Error deleting existing payslip file for %s', existing.id)
-                            existing.delete()
-                            logger.info('Removed duplicate payslip for employee=%s year=%s month=%s', employee.id, year, month)
-                        ps = Payslip(employee=employee, year=year, month=month)
-                        ps.pdf.save(f.name, f, save=True)
-                        created_payslips.append(ps.id)
-                except IntegrityError as ie:
-                    logger.exception('IntegrityError creating payslip for file %s', f.name)
-                    skipped.append((f.name, 'integrity error'))
-                except Exception as e:
-                    logger.exception('Error creating payslip for file %s', f.name)
-                    skipped.append((f.name, str(e)))
-        except Exception:
-            logger.exception('Unhandled error while processing uploaded files')
-            # Add a generic error entry so the template can show something instead of raising 500
-            skipped.append(('__internal__', 'Unhandled error during import — see logs'))
-            job.status = "error"
-            job.error_message = 'Unhandled error during import — see logs'
-        finally:
-            job.processed_files = processed_files
-            job.created_users = len(created_users)
-            job.created_payslips = len(created_payslips)
-            job.skipped = len(skipped)
-            if job.status == "processing":
-                job.status = "completed"
-            job.save()
-
-        logger.info(
-            'ImportJob %s completed: total=%s processed=%s created_users=%s created_payslips=%s skipped=%s status=%s',
-            getattr(job, 'id', None),
-            total_files,
-            processed_files,
-            len(created_users),
-            len(created_payslips),
-            len(skipped),
-            job.status,
-        )
-
-        # Audit: import massivo cedolini completato (o terminato con errore)
-        _create_audit_event(
-            request,
-            "payslip_import_completed",
-            metadata={
-                "import_job_id": job.id,
-                "total_files": total_files,
-                "processed_files": processed_files,
-                "created_users": len(created_users),
-                "created_payslips": len(created_payslips),
-                "skipped": len(skipped),
-                "status": job.status,
-            },
-        )
-
-        # persist created identifiers in session for potential rollback if admin cancels
-        request.session['last_import_created_users'] = created_users
-        request.session['last_import_created_payslips'] = created_payslips
-
-        # render summary
-        return render(request, 'portal/admin_confirm_import.html', {
-            'created_users': created_users,
-            'created_payslips': created_payslips,
-            'skipped': skipped,
-            'import_job': job,
-        })
+        return _finalize_pending_import(request, 'payslip', pending_data, set())
 
     recent_jobs = ImportJob.objects.order_by('-created_at')[:20]
 
