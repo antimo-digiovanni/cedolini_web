@@ -3,42 +3,88 @@
 
 {% block content %}
 
-<div class="container" style="max-width:720px;">
+<div class="container mt-4">
 
     <div class="page-hero mb-4">
         <h2 class="fw-bold mb-1">Carica CUD</h2>
-        <p class="mb-0 opacity-75">Seleziona dipendente, anno e PDF. Se presente, il CUD dell'anno viene sostituito.</p>
+        <p class="mb-0 opacity-75">Importa piu PDF CUD in una volta sola, con lo stesso flusso usato per i cedolini.</p>
     </div>
 
-    {% if success %}
-        <div class="alert alert-success">
-            CUD caricato correttamente per {{ cud.employee.full_name }} (anno {{ cud.year }}).
-            {% if replaced %}<br><strong>Nota:</strong> il CUD precedente per questo anno è stato sostituito.{% endif %}
-        </div>
-    {% endif %}
-
-    <div class="card-modern bg-white">
-        <form method="post" enctype="multipart/form-data">
+    <div class="card-modern">
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="mb-3">
-                <label class="form-label">Dipendente</label>
-                {{ form.employee }}
+                <label class="form-label">Seleziona tutti i PDF CUD</label>
+                <input type="file"
+                       id="fileInput"
+                       name="files"
+                       class="form-control"
+                       multiple
+                       accept="application/pdf"
+                       required>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Anno</label>
-                {{ form.year }}
+            <div class="alert alert-light border">
+                Formati filename supportati:
+                <strong>CU2026_ROSSI_MARIO.pdf</strong>,
+                <strong>CUD 2026 Rossi Mario.pdf</strong>,
+                <strong>Rossi Mario 2026.pdf</strong>.
+                I file senza anno o senza dipendente riconoscibile vengono scartati.
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">File PDF CUD</label>
-                {{ form.pdf }}
-            </div>
-
-            <button type="submit" class="btn btn-primary">Carica CUD</button>
+            <button type="submit" class="btn btn-primary" id="submitBtn">Carica CUD</button>
             <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary ms-2">Torna alla Dashboard</a>
+
+            <div class="progress mt-3" style="height:20px; display:none;">
+                <div class="progress-bar" role="progressbar" style="width:0%"></div>
+            </div>
         </form>
+
+        <script>
+        document.getElementById('uploadForm').addEventListener('submit', function(e){
+            e.preventDefault();
+            const form = this;
+            const files = document.getElementById('fileInput').files;
+            if(files.length === 0) return;
+
+            const data = new FormData();
+            for(let i = 0; i < files.length; i++){
+                data.append('files', files[i]);
+            }
+
+            const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', form.action || window.location.href);
+            xhr.setRequestHeader('X-CSRFToken', csrf);
+
+            const progressBar = form.querySelector('.progress');
+            const bar = progressBar.querySelector('.progress-bar');
+            progressBar.style.display = '';
+
+            xhr.upload.onprogress = function(ev){
+                if(ev.lengthComputable){
+                    const percent = Math.round(ev.loaded / ev.total * 100);
+                    bar.style.width = percent + '%';
+                    bar.textContent = percent + '%';
+                }
+            };
+
+            xhr.onload = function(){
+                if(xhr.status >= 200 && xhr.status < 300){
+                    const win = window.open('about:blank');
+                    win.document.write(xhr.responseText);
+                } else {
+                    alert('Errore durante l\'upload: ' + xhr.status);
+                }
+                progressBar.style.display = 'none';
+                bar.style.width = '0%';
+                bar.textContent = '';
+            };
+
+            xhr.send(data);
+        });
+        </script>
     </div>
 
 </div>

@@ -153,6 +153,27 @@ def _find_employee_for_import_tokens(name_tokens, employee_lookup):
     return unique_candidates[0]
 
 
+def _parse_cud_import_filename(filename):
+    stem = os.path.splitext(filename or '')[0].strip()
+    normalized = stem.replace('_', ' ').replace('-', ' ')
+
+    year_match = re.search(r'(19|20)\d{2}', normalized)
+    if not year_match:
+        return None, None, 'anno non trovato nel filename'
+
+    year = int(year_match.group(0))
+    normalized = normalized[:year_match.start()] + ' ' + normalized[year_match.end():]
+    normalized = re.sub(r'\bcertificazione\s+unica\b', ' ', normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r'\bcu\b|\bcud\b', ' ', normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+
+    name_tokens = [token for token in normalized.split(' ') if token]
+    if len(name_tokens) < 2:
+        return None, None, 'nome dipendente non riconosciuto nel filename'
+
+    return year, name_tokens, None
+
+
 def _disable_response_cache(response):
     response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response['Pragma'] = 'no-cache'
@@ -2901,7 +2922,7 @@ def today_markings_dashboard(request):
 
 @login_required
 def admin_upload_cud(request):
-    """Upload manuale di un singolo CUD (annuale) per un dipendente."""
+    """Upload CUD multiplo basato sul filename, con fallback al caricamento manuale."""
     if not request.user.is_staff:
         return redirect('dashboard')
 
@@ -2912,12 +2933,73 @@ def admin_upload_cud(request):
         year = forms.IntegerField(min_value=2000, max_value=2100)
         pdf = forms.FileField()
 
-    success = False
-    replaced = False
-    cud_obj = None
-
     if request.method == 'POST':
+        if request.FILES and not {'employee', 'year'}.issubset(request.POST.keys()):
+            files = request.FILES.getlist('files') or request.FILES.getlist('folder')
+            if not files and request.FILES.get('pdf'):
+                files = [request.FILES['pdf']]
+
+            employee_lookup = _build_employee_import_lookup()
+            imported = []
+            skipped = []
+            replaced_count = 0
+            processed_files = 0
+
+            for f in files:
+                processed_files += 1
+                year, name_tokens, error_reason = _parse_cud_import_filename(f.name)
+                if error_reason:
+                    skipped.append((f.name, error_reason))
+                    continue
+
+                employee = _find_employee_for_import_tokens(name_tokens, employee_lookup)
+                if not employee:
+                    skipped.append((f.name, 'dipendente non trovato o senza account'))
+                    continue
+
+                if not (employee.user_id and employee.user.is_active):
+                    skipped.append((f.name, 'account non attivo'))
+                    continue
+
+                with transaction.atomic():
+                    existing = Cud.objects.filter(employee=employee, year=year).first()
+                    if existing:
+                        try:
+                            existing.pdf.delete(save=False)
+                        except Exception:
+                            logger.exception('Error deleting existing CUD file for %s', existing.id)
+                        existing.delete()
+                        replaced_count += 1
+
+                    cud_obj = Cud(employee=employee, year=year)
+                    cud_obj.pdf.save(f.name, f, save=True)
+                    imported.append(cud_obj)
+
+            _create_audit_event(
+                request,
+                'cud_import_completed',
+                metadata={
+                    'total_files': len(files),
+                    'processed_files': processed_files,
+                    'created_cuds': len(imported),
+                    'replaced': replaced_count,
+                    'skipped': len(skipped),
+                },
+            )
+
+            return render(request, 'portal/admin_confirm_cud_import.html', {
+                'total_files': len(files),
+                'processed_files': processed_files,
+                'created_cuds': len(imported),
+                'replaced_count': replaced_count,
+                'skipped': skipped,
+            })
+
         form = CudUploadForm(request.POST, request.FILES)
+        success = False
+        replaced = False
+        cud_obj = None
+
         if form.is_valid():
             employee = form.cleaned_data['employee']
             year = form.cleaned_data['year']
@@ -2950,9 +3032,9 @@ def admin_upload_cud(request):
 
     return render(request, "portal/admin_upload_cud.html", {
         "form": form,
-        "success": success,
-        "replaced": replaced,
-        "cud": cud_obj,
+        "success": locals().get('success', False),
+        "replaced": locals().get('replaced', False),
+        "cud": locals().get('cud_obj'),
     })
 
 

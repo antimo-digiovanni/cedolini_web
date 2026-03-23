@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .access import TODAY_MARKINGS_GROUP_NAME
-from .models import Employee, ImportJob, Payslip, VacationRequest, WorkSession
+from .models import Cud, Employee, ImportJob, Payslip, VacationRequest, WorkSession
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -311,3 +311,122 @@ class PayslipUploadImportTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(Payslip.objects.filter(employee=username_employee, year=2026, month=1).count(), 1)
+
+
+class CudUploadImportTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls._temp_media = tempfile.TemporaryDirectory()
+		cls._override = override_settings(
+			MEDIA_ROOT=cls._temp_media.name,
+			STORAGES={
+				"default": {
+					"BACKEND": "django.core.files.storage.FileSystemStorage",
+				},
+				"staticfiles": {
+					"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+				},
+			},
+		)
+		cls._override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls._override.disable()
+		cls._temp_media.cleanup()
+		super().tearDownClass()
+
+	def setUp(self):
+		self.client = Client()
+		self.admin_user = get_user_model().objects.create_user(
+			username="staff.cud",
+			password="Password123!",
+			is_staff=True,
+		)
+		self.client.force_login(self.admin_user)
+
+		self.active_user = get_user_model().objects.create_user(
+			username="mario.rossi",
+			password="Password123!",
+			is_active=True,
+		)
+		self.active_employee = Employee.objects.create(
+			user=self.active_user,
+			first_name="Mario",
+			last_name="Rossi",
+		)
+
+		self.inactive_user = get_user_model().objects.create_user(
+			username="anna.bianchi",
+			password="Password123!",
+			is_active=False,
+		)
+		self.inactive_employee = Employee.objects.create(
+			user=self.inactive_user,
+			first_name="Anna",
+			last_name="Bianchi",
+		)
+
+	def _pdf_file(self, name, content=b"%PDF-1.4\n%test pdf\n"):
+		return SimpleUploadedFile(name, content, content_type="application/pdf")
+
+	def test_upload_imports_only_cuds_for_active_accounts(self):
+		response = self.client.post(
+			reverse("admin_upload_cud"),
+			{
+				"files": [
+					self._pdf_file("CU2026_ROSSI_MARIO.pdf"),
+					self._pdf_file("CU2026_BIANCHI_ANNA.pdf"),
+					self._pdf_file("CU2026_VERDI_LUCA.pdf"),
+				]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(Cud.objects.filter(employee=self.active_employee, year=2026).count(), 1)
+		self.assertEqual(Cud.objects.filter(employee=self.inactive_employee, year=2026).count(), 0)
+		self.assertEqual(Cud.objects.count(), 1)
+		self.assertContains(response, "account non attivo")
+		self.assertContains(response, "dipendente non trovato o senza account")
+
+	def test_upload_matches_employee_from_username_when_names_are_missing(self):
+		username_user = get_user_model().objects.create_user(
+			username="daponte-giuseppe",
+			password="Password123!",
+			is_active=True,
+		)
+		username_employee = Employee.objects.create(
+			user=username_user,
+			first_name="",
+			last_name="",
+		)
+
+		response = self.client.post(
+			reverse("admin_upload_cud"),
+			{
+				"files": [self._pdf_file("CU2026_D'APONTE_GIUSEPPE.pdf")]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(Cud.objects.filter(employee=username_employee, year=2026).count(), 1)
+
+	def test_upload_replaces_existing_cud_for_same_employee_and_year(self):
+		existing = Cud.objects.create(
+			employee=self.active_employee,
+			year=2026,
+			pdf=self._pdf_file("old.pdf", content=b"%PDF-1.4\n%old\n"),
+		)
+
+		response = self.client.post(
+			reverse("admin_upload_cud"),
+			{
+				"files": [self._pdf_file("CU2026_ROSSI_MARIO.pdf", content=b"%PDF-1.4\n%new\n")]
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(Cud.objects.filter(employee=self.active_employee, year=2026).count(), 1)
+		self.assertFalse(Cud.objects.filter(id=existing.id).exists())
+		self.assertContains(response, "Sostituiti: 1")
