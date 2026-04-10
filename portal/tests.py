@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from datetime import datetime
 
 from .access import TODAY_MARKINGS_GROUP_NAME
 from .models import Cud, Employee, ImportJob, Payslip, VacationRequest, WorkSession
@@ -96,6 +97,32 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Elenco marcature del")
 		self.assertContains(response, "Luca Verdi")
+
+	def test_today_markings_includes_overnight_exit_on_next_day(self):
+		WorkSession.objects.all().delete()
+		yesterday = timezone.localdate() - timezone.timedelta(days=1)
+		today = timezone.localdate()
+		tz = timezone.get_current_timezone()
+		started_at = timezone.make_aware(datetime.combine(yesterday, datetime.strptime("17:00", "%H:%M").time()), tz)
+		ended_at = timezone.make_aware(datetime.combine(today, datetime.strptime("01:00", "%H:%M").time()), tz)
+		WorkSession.objects.create(
+			employee=self.employee,
+			work_date=yesterday,
+			started_at=started_at,
+			ended_at=ended_at,
+		)
+
+		self.client.force_login(self.owner_user)
+		response_today = self.client.get(reverse("today_markings_dashboard"))
+		self.assertEqual(response_today.status_code, 200)
+		self.assertContains(response_today, "Luca Verdi")
+		self.assertContains(response_today, "01:00")
+		self.assertContains(response_today, "--:--")
+
+		response_yesterday = self.client.get(reverse("today_markings_dashboard"), {"date": yesterday.isoformat()})
+		self.assertEqual(response_yesterday.status_code, 200)
+		self.assertContains(response_yesterday, "Luca Verdi")
+		self.assertContains(response_yesterday, "17:00")
 
 
 class VacationRequestFlowTests(TestCase):

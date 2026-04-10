@@ -434,9 +434,9 @@
                             {% for s in today_marked_sessions %}
                             <tr>
                                 <td>{{ s.employee.full_name }}</td>
-                                <td>{% if s.effective_started_at %}{{ s.effective_started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
-                                <td>{% if s.effective_ended_at %}{{ s.effective_ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
-                                <td>{{ s.worked_hours_display }}</td>
+                                <td>{% if s.display_started_at %}{{ s.display_started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                <td>{% if s.display_ended_at %}{{ s.display_ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                <td>{{ s.display_worked_hours }}</td>
                             </tr>
                             {% empty %}
                             <tr>

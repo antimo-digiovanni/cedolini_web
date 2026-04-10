@@ -1548,6 +1548,33 @@ def _session_cell_text(session):
     return ''
 
 
+def _local_date_from_datetime(value):
+    if not value:
+        return None
+    try:
+        if timezone.is_aware(value):
+            value = timezone.localtime(value)
+    except Exception:
+        pass
+    return value.date()
+
+
+def _mark_happened_on_date(value, target_date):
+    return _local_date_from_datetime(value) == target_date
+
+
+def _prepare_marked_sessions_for_date(sessions, target_date):
+    prepared = []
+    for session in sessions:
+        start_dt = session.effective_started_at()
+        end_dt = session.effective_ended_at()
+        session.display_started_at = start_dt if _mark_happened_on_date(start_dt, target_date) else None
+        session.display_ended_at = end_dt if _mark_happened_on_date(end_dt, target_date) else None
+        session.display_worked_hours = session.worked_hours_display() if (session.display_started_at or session.display_ended_at) else '00:00'
+        prepared.append(session)
+    return prepared
+
+
 def _get_open_shift_session(employee, reference_ts=None):
     reference_ts = timezone.localtime(reference_ts or timezone.now())
     candidate_start_date = reference_ts.date() - timedelta(days=1)
@@ -3136,31 +3163,21 @@ def admin_dashboard(request):
     monthly_requests = WorkMarkRequest.objects.filter(created_at__date__gte=month_start, created_at__date__lte=today)
     monthly_vacation_requests = VacationRequest.objects.filter(created_at__date__gte=month_start, created_at__date__lte=today)
 
-    today_marked_sessions = (
-        WorkSession.objects
-        .select_related('employee')
-        .filter(work_date=today)
-        .filter(
-            Q(started_at__isnull=False)
-            | Q(ended_at__isnull=False)
-            | Q(corrected_started_at__isnull=False)
-            | Q(corrected_ended_at__isnull=False)
-        )
-        .order_by('employee__last_name', 'employee__first_name')
-    )
+    today_marked_sessions = _prepare_marked_sessions_for_date(list(_today_marked_sessions_queryset(today)), today)
 
-    entered_today_count = today_marked_sessions.filter(
-        Q(started_at__isnull=False) | Q(corrected_started_at__isnull=False)
-    ).count()
-    completed_today_count = today_marked_sessions.filter(
-        (Q(started_at__isnull=False) | Q(corrected_started_at__isnull=False))
-        & (Q(ended_at__isnull=False) | Q(corrected_ended_at__isnull=False))
-    ).count()
+    entered_today_count = sum(1 for session in today_marked_sessions if session.display_started_at)
+    completed_today_count = sum(1 for session in today_marked_sessions if session.display_started_at and session.display_ended_at)
     incomplete_today_count = max(entered_today_count - completed_today_count, 0)
-    outside_today_count = today_marked_sessions.filter(
-        (Q(start_zone__isnull=False) & Q(start_within_zone=False))
-        | (Q(end_zone__isnull=False) & Q(end_within_zone=False))
-    ).count()
+    outside_today_count = sum(
+        1
+        for session in today_marked_sessions
+        if (
+            session.display_started_at and session.start_zone_id and not session.start_within_zone
+        )
+        or (
+            session.display_ended_at and session.end_zone_id and not session.end_within_zone
+        )
+    )
     approved_month_count = monthly_requests.filter(status=WorkMarkRequest.STATUS_APPROVED).count()
     rejected_month_count = monthly_requests.filter(status=WorkMarkRequest.STATUS_REJECTED).count()
     approved_vacation_month_count = monthly_vacation_requests.filter(status=VacationRequest.STATUS_APPROVED).count()
@@ -3193,16 +3210,15 @@ def admin_dashboard(request):
     })
 
 
-def _today_marked_sessions_queryset(today):
+def _today_marked_sessions_queryset(target_date):
     return (
         WorkSession.objects
         .select_related('employee')
-        .filter(work_date=today)
         .filter(
-            Q(started_at__isnull=False)
-            | Q(ended_at__isnull=False)
-            | Q(corrected_started_at__isnull=False)
-            | Q(corrected_ended_at__isnull=False)
+            Q(started_at__date=target_date)
+            | Q(ended_at__date=target_date)
+            | Q(corrected_started_at__date=target_date)
+            | Q(corrected_ended_at__date=target_date)
         )
         .order_by('employee__last_name', 'employee__first_name')
     )
@@ -3224,12 +3240,12 @@ def today_markings_dashboard(request):
         selected_date = today
 
     _sync_approved_requests_for_range(today, today)
-    today_marked_sessions = _today_marked_sessions_queryset(today)
+    today_marked_sessions = _prepare_marked_sessions_for_date(list(_today_marked_sessions_queryset(today)), today)
 
     selected_marked_sessions = None
     if selected_date != today:
         _sync_approved_requests_for_range(selected_date, selected_date)
-        selected_marked_sessions = _today_marked_sessions_queryset(selected_date)
+        selected_marked_sessions = _prepare_marked_sessions_for_date(list(_today_marked_sessions_queryset(selected_date)), selected_date)
 
     previous_date = selected_date - timedelta(days=1)
     next_date = selected_date + timedelta(days=1) if selected_date < today else None
