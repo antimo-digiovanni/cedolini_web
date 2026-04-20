@@ -19,6 +19,7 @@ from django.db.models import Count, Q
 from django.conf import settings
 from django.core.files.base import File
 from django.core.files.storage import default_storage
+from django.core.files.storage import FileSystemStorage
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from django.templatetags.static import static
@@ -187,18 +188,26 @@ def _pending_import_storage_name(document_type, filename):
     return f'pending/{document_type}/{uuid.uuid4().hex}_{safe_name}'
 
 
+def _get_pending_import_storage():
+    pending_root = os.path.join(settings.MEDIA_ROOT, 'pending_imports')
+    os.makedirs(pending_root, exist_ok=True)
+    return FileSystemStorage(location=pending_root, base_url=None)
+
+
 def _store_pending_uploaded_file(uploaded_file, document_type):
-    return default_storage.save(_pending_import_storage_name(document_type, uploaded_file.name), uploaded_file)
+    pending_storage = _get_pending_import_storage()
+    return pending_storage.save(_pending_import_storage_name(document_type, uploaded_file.name), uploaded_file)
 
 
 def _delete_pending_files(records):
+    pending_storage = _get_pending_import_storage()
     for record in records or []:
         temp_path = record.get('temp_path')
         if not temp_path:
             continue
         try:
-            if default_storage.exists(temp_path):
-                default_storage.delete(temp_path)
+            if pending_storage.exists(temp_path):
+                pending_storage.delete(temp_path)
         except Exception:
             logger.exception('Error deleting pending upload file %s', temp_path)
 
@@ -303,10 +312,14 @@ def _build_import_record(document_type, uploaded_file, *, name_tokens=None, empl
     else:
         status = 'missing'
 
+    temp_path = None
+    if status in {'existing_active', 'missing'}:
+        temp_path = _store_pending_uploaded_file(uploaded_file, document_type)
+
     return {
         'document_type': document_type,
         'filename': uploaded_file.name,
-        'temp_path': _store_pending_uploaded_file(uploaded_file, document_type),
+        'temp_path': temp_path,
         'name_tokens': list(name_tokens or []),
         'display_name': display_name,
         'suggested_first_name': suggested_first_name,
@@ -321,6 +334,7 @@ def _build_import_record(document_type, uploaded_file, *, name_tokens=None, empl
 
 
 def _save_payslip_from_record(record, employee):
+    pending_storage = _get_pending_import_storage()
     with transaction.atomic():
         existing = Payslip.objects.filter(employee=employee, year=record['year'], month=record['month']).first()
         if existing:
@@ -330,7 +344,7 @@ def _save_payslip_from_record(record, employee):
                 logger.exception('Error deleting existing payslip file for %s', existing.id)
             existing.delete()
 
-        with default_storage.open(record['temp_path'], 'rb') as handle:
+        with pending_storage.open(record['temp_path'], 'rb') as handle:
             payslip = Payslip(employee=employee, year=record['year'], month=record['month'])
             payslip.pdf.save(record['filename'], File(handle), save=True)
         return payslip.id
@@ -338,6 +352,7 @@ def _save_payslip_from_record(record, employee):
 
 def _save_cud_from_record(record, employee):
     replaced = False
+    pending_storage = _get_pending_import_storage()
     with transaction.atomic():
         existing = Cud.objects.filter(employee=employee, year=record['year']).first()
         if existing:
@@ -348,7 +363,7 @@ def _save_cud_from_record(record, employee):
             existing.delete()
             replaced = True
 
-        with default_storage.open(record['temp_path'], 'rb') as handle:
+        with pending_storage.open(record['temp_path'], 'rb') as handle:
             cud_obj = Cud(employee=employee, year=record['year'])
             cud_obj.pdf.save(record['filename'], File(handle), save=True)
         return cud_obj.id, replaced
