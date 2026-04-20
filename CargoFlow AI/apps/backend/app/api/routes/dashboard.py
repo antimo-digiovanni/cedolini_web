@@ -391,7 +391,7 @@ def _build_driver_alerts(session: Session, user_id: str, trips: list[Trip], now:
 def _build_load_meta(load: Load) -> str:
     parts = []
     if load.budget_amount is not None:
-        parts.append(f"Budget {load.budget_amount:,.0f} EUR".replace(",", "."))
+        parts.append(f"Budget € {load.budget_amount:,.0f}".replace(",", "."))
     parts.append(load.vehicle_kind.value.replace("_", " "))
     if load.adr_required:
         parts.append("ADR richiesto")
@@ -403,9 +403,9 @@ def _build_load_meta(load: Load) -> str:
 def _build_auction_meta(auction: Auction, best_bid: Optional[float]) -> str:
     parts = []
     if auction.floor_price is not None:
-        parts.append(f"Base {auction.floor_price:,.0f} EUR".replace(",", "."))
+        parts.append(f"Base € {auction.floor_price:,.0f}".replace(",", "."))
     if best_bid is not None:
-        parts.append(f"Miglior offerta {best_bid:,.0f} EUR".replace(",", "."))
+        parts.append(f"Miglior offerta € {best_bid:,.0f}".replace(",", "."))
     parts.append(f"{len(auction.bids)} offerte")
     return " · ".join(parts)
 
