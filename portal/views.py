@@ -963,7 +963,95 @@ def public_about(request):
 
 
 def public_machinery(request):
-    return render(request, 'site/machinery.html')
+    machinery_items = [
+        {
+            'title': 'Bobcat',
+            'category': 'Compatto operativo',
+            'description': 'Mezzo compatto pensato per movimentazione rapida, riassetto aree di lavoro e interventi agili in spazi contenuti.',
+            'image': 'portal/machinery/bobcat.jpg',
+            'delay': '.04s',
+        },
+        {
+            'title': 'Carrello elevatore retrattile',
+            'category': 'Logistica verticale',
+            'description': 'Ideale per stoccaggio in altezza e movimentazione precisa in corsie di magazzino ad alta densita operativa.',
+            'image': 'portal/machinery/carrello-elevatore-retrattile.jpg',
+            'delay': '.08s',
+        },
+        {
+            'title': 'Carrello elevatore',
+            'category': 'Movimentazione carichi',
+            'description': 'Supporto affidabile per carico, scarico e trasferimento di pallet, materiali e forniture nei flussi quotidiani.',
+            'image': 'portal/machinery/carrello-elevatore.jpg',
+            'delay': '.12s',
+        },
+        {
+            'title': 'Escavatore compatto',
+            'category': 'Interventi di precisione',
+            'description': 'Soluzione efficace per scavi localizzati, rifiniture tecniche e cantieri con accessi piu contenuti.',
+            'image': 'portal/machinery/escavatore-piccolo.jpg',
+            'delay': '.16s',
+        },
+        {
+            'title': 'Escavatore',
+            'category': 'Scavo e movimentazione',
+            'description': 'Mezzo operativo per lavori di scavo, movimentazione terra e attivita strutturate con maggiore capacita di azione.',
+            'image': 'portal/machinery/escavatore.jpg',
+            'delay': '.20s',
+        },
+        {
+            'title': 'Magazzino con carrello',
+            'category': 'Logistica interna',
+            'description': 'Spazio organizzato per preparazione materiali, movimentazione controllata e continuita delle attivita di supporto.',
+            'image': 'portal/machinery/magazzino-con-carrello.jpg',
+            'delay': '.24s',
+        },
+        {
+            'title': 'Magazzino operativo',
+            'category': 'Deposito e coordinamento',
+            'description': 'Area dedicata a deposito, controllo disponibilita e gestione ordinata dei materiali a servizio dei cantieri.',
+            'image': 'portal/machinery/magazzino.jpg',
+            'delay': '.28s',
+        },
+        {
+            'title': 'Officina mobile',
+            'category': 'Assistenza sul campo',
+            'description': 'Unita mobile attrezzata per supporto tecnico, manutenzioni rapide e interventi direttamente in sede operativa.',
+            'image': 'portal/machinery/officina-mobile.jpg',
+            'delay': '.32s',
+        },
+        {
+            'title': 'Piattaforma aerea a pantografo',
+            'category': 'Lavori in quota',
+            'description': 'Soluzione stabile e funzionale per lavorazioni in elevazione, manutenzioni e accessi sicuri su superfici verticali.',
+            'image': 'portal/machinery/piattaforma-aerea-a-pantografo.jpg',
+            'delay': '.36s',
+        },
+        {
+            'title': 'Piattaforma aerea autocarrata',
+            'category': 'Quota e mobilita',
+            'description': 'Mezzo versatile per raggiungere rapidamente aree di lavoro in altezza con flessibilita di posizionamento.',
+            'image': 'portal/machinery/piattaforma-aerea-autocarrata.jpg',
+            'delay': '.40s',
+        },
+        {
+            'title': 'Terna',
+            'category': 'Multiuso cantiere',
+            'description': 'Macchina polivalente per scavo, carico e movimentazione, utile quando servono operativita e rapidita nello stesso mezzo.',
+            'image': 'portal/machinery/terna.jpg',
+            'delay': '.44s',
+        },
+        {
+            'title': 'Trattore stradale con semirimorchio',
+            'category': 'Trasporto dedicato',
+            'description': 'Configurazione per movimentazione su strada e supporto logistico nelle attivita che richiedono continuita e portata.',
+            'image': 'portal/machinery/trattore-stradale-semirimorchio.jpg',
+            'delay': '.48s',
+        },
+    ]
+    return render(request, 'site/machinery.html', {
+        'machinery_items': machinery_items,
+    })
 
 
 def public_contacts(request):

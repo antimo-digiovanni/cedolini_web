@@ -145,6 +145,15 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertContains(response, "In ritardo")
 
 
+class PublicMachineryPageTests(TestCase):
+	def test_public_machinery_page_shows_real_vehicle_cards(self):
+		response = self.client.get(reverse("public_machinery"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Bobcat")
+		self.assertContains(response, "Trattore stradale con semirimorchio")
+		self.assertContains(response, 'alt="Bobcat"')
+
+
 class VacationRequestFlowTests(TestCase):
 	def setUp(self):
 		self.client = Client()
