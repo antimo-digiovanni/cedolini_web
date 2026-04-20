@@ -32,11 +32,22 @@ def user_has_smart_agenda_access(user):
     allowed_usernames = _configured_smart_agenda_usernames()
     username = (getattr(user, 'username', '') or '').strip().lower()
     email = (getattr(user, 'email', '') or '').strip().lower()
+    email_local = email.split('@', 1)[0] if '@' in email else email
+    first_name = (getattr(user, 'first_name', '') or '').strip().lower()
 
     if username in allowed_usernames:
         return True
 
-    return any(email.startswith(f'{item}@') for item in allowed_usernames)
+    if any(email.startswith(f'{item}@') for item in allowed_usernames):
+        return True
+
+    if any(item in username for item in allowed_usernames):
+        return True
+
+    if any(item in email_local for item in allowed_usernames):
+        return True
+
+    return first_name == 'antimo'
 
 
 def user_home_url_name(user):

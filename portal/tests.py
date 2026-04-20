@@ -224,6 +224,16 @@ class SmartAgendaTests(TestCase):
 		response = self.client.get(reverse("smart_agenda"))
 		self.assertEqual(response.status_code, 403)
 
+	def test_smart_agenda_allows_antimo_by_first_name(self):
+		antimo_named_user = get_user_model().objects.create_user(
+			username="admin.1",
+			first_name="Antimo",
+			password="Password123!",
+		)
+		self.client.force_login(antimo_named_user)
+		response = self.client.get(reverse("smart_agenda"))
+		self.assertEqual(response.status_code, 200)
+
 	def test_smart_agenda_creates_reminder_from_prompt(self):
 		self.client.force_login(self.antimo_user)
 		response = self.client.post(

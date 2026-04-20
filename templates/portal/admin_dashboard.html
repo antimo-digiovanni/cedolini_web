@@ -112,6 +112,23 @@
         <p class="mb-0 opacity-75">Monitoraggio completo del sistema</p>
     </div>
 
+    {% if has_smart_agenda_access %}
+    <div class="card-modern mb-4" style="background: linear-gradient(135deg, #111827 0%, #1d4ed8 100%); color: #fff;">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <div class="text-uppercase small" style="letter-spacing: 0.08em; opacity: 0.75;">Spazio riservato</div>
+                <h4 class="mb-1">Agenda intelligente</h4>
+                <div style="opacity: 0.85;">Gestisci promemoria, richieste economiche e note operative direttamente dal tuo account.</div>
+            </div>
+            <div>
+                <a href="{% url 'smart_agenda' %}" class="btn btn-light fw-semibold">
+                    <i class="bi bi-journal-richtext"></i> Apri agenda
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-4">
         <div class="col-lg-3 col-md-6">
             <div class="card-modern kpi-card kpi-primary position-relative">
