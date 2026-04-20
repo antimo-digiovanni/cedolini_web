@@ -24,7 +24,17 @@
       <div class="col-md-6 d-flex">
         <article class="machine-card reveal-up machine-card-photo" style="animation-delay:{{ item.delay }};">
           <div class="machine-media-wrap">
-            <img src="{% static item.image %}" alt="{{ item.title }}" class="machine-photo">
+            <button
+              type="button"
+              class="machine-photo-trigger"
+              data-bs-toggle="modal"
+              data-bs-target="#machineryLightbox"
+              data-image-src="{% static item.image %}"
+              data-image-alt="{{ item.title }}"
+              data-image-title="{{ item.title }}"
+            >
+              <img src="{% static item.image %}" alt="{{ item.title }}" class="machine-photo">
+            </button>
             <span class="machine-chip">{{ item.category }}</span>
           </div>
           <div class="machine-card-body">
@@ -41,4 +51,50 @@
     </div>
   </div>
 </section>
+
+<div class="modal fade machinery-lightbox" id="machineryLightbox" tabindex="-1" aria-labelledby="machineryLightboxLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content machinery-lightbox-content">
+      <div class="modal-header machinery-lightbox-header">
+        <h2 class="modal-title h4 mb-0" id="machineryLightboxLabel">Macchinario</h2>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body machinery-lightbox-body">
+        <img src="" alt="" class="machinery-lightbox-image" id="machineryLightboxImage">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const lightbox = document.getElementById('machineryLightbox');
+  if (!lightbox) {
+    return;
+  }
+
+  const lightboxImage = document.getElementById('machineryLightboxImage');
+  const lightboxTitle = document.getElementById('machineryLightboxLabel');
+
+  lightbox.addEventListener('show.bs.modal', function(event) {
+    const trigger = event.relatedTarget;
+    if (!trigger) {
+      return;
+    }
+
+    const imageSrc = trigger.getAttribute('data-image-src') || '';
+    const imageAlt = trigger.getAttribute('data-image-alt') || '';
+    const imageTitle = trigger.getAttribute('data-image-title') || 'Macchinario';
+
+    lightboxImage.setAttribute('src', imageSrc);
+    lightboxImage.setAttribute('alt', imageAlt);
+    lightboxTitle.textContent = imageTitle;
+  });
+
+  lightbox.addEventListener('hidden.bs.modal', function() {
+    lightboxImage.setAttribute('src', '');
+    lightboxImage.setAttribute('alt', '');
+  });
+});
+</script>
 {% endblock %}
