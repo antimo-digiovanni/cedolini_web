@@ -850,7 +850,8 @@ h4 {
 }
 
 .machinery-lightbox .modal-dialog {
-    padding: 1rem;
+    padding: 0.75rem;
+    max-width: min(960px, calc(100vw - 1.5rem));
 }
 
 .machinery-lightbox-content {
@@ -863,12 +864,12 @@ h4 {
 
 .machinery-lightbox-header {
     border-bottom: 0;
-    padding: 1rem 1rem 0.4rem;
+    padding: 0.85rem 0.85rem 0.3rem;
     color: #ffffff;
 }
 
 .machinery-lightbox-body {
-    padding: 0.5rem 1rem 1rem;
+    padding: 0.35rem 0.85rem 0.85rem;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -877,10 +878,20 @@ h4 {
 .machinery-lightbox-image {
     width: auto;
     max-width: 100%;
-    max-height: min(78vh, 980px);
+    max-height: min(58vh, 620px);
     border-radius: 18px;
     display: block;
     box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34);
+}
+
+@media (max-width: 575px) {
+    .machinery-lightbox .modal-dialog {
+        max-width: calc(100vw - 1rem);
+    }
+
+    .machinery-lightbox-image {
+        max-height: 50vh;
+    }
 }
 
 .site-footer {
