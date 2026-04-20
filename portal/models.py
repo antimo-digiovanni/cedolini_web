@@ -362,9 +362,19 @@ class VacationRequest(models.Model):
 class SmartAgendaItem(models.Model):
     STATUS_OPEN = 'open'
     STATUS_DONE = 'done'
+    PRIORITY_LOW = 'low'
+    PRIORITY_NORMAL = 'normal'
+    PRIORITY_HIGH = 'high'
+    PRIORITY_URGENT = 'urgent'
     STATUS_CHOICES = [
         (STATUS_OPEN, 'Aperto'),
         (STATUS_DONE, 'Completato'),
+    ]
+    PRIORITY_CHOICES = [
+        (PRIORITY_LOW, 'Bassa'),
+        (PRIORITY_NORMAL, 'Normale'),
+        (PRIORITY_HIGH, 'Alta'),
+        (PRIORITY_URGENT, 'Urgente'),
     ]
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='smart_agenda_items')
@@ -372,14 +382,17 @@ class SmartAgendaItem(models.Model):
     note = models.TextField(blank=True)
     source_text = models.TextField(blank=True)
     remind_on = models.DateField(null=True, blank=True)
+    remind_time = models.TimeField(null=True, blank=True)
+    is_daily = models.BooleanField(default=False)
     quoted_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default=PRIORITY_NORMAL)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ['status', 'remind_on', '-created_at']
+        ordering = ['status', '-priority', 'remind_on', 'remind_time', '-created_at']
 
     def __str__(self):
         return self.title

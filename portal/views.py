@@ -118,6 +118,36 @@ def _extract_remind_date_from_text(text):
         return None
 
 
+def _extract_remind_time_from_text(text):
+    normalized = (text or '').lower()
+    match = re.search(r'\b(?:alle|ore)\s*(\d{1,2})(?:[:\.](\d{2}))?\b', normalized)
+    if not match:
+        return None
+
+    hour = int(match.group(1))
+    minute = int(match.group(2) or '00')
+    if hour > 23 or minute > 59:
+        return None
+    return datetime.strptime(f'{hour:02d}:{minute:02d}', '%H:%M').time()
+
+
+def _extract_priority_from_text(text):
+    normalized = _normalize_import_name(text)
+    if any(token in normalized for token in ['urgent', 'urgente', 'subito', 'importantissimo']):
+        return SmartAgendaItem.PRIORITY_URGENT
+    if any(token in normalized for token in ['alta priorita', 'importante', 'priorita alta']):
+        return SmartAgendaItem.PRIORITY_HIGH
+    if any(token in normalized for token in ['bassa priorita', 'quando puoi', 'non urgente']):
+        return SmartAgendaItem.PRIORITY_LOW
+    return SmartAgendaItem.PRIORITY_NORMAL
+
+
+def _extract_daily_flag_from_text(text):
+    normalized = _normalize_import_name(text)
+    keywords = ['ogni giorno', 'quotidianamente', 'tutti i giorni', 'giornaliero', 'giornalmente']
+    return any(keyword in normalized for keyword in keywords)
+
+
 def _agenda_is_summary_prompt(text):
     normalized = _normalize_import_name(text)
     keywords = ['cosa devo fare', 'cosa mi devo ricordare', 'riepilogo', 'riassunto', 'agenda di oggi', 'impegni di oggi']
@@ -138,11 +168,15 @@ def _agenda_compact_title(text):
 
 
 def _agenda_local_analysis(prompt):
+    is_daily = _extract_daily_flag_from_text(prompt)
     return {
         'create_item': _agenda_is_reminder_prompt(prompt) or not _agenda_is_summary_prompt(prompt),
         'title': _agenda_compact_title(prompt),
         'note': (prompt or '').strip(),
-        'remind_on': _extract_remind_date_from_text(prompt),
+        'remind_on': None if is_daily else _extract_remind_date_from_text(prompt),
+        'remind_time': _extract_remind_time_from_text(prompt),
+        'is_daily': is_daily,
+        'priority': _extract_priority_from_text(prompt),
         'quoted_amount': _extract_amount_from_text(prompt),
     }
 
@@ -151,8 +185,12 @@ def _agenda_items_digest(items):
     lines = []
     for item in items[:8]:
         line = item.title
+        if item.is_daily:
+            line += ' | ogni giorno'
         if item.remind_on:
             line += f' | scadenza {item.remind_on.strftime("%d/%m/%Y")}'
+        if item.remind_time:
+            line += f' | ore {item.remind_time.strftime("%H:%M")}'
         if item.quoted_amount is not None:
             line += f' | importo {item.quoted_amount} euro'
         lines.append(line)
@@ -213,8 +251,12 @@ def _agenda_fallback_reply(prompt, open_items, created_item=None):
         preview = []
         for item in open_items[:5]:
             piece = item.title
-            if item.remind_on:
+            if item.is_daily:
+                piece += ' ogni giorno'
+            elif item.remind_on:
                 piece += f' entro il {item.remind_on.strftime("%d/%m")}'
+            if item.remind_time:
+                piece += f' alle {item.remind_time.strftime("%H:%M")}'
             preview.append(piece)
         return 'Ti tengo in ordine cosi: ' + '; '.join(preview) + '.'
 
@@ -222,13 +264,48 @@ def _agenda_fallback_reply(prompt, open_items, created_item=None):
         reply = f'Promemoria salvato: {created_item.title}.'
         if created_item.quoted_amount is not None:
             reply += f' Ho rilevato un importo di {created_item.quoted_amount} euro.'
-        if created_item.remind_on:
+        if created_item.is_daily:
+            reply += ' Te lo tengo tra le attivita quotidiane.'
+        elif created_item.remind_on:
             reply += f' Te lo ripropongo per il {created_item.remind_on.strftime("%d/%m/%Y")}.'
-        else:
+        if created_item.remind_time:
+            reply += f' Orario segnato: {created_item.remind_time.strftime("%H:%M")}. '
+        if not created_item.is_daily and not created_item.remind_on:
             reply += ' Resta nella tua agenda finche non lo chiudi.'
         return reply
 
     return 'Messaggio ricevuto. Se vuoi posso salvarlo come promemoria operativo.'
+
+
+def _agenda_priority_badge(priority):
+    return {
+        SmartAgendaItem.PRIORITY_LOW: ('Bassa', 'bg-secondary'),
+        SmartAgendaItem.PRIORITY_NORMAL: ('Normale', 'bg-primary'),
+        SmartAgendaItem.PRIORITY_HIGH: ('Alta', 'bg-warning text-dark'),
+        SmartAgendaItem.PRIORITY_URGENT: ('Urgente', 'bg-danger'),
+    }.get(priority, ('Normale', 'bg-primary'))
+
+
+def _decorate_agenda_items(items, today=None):
+    today = today or timezone.localdate()
+    decorated = []
+    for item in items:
+        item.priority_label, item.priority_badge = _agenda_priority_badge(item.priority)
+        if item.is_daily:
+            item.when_label = 'Ogni giorno'
+        elif item.remind_on and item.remind_time:
+            item.when_label = f"{item.remind_on.strftime('%d/%m/%Y')} alle {item.remind_time.strftime('%H:%M')}"
+        elif item.remind_on:
+            item.when_label = item.remind_on.strftime('%d/%m/%Y')
+        elif item.remind_time:
+            item.when_label = f"Oggi alle {item.remind_time.strftime('%H:%M')}"
+        else:
+            item.when_label = 'Senza data'
+
+        item.is_overdue = bool(item.remind_on and item.remind_on < today)
+        item.is_today = bool(item.remind_on == today)
+        decorated.append(item)
+    return decorated
 
 
 def _normalize_import_name(value):
@@ -3393,6 +3470,8 @@ def smart_agenda(request):
     if denied:
         return denied
 
+    today = timezone.localdate()
+
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
 
@@ -3414,6 +3493,9 @@ def smart_agenda(request):
                         note=analysis['note'],
                         source_text=prompt,
                         remind_on=analysis['remind_on'],
+                        remind_time=analysis['remind_time'],
+                        is_daily=analysis['is_daily'],
+                        priority=analysis['priority'],
                         quoted_amount=analysis['quoted_amount'],
                     )
 
@@ -3439,14 +3521,26 @@ def smart_agenda(request):
                     item.save(update_fields=['status', 'completed_at', 'updated_at'])
             return redirect('smart_agenda')
 
-    open_items = SmartAgendaItem.objects.filter(owner=request.user, status=SmartAgendaItem.STATUS_OPEN)
+    open_items = list(SmartAgendaItem.objects.filter(owner=request.user, status=SmartAgendaItem.STATUS_OPEN))
+    open_items = _decorate_agenda_items(open_items, today=today)
+    daily_items = [item for item in open_items if item.is_daily]
+    overdue_items = [item for item in open_items if item.is_overdue and not item.is_daily]
+    today_items = [item for item in open_items if item.is_today and not item.is_daily]
+    upcoming_items = [item for item in open_items if item.remind_on and item.remind_on > today and not item.is_daily]
+    unscheduled_items = [item for item in open_items if not item.is_daily and not item.remind_on]
     done_items = SmartAgendaItem.objects.filter(owner=request.user, status=SmartAgendaItem.STATUS_DONE)[:20]
     messages = SmartAgendaMessage.objects.filter(owner=request.user).select_related('related_item').order_by('-created_at')[:20]
 
     return render(request, 'portal/smart_agenda.html', {
         'open_items': open_items,
+        'daily_items': daily_items,
+        'overdue_items': overdue_items,
+        'today_items': today_items,
+        'upcoming_items': upcoming_items,
+        'unscheduled_items': unscheduled_items,
         'done_items': done_items,
         'messages': reversed(list(messages)),
+        'today': today,
     })
 
 

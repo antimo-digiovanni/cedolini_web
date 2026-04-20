@@ -251,6 +251,38 @@ class SmartAgendaTests(TestCase):
 		self.assertEqual(item.remind_on, timezone.localdate() + timezone.timedelta(days=1))
 		self.assertEqual(SmartAgendaMessage.objects.filter(owner=self.antimo_user).count(), 2)
 
+	def test_smart_agenda_creates_daily_task_with_time(self):
+		self.client.force_login(self.antimo_user)
+		response = self.client.post(
+			reverse("smart_agenda"),
+			{
+				"action": "ask",
+				"prompt": "Ricordami ogni giorno di controllare i messaggi alle 08:30",
+			},
+		)
+
+		self.assertRedirects(response, reverse("smart_agenda"))
+		item = SmartAgendaItem.objects.filter(owner=self.antimo_user).latest("created_at")
+		self.assertTrue(item.is_daily)
+		self.assertIsNone(item.remind_on)
+		self.assertEqual(item.remind_time.strftime("%H:%M"), "08:30")
+
+	def test_smart_agenda_creates_precise_date_and_priority(self):
+		self.client.force_login(self.antimo_user)
+		response = self.client.post(
+			reverse("smart_agenda"),
+			{
+				"action": "ask",
+				"prompt": "Segnami urgente: il 24/04 alle 15 chiama il cliente per il lavaggio critico della linea",
+			},
+		)
+
+		self.assertRedirects(response, reverse("smart_agenda"))
+		item = SmartAgendaItem.objects.filter(owner=self.antimo_user).latest("created_at")
+		self.assertEqual(item.priority, SmartAgendaItem.PRIORITY_URGENT)
+		self.assertEqual(item.remind_on.strftime("%d/%m"), "24/04")
+		self.assertEqual(item.remind_time.strftime("%H:%M"), "15:00")
+
 
 class PayslipUploadImportTests(TestCase):
 	@classmethod

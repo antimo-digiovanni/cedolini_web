@@ -47,9 +47,25 @@
     margin-top: 0.9rem;
 }
 
+.agenda-section + .agenda-section {
+    margin-top: 1rem;
+}
+
 .agenda-meta {
     color: #64748b;
     font-size: 0.9rem;
+}
+
+.agenda-tips {
+    border: 1px dashed #bfdbfe;
+    border-radius: 16px;
+    padding: 0.9rem 1rem;
+    background: #f8fbff;
+}
+
+.agenda-empty {
+    color: #64748b;
+    font-size: 0.95rem;
 }
 
 @media (max-width: 991.98px) {
@@ -64,7 +80,7 @@
 <div class="container">
     <div class="page-hero mb-4">
         <h2 class="fw-bold mb-1">Agenda Intelligente</h2>
-        <p class="mb-0 opacity-75">Spazio privato per Antimo: promemoria, richieste economiche e risposte assistite.</p>
+        <p class="mb-0 opacity-75">Spazio privato per Antimo: assistente operativo per cose giornaliere, scadenze precise e priorita.</p>
     </div>
 
     <div class="agenda-grid">
@@ -72,8 +88,15 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <h4 class="mb-1">Assistente</h4>
-                    <div class="text-muted small">Scrivi come parleresti a ChatGPT. Se chiedi di ricordarti qualcosa, lo salva in agenda.</div>
+                    <div class="text-muted small">Scrivi come parleresti a una segretaria. Se gli dai una data, un orario o dici ogni giorno, li organizza da solo.</div>
                 </div>
+            </div>
+
+            <div class="agenda-tips mb-3 small">
+                Prova cosi:<br>
+                Ricordami ogni giorno di controllare le urgenze clienti alle 08:30.<br>
+                Il 24/04 alle 15 chiama il cliente per il lavaggio critico della linea.<br>
+                Segnami urgente: inviare preventivo da 700€.
             </div>
 
             <div class="agenda-chat-log mb-3">
@@ -92,47 +115,160 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="ask">
                 <label class="form-label" for="agendaPrompt">Nuovo messaggio</label>
-                <textarea id="agendaPrompt" name="prompt" rows="4" class="form-control" placeholder="Esempio: Ricordami di proporre il lavaggio critico della linea a 700 euro domani." required></textarea>
+                <textarea id="agendaPrompt" name="prompt" rows="4" class="form-control" placeholder="Esempio: Ricordami ogni giorno di controllare i messaggi alle 08:30. Oppure: il 24/04 alle 15 chiama il cliente per il lavaggio critico della linea e chiedi 700 euro." required></textarea>
                 <button type="submit" class="btn btn-primary mt-3">Invia all'assistente</button>
             </form>
         </div>
 
         <div>
             <div class="card-modern bg-white mb-4">
-                <h4 class="mb-3">Promemoria aperti</h4>
-                {% for item in open_items %}
-                <div class="agenda-item">
-                    <div class="d-flex justify-content-between gap-3">
-                        <div>
-                            <div class="fw-semibold">{{ item.title }}</div>
-                            <div class="agenda-meta mt-1">
-                                Creato il {{ item.created_at|date:"d/m/Y H:i" }}
-                                {% if item.remind_on %} | Ricordamelo il {{ item.remind_on|date:"d/m/Y" }}{% endif %}
-                                {% if item.quoted_amount is not None %} | Importo {{ item.quoted_amount }} €{% endif %}
+                <h4 class="mb-3">Segretaria del giorno</h4>
+
+                <div class="agenda-section">
+                    <h6 class="fw-semibold mb-2">Quotidiani</h6>
+                    {% for item in daily_items %}
+                    <div class="agenda-item">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <div class="fw-semibold">{{ item.title }}</div>
+                                    <span class="badge {{ item.priority_badge }}">{{ item.priority_label }}</span>
+                                </div>
+                                <div class="agenda-meta mt-1">{{ item.when_label }}</div>
+                                {% if item.note %}<div class="mt-2 text-muted">{{ item.note }}</div>{% endif %}
                             </div>
-                            {% if item.note %}
-                            <div class="mt-2 text-muted">{{ item.note }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="d-flex flex-column gap-2">
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="complete_item">
-                                <input type="hidden" name="item_id" value="{{ item.id }}">
-                                <button type="submit" class="btn btn-sm btn-success">Completa</button>
-                            </form>
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete_item">
-                                <input type="hidden" name="item_id" value="{{ item.id }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                            </form>
+                            <div class="d-flex flex-column gap-2">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="complete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-sm btn-success">Completa</button>
+                                </form>
+                            </div>
                         </div>
                     </div>
+                    {% empty %}
+                    <div class="agenda-empty">Nessuna attivita quotidiana.</div>
+                    {% endfor %}
                 </div>
-                {% empty %}
-                <div class="text-muted">Nessun promemoria aperto.</div>
-                {% endfor %}
+
+                <div class="agenda-section">
+                    <h6 class="fw-semibold mb-2">Da fare oggi</h6>
+                    {% for item in today_items %}
+                    <div class="agenda-item">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <div class="fw-semibold">{{ item.title }}</div>
+                                    <span class="badge {{ item.priority_badge }}">{{ item.priority_label }}</span>
+                                </div>
+                                <div class="agenda-meta mt-1">{{ item.when_label }}</div>
+                                {% if item.note %}<div class="mt-2 text-muted">{{ item.note }}</div>{% endif %}
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="complete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-sm btn-success">Completa</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="agenda-empty">Nessuna scadenza per oggi.</div>
+                    {% endfor %}
+                </div>
+
+                <div class="agenda-section">
+                    <h6 class="fw-semibold mb-2">In ritardo</h6>
+                    {% for item in overdue_items %}
+                    <div class="agenda-item" style="border-color:#fecaca; background:#fff7f7;">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <div class="fw-semibold">{{ item.title }}</div>
+                                    <span class="badge {{ item.priority_badge }}">{{ item.priority_label }}</span>
+                                </div>
+                                <div class="agenda-meta mt-1">{{ item.when_label }}</div>
+                                {% if item.note %}<div class="mt-2 text-muted">{{ item.note }}</div>{% endif %}
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="complete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-sm btn-danger">Chiudi</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="agenda-empty">Nessun arretrato.</div>
+                    {% endfor %}
+                </div>
+
+                <div class="agenda-section">
+                    <h6 class="fw-semibold mb-2">Prossimi giorni</h6>
+                    {% for item in upcoming_items %}
+                    <div class="agenda-item">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <div class="fw-semibold">{{ item.title }}</div>
+                                    <span class="badge {{ item.priority_badge }}">{{ item.priority_label }}</span>
+                                </div>
+                                <div class="agenda-meta mt-1">{{ item.when_label }}</div>
+                                {% if item.note %}<div class="mt-2 text-muted">{{ item.note }}</div>{% endif %}
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="complete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-sm btn-success">Completa</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="agenda-empty">Nessuna attivita programmata nei prossimi giorni.</div>
+                    {% endfor %}
+                </div>
+
+                <div class="agenda-section">
+                    <h6 class="fw-semibold mb-2">Senza data</h6>
+                    {% for item in unscheduled_items %}
+                    <div class="agenda-item">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <div class="fw-semibold">{{ item.title }}</div>
+                                    <span class="badge {{ item.priority_badge }}">{{ item.priority_label }}</span>
+                                </div>
+                                <div class="agenda-meta mt-1">{{ item.when_label }}</div>
+                                {% if item.note %}<div class="mt-2 text-muted">{{ item.note }}</div>{% endif %}
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="complete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-sm btn-success">Completa</button>
+                                </form>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="agenda-empty">Nessuna nota libera.</div>
+                    {% endfor %}
+                </div>
             </div>
 
             <div class="card-modern bg-white">
@@ -142,9 +278,7 @@
                     <div class="d-flex justify-content-between gap-3">
                         <div>
                             <div class="fw-semibold">{{ item.title }}</div>
-                            <div class="agenda-meta mt-1">
-                                Chiuso il {{ item.completed_at|date:"d/m/Y H:i" }}
-                            </div>
+                            <div class="agenda-meta mt-1">Chiuso il {{ item.completed_at|date:"d/m/Y H:i" }}</div>
                         </div>
                         <form method="post">
                             {% csrf_token %}
