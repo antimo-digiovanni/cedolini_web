@@ -140,6 +140,9 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Segretaria del giorno")
 		self.assertContains(response, "Controllare le priorita del giorno")
+		self.assertContains(response, "Quotidiani")
+		self.assertContains(response, "Da fare oggi")
+		self.assertContains(response, "In ritardo")
 
 
 class VacationRequestFlowTests(TestCase):

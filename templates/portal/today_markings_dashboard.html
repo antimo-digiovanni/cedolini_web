@@ -39,6 +39,31 @@
     background: rgba(255, 255, 255, 0.8);
 }
 
+.agenda-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+    background: #fff;
+}
+
+.agenda-item + .agenda-item {
+    margin-top: 0.9rem;
+}
+
+.agenda-section + .agenda-section {
+    margin-top: 1rem;
+}
+
+.agenda-meta {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.agenda-empty {
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
 .today-table td,
 .today-table th {
     white-space: nowrap;
@@ -69,49 +94,7 @@
         </div>
     </div>
 
-    <div class="card-modern mb-4 secretary-today-card">
-        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
-            <div>
-                <div class="text-uppercase small text-primary fw-semibold" style="letter-spacing: 0.08em;">Segretaria del giorno</div>
-                <h5 class="mb-1">Priorita operative di oggi</h5>
-                <div class="text-muted">Quotidiani, scadenze di oggi e arretrati da chiudere.</div>
-            </div>
-            <div class="text-lg-end">
-                <div class="fw-semibold">{{ dashboard_secretary_total_open }} attivita aperte</div>
-                <a href="{% url 'smart_agenda' %}" class="btn btn-sm btn-outline-primary mt-2">
-                    <i class="bi bi-journal-text"></i> Apri la segretaria completa
-                </a>
-            </div>
-        </div>
-
-        {% for item in dashboard_secretary_items %}
-        <div class="secretary-today-item{% if item.is_overdue %} border-danger-subtle{% endif %}">
-            <div class="d-flex justify-content-between align-items-start gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                        <div class="fw-semibold">{{ item.title }}</div>
-                        <span class="badge {{ item.priority_badge }}">{{ item.priority_label }}</span>
-                    </div>
-                    <div class="secretary-today-meta">{{ item.when_label }}</div>
-                    {% if item.note %}
-                    <div class="small text-muted mt-2">{{ item.note|truncatechars:120 }}</div>
-                    {% endif %}
-                </div>
-                {% if item.is_overdue %}
-                <span class="badge bg-danger">In ritardo</span>
-                {% elif item.is_today %}
-                <span class="badge bg-warning text-dark">Oggi</span>
-                {% elif item.is_daily %}
-                <span class="badge bg-info text-dark">Quotidiano</span>
-                {% endif %}
-            </div>
-        </div>
-        {% empty %}
-        <div class="secretary-today-empty">
-            Nessuna priorita operativa per oggi. Puoi aggiungere task e promemoria dalla tua agenda intelligente.
-        </div>
-        {% endfor %}
-    </div>
+    {% include "portal/_secretary_today_panel.html" with show_secretary_link=True %}
     {% endif %}
 
     <div class="row g-4">

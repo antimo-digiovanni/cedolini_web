@@ -329,6 +329,37 @@ def _dashboard_secretary_snapshot(user, today=None, limit=5):
     return secretary_items, len(agenda_open_items)
 
 
+def _agenda_sections_context(user, today=None):
+    today = today or timezone.localdate()
+    if not user_has_smart_agenda_access(user):
+        return {
+            'open_items': [],
+            'daily_items': [],
+            'overdue_items': [],
+            'today_items': [],
+            'upcoming_items': [],
+            'unscheduled_items': [],
+            'secretary_total_open': 0,
+        }
+
+    open_items = list(SmartAgendaItem.objects.filter(owner=user, status=SmartAgendaItem.STATUS_OPEN))
+    open_items = _decorate_agenda_items(open_items, today=today)
+    daily_items = [item for item in open_items if item.is_daily]
+    overdue_items = [item for item in open_items if item.is_overdue and not item.is_daily]
+    today_items = [item for item in open_items if item.is_today and not item.is_daily]
+    upcoming_items = [item for item in open_items if item.remind_on and item.remind_on > today and not item.is_daily]
+    unscheduled_items = [item for item in open_items if not item.is_daily and not item.remind_on]
+    return {
+        'open_items': open_items,
+        'daily_items': daily_items,
+        'overdue_items': overdue_items,
+        'today_items': today_items,
+        'upcoming_items': upcoming_items,
+        'unscheduled_items': unscheduled_items,
+        'secretary_total_open': len(open_items),
+    }
+
+
 def _normalize_import_name(value):
     value = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode('ascii')
     value = value.lower().replace("'", ' ')
@@ -1597,10 +1628,7 @@ def dashboard(request):
         .order_by('-created_at')[:6]
     )
 
-    dashboard_secretary_items, dashboard_secretary_total_open = _dashboard_secretary_snapshot(
-        request.user,
-        today=today,
-    )
+    agenda_sections = _agenda_sections_context(request.user, today=today)
 
     response = render(request, 'portal/dashboard.html', {
         'employee': employee,
@@ -1616,8 +1644,14 @@ def dashboard(request):
         'vacation_status': vacation_status,
         'is_vacation_today': is_vacation_today,
         'recent_vacation_requests': recent_vacation_requests,
-        'dashboard_secretary_items': dashboard_secretary_items,
-        'dashboard_secretary_total_open': dashboard_secretary_total_open,
+        'dashboard_secretary_items': agenda_sections['daily_items'] + agenda_sections['today_items'] + agenda_sections['overdue_items'],
+        'dashboard_secretary_total_open': agenda_sections['secretary_total_open'],
+        'secretary_total_open': agenda_sections['secretary_total_open'],
+        'daily_items': agenda_sections['daily_items'],
+        'today_items': agenda_sections['today_items'],
+        'overdue_items': agenda_sections['overdue_items'],
+        'upcoming_items': agenda_sections['upcoming_items'],
+        'unscheduled_items': agenda_sections['unscheduled_items'],
     })
     return _disable_response_cache(response)
 
@@ -3549,23 +3583,18 @@ def smart_agenda(request):
                     item.save(update_fields=['status', 'completed_at', 'updated_at'])
             return redirect('smart_agenda')
 
-    open_items = list(SmartAgendaItem.objects.filter(owner=request.user, status=SmartAgendaItem.STATUS_OPEN))
-    open_items = _decorate_agenda_items(open_items, today=today)
-    daily_items = [item for item in open_items if item.is_daily]
-    overdue_items = [item for item in open_items if item.is_overdue and not item.is_daily]
-    today_items = [item for item in open_items if item.is_today and not item.is_daily]
-    upcoming_items = [item for item in open_items if item.remind_on and item.remind_on > today and not item.is_daily]
-    unscheduled_items = [item for item in open_items if not item.is_daily and not item.remind_on]
+    agenda_sections = _agenda_sections_context(request.user, today=today)
     done_items = SmartAgendaItem.objects.filter(owner=request.user, status=SmartAgendaItem.STATUS_DONE)[:20]
     messages = SmartAgendaMessage.objects.filter(owner=request.user).select_related('related_item').order_by('-created_at')[:20]
 
     return render(request, 'portal/smart_agenda.html', {
-        'open_items': open_items,
-        'daily_items': daily_items,
-        'overdue_items': overdue_items,
-        'today_items': today_items,
-        'upcoming_items': upcoming_items,
-        'unscheduled_items': unscheduled_items,
+        'open_items': agenda_sections['open_items'],
+        'daily_items': agenda_sections['daily_items'],
+        'overdue_items': agenda_sections['overdue_items'],
+        'today_items': agenda_sections['today_items'],
+        'upcoming_items': agenda_sections['upcoming_items'],
+        'unscheduled_items': agenda_sections['unscheduled_items'],
+        'secretary_total_open': agenda_sections['secretary_total_open'],
         'done_items': done_items,
         'messages': reversed(list(messages)),
         'today': today,
@@ -3611,10 +3640,7 @@ def today_markings_dashboard(request):
 
     previous_date = selected_date - timedelta(days=1)
     next_date = selected_date + timedelta(days=1) if selected_date < today else None
-    dashboard_secretary_items, dashboard_secretary_total_open = _dashboard_secretary_snapshot(
-        request.user,
-        today=today,
-    )
+    agenda_sections = _agenda_sections_context(request.user, today=today)
 
     response = render(request, 'portal/today_markings_dashboard.html', {
         'today': today,
@@ -3623,8 +3649,14 @@ def today_markings_dashboard(request):
         'selected_marked_sessions': selected_marked_sessions,
         'previous_date': previous_date,
         'next_date': next_date,
-        'dashboard_secretary_items': dashboard_secretary_items,
-        'dashboard_secretary_total_open': dashboard_secretary_total_open,
+        'dashboard_secretary_items': agenda_sections['daily_items'] + agenda_sections['today_items'] + agenda_sections['overdue_items'],
+        'dashboard_secretary_total_open': agenda_sections['secretary_total_open'],
+        'secretary_total_open': agenda_sections['secretary_total_open'],
+        'daily_items': agenda_sections['daily_items'],
+        'today_items': agenda_sections['today_items'],
+        'overdue_items': agenda_sections['overdue_items'],
+        'upcoming_items': agenda_sections['upcoming_items'],
+        'unscheduled_items': agenda_sections['unscheduled_items'],
     })
     return _disable_response_cache(response)
 
