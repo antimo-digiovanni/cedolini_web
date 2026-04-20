@@ -75,6 +75,23 @@
 
 <div class="fade-in">
 
+    {% if has_smart_agenda_access %}
+    <div class="card-modern mb-4" style="background: linear-gradient(135deg, #111827 0%, #1d4ed8 100%); color: #fff;">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <div class="text-uppercase small" style="letter-spacing: 0.08em; opacity: 0.75;">Spazio riservato</div>
+                <h4 class="mb-1">Agenda intelligente</h4>
+                <div style="opacity: 0.85;">Promemoria, note operative e richieste economiche assistite in un unico posto.</div>
+            </div>
+            <div>
+                <a href="{% url 'smart_agenda' %}" class="btn btn-light fw-semibold">
+                    <i class="bi bi-journal-richtext"></i> Apri agenda
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
         <h2 class="mb-3">Marcature</h2>
 
     <div class="row g-4 mb-4">
