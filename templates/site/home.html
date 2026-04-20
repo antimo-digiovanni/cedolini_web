@@ -1,3 +1,4 @@
+{% load static %}
 {% extends 'site/base.html' %}
 
 {% block title %}San Vincenzo SRL | Servizi e Soluzioni Professionali{% endblock %}
@@ -24,7 +25,7 @@
   <div class="container">
     <div class="hero-box">
       <div class="hero-logo-wrap">
-        <img src="/static/portal/logo.png" alt="Logo San Vincenzo SRL" class="hero-logo-mark" loading="eager">
+        <img src="{% static 'portal/logo.png' %}" alt="Logo San Vincenzo SRL" class="hero-logo-mark" loading="eager">
       </div>
       <p class="hero-kicker">Soluzioni aziendali</p>
       <h1>Professionalità operativa per aziende che vogliono crescere senza compromessi.</h1>
