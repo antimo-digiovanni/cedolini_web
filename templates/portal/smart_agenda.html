@@ -1,0 +1,164 @@
+{% extends "portal/base.html" %}
+{% block title %}Agenda Intelligente{% endblock %}
+
+{% block extra_css %}
+<style>
+.agenda-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 1.25rem;
+}
+
+.agenda-chat-log {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.agenda-bubble {
+    border-radius: 18px;
+    padding: 0.95rem 1rem;
+    white-space: pre-wrap;
+}
+
+.agenda-bubble-user {
+    background: #0f172a;
+    color: #fff;
+    margin-left: 2.5rem;
+}
+
+.agenda-bubble-assistant {
+    background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+    color: #0f172a;
+    margin-right: 2.5rem;
+    border: 1px solid #bfdbfe;
+}
+
+.agenda-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+    background: #fff;
+}
+
+.agenda-item + .agenda-item {
+    margin-top: 0.9rem;
+}
+
+.agenda-meta {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 991.98px) {
+    .agenda-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-hero mb-4">
+        <h2 class="fw-bold mb-1">Agenda Intelligente</h2>
+        <p class="mb-0 opacity-75">Spazio privato per Antimo: promemoria, richieste economiche e risposte assistite.</p>
+    </div>
+
+    <div class="agenda-grid">
+        <div class="card-modern bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h4 class="mb-1">Assistente</h4>
+                    <div class="text-muted small">Scrivi come parleresti a ChatGPT. Se chiedi di ricordarti qualcosa, lo salva in agenda.</div>
+                </div>
+            </div>
+
+            <div class="agenda-chat-log mb-3">
+                {% for message in messages %}
+                <div class="agenda-bubble {% if message.role == 'user' %}agenda-bubble-user{% else %}agenda-bubble-assistant{% endif %}">
+                    {{ message.content }}
+                </div>
+                {% empty %}
+                <div class="agenda-bubble agenda-bubble-assistant">
+                    Scrivimi ad esempio: Ricordami lavaggio critico della linea, chiediamo 700 euro.
+                </div>
+                {% endfor %}
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ask">
+                <label class="form-label" for="agendaPrompt">Nuovo messaggio</label>
+                <textarea id="agendaPrompt" name="prompt" rows="4" class="form-control" placeholder="Esempio: Ricordami di proporre il lavaggio critico della linea a 700 euro domani." required></textarea>
+                <button type="submit" class="btn btn-primary mt-3">Invia all'assistente</button>
+            </form>
+        </div>
+
+        <div>
+            <div class="card-modern bg-white mb-4">
+                <h4 class="mb-3">Promemoria aperti</h4>
+                {% for item in open_items %}
+                <div class="agenda-item">
+                    <div class="d-flex justify-content-between gap-3">
+                        <div>
+                            <div class="fw-semibold">{{ item.title }}</div>
+                            <div class="agenda-meta mt-1">
+                                Creato il {{ item.created_at|date:"d/m/Y H:i" }}
+                                {% if item.remind_on %} | Ricordamelo il {{ item.remind_on|date:"d/m/Y" }}{% endif %}
+                                {% if item.quoted_amount is not None %} | Importo {{ item.quoted_amount }} €{% endif %}
+                            </div>
+                            {% if item.note %}
+                            <div class="mt-2 text-muted">{{ item.note }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="complete_item">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <button type="submit" class="btn btn-sm btn-success">Completa</button>
+                            </form>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_item">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-muted">Nessun promemoria aperto.</div>
+                {% endfor %}
+            </div>
+
+            <div class="card-modern bg-white">
+                <h4 class="mb-3">Ultimi completati</h4>
+                {% for item in done_items %}
+                <div class="agenda-item">
+                    <div class="d-flex justify-content-between gap-3">
+                        <div>
+                            <div class="fw-semibold">{{ item.title }}</div>
+                            <div class="agenda-meta mt-1">
+                                Chiuso il {{ item.completed_at|date:"d/m/Y H:i" }}
+                            </div>
+                        </div>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reopen_item">
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Riapri</button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-muted">Nessun promemoria completato di recente.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

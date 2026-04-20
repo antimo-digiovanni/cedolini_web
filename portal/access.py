@@ -1,7 +1,15 @@
+from django.conf import settings
 from django.contrib.auth.models import Group
 
 
 TODAY_MARKINGS_GROUP_NAME = "titolare_solo_marcature_oggi"
+
+
+def _configured_smart_agenda_usernames():
+    configured = getattr(settings, 'SMART_AGENDA_ALLOWED_USERNAMES', None)
+    if configured:
+        return {str(item).strip().lower() for item in configured if str(item).strip()}
+    return {'antimo', 'antim'}
 
 
 def user_has_full_admin_access(user):
@@ -15,6 +23,20 @@ def user_has_today_markings_access(user):
         name=TODAY_MARKINGS_GROUP_NAME,
         user=user,
     ).exists()
+
+
+def user_has_smart_agenda_access(user):
+    if not getattr(user, 'is_authenticated', False):
+        return False
+
+    allowed_usernames = _configured_smart_agenda_usernames()
+    username = (getattr(user, 'username', '') or '').strip().lower()
+    email = (getattr(user, 'email', '') or '').strip().lower()
+
+    if username in allowed_usernames:
+        return True
+
+    return any(email.startswith(f'{item}@') for item in allowed_usernames)
 
 
 def user_home_url_name(user):

@@ -10,7 +10,7 @@ from django.utils import timezone
 from datetime import datetime
 
 from .access import TODAY_MARKINGS_GROUP_NAME
-from .models import Cud, Employee, ImportJob, Payslip, VacationRequest, WorkSession
+from .models import Cud, Employee, ImportJob, Payslip, SmartAgendaItem, SmartAgendaMessage, VacationRequest, WorkSession
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -204,6 +204,42 @@ class VacationRequestFlowTests(TestCase):
 		self.assertEqual(report_response.status_code, 200)
 		self.assertContains(report_response, "Ferie")
 		self.assertContains(report_response, "FERIE")
+
+
+class SmartAgendaTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.antimo_user = get_user_model().objects.create_user(
+			username="antimo",
+			password="Password123!",
+			is_staff=True,
+		)
+		self.other_user = get_user_model().objects.create_user(
+			username="mario",
+			password="Password123!",
+		)
+
+	def test_smart_agenda_is_reserved_to_antimo_account(self):
+		self.client.force_login(self.other_user)
+		response = self.client.get(reverse("smart_agenda"))
+		self.assertEqual(response.status_code, 403)
+
+	def test_smart_agenda_creates_reminder_from_prompt(self):
+		self.client.force_login(self.antimo_user)
+		response = self.client.post(
+			reverse("smart_agenda"),
+			{
+				"action": "ask",
+				"prompt": "Ricordami lavaggio critico della linea, chiediamo 700€ domani",
+			},
+		)
+
+		self.assertRedirects(response, reverse("smart_agenda"))
+		item = SmartAgendaItem.objects.get(owner=self.antimo_user)
+		self.assertIn("lavaggio critico", item.title.lower())
+		self.assertEqual(str(item.quoted_amount), "700.00")
+		self.assertEqual(item.remind_on, timezone.localdate() + timezone.timedelta(days=1))
+		self.assertEqual(SmartAgendaMessage.objects.filter(owner=self.antimo_user).count(), 2)
 
 
 class PayslipUploadImportTests(TestCase):

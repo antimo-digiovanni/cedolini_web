@@ -369,6 +369,12 @@ main {
             </a>
             {% endif %}
 
+            {% if has_smart_agenda_access %}
+            <a href="{% url 'smart_agenda' %}" class="{% if request.resolver_match.url_name == 'smart_agenda' %}active{% endif %}">
+                <i class="bi bi-journal-richtext"></i> Agenda intelligente
+            </a>
+            {% endif %}
+
             <a href="{% url 'public_home' %}" target="_blank" rel="noopener">
                 <i class="bi bi-globe2"></i> Sito aziendale
             </a>

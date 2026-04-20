@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
 
     path('', views.dashboard, name='dashboard'),
+    path('agenda-intelligente/', views.smart_agenda, name='smart_agenda'),
     path('chi-ha-marcato-oggi/', views.today_markings_dashboard, name='today_markings_dashboard'),
     path('marcatura/', views.timekeeping, name='timekeeping'),
     path('tutorial/', views.portal_tutorial, name='portal_tutorial'),

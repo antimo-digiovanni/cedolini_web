@@ -357,3 +357,50 @@ class VacationRequest(models.Model):
 
     def __str__(self):
         return f"{self.employee.full_name} {self.start_date} - {self.end_date} [{self.status}]"
+
+
+class SmartAgendaItem(models.Model):
+    STATUS_OPEN = 'open'
+    STATUS_DONE = 'done'
+    STATUS_CHOICES = [
+        (STATUS_OPEN, 'Aperto'),
+        (STATUS_DONE, 'Completato'),
+    ]
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='smart_agenda_items')
+    title = models.CharField(max_length=200)
+    note = models.TextField(blank=True)
+    source_text = models.TextField(blank=True)
+    remind_on = models.DateField(null=True, blank=True)
+    quoted_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['status', 'remind_on', '-created_at']
+
+    def __str__(self):
+        return self.title
+
+
+class SmartAgendaMessage(models.Model):
+    ROLE_USER = 'user'
+    ROLE_ASSISTANT = 'assistant'
+    ROLE_CHOICES = [
+        (ROLE_USER, 'Utente'),
+        (ROLE_ASSISTANT, 'Assistente'),
+    ]
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='smart_agenda_messages')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    content = models.TextField()
+    related_item = models.ForeignKey(SmartAgendaItem, on_delete=models.SET_NULL, null=True, blank=True, related_name='messages')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.owner.username} - {self.role}"
