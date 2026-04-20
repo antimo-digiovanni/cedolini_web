@@ -124,6 +124,23 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertContains(response_yesterday, "Luca Verdi")
 		self.assertContains(response_yesterday, "17:00")
 
+	def test_today_markings_shows_secretary_widget_for_antimo_account(self):
+		self.owner_user.first_name = "Antimo"
+		self.owner_user.save(update_fields=["first_name"])
+		SmartAgendaItem.objects.create(
+			owner=self.owner_user,
+			title="Controllare le priorita del giorno",
+			status=SmartAgendaItem.STATUS_OPEN,
+			is_daily=True,
+			priority=SmartAgendaItem.PRIORITY_HIGH,
+		)
+
+		self.client.force_login(self.owner_user)
+		response = self.client.get(reverse("today_markings_dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Segretaria del giorno")
+		self.assertContains(response, "Controllare le priorita del giorno")
+
 
 class VacationRequestFlowTests(TestCase):
 	def setUp(self):

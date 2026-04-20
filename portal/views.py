@@ -308,6 +308,27 @@ def _decorate_agenda_items(items, today=None):
     return decorated
 
 
+def _dashboard_secretary_snapshot(user, today=None, limit=5):
+    today = today or timezone.localdate()
+    if not user_has_smart_agenda_access(user):
+        return [], 0
+
+    agenda_open_items = _decorate_agenda_items(
+        list(
+            SmartAgendaItem.objects.filter(
+                owner=user,
+                status=SmartAgendaItem.STATUS_OPEN,
+            )
+        ),
+        today=today,
+    )
+    secretary_items = [
+        item for item in agenda_open_items
+        if item.is_daily or item.is_today or item.is_overdue
+    ][:limit]
+    return secretary_items, len(agenda_open_items)
+
+
 def _normalize_import_name(value):
     value = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode('ascii')
     value = value.lower().replace("'", ' ')
@@ -1576,23 +1597,10 @@ def dashboard(request):
         .order_by('-created_at')[:6]
     )
 
-    dashboard_secretary_items = []
-    dashboard_secretary_total_open = 0
-    if user_has_smart_agenda_access(request.user):
-        agenda_open_items = _decorate_agenda_items(
-            list(
-                SmartAgendaItem.objects.filter(
-                    owner=request.user,
-                    status=SmartAgendaItem.STATUS_OPEN,
-                )
-            ),
-            today=today,
-        )
-        dashboard_secretary_total_open = len(agenda_open_items)
-        dashboard_secretary_items = [
-            item for item in agenda_open_items
-            if item.is_daily or item.is_today or item.is_overdue
-        ][:5]
+    dashboard_secretary_items, dashboard_secretary_total_open = _dashboard_secretary_snapshot(
+        request.user,
+        today=today,
+    )
 
     response = render(request, 'portal/dashboard.html', {
         'employee': employee,
@@ -3603,6 +3611,10 @@ def today_markings_dashboard(request):
 
     previous_date = selected_date - timedelta(days=1)
     next_date = selected_date + timedelta(days=1) if selected_date < today else None
+    dashboard_secretary_items, dashboard_secretary_total_open = _dashboard_secretary_snapshot(
+        request.user,
+        today=today,
+    )
 
     response = render(request, 'portal/today_markings_dashboard.html', {
         'today': today,
@@ -3611,6 +3623,8 @@ def today_markings_dashboard(request):
         'selected_marked_sessions': selected_marked_sessions,
         'previous_date': previous_date,
         'next_date': next_date,
+        'dashboard_secretary_items': dashboard_secretary_items,
+        'dashboard_secretary_total_open': dashboard_secretary_total_open,
     })
     return _disable_response_cache(response)
 
