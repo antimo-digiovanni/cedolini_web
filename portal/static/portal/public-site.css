@@ -345,8 +345,7 @@ h4 {
     color: var(--muted);
 }
 
-.machinery-gallery .col-sm-6,
-.machinery-gallery .col-xl-4 {
+.machinery-gallery .col-md-6 {
     align-self: stretch;
 }
 
@@ -355,11 +354,12 @@ h4 {
     padding: 0;
     display: flex;
     flex-direction: column;
+    border-radius: 22px;
 }
 
 .machine-media-wrap {
     position: relative;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 10;
     overflow: hidden;
     background: linear-gradient(135deg, #dbeafe, #eff6ff);
 }
@@ -393,19 +393,21 @@ h4 {
 }
 
 .machine-card-body {
-    padding: 1.15rem 1.15rem 1.25rem;
+    padding: 1.45rem 1.45rem 1.55rem;
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.6rem;
 }
 
 .machine-card-body h2 {
     margin: 0;
+    font-size: 1.42rem;
 }
 
 .machine-card-body p {
     margin: 0;
     line-height: 1.6;
+    font-size: 1.02rem;
 }
 
 .machine-intro {
@@ -985,6 +987,30 @@ h4 {
 
     .cert-list {
         columns: 1;
+    }
+}
+
+@media (min-width: 1200px) {
+    .machinery-gallery {
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .machine-media-wrap {
+        aspect-ratio: 16 / 9;
+    }
+
+    .machine-card-body {
+        padding: 1.65rem 1.65rem 1.75rem;
+    }
+
+    .machine-card-body h2 {
+        font-size: 1.55rem;
+    }
+
+    .machine-card-body p {
+        font-size: 1.06rem;
     }
 }
 

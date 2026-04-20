@@ -19,9 +19,9 @@
       <h2>Ogni riquadro racconta un automezzo reale della nostra operativita</h2>
       <p class="machine-intro">Una selezione fotografica del parco mezzi e delle dotazioni che supportano logistica, movimentazione, assistenza tecnica e lavori operativi sul campo.</p>
     </div>
-    <div class="row g-4 machinery-gallery">
+    <div class="row g-4 g-xxl-5 machinery-gallery">
       {% for item in machinery_items %}
-      <div class="col-sm-6 col-xl-4 d-flex">
+      <div class="col-md-6 d-flex">
         <article class="machine-card reveal-up machine-card-photo" style="animation-delay:{{ item.delay }};">
           <div class="machine-media-wrap">
             <img src="{% static item.image %}" alt="{{ item.title }}" class="machine-photo">
