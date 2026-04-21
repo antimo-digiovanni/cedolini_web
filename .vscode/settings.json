@@ -1,0 +1,51 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "media/**": true,
+    "staticfiles/**": true,
+    "tmp/**": true,
+    "dist/**": true,
+    "CargoFlow AI/apps/backend/node_modules/**": true,
+    "CargoFlow AI/apps/mobile/node_modules/**": true,
+    "CargoFlow AI/packages/shared/node_modules/**": true
+  },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "media/**": true,
+    "staticfiles/**": true,
+    "tmp/**": true,
+    "dist/**": true,
+    "CargoFlow AI/**/node_modules/**": true,
+    "CargoFlow AI/**/.next/**": true,
+    "CargoFlow AI/**/dist/**": true,
+    "CargoFlow AI/**/build/**": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "media/**": true,
+    "staticfiles/**": true,
+    "tmp/**": true,
+    "dist/**": true,
+    "CargoFlow AI/**/node_modules/**": true,
+    "CargoFlow AI/**/.next/**": true,
+    "CargoFlow AI/**/dist/**": true,
+    "CargoFlow AI/**/build/**": true
+  },
+  "explorer.autoReveal": false,
+  "git.untrackedChanges": "hidden",
+  "python.analysis.exclude": [
+    "**/.venv/**",
+    "**/__pycache__/**",
+    "media/**",
+    "staticfiles/**",
+    "tmp/**",
+    "dist/**"
+  ]
+}
