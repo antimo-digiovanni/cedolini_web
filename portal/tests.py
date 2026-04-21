@@ -151,8 +151,9 @@ class PublicMachineryPageTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Bobcat")
 		self.assertContains(response, "Trattore stradale con semirimorchio")
+		self.assertContains(response, "Magazzino operativo con carrelli")
 		self.assertContains(response, "Autocarro con gru retrocabina")
-		self.assertContains(response, 'data-image-count="2"')
+		self.assertGreaterEqual(response.content.decode().count('data-image-count="2"'), 2)
 		self.assertContains(response, 'alt="Bobcat"')
 
 

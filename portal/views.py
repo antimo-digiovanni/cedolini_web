@@ -1005,20 +1005,15 @@ def public_machinery(request):
             'delay': '.20s',
         },
         {
-            'title': 'Magazzino con carrello',
+            'title': 'Magazzino operativo con carrelli',
             'category': 'Logistica interna',
-            'description': 'Spazio organizzato per preparazione materiali, movimentazione controllata e continuita delle attivita di supporto.',
-            'image': 'portal/machinery/magazzino-con-carrello.jpg',
-            'gallery_images': ['portal/machinery/magazzino-con-carrello.jpg'],
-            'delay': '.24s',
-        },
-        {
-            'title': 'Magazzino operativo',
-            'category': 'Deposito e coordinamento',
-            'description': 'Area dedicata a deposito, controllo disponibilita e gestione ordinata dei materiali a servizio dei cantieri.',
+            'description': 'Area organizzata per deposito, preparazione materiali e movimentazione con carrelli, pensata per garantire ordine operativo e continuita alle attivita di supporto.',
             'image': 'portal/machinery/magazzino.jpg',
-            'gallery_images': ['portal/machinery/magazzino.jpg'],
-            'delay': '.28s',
+            'gallery_images': [
+                'portal/machinery/magazzino.jpg',
+                'portal/machinery/magazzino-con-carrello.jpg',
+            ],
+            'delay': '.24s',
         },
         {
             'title': 'Officina mobile',
@@ -1026,7 +1021,7 @@ def public_machinery(request):
             'description': 'Unita mobile attrezzata per supporto tecnico, manutenzioni rapide e interventi direttamente in sede operativa.',
             'image': 'portal/machinery/officina-mobile.jpg',
             'gallery_images': ['portal/machinery/officina-mobile.jpg'],
-            'delay': '.32s',
+            'delay': '.28s',
         },
         {
             'title': 'Piattaforma aerea a pantografo',
@@ -1034,7 +1029,7 @@ def public_machinery(request):
             'description': 'Soluzione stabile e funzionale per lavorazioni in elevazione, manutenzioni e accessi sicuri su superfici verticali.',
             'image': 'portal/machinery/piattaforma-aerea-a-pantografo.jpg',
             'gallery_images': ['portal/machinery/piattaforma-aerea-a-pantografo.jpg'],
-            'delay': '.36s',
+            'delay': '.32s',
         },
         {
             'title': 'Piattaforma aerea autocarrata',
@@ -1042,7 +1037,7 @@ def public_machinery(request):
             'description': 'Mezzo versatile per raggiungere rapidamente aree di lavoro in altezza con flessibilita di posizionamento.',
             'image': 'portal/machinery/piattaforma-aerea-autocarrata.jpg',
             'gallery_images': ['portal/machinery/piattaforma-aerea-autocarrata.jpg'],
-            'delay': '.40s',
+            'delay': '.36s',
         },
         {
             'title': 'Terna',
@@ -1050,7 +1045,7 @@ def public_machinery(request):
             'description': 'Macchina polivalente per scavo, carico e movimentazione, utile quando servono operativita e rapidita nello stesso mezzo.',
             'image': 'portal/machinery/terna.jpg',
             'gallery_images': ['portal/machinery/terna.jpg'],
-            'delay': '.44s',
+            'delay': '.40s',
         },
         {
             'title': 'Trattore stradale con semirimorchio',
@@ -1058,7 +1053,7 @@ def public_machinery(request):
             'description': 'Configurazione per movimentazione su strada e supporto logistico nelle attivita che richiedono continuita e portata.',
             'image': 'portal/machinery/trattore-stradale-semirimorchio.jpg',
             'gallery_images': ['portal/machinery/trattore-stradale-semirimorchio.jpg'],
-            'delay': '.48s',
+            'delay': '.44s',
         },
         {
             'title': 'Autocarro con gru retrocabina',
@@ -1069,7 +1064,7 @@ def public_machinery(request):
                 'portal/machinery/autocarro-con-gru-retrocabina.jpg',
                 'portal/machinery/autocarro-con-gru-retrocabina-2.jpg',
             ],
-            'delay': '.52s',
+            'delay': '.48s',
         },
     ]
     return render(request, 'site/machinery.html', {
