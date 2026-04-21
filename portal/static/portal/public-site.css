@@ -866,6 +866,17 @@ h4 {
     border-bottom: 0;
     padding: 0.85rem 0.85rem 0.3rem;
     color: #ffffff;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.machinery-lightbox-meta {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
 }
 
 .machinery-lightbox-body {
@@ -873,6 +884,7 @@ h4 {
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 0.75rem;
 }
 
 .machinery-lightbox-image {
@@ -884,9 +896,53 @@ h4 {
     box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34);
 }
 
+.machinery-lightbox-nav {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.9rem;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.machinery-lightbox-nav:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.04);
+}
+
+.machinery-lightbox-nav span {
+    transform: translateY(-1px);
+}
+
 @media (max-width: 575px) {
     .machinery-lightbox .modal-dialog {
         max-width: calc(100vw - 1rem);
+    }
+
+    .machinery-lightbox-header {
+        grid-template-columns: 1fr auto;
+    }
+
+    .machinery-lightbox-meta {
+        grid-column: 1 / -1;
+        order: 3;
+    }
+
+    .machinery-lightbox-body {
+        gap: 0.5rem;
+    }
+
+    .machinery-lightbox-nav {
+        width: 38px;
+        height: 38px;
+        font-size: 1.55rem;
     }
 
     .machinery-lightbox-image {

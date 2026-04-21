@@ -29,9 +29,12 @@
               class="machine-photo-trigger"
               data-bs-toggle="modal"
               data-bs-target="#machineryLightbox"
-              data-image-src="{% static item.image %}"
+              data-image-count="{{ item.gallery_images|length }}"
               data-image-alt="{{ item.title }}"
               data-image-title="{{ item.title }}"
+              {% for gallery_image in item.gallery_images %}
+              data-image-src-{{ forloop.counter0 }}="{% static gallery_image %}"
+              {% endfor %}
             >
               <img src="{% static item.image %}" alt="{{ item.title }}" class="machine-photo">
             </button>
@@ -57,10 +60,17 @@
     <div class="modal-content machinery-lightbox-content">
       <div class="modal-header machinery-lightbox-header">
         <h2 class="modal-title h4 mb-0" id="machineryLightboxLabel">Macchinario</h2>
+        <div class="machinery-lightbox-meta" id="machineryLightboxMeta" hidden>1 / 1</div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body machinery-lightbox-body">
+        <button type="button" class="machinery-lightbox-nav machinery-lightbox-prev" id="machineryLightboxPrev" aria-label="Immagine precedente" hidden>
+          <span aria-hidden="true">‹</span>
+        </button>
         <img src="" alt="" class="machinery-lightbox-image" id="machineryLightboxImage">
+        <button type="button" class="machinery-lightbox-nav machinery-lightbox-next" id="machineryLightboxNext" aria-label="Immagine successiva" hidden>
+          <span aria-hidden="true">›</span>
+        </button>
       </div>
     </div>
   </div>
@@ -75,6 +85,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const lightboxImage = document.getElementById('machineryLightboxImage');
   const lightboxTitle = document.getElementById('machineryLightboxLabel');
+  const lightboxMeta = document.getElementById('machineryLightboxMeta');
+  const prevButton = document.getElementById('machineryLightboxPrev');
+  const nextButton = document.getElementById('machineryLightboxNext');
+  let galleryImages = [];
+  let currentIndex = 0;
+
+  function renderImage() {
+    const currentImage = galleryImages[currentIndex] || '';
+    lightboxImage.setAttribute('src', currentImage);
+    lightboxImage.setAttribute('alt', lightboxTitle.textContent);
+
+    const hasMultipleImages = galleryImages.length > 1;
+    prevButton.hidden = !hasMultipleImages;
+    nextButton.hidden = !hasMultipleImages;
+    lightboxMeta.hidden = !hasMultipleImages;
+
+    if (hasMultipleImages) {
+      lightboxMeta.textContent = (currentIndex + 1) + ' / ' + galleryImages.length;
+    }
+  }
 
   lightbox.addEventListener('show.bs.modal', function(event) {
     const trigger = event.relatedTarget;
@@ -82,18 +112,56 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    const imageSrc = trigger.getAttribute('data-image-src') || '';
-    const imageAlt = trigger.getAttribute('data-image-alt') || '';
     const imageTitle = trigger.getAttribute('data-image-title') || 'Macchinario';
+    const imageCount = Number(trigger.getAttribute('data-image-count') || '1');
 
-    lightboxImage.setAttribute('src', imageSrc);
-    lightboxImage.setAttribute('alt', imageAlt);
+    galleryImages = [];
+    for (let index = 0; index < imageCount; index += 1) {
+      const imageSrc = trigger.getAttribute('data-image-src-' + index);
+      if (imageSrc) {
+        galleryImages.push(imageSrc);
+      }
+    }
+
+    if (!galleryImages.length) {
+      const fallbackImage = trigger.getAttribute('data-image-src-0');
+      if (fallbackImage) {
+        galleryImages.push(fallbackImage);
+      }
+    }
+
     lightboxTitle.textContent = imageTitle;
+    currentIndex = 0;
+    renderImage();
+  });
+
+  prevButton.addEventListener('click', function() {
+    if (!galleryImages.length) {
+      return;
+    }
+
+    currentIndex = (currentIndex - 1 + galleryImages.length) % galleryImages.length;
+    renderImage();
+  });
+
+  nextButton.addEventListener('click', function() {
+    if (!galleryImages.length) {
+      return;
+    }
+
+    currentIndex = (currentIndex + 1) % galleryImages.length;
+    renderImage();
   });
 
   lightbox.addEventListener('hidden.bs.modal', function() {
     lightboxImage.setAttribute('src', '');
     lightboxImage.setAttribute('alt', '');
+    galleryImages = [];
+    currentIndex = 0;
+    lightboxMeta.textContent = '1 / 1';
+    lightboxMeta.hidden = true;
+    prevButton.hidden = true;
+    nextButton.hidden = true;
   });
 });
 </script>

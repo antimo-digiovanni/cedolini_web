@@ -969,6 +969,7 @@ def public_machinery(request):
             'category': 'Compatto operativo',
             'description': 'Mezzo compatto pensato per movimentazione rapida, riassetto aree di lavoro e interventi agili in spazi contenuti.',
             'image': 'portal/machinery/bobcat.jpg',
+            'gallery_images': ['portal/machinery/bobcat.jpg'],
             'delay': '.04s',
         },
         {
@@ -976,6 +977,7 @@ def public_machinery(request):
             'category': 'Logistica verticale',
             'description': 'Ideale per stoccaggio in altezza e movimentazione precisa in corsie di magazzino ad alta densita operativa.',
             'image': 'portal/machinery/carrello-elevatore-retrattile.jpg',
+            'gallery_images': ['portal/machinery/carrello-elevatore-retrattile.jpg'],
             'delay': '.08s',
         },
         {
@@ -983,6 +985,7 @@ def public_machinery(request):
             'category': 'Movimentazione carichi',
             'description': 'Supporto affidabile per carico, scarico e trasferimento di pallet, materiali e forniture nei flussi quotidiani.',
             'image': 'portal/machinery/carrello-elevatore.jpg',
+            'gallery_images': ['portal/machinery/carrello-elevatore.jpg'],
             'delay': '.12s',
         },
         {
@@ -990,6 +993,7 @@ def public_machinery(request):
             'category': 'Interventi di precisione',
             'description': 'Soluzione efficace per scavi localizzati, rifiniture tecniche e cantieri con accessi piu contenuti.',
             'image': 'portal/machinery/escavatore-piccolo.jpg',
+            'gallery_images': ['portal/machinery/escavatore-piccolo.jpg'],
             'delay': '.16s',
         },
         {
@@ -997,6 +1001,7 @@ def public_machinery(request):
             'category': 'Scavo e movimentazione',
             'description': 'Mezzo operativo per lavori di scavo, movimentazione terra e attivita strutturate con maggiore capacita di azione.',
             'image': 'portal/machinery/escavatore.jpg',
+            'gallery_images': ['portal/machinery/escavatore.jpg'],
             'delay': '.20s',
         },
         {
@@ -1004,6 +1009,7 @@ def public_machinery(request):
             'category': 'Logistica interna',
             'description': 'Spazio organizzato per preparazione materiali, movimentazione controllata e continuita delle attivita di supporto.',
             'image': 'portal/machinery/magazzino-con-carrello.jpg',
+            'gallery_images': ['portal/machinery/magazzino-con-carrello.jpg'],
             'delay': '.24s',
         },
         {
@@ -1011,6 +1017,7 @@ def public_machinery(request):
             'category': 'Deposito e coordinamento',
             'description': 'Area dedicata a deposito, controllo disponibilita e gestione ordinata dei materiali a servizio dei cantieri.',
             'image': 'portal/machinery/magazzino.jpg',
+            'gallery_images': ['portal/machinery/magazzino.jpg'],
             'delay': '.28s',
         },
         {
@@ -1018,6 +1025,7 @@ def public_machinery(request):
             'category': 'Assistenza sul campo',
             'description': 'Unita mobile attrezzata per supporto tecnico, manutenzioni rapide e interventi direttamente in sede operativa.',
             'image': 'portal/machinery/officina-mobile.jpg',
+            'gallery_images': ['portal/machinery/officina-mobile.jpg'],
             'delay': '.32s',
         },
         {
@@ -1025,6 +1033,7 @@ def public_machinery(request):
             'category': 'Lavori in quota',
             'description': 'Soluzione stabile e funzionale per lavorazioni in elevazione, manutenzioni e accessi sicuri su superfici verticali.',
             'image': 'portal/machinery/piattaforma-aerea-a-pantografo.jpg',
+            'gallery_images': ['portal/machinery/piattaforma-aerea-a-pantografo.jpg'],
             'delay': '.36s',
         },
         {
@@ -1032,6 +1041,7 @@ def public_machinery(request):
             'category': 'Quota e mobilita',
             'description': 'Mezzo versatile per raggiungere rapidamente aree di lavoro in altezza con flessibilita di posizionamento.',
             'image': 'portal/machinery/piattaforma-aerea-autocarrata.jpg',
+            'gallery_images': ['portal/machinery/piattaforma-aerea-autocarrata.jpg'],
             'delay': '.40s',
         },
         {
@@ -1039,6 +1049,7 @@ def public_machinery(request):
             'category': 'Multiuso cantiere',
             'description': 'Macchina polivalente per scavo, carico e movimentazione, utile quando servono operativita e rapidita nello stesso mezzo.',
             'image': 'portal/machinery/terna.jpg',
+            'gallery_images': ['portal/machinery/terna.jpg'],
             'delay': '.44s',
         },
         {
@@ -1046,7 +1057,19 @@ def public_machinery(request):
             'category': 'Trasporto dedicato',
             'description': 'Configurazione per movimentazione su strada e supporto logistico nelle attivita che richiedono continuita e portata.',
             'image': 'portal/machinery/trattore-stradale-semirimorchio.jpg',
+            'gallery_images': ['portal/machinery/trattore-stradale-semirimorchio.jpg'],
             'delay': '.48s',
+        },
+        {
+            'title': 'Autocarro con gru retrocabina',
+            'category': 'Sollevamento e trasporto',
+            'description': 'Mezzo operativo pensato per carico, scarico e movimentazione di materiali con autonomia di sollevamento direttamente sul punto di intervento, con piu viste disponibili nella galleria dedicata.',
+            'image': 'portal/machinery/autocarro-con-gru-retrocabina.jpg',
+            'gallery_images': [
+                'portal/machinery/autocarro-con-gru-retrocabina.jpg',
+                'portal/machinery/autocarro-con-gru-retrocabina-2.jpg',
+            ],
+            'delay': '.52s',
         },
     ]
     return render(request, 'site/machinery.html', {
