@@ -150,10 +150,16 @@ class PublicMachineryPageTests(TestCase):
 		response = self.client.get(reverse("public_machinery"))
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Bobcat")
+		self.assertContains(response, "Gruppo elettrogeno industriale")
+		self.assertContains(response, "Autospurgo canal-jet su Iveco Stralis a 4 assi")
+		self.assertContains(response, "Piattaforma aerea semovente a braccio articolato JLG E300")
+		self.assertContains(response, "Spazzatrice stradale aspirante Dulevo D6")
 		self.assertContains(response, "Trattore stradale con semirimorchio")
 		self.assertContains(response, "Magazzino operativo con carrelli")
 		self.assertContains(response, "Autocarro con gru retrocabina")
-		self.assertGreaterEqual(response.content.decode().count('data-image-count="2"'), 2)
+		self.assertContains(response, 'data-image-count="3"')
+		self.assertContains(response, 'data-image-count="4"')
+		self.assertGreaterEqual(response.content.decode().count('data-image-count="2"'), 5)
 		self.assertContains(response, 'alt="Bobcat"')
 
 

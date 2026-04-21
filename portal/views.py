@@ -1020,7 +1020,11 @@ def public_machinery(request):
             'category': 'Assistenza sul campo',
             'description': 'Unita mobile attrezzata per supporto tecnico, manutenzioni rapide e interventi direttamente in sede operativa.',
             'image': 'portal/machinery/officina-mobile.jpg',
-            'gallery_images': ['portal/machinery/officina-mobile.jpg'],
+            'gallery_images': [
+                'portal/machinery/officina-mobile.jpg',
+                'portal/machinery/officina-mobile-2.jpg',
+                'portal/machinery/officina-mobile-3.jpg',
+            ],
             'delay': '.28s',
         },
         {
@@ -1036,8 +1040,23 @@ def public_machinery(request):
             'category': 'Quota e mobilita',
             'description': 'Mezzo versatile per raggiungere rapidamente aree di lavoro in altezza con flessibilita di posizionamento.',
             'image': 'portal/machinery/piattaforma-aerea-autocarrata.jpg',
-            'gallery_images': ['portal/machinery/piattaforma-aerea-autocarrata.jpg'],
+            'gallery_images': [
+                'portal/machinery/piattaforma-aerea-autocarrata.jpg',
+                'portal/machinery/piattaforma-aerea-autocarrata-1.jpg',
+                'portal/machinery/piattaforma-aerea-autocarrata-2.jpg',
+            ],
             'delay': '.36s',
+        },
+        {
+            'title': 'Piattaforma aerea semovente a braccio articolato JLG E300',
+            'category': 'Quota e precisione',
+            'description': 'Piattaforma semovente a braccio articolato pensata per raggiungere punti complessi in quota con manovrabilita, precisione di posizionamento e sicurezza operativa.',
+            'image': 'portal/machinery/piattaforma-aerea-semovente-jlg-e300-1.jpg',
+            'gallery_images': [
+                'portal/machinery/piattaforma-aerea-semovente-jlg-e300-1.jpg',
+                'portal/machinery/piattaforma-aerea-semovente-jlg-e300-2.jpg',
+            ],
+            'delay': '.40s',
         },
         {
             'title': 'Terna',
@@ -1045,15 +1064,64 @@ def public_machinery(request):
             'description': 'Macchina polivalente per scavo, carico e movimentazione, utile quando servono operativita e rapidita nello stesso mezzo.',
             'image': 'portal/machinery/terna.jpg',
             'gallery_images': ['portal/machinery/terna.jpg'],
-            'delay': '.40s',
+            'delay': '.44s',
         },
         {
             'title': 'Trattore stradale con semirimorchio',
             'category': 'Trasporto dedicato',
             'description': 'Configurazione per movimentazione su strada e supporto logistico nelle attivita che richiedono continuita e portata.',
             'image': 'portal/machinery/trattore-stradale-semirimorchio.jpg',
-            'gallery_images': ['portal/machinery/trattore-stradale-semirimorchio.jpg'],
-            'delay': '.44s',
+            'gallery_images': [
+                'portal/machinery/trattore-stradale-semirimorchio.jpg',
+                'portal/machinery/trattore-stradale-semirimorchio-2.jpg',
+            ],
+            'delay': '.48s',
+        },
+        {
+            'title': 'Gruppo elettrogeno industriale',
+            'category': 'Energia di supporto',
+            'description': 'Sistema di alimentazione industriale pensato per garantire continuita operativa, autonomia energetica e supporto alle attivita in campo o in aree non servite.',
+            'image': 'portal/machinery/gruppo-elettrogeno-industriale-1.jpg',
+            'gallery_images': [
+                'portal/machinery/gruppo-elettrogeno-industriale-1.jpg',
+                'portal/machinery/gruppo-elettrogeno-industriale-2.jpg',
+                'portal/machinery/gruppo-elettrogeno-industriale-3.jpg',
+                'portal/machinery/gruppo-elettrogeno-industriale-4.jpg',
+            ],
+            'delay': '.52s',
+        },
+        {
+            'title': 'Autospurgo canal-jet su Iveco Stralis a 4 assi',
+            'category': 'Spurgo e lavaggi tecnici',
+            'description': 'Mezzo specializzato per interventi di spurgo, pulizia condotte e lavaggi ad alta efficienza, configurato su telaio a quattro assi per operativita strutturate.',
+            'image': 'portal/machinery/autospurgo-canal-jet-iveco-stralis-1.jpg',
+            'gallery_images': [
+                'portal/machinery/autospurgo-canal-jet-iveco-stralis-1.jpg',
+                'portal/machinery/autospurgo-canal-jet-iveco-stralis-2.jpg',
+            ],
+            'delay': '.56s',
+        },
+        {
+            'title': 'Atomizzatore per pest control',
+            'category': 'Nebulizzazione tecnica',
+            'description': 'Attrezzatura ad alta resa per nebulizzazione e controllo dei parassiti, indicata per interventi mirati di pest control in contesti operativi e ambientali.',
+            'image': 'portal/machinery/atomizzatore-pest-control-1.jpg',
+            'gallery_images': [
+                'portal/machinery/atomizzatore-pest-control-1.jpg',
+                'portal/machinery/atomizzatore-pest-control-2.jpg',
+            ],
+            'delay': '.60s',
+        },
+        {
+            'title': 'Spazzatrice stradale aspirante Dulevo D6',
+            'category': 'Igiene urbana',
+            'description': 'Spazzatrice aspirante per pulizia stradale e decoro urbano, adatta a interventi continui su viabilita, piazzali e superfici estese.',
+            'image': 'portal/machinery/spazzatrice-stradale-dulevo-d6-1.jpg',
+            'gallery_images': [
+                'portal/machinery/spazzatrice-stradale-dulevo-d6-1.jpg',
+                'portal/machinery/spazzatrice-stradale-dulevo-d6-2.jpg',
+            ],
+            'delay': '.64s',
         },
         {
             'title': 'Autocarro con gru retrocabina',
@@ -1064,7 +1132,7 @@ def public_machinery(request):
                 'portal/machinery/autocarro-con-gru-retrocabina.jpg',
                 'portal/machinery/autocarro-con-gru-retrocabina-2.jpg',
             ],
-            'delay': '.48s',
+            'delay': '.68s',
         },
     ]
     return render(request, 'site/machinery.html', {
