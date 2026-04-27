@@ -1081,10 +1081,10 @@ def public_machinery(request):
             'title': 'Gruppo elettrogeno industriale',
             'category': 'Energia di supporto',
             'description': 'Sistema di alimentazione industriale pensato per garantire continuita operativa, autonomia energetica e supporto alle attivita in campo o in aree non servite.',
-            'image': 'portal/machinery/gruppo-elettrogeno-industriale-1.jpg',
+            'image': 'portal/machinery/gruppo-elettrogeno-industriale-2.jpg',
             'gallery_images': [
-                'portal/machinery/gruppo-elettrogeno-industriale-1.jpg',
                 'portal/machinery/gruppo-elettrogeno-industriale-2.jpg',
+                'portal/machinery/gruppo-elettrogeno-industriale-1.jpg',
                 'portal/machinery/gruppo-elettrogeno-industriale-3.jpg',
                 'portal/machinery/gruppo-elettrogeno-industriale-4.jpg',
             ],
