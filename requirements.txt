@@ -11,8 +11,10 @@ Pillow
 PyMuPDF
 PyPDF2
 pypdfium2
+reportlab
 requests
 python-telegram-bot
 python-dotenv
 django-storages
 boto3
+python-docx
