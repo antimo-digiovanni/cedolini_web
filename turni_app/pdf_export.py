@@ -10,11 +10,11 @@ from xml.sax.saxutils import escape
 
 import pypdfium2 as pdfium
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4, landscape, portrait
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as pdf_canvas
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, KeepInFrame, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .workbook import WEEKEND_COLUMN_LABELS, WeeklySectionData
 
@@ -33,6 +33,10 @@ SUNDAY_PDF_NAME = "Comandata domenica.pdf"
 WEEKLY_IMAGE_NAME = "Turno settimanale.jpg"
 SATURDAY_IMAGE_NAME = "Comandata sabato.jpg"
 SUNDAY_IMAGE_NAME = "Comandata domenica.jpg"
+PORTINERIA_WEEKLY_PDF_NAME = "Turno settimanale portineria.pdf"
+PORTINERIA_WEEKLY_IMAGE_NAME = "Turno settimanale portineria.jpg"
+PORTINERIA_WEEKEND_PDF_NAME = "Comandata weekend portineria.pdf"
+PORTINERIA_WEEKEND_IMAGE_NAME = "Comandata weekend portineria.jpg"
 WEEKEND_SIGNATURE_HEADERS = (
     "FIRMA COMMITTENTE",
     "FIRMA RESPONSABILE AREA",
@@ -724,6 +728,78 @@ def _build_weekly_sheet_table(
     return table
 
 
+def _build_portineria_weekly_sheet_table(
+    headers: list[str],
+    sections: list[WeeklySectionData],
+    styles: dict[str, ParagraphStyle],
+    fill_width_mm: float,
+    target_height_mm: float,
+) -> Table:
+    portineria_name_style = ParagraphStyle(
+        "PortineriaName",
+        parent=styles["bodyCell"],
+        fontSize=10.8,
+        leading=11.2,
+        alignment=1,
+        textColor=BRAND_TEXT,
+    )
+
+    rows: list[list[Paragraph]] = []
+    rows.append([_paragraph("", styles["smallBold"])] + [_paragraph("REPARTO", styles["miniTag"]) for _ in headers])
+    rows.append([
+        _paragraph("T<br/>U<br/>R<br/>N<br/>O", styles["turnoBand"], allow_markup=True)
+    ] + [_paragraph(_format_weekly_header(text), styles["headerBig"], allow_markup=True) for text in headers])
+
+    time_row_indexes: list[int] = []
+    for index, section in enumerate(sections):
+        time_row_indexes.append(len(rows))
+        rows.append([_paragraph("", styles["smallBold"])] + [_paragraph(value, styles["timeWhite"]) for value in section.time_values])
+        for row_number, assignment_row in enumerate(section.rows):
+            shift_label = f"{index + 1}°" if row_number > 0 else ""
+            label = Spacer(1, 1) if not shift_label else _paragraph(shift_label, styles["shiftBand"])
+            rows.append([label] + [_paragraph(_normalize_weekly_text(value), portineria_name_style) for value in assignment_row])
+
+    header_height_mm = [7.5, 19]
+    time_row_height_mm = 11.5
+    fixed_height_mm = sum(header_height_mm) + (len(sections) * time_row_height_mm)
+    assignment_row_count = sum(len(section.rows) for section in sections)
+    assignment_row_height_mm = max(13.0, min(15.0, (target_height_mm - fixed_height_mm) / max(assignment_row_count, 1)))
+    row_heights = [height * mm for height in header_height_mm]
+    for section in sections:
+        row_heights.append(time_row_height_mm * mm)
+        for _ in section.rows:
+            row_heights.append(assignment_row_height_mm * mm)
+
+    first_col_width = 13 * mm
+    remaining_width = max(fill_width_mm - first_col_width, 60)
+    dynamic_width = (remaining_width / max(len(headers), 1)) * mm
+    column_widths = [first_col_width] + [dynamic_width for _ in headers]
+
+    table = Table(rows, colWidths=column_widths, rowHeights=row_heights)
+    style_commands: list[tuple] = [
+        ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
+        ("BOX", (0, 0), (-1, -1), 0.95, BRAND_NAVY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2.8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2.8),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.3),
+        ("BACKGROUND", (0, 0), (-1, 0), BRAND_BLUE_LIGHT),
+        ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor("#EAF2FF")),
+        ("BACKGROUND", (0, 1), (0, len(rows) - 1), BRAND_BLUE_LIGHT),
+    ]
+    for time_row in time_row_indexes:
+        style_commands.extend(
+            [
+                ("BACKGROUND", (0, time_row), (-1, time_row), BRAND_BLUE),
+                ("TEXTCOLOR", (0, time_row), (-1, time_row), colors.white),
+            ]
+        )
+    table.setStyle(TableStyle(style_commands))
+    return table
+
+
 def _build_weekend_table(
     rows: list[list[str]],
     styles: dict[str, ParagraphStyle],
@@ -753,7 +829,8 @@ def _build_weekend_table(
 
     header_height_mm = 8.8
     available_body_height_mm = max(0.0, target_height_mm - header_height_mm)
-    body_height_mm = min(4.0, max(2.2, available_body_height_mm / body_row_count))
+    # Let sparse weekend sheets expand vertically so JPG exports fill the page.
+    body_height_mm = min(8.6, max(3.4, available_body_height_mm / body_row_count))
     row_heights = [header_height_mm * mm] + [body_height_mm * mm for _ in body]
 
     table = Table(data, colWidths=col_widths, rowHeights=row_heights, repeatRows=1)
@@ -822,25 +899,48 @@ def export_weekly_pdf(
     headers: list[str],
     sections: list[WeeklySectionData],
     logo_path: Path | None = None,
+    layout: str = "default",
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     styles = _styles()
+    if layout == "portineria":
+        page_size = portrait(A4)
+        left_margin_mm = 8
+        right_margin_mm = 8
+        top_margin_mm = 6
+        bottom_margin_mm = 8
+        total_width_mm = (page_size[0] / mm) - left_margin_mm - right_margin_mm
+        target_table_height_mm = (page_size[1] / mm) - top_margin_mm - bottom_margin_mm - 46
+        portineria_table = _build_portineria_weekly_sheet_table(headers, sections, styles, total_width_mm, target_table_height_mm)
+        story = [
+            _build_weekly_title_table(title_text, week_label, styles, total_width_mm),
+            Spacer(1, 3 * mm),
+            KeepInFrame(total_width_mm * mm, target_table_height_mm * mm, [portineria_table], mode="shrink", hAlign="CENTER"),
+            Spacer(1, 3 * mm),
+            _paragraph(signature, styles["footer"]),
+        ]
+    else:
+        page_size = landscape(A4)
+        left_margin_mm = 4
+        right_margin_mm = 4
+        top_margin_mm = 4
+        bottom_margin_mm = 4
+        total_width_mm = (page_size[0] / mm) - left_margin_mm - right_margin_mm
+        story = [
+            _build_weekly_title_table(title_text, week_label, styles, total_width_mm),
+            Spacer(1, 0.7 * mm),
+            _build_weekly_sheet_table(headers, sections, styles, total_width_mm),
+            Spacer(1, 0.8 * mm),
+            _paragraph(signature, styles["footer"]),
+        ]
     document = SimpleDocTemplate(
         str(output_path),
-        pagesize=landscape(A4),
-        leftMargin=4 * mm,
-        rightMargin=4 * mm,
-        topMargin=4 * mm,
-        bottomMargin=4 * mm,
+        pagesize=page_size,
+        leftMargin=left_margin_mm * mm,
+        rightMargin=right_margin_mm * mm,
+        topMargin=top_margin_mm * mm,
+        bottomMargin=bottom_margin_mm * mm,
     )
-    total_width_mm = (landscape(A4)[0] / mm) - 8
-    story = [
-        _build_weekly_title_table(title_text, week_label, styles, total_width_mm),
-        Spacer(1, 0.7 * mm),
-        _build_weekly_sheet_table(headers, sections, styles, total_width_mm),
-        Spacer(1, 0.8 * mm),
-        _paragraph(signature, styles["footer"]),
-    ]
     document.build(story, onFirstPage=lambda canvas, doc: _draw_weekly_watermark(canvas, doc, logo_path))
     return output_path
 
@@ -854,9 +954,11 @@ def export_weekly_images(
     headers: list[str],
     sections: list[WeeklySectionData],
     logo_path: Path | None = None,
+    temp_pdf_name: str = WEEKLY_PDF_NAME,
+    layout: str = "default",
 ) -> list[Path]:
     with tempfile.TemporaryDirectory(prefix="turni_planner_weekly_") as temp_dir:
-        temp_pdf_path = Path(temp_dir) / WEEKLY_PDF_NAME
+        temp_pdf_path = Path(temp_dir) / temp_pdf_name
         export_weekly_pdf(
             temp_pdf_path,
             title_text=title_text,
@@ -865,6 +967,7 @@ def export_weekly_images(
             headers=headers,
             sections=sections,
             logo_path=logo_path,
+            layout=layout,
         )
         return _render_pdf_to_jpg_files(temp_pdf_path, output_path)
 
@@ -878,10 +981,13 @@ def export_weekly_outputs(
     headers: list[str],
     sections: list[WeeklySectionData],
     logo_path: Path | None = None,
+    pdf_name: str = WEEKLY_PDF_NAME,
+    image_name: str = WEEKLY_IMAGE_NAME,
+    layout: str = "default",
 ) -> tuple[Path, list[Path]]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = output_dir / WEEKLY_PDF_NAME
-    image_path = output_dir / WEEKLY_IMAGE_NAME
+    pdf_path = output_dir / pdf_name
+    image_path = output_dir / image_name
     export_weekly_pdf(
         pdf_path,
         title_text=title_text,
@@ -890,6 +996,7 @@ def export_weekly_outputs(
         headers=headers,
         sections=sections,
         logo_path=logo_path,
+        layout=layout,
     )
     return pdf_path, _render_pdf_to_jpg_files(pdf_path, image_path)
 
@@ -917,7 +1024,8 @@ def export_weekend_pdf(
         bottomMargin=vertical_margin_mm * mm,
     )
     table_width_mm = page_width_mm - (horizontal_margin_mm * 2)
-    table_height_mm = page_height_mm - (vertical_margin_mm * 2) - 23
+    # Keep the weekend table clear of the certification/logo panel drawn in the footer.
+    table_height_mm = page_height_mm - (vertical_margin_mm * 2) - 46
     story = [
         _header_block(
             data.title,

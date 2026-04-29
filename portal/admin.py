@@ -11,6 +11,7 @@ from .models import (
     Cud,
     AuditEvent,
     InviteToken,
+    TurniPlannerWeekState,
     WorkZone,
     EmployeeWorkZone,
     WorkSession,
@@ -167,6 +168,13 @@ class CudAdmin(admin.ModelAdmin):
 class AuditEventAdmin(admin.ModelAdmin):
     list_display = ('created_at', 'action', 'actor_user', 'employee')
     list_filter = ('action',)
+
+
+@admin.register(TurniPlannerWeekState)
+class TurniPlannerWeekStateAdmin(admin.ModelAdmin):
+    list_display = ('week_label', 'updated_by', 'updated_at', 'created_at')
+    search_fields = ('week_label',)
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(WorkZone)

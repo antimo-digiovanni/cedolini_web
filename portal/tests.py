@@ -9,8 +9,8 @@ from django.urls import reverse
 from django.utils import timezone
 from datetime import datetime
 
-from .access import TODAY_MARKINGS_GROUP_NAME
-from .models import Cud, Employee, ImportJob, Payslip, SmartAgendaItem, SmartAgendaMessage, VacationRequest, WorkSession
+from .access import TODAY_MARKINGS_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
+from .models import Cud, Employee, ImportJob, Payslip, SmartAgendaItem, SmartAgendaMessage, TurniPlannerWeekState, VacationRequest, WorkSession
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -320,6 +320,193 @@ class SmartAgendaTests(TestCase):
 		self.assertEqual(item.priority, SmartAgendaItem.PRIORITY_URGENT)
 		self.assertEqual(item.remind_on.strftime("%d/%m"), "24/04")
 		self.assertEqual(item.remind_time.strftime("%H:%M"), "15:00")
+
+
+class TurniPlannerAccessTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.group, _ = Group.objects.get_or_create(name=TURNI_PLANNER_GROUP_NAME)
+		self.allowed_user = get_user_model().objects.create_user(
+			username="planner.user",
+			password="Password123!",
+		)
+		self.allowed_user.groups.add(self.group)
+		self.denied_user = get_user_model().objects.create_user(
+			username="basic.user",
+			password="Password123!",
+		)
+
+	def test_home_redirects_turni_planner_user_to_planner(self):
+		self.client.force_login(self.allowed_user)
+		response = self.client.get(reverse("home"))
+		self.assertRedirects(response, reverse("turni_planner_home"))
+
+	def test_turni_planner_denies_non_authorized_user(self):
+		self.client.force_login(self.denied_user)
+		response = self.client.get(reverse("turni_planner_home"))
+		self.assertEqual(response.status_code, 403)
+
+	def test_turni_planner_allows_group_user_and_creates_shared_week(self):
+		self.client.force_login(self.allowed_user)
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{"action": "open_week", "week_label": "Week 28 da Lunedi 06/07/2026 a Sabato 11/07/2026"},
+		)
+
+		state = TurniPlannerWeekState.objects.get()
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
+		self.assertEqual(state.updated_by, self.allowed_user)
+
+	def test_turni_planner_saves_shared_planner_data(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 29 da Lunedi 13/07/2026 a Sabato 18/07/2026",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "save_planner",
+				"week_label": state.week_label,
+				"weekly_headers": [f"Reparto {index}" for index in range(1, 11)],
+				"weekly_time_0": ["06:00"] * 10,
+				"weekly_time_1": ["14:00"] * 10,
+				"weekly_time_2": ["22:00"] * 10,
+				"weekly_time_3": ["00:00"] * 10,
+				"weekly_row_0_0": ["Mario"] * 10,
+				"weekly_row_0_1": ["Luigi"] * 10,
+				"weekly_row_0_2": ["Anna"] * 10,
+				"weekly_row_1_0": ["Paolo"] * 10,
+				"weekly_row_1_1": ["Gina"] * 10,
+				"weekly_row_1_2": ["Luca"] * 10,
+				"weekly_row_2_0": ["Sara"] * 10,
+				"weekly_row_2_1": ["Piero"] * 10,
+				"weekly_row_2_2": ["Marta"] * 10,
+				"weekly_row_3_0": ["Notte A"] * 10,
+				"weekly_row_3_1": ["Notte B"] * 10,
+				"weekly_row_3_2": ["Notte C"] * 10,
+				"saturday_base_date": "18/07/2026",
+				"saturday_row_0": ["18/07/2026", "Mattina", "Mario", "Capo A", "Lavaggio", "Reparto A"],
+				"sunday_base_date": "19/07/2026",
+				"sunday_row_0": ["19/07/2026", "Notte", "Luigi", "Capo B", "Sanificazione", "Reparto B"],
+				"portineria_weekly_headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
+				"portineria_weekly_time_0": ["06:14", "08:17", "06:14"],
+				"portineria_weekly_time_1": ["14:22", "", "14:22"],
+				"portineria_weekly_time_2": ["22:06", "", "22:06"],
+				"portineria_weekly_row_0_0": ["Persona A", "Persona B", "Persona C"],
+				"portineria_weekly_row_0_1": ["Persona D", "Persona E", "Persona F"],
+				"portineria_weekly_row_0_2": ["Persona G", "Persona H", "Persona I"],
+				"portineria_weekly_row_1_0": ["Persona L", "Persona M", "Persona N"],
+				"portineria_weekly_row_1_1": ["Persona O", "Persona P", "Persona Q"],
+				"portineria_weekly_row_1_2": ["Persona R", "Persona S", "Persona T"],
+				"portineria_weekly_row_2_0": ["Persona U", "Persona V", "Persona Z"],
+				"portineria_weekly_row_2_1": ["Persona AA", "Persona AB", "Persona AC"],
+				"portineria_weekly_row_2_2": ["Persona AD", "Persona AE", "Persona AF"],
+				"portineria_weekend_base_date": "18/07/2026",
+				"portineria_weekend_row_0": ["18/07/2026", "Mattina", "Port A", "Resp A", "Controllo", "Portineria"],
+			},
+		)
+
+		state.refresh_from_db()
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
+		self.assertEqual(state.updated_by, self.allowed_user)
+		self.assertEqual(state.planner_data["weekly"]["headers"][0], "Reparto 1")
+		self.assertEqual(state.planner_data["weekly"]["sections"][0]["rows"][0][0], "Mario")
+		self.assertEqual(state.planner_data["weekly"]["sections"][3]["rows"][2][9], "Notte C")
+		self.assertEqual(state.planner_data["saturday"]["base_date"], "18/07/2026")
+		self.assertEqual(state.planner_data["saturday"]["rows"][0][2], "Mario")
+		self.assertEqual(state.planner_data["sunday"]["rows"][0][4], "Sanificazione")
+		self.assertEqual(state.planner_data["portineria_weekly"]["sections"][0]["rows"][0][1], "Persona B")
+		self.assertEqual(state.planner_data["portineria_weekend"]["rows"][0][5], "Portineria")
+
+	def test_turni_planner_exports_weekly_pdf_download(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 30 da Lunedi 20/07/2026 a Sabato 25/07/2026",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "export_pdf_weekly",
+				"week_label": state.week_label,
+				"weekly_headers": [f"Reparto {index}" for index in range(1, 11)],
+				"weekly_time_0": ["06:00"] * 10,
+				"weekly_time_1": ["14:00"] * 10,
+				"weekly_time_2": ["22:00"] * 10,
+				"weekly_time_3": ["00:00"] * 10,
+				"weekly_row_0_0": ["Mario"] * 10,
+				"weekly_row_0_1": ["Luigi"] * 10,
+				"weekly_row_0_2": ["Anna"] * 10,
+				"weekly_row_1_0": ["Paolo"] * 10,
+				"weekly_row_1_1": ["Gina"] * 10,
+				"weekly_row_1_2": ["Luca"] * 10,
+				"weekly_row_2_0": ["Sara"] * 10,
+				"weekly_row_2_1": ["Piero"] * 10,
+				"weekly_row_2_2": ["Marta"] * 10,
+				"weekly_row_3_0": ["Notte A"] * 10,
+				"weekly_row_3_1": ["Notte B"] * 10,
+				"weekly_row_3_2": ["Notte C"] * 10,
+				"saturday_base_date": "25/07/2026",
+				"sunday_base_date": "26/07/2026",
+				"portineria_weekly_headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
+				"portineria_weekly_time_0": ["06:14", "08:17", "06:14"],
+				"portineria_weekly_time_1": ["14:22", "", "14:22"],
+				"portineria_weekly_time_2": ["22:06", "", "22:06"],
+				"portineria_weekend_base_date": "25/07/2026",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "application/pdf")
+		self.assertIn("Turno settimanale.pdf", response["Content-Disposition"])
+		self.assertTrue(response.content.startswith(b"%PDF"))
+
+	def test_turni_planner_exports_portineria_weekend_jpg_download(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 31 da Lunedi 27/07/2026 a Sabato 01/08/2026",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "export_jpg_portineria_weekend",
+				"week_label": state.week_label,
+				"weekly_headers": [""] * 10,
+				"weekly_time_0": [""] * 10,
+				"weekly_time_1": [""] * 10,
+				"weekly_time_2": [""] * 10,
+				"weekly_time_3": [""] * 10,
+				"weekly_row_0_0": [""] * 10,
+				"weekly_row_0_1": [""] * 10,
+				"weekly_row_0_2": [""] * 10,
+				"weekly_row_1_0": [""] * 10,
+				"weekly_row_1_1": [""] * 10,
+				"weekly_row_1_2": [""] * 10,
+				"weekly_row_2_0": [""] * 10,
+				"weekly_row_2_1": [""] * 10,
+				"weekly_row_2_2": [""] * 10,
+				"weekly_row_3_0": [""] * 10,
+				"weekly_row_3_1": [""] * 10,
+				"weekly_row_3_2": [""] * 10,
+				"saturday_base_date": "01/08/2026",
+				"sunday_base_date": "02/08/2026",
+				"portineria_weekly_headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
+				"portineria_weekly_time_0": ["06:14", "08:17", "06:14"],
+				"portineria_weekly_time_1": ["14:22", "", "14:22"],
+				"portineria_weekly_time_2": ["22:06", "", "22:06"],
+				"portineria_weekend_base_date": "01/08/2026",
+				"portineria_weekend_row_0": ["01/08/2026", "Mattina", "Port A", "Resp A", "Controllo", "Portineria"],
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "image/jpeg")
+		self.assertIn("Comandata weekend portineria.jpg", response["Content-Disposition"])
+		self.assertTrue(response.content.startswith(b"\xff\xd8\xff"))
 
 
 class PayslipUploadImportTests(TestCase):

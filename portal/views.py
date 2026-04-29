@@ -1,10 +1,13 @@
 import os
 import csv
 import json
+import io
 import math
 from decimal import Decimal, InvalidOperation
 import calendar
 import re
+import tempfile
+import zipfile
 import urllib.request
 import uuid
 import unicodedata
@@ -12,6 +15,7 @@ from collections import OrderedDict
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from pathlib import Path
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -42,17 +46,39 @@ from .models import (
     VacationRequest,
     SmartAgendaItem,
     SmartAgendaMessage,
+    TurniPlannerWeekState,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
 
 import logging
 import secrets
+from PIL import Image
+
+from turni_app.pdf_export import (
+    PORTINERIA_WEEKEND_IMAGE_NAME,
+    PORTINERIA_WEEKEND_PDF_NAME,
+    PORTINERIA_WEEKLY_IMAGE_NAME,
+    PORTINERIA_WEEKLY_PDF_NAME,
+    SATURDAY_IMAGE_NAME,
+    SATURDAY_PDF_NAME,
+    SUNDAY_IMAGE_NAME,
+    SUNDAY_PDF_NAME,
+    WEEKLY_IMAGE_NAME,
+    WEEKLY_PDF_NAME,
+    WeekendExportData,
+    export_weekend_images,
+    export_weekend_pdf,
+    export_weekly_images,
+    export_weekly_pdf,
+)
+from turni_app.workbook import WeeklySectionData
 
 from .utils_import import parse_payslip_filename
 from .access import (
     user_has_full_admin_access,
     user_has_smart_agenda_access,
+    user_has_turni_planner_access,
     user_has_today_markings_access,
     user_home_url_name,
 )
@@ -82,6 +108,564 @@ def _agenda_allowed_or_403(request):
     if not user_has_smart_agenda_access(request.user):
         return HttpResponse('Agenda non disponibile per questo account.', status=403)
     return None
+
+
+def _turni_planner_allowed_or_403(request):
+    if not user_has_turni_planner_access(request.user):
+        return HttpResponse('Turni Planner non disponibile per questo account.', status=403)
+    return None
+
+
+TURNI_WEEKLY_HEADER_COUNT = 10
+TURNI_WEEKLY_SECTION_LABELS = (
+    '1 turno',
+    '2 turno',
+    '3 turno',
+    'turno centrale',
+)
+TURNI_WEEKLY_ROWS_PER_SECTION = 3
+TURNI_WEEKEND_COLUMN_LABELS = (
+    'Data',
+    'Turno',
+    'Nominativo',
+    'Preposto',
+    'Attivita',
+    'Reparto',
+)
+TURNI_WEEKEND_DEFAULT_ROW_COUNT = 20
+TURNI_PORTINERIA_HEADERS = (
+    'PORTINERIA CENTRALE',
+    'CENTRALINISTA',
+    'PORTINERIA CELLA',
+)
+TURNI_PORTINERIA_DEFAULT_TIMES = (
+    ('06:14', '08:17', '06:14'),
+    ('14:22', '', '14:22'),
+    ('22:06', '', '22:06'),
+)
+TURNI_PORTINERIA_SECTION_LABELS = (
+    '1 turno',
+    '2 turno',
+    '3 turno',
+)
+TURNI_PORTINERIA_ROWS_PER_SECTION = 3
+TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT = 34
+TURNI_DEFAULT_WEEKLY_PDF_TITLE = 'SANVINCENZO S.R.L.:ORGANIZZAZIONE TURNI'
+TURNI_EXPORT_APP_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png'
+TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'ancis-sgq-sga-2026.png'
+TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo-anid.jpg'
+
+
+def _default_turni_weekly_data():
+    return {
+        'headers': ['' for _ in range(TURNI_WEEKLY_HEADER_COUNT)],
+        'central_departments': ['' for _ in range(TURNI_WEEKLY_HEADER_COUNT)],
+        'sections': [
+            {
+                'label': label,
+                'time_values': ['' for _ in range(TURNI_WEEKLY_HEADER_COUNT)],
+                'rows': [
+                    ['' for _ in range(TURNI_WEEKLY_HEADER_COUNT)]
+                    for _ in range(TURNI_WEEKLY_ROWS_PER_SECTION)
+                ],
+            }
+            for label in TURNI_WEEKLY_SECTION_LABELS
+        ],
+    }
+
+
+def _merge_turni_weekly_data(raw_weekly_data):
+    weekly_data = _default_turni_weekly_data()
+    if not isinstance(raw_weekly_data, dict):
+        return weekly_data
+
+    raw_headers = raw_weekly_data.get('headers')
+    if isinstance(raw_headers, list):
+        for index in range(min(len(raw_headers), TURNI_WEEKLY_HEADER_COUNT)):
+            weekly_data['headers'][index] = str(raw_headers[index] or '').strip()
+
+    raw_central_departments = raw_weekly_data.get('central_departments')
+    if isinstance(raw_central_departments, list):
+        for index in range(min(len(raw_central_departments), TURNI_WEEKLY_HEADER_COUNT)):
+            weekly_data['central_departments'][index] = str(raw_central_departments[index] or '').strip()
+
+    raw_sections = raw_weekly_data.get('sections')
+    if isinstance(raw_sections, list):
+        for section_index in range(min(len(raw_sections), len(TURNI_WEEKLY_SECTION_LABELS))):
+            raw_section = raw_sections[section_index]
+            if not isinstance(raw_section, dict):
+                continue
+            weekly_section = weekly_data['sections'][section_index]
+            raw_time_values = raw_section.get('time_values')
+            if isinstance(raw_time_values, list):
+                for value_index in range(min(len(raw_time_values), TURNI_WEEKLY_HEADER_COUNT)):
+                    weekly_section['time_values'][value_index] = str(raw_time_values[value_index] or '').strip()
+            raw_rows = raw_section.get('rows')
+            if isinstance(raw_rows, list):
+                for row_index in range(min(len(raw_rows), TURNI_WEEKLY_ROWS_PER_SECTION)):
+                    raw_row = raw_rows[row_index]
+                    if not isinstance(raw_row, list):
+                        continue
+                    for value_index in range(min(len(raw_row), TURNI_WEEKLY_HEADER_COUNT)):
+                        weekly_section['rows'][row_index][value_index] = str(raw_row[value_index] or '').strip()
+
+    if not any(weekly_data['central_departments']) and len(weekly_data['sections']) >= 4:
+        fallback_values = list(weekly_data['sections'][2]['rows'][2])
+        if any(fallback_values):
+            weekly_data['central_departments'] = fallback_values
+            weekly_data['sections'][2]['rows'][2] = ['' for _ in range(TURNI_WEEKLY_HEADER_COUNT)]
+    return weekly_data
+
+
+def _extract_turni_weekly_data_from_post(post_data):
+    weekly_data = _default_turni_weekly_data()
+    raw_headers = post_data.getlist('weekly_headers')
+    for index in range(min(len(raw_headers), TURNI_WEEKLY_HEADER_COUNT)):
+        weekly_data['headers'][index] = raw_headers[index].strip()
+
+    raw_central_departments = post_data.getlist('weekly_central_departments')
+    for index in range(min(len(raw_central_departments), TURNI_WEEKLY_HEADER_COUNT)):
+        weekly_data['central_departments'][index] = raw_central_departments[index].strip()
+
+    for section_index, section in enumerate(weekly_data['sections']):
+        raw_time_values = post_data.getlist(f'weekly_time_{section_index}')
+        for value_index in range(min(len(raw_time_values), TURNI_WEEKLY_HEADER_COUNT)):
+            section['time_values'][value_index] = raw_time_values[value_index].strip()
+
+        for row_index in range(TURNI_WEEKLY_ROWS_PER_SECTION):
+            raw_row_values = post_data.getlist(f'weekly_row_{section_index}_{row_index}')
+            for value_index in range(min(len(raw_row_values), TURNI_WEEKLY_HEADER_COUNT)):
+                section['rows'][row_index][value_index] = raw_row_values[value_index].strip()
+
+    return weekly_data
+
+
+def _default_turni_weekend_data(row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
+    return {
+        'base_date': '',
+        'rows': [
+            ['' for _ in range(len(TURNI_WEEKEND_COLUMN_LABELS))]
+            for _ in range(row_count)
+        ],
+    }
+
+
+def _merge_turni_weekend_data(raw_weekend_data, row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
+    weekend_data = _default_turni_weekend_data(row_count=row_count)
+    if not isinstance(raw_weekend_data, dict):
+        return weekend_data
+
+    weekend_data['base_date'] = str(raw_weekend_data.get('base_date') or '').strip()
+    raw_rows = raw_weekend_data.get('rows')
+    if isinstance(raw_rows, list):
+        for row_index in range(min(len(raw_rows), len(weekend_data['rows']))):
+            raw_row = raw_rows[row_index]
+            if not isinstance(raw_row, list):
+                continue
+            for value_index in range(min(len(raw_row), len(TURNI_WEEKEND_COLUMN_LABELS))):
+                weekend_data['rows'][row_index][value_index] = str(raw_row[value_index] or '').strip()
+    return weekend_data
+
+
+def _extract_turni_weekend_data_from_post(post_data, prefix, row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
+    weekend_data = _default_turni_weekend_data(row_count=row_count)
+    weekend_data['base_date'] = (post_data.get(f'{prefix}_base_date') or '').strip()
+    for row_index in range(row_count):
+        raw_row_values = post_data.getlist(f'{prefix}_row_{row_index}')
+        for value_index in range(min(len(raw_row_values), len(TURNI_WEEKEND_COLUMN_LABELS))):
+            weekend_data['rows'][row_index][value_index] = raw_row_values[value_index].strip()
+    return weekend_data
+
+
+def _default_turni_portineria_weekly_data():
+    return {
+        'headers': list(TURNI_PORTINERIA_HEADERS),
+        'sections': [
+            {
+                'label': label,
+                'time_values': list(TURNI_PORTINERIA_DEFAULT_TIMES[index]),
+                'rows': [
+                    ['' for _ in range(len(TURNI_PORTINERIA_HEADERS))]
+                    for _ in range(TURNI_PORTINERIA_ROWS_PER_SECTION)
+                ],
+            }
+            for index, label in enumerate(TURNI_PORTINERIA_SECTION_LABELS)
+        ],
+    }
+
+
+def _merge_turni_portineria_weekly_data(raw_portineria_weekly_data):
+    weekly_data = _default_turni_portineria_weekly_data()
+    if not isinstance(raw_portineria_weekly_data, dict):
+        return weekly_data
+
+    raw_headers = raw_portineria_weekly_data.get('headers')
+    if isinstance(raw_headers, list):
+        for index in range(min(len(raw_headers), len(TURNI_PORTINERIA_HEADERS))):
+            weekly_data['headers'][index] = str(raw_headers[index] or '').strip()
+
+    raw_sections = raw_portineria_weekly_data.get('sections')
+    if isinstance(raw_sections, list):
+        for section_index in range(min(len(raw_sections), len(TURNI_PORTINERIA_SECTION_LABELS))):
+            raw_section = raw_sections[section_index]
+            if not isinstance(raw_section, dict):
+                continue
+            weekly_section = weekly_data['sections'][section_index]
+            raw_time_values = raw_section.get('time_values')
+            if isinstance(raw_time_values, list):
+                for value_index in range(min(len(raw_time_values), len(TURNI_PORTINERIA_HEADERS))):
+                    weekly_section['time_values'][value_index] = str(raw_time_values[value_index] or '').strip()
+            raw_rows = raw_section.get('rows')
+            if isinstance(raw_rows, list):
+                for row_index in range(min(len(raw_rows), TURNI_PORTINERIA_ROWS_PER_SECTION)):
+                    raw_row = raw_rows[row_index]
+                    if not isinstance(raw_row, list):
+                        continue
+                    for value_index in range(min(len(raw_row), len(TURNI_PORTINERIA_HEADERS))):
+                        weekly_section['rows'][row_index][value_index] = str(raw_row[value_index] or '').strip()
+    return weekly_data
+
+
+def _extract_turni_portineria_weekly_data_from_post(post_data):
+    weekly_data = _default_turni_portineria_weekly_data()
+    raw_headers = post_data.getlist('portineria_weekly_headers')
+    for index in range(min(len(raw_headers), len(TURNI_PORTINERIA_HEADERS))):
+        weekly_data['headers'][index] = raw_headers[index].strip()
+
+    for section_index, section in enumerate(weekly_data['sections']):
+        raw_time_values = post_data.getlist(f'portineria_weekly_time_{section_index}')
+        for value_index in range(min(len(raw_time_values), len(TURNI_PORTINERIA_HEADERS))):
+            section['time_values'][value_index] = raw_time_values[value_index].strip()
+
+        for row_index in range(TURNI_PORTINERIA_ROWS_PER_SECTION):
+            raw_row_values = post_data.getlist(f'portineria_weekly_row_{section_index}_{row_index}')
+            for value_index in range(min(len(raw_row_values), len(TURNI_PORTINERIA_HEADERS))):
+                section['rows'][row_index][value_index] = raw_row_values[value_index].strip()
+
+    return weekly_data
+
+
+def _existing_turni_export_path(path):
+    if path is not None and path.exists():
+        return path
+    return None
+
+
+def _turni_weekly_sections_for_export(raw_weekly_data):
+    weekly_data = _merge_turni_weekly_data(raw_weekly_data)
+    if len(weekly_data['sections']) >= 4 and any(weekly_data.get('central_departments', [])):
+        weekly_data['sections'][2]['rows'][2] = list(weekly_data['central_departments'])
+    sections = []
+    for section in weekly_data['sections']:
+        time_values = list(section['time_values'])
+        sections.append(
+            WeeklySectionData(
+                label=section['label'],
+                time_label=time_values[0] if time_values else '',
+                time_values=time_values,
+                rows=[list(row) for row in section['rows']],
+            )
+        )
+    return weekly_data['headers'], sections
+
+
+def _turni_portineria_weekly_sections_for_export(raw_weekly_data):
+    weekly_data = _merge_turni_portineria_weekly_data(raw_weekly_data)
+    sections = []
+    for section in weekly_data['sections']:
+        time_values = list(section['time_values'])
+        sections.append(
+            WeeklySectionData(
+                label=section['label'],
+                time_label=time_values[0] if time_values else '',
+                time_values=time_values,
+                rows=[list(row) for row in section['rows']],
+            )
+        )
+    return weekly_data['headers'], sections
+
+
+def _turni_weekend_export_data(raw_weekend_data, *, title, row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
+    weekend_data = _merge_turni_weekend_data(raw_weekend_data, row_count=row_count)
+    return WeekendExportData(
+        title=title,
+        authorization_date=weekend_data['base_date'],
+        rows=[list(row) for row in weekend_data['rows']],
+    )
+
+
+def _turni_download_response(content, *, content_type, filename):
+    response = HttpResponse(content, content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _turni_combined_jpg_bytes(image_paths):
+    if not image_paths:
+        raise ValueError('Nessuna immagine generata per l\'export.')
+
+    images = []
+    combined_image = None
+    try:
+        for image_path in image_paths:
+            with Image.open(image_path) as image:
+                images.append(image.convert('RGB'))
+
+        if len(images) == 1:
+            output = io.BytesIO()
+            images[0].save(output, format='JPEG', quality=95)
+            return output.getvalue()
+
+        max_width = max(image.width for image in images)
+        total_height = sum(image.height for image in images)
+        combined_image = Image.new('RGB', (max_width, total_height), 'white')
+        offset_y = 0
+        for image in images:
+            offset_x = max((max_width - image.width) // 2, 0)
+            combined_image.paste(image, (offset_x, offset_y))
+            offset_y += image.height
+
+        output = io.BytesIO()
+        combined_image.save(output, format='JPEG', quality=95)
+        return output.getvalue()
+    finally:
+        for image in images:
+            image.close()
+        if combined_image is not None:
+            combined_image.close()
+
+
+def _turni_planner_export_response(state, *, export_format, export_target):
+    planner_data = dict(state.planner_data or {})
+    logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
+    ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
+    anid_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH)
+
+    weekly_configs = {
+        'weekly': {
+            'pdf_name': WEEKLY_PDF_NAME,
+            'image_name': WEEKLY_IMAGE_NAME,
+            'layout': 'default',
+            'builder': lambda: _turni_weekly_sections_for_export(planner_data.get('weekly')),
+        },
+        'portineria_weekly': {
+            'pdf_name': PORTINERIA_WEEKLY_PDF_NAME,
+            'image_name': PORTINERIA_WEEKLY_IMAGE_NAME,
+            'layout': 'portineria',
+            'builder': lambda: _turni_portineria_weekly_sections_for_export(planner_data.get('portineria_weekly')),
+        },
+    }
+    weekend_configs = {
+        'saturday': {
+            'pdf_name': SATURDAY_PDF_NAME,
+            'image_name': SATURDAY_IMAGE_NAME,
+            'title': 'Comandata pulizie sabato',
+            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+        },
+        'sunday': {
+            'pdf_name': SUNDAY_PDF_NAME,
+            'image_name': SUNDAY_IMAGE_NAME,
+            'title': 'Comandata pulizie domenica',
+            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+        },
+        'portineria_weekend': {
+            'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
+            'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
+            'title': 'Weekend portineria',
+            'row_count': TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
+        },
+    }
+
+    with tempfile.TemporaryDirectory(prefix='turni_planner_export_') as temp_dir:
+        export_dir = Path(temp_dir)
+
+        if export_target in weekly_configs:
+            config = weekly_configs[export_target]
+            headers, sections = config['builder']()
+            if export_format == 'pdf':
+                exported_path = export_weekly_pdf(
+                    export_dir / config['pdf_name'],
+                    title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                    week_label=state.week_label,
+                    signature='',
+                    headers=headers,
+                    sections=sections,
+                    logo_path=logo_path,
+                    layout=config['layout'],
+                )
+                return _turni_download_response(
+                    exported_path.read_bytes(),
+                    content_type='application/pdf',
+                    filename=config['pdf_name'],
+                )
+
+            exported_paths = export_weekly_images(
+                export_dir / config['image_name'],
+                title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                week_label=state.week_label,
+                signature='',
+                headers=headers,
+                sections=sections,
+                logo_path=logo_path,
+                temp_pdf_name=config['pdf_name'],
+                layout=config['layout'],
+            )
+            return _turni_download_response(
+                _turni_combined_jpg_bytes(exported_paths),
+                content_type='image/jpeg',
+                filename=config['image_name'],
+            )
+
+        if export_target in weekend_configs:
+            config = weekend_configs[export_target]
+            export_data = _turni_weekend_export_data(
+                planner_data.get(export_target),
+                title=config['title'],
+                row_count=config['row_count'],
+            )
+            if export_format == 'pdf':
+                exported_path = export_weekend_pdf(
+                    export_dir / config['pdf_name'],
+                    data=export_data,
+                    logo_path=logo_path,
+                    cert_logo_path=ancis_logo_path,
+                    anid_logo_path=anid_logo_path,
+                )
+                return _turni_download_response(
+                    exported_path.read_bytes(),
+                    content_type='application/pdf',
+                    filename=config['pdf_name'],
+                )
+
+            exported_paths = export_weekend_images(
+                export_dir / config['image_name'],
+                data=export_data,
+                logo_path=logo_path,
+                cert_logo_path=ancis_logo_path,
+                anid_logo_path=anid_logo_path,
+            )
+            return _turni_download_response(
+                _turni_combined_jpg_bytes(exported_paths),
+                content_type='image/jpeg',
+                filename=config['image_name'],
+            )
+
+    return HttpResponse('Export non disponibile per questa sezione.', status=400)
+
+
+def _turni_planner_bulk_export_response(state, *, export_format):
+    planner_data = dict(state.planner_data or {})
+    logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
+    ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
+    anid_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH)
+
+    weekly_configs = {
+        'weekly': {
+            'pdf_name': WEEKLY_PDF_NAME,
+            'image_name': WEEKLY_IMAGE_NAME,
+            'layout': 'default',
+            'builder': lambda: _turni_weekly_sections_for_export(planner_data.get('weekly')),
+        },
+        'portineria_weekly': {
+            'pdf_name': PORTINERIA_WEEKLY_PDF_NAME,
+            'image_name': PORTINERIA_WEEKLY_IMAGE_NAME,
+            'layout': 'portineria',
+            'builder': lambda: _turni_portineria_weekly_sections_for_export(planner_data.get('portineria_weekly')),
+        },
+    }
+    weekend_configs = {
+        'saturday': {
+            'pdf_name': SATURDAY_PDF_NAME,
+            'image_name': SATURDAY_IMAGE_NAME,
+            'title': 'Comandata pulizie sabato',
+            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+        },
+        'sunday': {
+            'pdf_name': SUNDAY_PDF_NAME,
+            'image_name': SUNDAY_IMAGE_NAME,
+            'title': 'Comandata pulizie domenica',
+            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+        },
+        'portineria_weekend': {
+            'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
+            'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
+            'title': 'Weekend portineria',
+            'row_count': TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
+        },
+    }
+
+    formats_to_include = ['pdf', 'jpg'] if export_format == 'all' else [export_format]
+    filename_map = {
+        'pdf': f'turni-planner-{state.week_label}-pdf.zip',
+        'jpg': f'turni-planner-{state.week_label}-jpg.zip',
+        'all': f'turni-planner-{state.week_label}-pdf-jpg.zip',
+    }
+
+    with tempfile.TemporaryDirectory(prefix='turni_planner_bulk_export_') as temp_dir:
+        export_dir = Path(temp_dir)
+        archive_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(archive_buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
+            for config in weekly_configs.values():
+                headers, sections = config['builder']()
+                if 'pdf' in formats_to_include:
+                    pdf_path = export_weekly_pdf(
+                        export_dir / config['pdf_name'],
+                        title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                        week_label=state.week_label,
+                        signature='',
+                        headers=headers,
+                        sections=sections,
+                        logo_path=logo_path,
+                        layout=config['layout'],
+                    )
+                    archive.writestr(config['pdf_name'], pdf_path.read_bytes())
+                if 'jpg' in formats_to_include:
+                    image_paths = export_weekly_images(
+                        export_dir / config['image_name'],
+                        title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                        week_label=state.week_label,
+                        signature='',
+                        headers=headers,
+                        sections=sections,
+                        logo_path=logo_path,
+                        temp_pdf_name=config['pdf_name'],
+                        layout=config['layout'],
+                    )
+                    for image_path in image_paths:
+                        archive.writestr(image_path.name, image_path.read_bytes())
+
+            for config_key, config in weekend_configs.items():
+                export_data = _turni_weekend_export_data(
+                    planner_data.get(config_key),
+                    title=config['title'],
+                    row_count=config['row_count'],
+                )
+                if 'pdf' in formats_to_include:
+                    pdf_path = export_weekend_pdf(
+                        export_dir / config['pdf_name'],
+                        data=export_data,
+                        logo_path=logo_path,
+                        cert_logo_path=ancis_logo_path,
+                        anid_logo_path=anid_logo_path,
+                    )
+                    archive.writestr(config['pdf_name'], pdf_path.read_bytes())
+                if 'jpg' in formats_to_include:
+                    image_paths = export_weekend_images(
+                        export_dir / config['image_name'],
+                        data=export_data,
+                        logo_path=logo_path,
+                        cert_logo_path=ancis_logo_path,
+                        anid_logo_path=anid_logo_path,
+                    )
+                    for image_path in image_paths:
+                        archive.writestr(image_path.name, image_path.read_bytes())
+
+        return _turni_download_response(
+            archive_buffer.getvalue(),
+            content_type='application/zip',
+            filename=filename_map[export_format],
+        )
 
 
 def _extract_amount_from_text(text):
@@ -3697,6 +4281,92 @@ def admin_dashboard(request):
         "pending_mark_requests": pending_mark_requests,
         "pending_vacation_requests": pending_vacation_requests,
         "today_marked_sessions": today_marked_sessions,
+    })
+
+
+@login_required
+def turni_planner_home(request):
+    denied = _turni_planner_allowed_or_403(request)
+    if denied:
+        return denied
+
+    selected_state = None
+    selected_week_label = (request.GET.get('week') or request.POST.get('week_label') or '').strip()
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or 'open_week').strip()
+        week_label = (request.POST.get('week_label') or '').strip()
+        if week_label:
+            selected_state, created = TurniPlannerWeekState.objects.get_or_create(
+                week_label=week_label,
+                defaults={
+                    'planner_data': {},
+                    'updated_by': request.user,
+                },
+            )
+            if action in ('save_weekly', 'save_planner') or action.startswith('export_'):
+                planner_data = dict(selected_state.planner_data or {})
+                planner_data['weekly'] = _extract_turni_weekly_data_from_post(request.POST)
+                if action == 'save_planner' or action.startswith('export_'):
+                    planner_data['saturday'] = _extract_turni_weekend_data_from_post(request.POST, 'saturday')
+                    planner_data['sunday'] = _extract_turni_weekend_data_from_post(request.POST, 'sunday')
+                    planner_data['portineria_weekly'] = _extract_turni_portineria_weekly_data_from_post(request.POST)
+                    planner_data['portineria_weekend'] = _extract_turni_weekend_data_from_post(
+                        request.POST,
+                        'portineria_weekend',
+                        row_count=TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
+                    )
+                selected_state.planner_data = planner_data
+                selected_state.updated_by = request.user
+                selected_state.save(update_fields=['planner_data', 'updated_by', 'updated_at'])
+                if action.startswith('export_pdf_'):
+                    return _turni_planner_export_response(
+                        selected_state,
+                        export_format='pdf',
+                        export_target=action.removeprefix('export_pdf_'),
+                    )
+                if action.startswith('export_jpg_'):
+                    return _turni_planner_export_response(
+                        selected_state,
+                        export_format='jpg',
+                        export_target=action.removeprefix('export_jpg_'),
+                    )
+                if action == 'export_all_pdf':
+                    return _turni_planner_bulk_export_response(selected_state, export_format='pdf')
+                if action == 'export_all_jpg':
+                    return _turni_planner_bulk_export_response(selected_state, export_format='jpg')
+                if action == 'export_all_pdf_jpg':
+                    return _turni_planner_bulk_export_response(selected_state, export_format='all')
+                return redirect(f"{reverse('turni_planner_home')}?week={selected_state.week_label}")
+            if not created and selected_state.updated_by_id != request.user.id:
+                selected_state.updated_by = request.user
+                selected_state.save(update_fields=['updated_by', 'updated_at'])
+            return redirect(f"{reverse('turni_planner_home')}?week={selected_state.week_label}")
+
+    if selected_week_label:
+        selected_state = TurniPlannerWeekState.objects.filter(week_label=selected_week_label).first()
+
+    recent_weeks = TurniPlannerWeekState.objects.all()[:12]
+    planner_data = selected_state.planner_data or {} if selected_state else {}
+    weekly_data = _merge_turni_weekly_data(planner_data.get('weekly'))
+    saturday_data = _merge_turni_weekend_data(planner_data.get('saturday'))
+    sunday_data = _merge_turni_weekend_data(planner_data.get('sunday'))
+    portineria_weekly_data = _merge_turni_portineria_weekly_data(planner_data.get('portineria_weekly'))
+    portineria_weekend_data = _merge_turni_weekend_data(
+        planner_data.get('portineria_weekend'),
+        row_count=TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
+    )
+
+    return render(request, 'portal/turni_planner.html', {
+        'recent_weeks': recent_weeks,
+        'selected_state': selected_state,
+        'selected_week_label': selected_week_label,
+        'weekly_data': weekly_data,
+        'saturday_data': saturday_data,
+        'sunday_data': sunday_data,
+        'portineria_weekly_data': portineria_weekly_data,
+        'portineria_weekend_data': portineria_weekend_data,
+        'weekend_column_labels': TURNI_WEEKEND_COLUMN_LABELS,
     })
 
 

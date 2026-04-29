@@ -340,6 +340,10 @@ main {
                 <i class="bi bi-gear"></i> Admin Django
             </a>
 
+            <a href="{% url 'turni_planner_home' %}" class="{% if request.resolver_match.url_name == 'turni_planner_home' %}active{% endif %}">
+                <i class="bi bi-grid-3x3-gap"></i> Turni Planner
+            </a>
+
             <a href="{% url 'admin_employees' %}">
                 <i class="bi bi-people"></i> Gestione Dipendenti
             </a>
@@ -366,6 +370,12 @@ main {
             </a>
             <a href="{% url 'admin_payslip_integrity' %}">
                 <i class="bi bi-shield-check"></i> Controllo cedolini
+            </a>
+            {% endif %}
+
+            {% if has_turni_planner_access and not has_full_admin_access %}
+            <a href="{% url 'turni_planner_home' %}" class="{% if request.resolver_match.url_name == 'turni_planner_home' %}active{% endif %}">
+                <i class="bi bi-grid-3x3-gap"></i> Turni Planner
             </a>
             {% endif %}
 

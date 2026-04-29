@@ -8,6 +8,8 @@ Funzioni incluse:
 - dashboard iniziale con settimana, firma e riepilogo rapido
 - editor della settimana diviso per 1 turno, 2 turno e 3 turno
 - editor separati per comandata sabato e comandata domenica
+- editor interno aggiuntivo per settimana portineria con griglia dedicata a 3 reparti
+- editor interno aggiuntivo per weekend portineria con layout uguale alle comandate weekend
 - pannello rapido laterale con nominativi trovati nel file e riempimento massivo delle celle selezionate
 - export delle stampe in PDF e immagini JPG
 
@@ -22,6 +24,7 @@ Avvio manuale:
 
 Note operative:
 - se un valore weekend non viene cambiato, l'app conserva il valore originale del foglio, incluse eventuali formule
+- i pannelli portineria sono interni all'app e servono per compilazione/export; non scrivono nel workbook Excel principale
 - le celle vuote possono essere riempite in blocco dal pannello rapido con nominativi o con il valore SCORRIMENTO
 - dopo ogni salvataggio l'app rilegge il file Excel per mostrare il contenuto effettivo appena scritto
 - i pulsanti di esportazione salvano sia PDF sia JPG; se una comandata occupa piu pagine vengono creati JPG numerati come _01, _02, ...

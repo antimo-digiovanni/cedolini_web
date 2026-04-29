@@ -39,6 +39,10 @@ from PySide6.QtWidgets import (
 )
 
 from .pdf_export import (
+    PORTINERIA_WEEKEND_IMAGE_NAME,
+    PORTINERIA_WEEKEND_PDF_NAME,
+    PORTINERIA_WEEKLY_IMAGE_NAME,
+    PORTINERIA_WEEKLY_PDF_NAME,
     SATURDAY_PDF_NAME,
     SATURDAY_IMAGE_NAME,
     SUNDAY_PDF_NAME,
@@ -73,6 +77,14 @@ WEEKLY_ALL_COLUMN_INDEXES = tuple(range(10))
 WEEK_SELECTOR_YEAR = 2026
 WEEK_SELECTOR_COUNT = 52
 WINDOW_LAYOUT_VERSION = 4
+PORTINERIA_WEEKEND_ROW_COUNT = 34
+PORTINERIA_DATA_COLUMNS = (1, 3, 4)
+PORTINERIA_HEADERS = ("PORTINERIA CENTRALE", "CENTRALINISTA", "PORTINERIA CELLA")
+PORTINERIA_DEFAULT_TIMES = (
+    ("06:14", "08:17", "06:14"),
+    ("14:22", "", "14:22"),
+    ("22:06", "", "22:06"),
+)
 
 
 def _week_start_for_number(week_number: int) -> datetime:
@@ -112,6 +124,20 @@ def make_table_item(value: str) -> QTableWidgetItem:
     item = QTableWidgetItem(value)
     item.setTextAlignment(Qt.AlignCenter)
     return item
+
+
+def _default_portineria_sections() -> list[WeeklySectionData]:
+    sections: list[WeeklySectionData] = []
+    for index, time_values in enumerate(PORTINERIA_DEFAULT_TIMES, start=1):
+        sections.append(
+            WeeklySectionData(
+                label=f"{index} turno",
+                time_label=time_values[0],
+                time_values=list(time_values),
+                rows=[["", "", ""] for _ in range(3)],
+            )
+        )
+    return sections
 
 
 class NameCompleterDelegate(QStyledItemDelegate):
@@ -587,7 +613,7 @@ class HomePage(QWidget):
         hero_text.addWidget(QLabel("Pannello generale"))
         hero_text.addWidget(
             QLabel(
-                "Apri il file Excel, aggiorna i turni nei pannelli dedicati, salva con backup e genera i PDF ufficiali per settimana, sabato e domenica."
+                "Apri il file Excel, aggiorna i turni nei pannelli dedicati, salva con backup e genera i PDF ufficiali per settimana, sabato, domenica e portineria."
             )
         )
         hero_layout.addWidget(hero_logo, 0, Qt.AlignTop)
@@ -965,6 +991,20 @@ class WeekendEditor(QWidget):
                 self.table.setItem(row_index, column_index, make_table_item(cell.display))
         self._loading = False
 
+    def reset_empty_data(self, sheet_name: str, row_count: int = PORTINERIA_WEEKEND_ROW_COUNT, base_date: str = "") -> None:
+        self.sheet_name = sheet_name
+        self._loading = True
+        self.base_date_edit.blockSignals(True)
+        self.base_date_edit.setText(base_date)
+        self.base_date_edit.blockSignals(False)
+        self.table.clearContents()
+        self.table.setRowCount(row_count)
+        for row_index in range(row_count):
+            self.table.setVerticalHeaderItem(row_index, QTableWidgetItem(str(row_index + 6)))
+            for column_index in range(self.table.columnCount()):
+                self.table.setItem(row_index, column_index, make_table_item(""))
+        self._loading = False
+
     def export_rows(self) -> list[list[str]]:
         rows: list[list[str]] = []
         for row_index in range(self.table.rowCount()):
@@ -1053,6 +1093,163 @@ class WeekendEditor(QWidget):
         return None
 
 
+class PortineriaWeeklyEditor(QWidget):
+    contentChanged = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self.table = SpreadsheetTableWidget()
+        self.sections = _default_portineria_sections()
+        self._loading = False
+
+        self.root_layout = QVBoxLayout(self)
+        self.root_layout.setContentsMargins(24, 24, 24, 24)
+        self.root_layout.setSpacing(16)
+
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectItems)
+        self.table.setAlternatingRowColors(False)
+        self.table.horizontalHeader().setVisible(False)
+        self.table.verticalHeader().setVisible(False)
+        self.table.itemChanged.connect(self._handle_table_change)
+        self.reset_data()
+
+    def reset_data(self) -> None:
+        self.sections = _default_portineria_sections()
+        self._loading = True
+        self._clear_layout()
+
+        intro = QLabel(
+            "Settimana portineria: stessa compilazione della settimana, ma con la griglia semplificata "
+            "del foglio di riferimento portineria."
+        )
+        intro.setWordWrap(True)
+        self.root_layout.addWidget(intro)
+        self._configure_table()
+        self.root_layout.addWidget(self.table)
+        self._loading = False
+
+    def export_headers(self) -> list[str]:
+        values: list[str] = []
+        for table_column in PORTINERIA_DATA_COLUMNS:
+            item = self.table.item(1, table_column)
+            values.append(item.text().strip() if item else "")
+        return values
+
+    def export_sections(self) -> list[WeeklySectionData]:
+        exported_sections: list[WeeklySectionData] = []
+        for section_index, section in enumerate(self.sections):
+            time_values: list[str] = []
+            for table_column in PORTINERIA_DATA_COLUMNS:
+                item = self.table.item(self._section_time_row(section_index), table_column)
+                time_values.append(item.text().strip() if item else "")
+
+            rows: list[list[str]] = []
+            for row_offset in range(3):
+                row_values: list[str] = []
+                table_row = self._section_data_row(section_index, row_offset)
+                for table_column in PORTINERIA_DATA_COLUMNS:
+                    item = self.table.item(table_row, table_column)
+                    row_values.append(item.text().strip() if item else "")
+                rows.append(row_values)
+
+            exported_sections.append(
+                WeeklySectionData(
+                    label=section.label,
+                    time_label=time_values[0] if time_values else section.time_label,
+                    time_values=time_values,
+                    rows=rows,
+                )
+            )
+        return exported_sections
+
+    def apply_text_to_selection(self, text: str, fill_empty_only: bool = False) -> bool:
+        selected_items = self.table.selectedItems()
+        if not selected_items:
+            return False
+        self._loading = True
+        for item in selected_items:
+            if not (item.flags() & Qt.ItemIsEditable):
+                continue
+            if fill_empty_only and item.text().strip():
+                continue
+            item.setText(text)
+        self._loading = False
+        self.contentChanged.emit()
+        return True
+
+    def clear_selection(self) -> bool:
+        return self.apply_text_to_selection("")
+
+    def register_focus_tracker(self, tracker: FocusTracker) -> None:
+        if not self.table.property("focusTrackerInstalled"):
+            self.table.installEventFilter(tracker)
+            self.table.setProperty("focusTrackerInstalled", True)
+
+    def _handle_table_change(self, item: QTableWidgetItem) -> None:
+        if self._loading:
+            return
+        self.contentChanged.emit()
+
+    def _configure_table(self) -> None:
+        self.table.clear()
+        self.table.setColumnCount(5)
+        self.table.setRowCount(14)
+        for column_index, width in enumerate((60, 220, 44, 170, 220)):
+            self.table.setColumnWidth(column_index, width)
+        for row_index, height in enumerate((22, 58, 30, 40, 40, 40, 30, 40, 40, 40, 30, 40, 40, 40)):
+            self.table.setRowHeight(row_index, height)
+
+        self.table.setItem(0, 0, WeeklyEditor._make_static_item(""))
+        self.table.setItem(1, 0, WeeklyEditor._make_shift_label_item("TURNO"))
+        self.table.setSpan(1, 0, 13, 1)
+
+        self.table.setItem(0, 1, WeeklyEditor._make_reparto_tag("REPARTO"))
+        self.table.setItem(0, 2, WeeklyEditor._make_static_item(""))
+        self.table.setItem(0, 3, WeeklyEditor._make_reparto_tag("REPARTO"))
+        self.table.setItem(0, 4, WeeklyEditor._make_reparto_tag("REPARTO"))
+
+        for header_index, table_column in enumerate(PORTINERIA_DATA_COLUMNS):
+            self.table.setItem(1, table_column, WeeklyEditor._make_header_item(PORTINERIA_HEADERS[header_index]))
+        self.table.setItem(1, 2, WeeklyEditor._make_static_item(""))
+
+        for section_index, section in enumerate(self.sections):
+            time_row = self._section_time_row(section_index)
+            self.table.setItem(time_row, 0, WeeklyEditor._make_static_item(""))
+            self.table.setItem(time_row, 2, WeeklyEditor._make_static_item(""))
+            for value_index, table_column in enumerate(PORTINERIA_DATA_COLUMNS):
+                self.table.setItem(time_row, table_column, WeeklyEditor._make_time_item(section.time_values[value_index]))
+
+            for row_offset, row_values in enumerate(section.rows):
+                table_row = self._section_data_row(section_index, row_offset)
+                shift_label = f"{section_index + 1}°" if row_offset > 0 else ""
+                label_item = WeeklyEditor._make_shift_label_item(shift_label) if shift_label else WeeklyEditor._make_static_item("")
+                self.table.setItem(table_row, 0, label_item)
+                self.table.setItem(table_row, 2, WeeklyEditor._make_static_item(""))
+                for value_index, table_column in enumerate(PORTINERIA_DATA_COLUMNS):
+                    self.table.setItem(table_row, table_column, make_table_item(row_values[value_index]))
+
+        self.table.setMinimumHeight(650)
+
+    @staticmethod
+    def _section_time_row(section_index: int) -> int:
+        return 2 + (section_index * 4)
+
+    @staticmethod
+    def _section_data_row(section_index: int, row_offset: int) -> int:
+        return PortineriaWeeklyEditor._section_time_row(section_index) + 1 + row_offset
+
+    def _clear_layout(self) -> None:
+        while self.root_layout.count():
+            item = self.root_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                if widget is self.table:
+                    self.root_layout.removeWidget(self.table)
+                else:
+                    widget.deleteLater()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, workbook_path: Path | None = None):
         super().__init__()
@@ -1064,14 +1261,19 @@ class MainWindow(QMainWindow):
 
         self.home_page = HomePage()
         self.weekly_page = WeeklyEditor()
+        self.portineria_weekly_page = PortineriaWeeklyEditor()
         self.saturday_page = WeekendEditor("Comandata pulizie sabato")
         self.sunday_page = WeekendEditor("Comandata pulizie domenica")
+        self.portineria_weekend_page = WeekendEditor("Weekend portineria")
+        self.portineria_weekend_page.reset_empty_data("Weekend portineria")
 
         self.stack = QStackedWidget()
         self.stack.addWidget(self.home_page)
         self.stack.addWidget(self.weekly_page)
+        self.stack.addWidget(self.portineria_weekly_page)
         self.stack.addWidget(self.saturday_page)
         self.stack.addWidget(self.sunday_page)
+        self.stack.addWidget(self.portineria_weekend_page)
 
         self.nav_buttons: list[QPushButton] = []
         self.search_edit = QLineEdit()
@@ -1102,7 +1304,13 @@ class MainWindow(QMainWindow):
         self._wire_signals()
         self._restore_state()
 
-        for table in (self.weekly_page.table, self.saturday_page.table, self.sunday_page.table):
+        for table in (
+            self.weekly_page.table,
+            self.portineria_weekly_page.table,
+            self.saturday_page.table,
+            self.sunday_page.table,
+            self.portineria_weekend_page.table,
+        ):
             table.operationCommitted.connect(self._store_last_undo)
 
     def load_startup_workbook(self) -> None:
@@ -1130,6 +1338,7 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def open_workbook(self, path: Path | None = None) -> None:
+        previous_path = self.workbook.path if self.workbook is not None else None
         if path is None:
             start_dir = self.settings.value("lastDirectory", str(Path.home()), str)
             file_name, _ = QFileDialog.getOpenFileName(
@@ -1156,6 +1365,9 @@ class MainWindow(QMainWindow):
             return
 
         self.workbook = workbook
+        if previous_path != path:
+            self.portineria_weekly_page.reset_data()
+            self.portineria_weekend_page.reset_empty_data("Weekend portineria")
         self._clear_last_undo()
         self.settings.setValue("lastWorkbook", str(path))
         self.settings.setValue("lastDirectory", str(path.parent))
@@ -1234,11 +1446,27 @@ class MainWindow(QMainWindow):
             return
         self.status.showMessage(self._format_export_message("settimana", pdf_path, exported_paths), 7000)
 
+    def export_portineria_weekly_pdf(self) -> None:
+        if self.workbook is None:
+            return
+        output_dir = self._choose_pdf_output_dir()
+        if output_dir is None:
+            return
+        self.export_portineria_weekly_pdf_to_dir(output_dir)
+
     def export_saturday_pdf(self) -> None:
         self._export_weekend_pdf(self.saturday_page, SATURDAY_PDF_NAME, SATURDAY_IMAGE_NAME, "Comandata pulizie sabato")
 
     def export_sunday_pdf(self) -> None:
         self._export_weekend_pdf(self.sunday_page, SUNDAY_PDF_NAME, SUNDAY_IMAGE_NAME, "Comandata pulizie domenica")
+
+    def export_portineria_weekend_pdf(self) -> None:
+        self._export_weekend_pdf(
+            self.portineria_weekend_page,
+            PORTINERIA_WEEKEND_PDF_NAME,
+            PORTINERIA_WEEKEND_IMAGE_NAME,
+            "Weekend portineria",
+        )
 
     def export_all_pdfs(self) -> None:
         if self.workbook is None:
@@ -1247,8 +1475,10 @@ class MainWindow(QMainWindow):
         if output_dir is None:
             return
         self.export_weekly_pdf_to_dir(output_dir)
+        self.export_portineria_weekly_pdf_to_dir(output_dir)
         self.export_saturday_pdf_to_dir(output_dir)
         self.export_sunday_pdf_to_dir(output_dir)
+        self.export_portineria_weekend_pdf_to_dir(output_dir)
 
     def export_weekly_pdf_to_dir(self, output_dir: Path) -> None:
         if self.workbook is None:
@@ -1273,6 +1503,36 @@ class MainWindow(QMainWindow):
 
     def export_sunday_pdf_to_dir(self, output_dir: Path) -> None:
         self._export_weekend_pdf(self.sunday_page, SUNDAY_PDF_NAME, SUNDAY_IMAGE_NAME, "Comandata pulizie domenica", output_dir)
+
+    def export_portineria_weekly_pdf_to_dir(self, output_dir: Path) -> None:
+        if self.workbook is None:
+            return
+        try:
+            pdf_path, exported_paths = export_weekly_outputs(
+                output_dir,
+                title_text=self.home_page.pdf_title(),
+                week_label=self.home_page.week_label(),
+                signature=self.home_page.signature(),
+                headers=self.portineria_weekly_page.export_headers(),
+                sections=self.portineria_weekly_page.export_sections(),
+                logo_path=APP_LOGO_PATH,
+                pdf_name=PORTINERIA_WEEKLY_PDF_NAME,
+                image_name=PORTINERIA_WEEKLY_IMAGE_NAME,
+                layout="portineria",
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, APP_NAME, f"Generazione PDF/JPG settimana portineria non riuscita.\n\n{exc}")
+            return
+        self.status.showMessage(self._format_export_message("settimana portineria", pdf_path, exported_paths), 7000)
+
+    def export_portineria_weekend_pdf_to_dir(self, output_dir: Path) -> None:
+        self._export_weekend_pdf(
+            self.portineria_weekend_page,
+            PORTINERIA_WEEKEND_PDF_NAME,
+            PORTINERIA_WEEKEND_IMAGE_NAME,
+            "Weekend portineria",
+            output_dir,
+        )
 
     def _export_weekend_pdf(self, page: WeekendEditor, pdf_name: str, image_name: str, title: str, output_dir: Path | None = None) -> None:
         if self.workbook is None:
@@ -1380,7 +1640,13 @@ class MainWindow(QMainWindow):
         self.saturday_page.set_data(weekend_sheets[self.saturday_page.sheet_name or "Comandata pulizie Sabato"])
         self.sunday_page.set_data(weekend_sheets[self.sunday_page.sheet_name or "Comandata pulizie Domenica"])
 
-        for editor in (self.weekly_page, self.saturday_page, self.sunday_page):
+        for editor in (
+            self.weekly_page,
+            self.portineria_weekly_page,
+            self.saturday_page,
+            self.sunday_page,
+            self.portineria_weekend_page,
+        ):
             editor.register_focus_tracker(self.focus_tracker)
 
         self.people_list.clear()
@@ -1389,8 +1655,10 @@ class MainWindow(QMainWindow):
         for person in people_names:
             self.people_list.addItem(person)
         self.weekly_page.table.set_completion_names(people_names)
+        self.portineria_weekly_page.table.set_completion_names(people_names)
         self.saturday_page.table.set_completion_names(people_names)
         self.sunday_page.table.set_completion_names(people_names)
+        self.portineria_weekend_page.table.set_completion_names(people_names)
 
     def _build_shell(self) -> None:
         central = QWidget()
@@ -1413,7 +1681,7 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(brand)
         nav_layout.addWidget(subtitle)
 
-        for index, label in enumerate(("Dashboard", "Settimana", "Sabato", "Domenica")):
+        for index, label in enumerate(("Dashboard", "Settimana", "Portineria settimana", "Sabato", "Domenica", "Portineria weekend")):
             button = QPushButton(label)
             button.setCheckable(True)
             button.clicked.connect(lambda checked=False, index=index: self._show_page(index))
@@ -1473,6 +1741,10 @@ class MainWindow(QMainWindow):
         weekly_pdf_action.triggered.connect(self.export_weekly_pdf)
         toolbar.addAction(weekly_pdf_action)
 
+        portineria_weekly_pdf_action = QAction("PDF + JPG settimana portineria", self)
+        portineria_weekly_pdf_action.triggered.connect(self.export_portineria_weekly_pdf)
+        toolbar.addAction(portineria_weekly_pdf_action)
+
         saturday_pdf_action = QAction("PDF + JPG sabato", self)
         saturday_pdf_action.triggered.connect(self.export_saturday_pdf)
         toolbar.addAction(saturday_pdf_action)
@@ -1480,6 +1752,10 @@ class MainWindow(QMainWindow):
         sunday_pdf_action = QAction("PDF + JPG domenica", self)
         sunday_pdf_action.triggered.connect(self.export_sunday_pdf)
         toolbar.addAction(sunday_pdf_action)
+
+        portineria_weekend_pdf_action = QAction("PDF + JPG weekend portineria", self)
+        portineria_weekend_pdf_action.triggered.connect(self.export_portineria_weekend_pdf)
+        toolbar.addAction(portineria_weekend_pdf_action)
 
         all_pdf_action = QAction("PDF + JPG tutti", self)
         all_pdf_action.triggered.connect(self.export_all_pdfs)
@@ -1538,8 +1814,10 @@ class MainWindow(QMainWindow):
         self.home_page.contentChanged.connect(self._mark_dirty)
         self.home_page.pdf_title_edit.textChanged.connect(lambda text: self.settings.setValue("weeklyPdfTitle", text or DEFAULT_WEEKLY_PDF_TITLE))
         self.weekly_page.contentChanged.connect(self._mark_dirty)
+        self.portineria_weekly_page.contentChanged.connect(self._mark_dirty)
         self.saturday_page.contentChanged.connect(self._mark_dirty)
         self.sunday_page.contentChanged.connect(self._mark_dirty)
+        self.portineria_weekend_page.contentChanged.connect(self._mark_dirty)
 
     def _store_last_undo(self, before: object, after: object, label: str) -> None:
         table = self.sender()

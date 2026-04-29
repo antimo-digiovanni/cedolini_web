@@ -1,0 +1,1202 @@
+{% extends "portal/base.html" %}
+{% block title %}Turni Planner{% endblock %}
+
+{% block content %}
+<style>
+    .turni-shell {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 1.5rem;
+    }
+
+    .turni-sidebar {
+        position: sticky;
+        top: 1rem;
+        align-self: start;
+    }
+
+    .turni-content {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .turni-nav-button {
+        width: 100%;
+        border: 0;
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
+        background: transparent;
+        color: #1f2937;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .turni-nav-button.active {
+        background: #0f172a;
+        color: #fff;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
+    }
+
+    .turni-nav-button small {
+        display: block;
+        font-weight: 400;
+        opacity: 0.72;
+    }
+
+    .turni-panel {
+        display: none;
+    }
+
+    .turni-panel.active {
+        display: block;
+    }
+
+    .turni-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .turni-grid-card {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 18px;
+        padding: 1rem;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .turni-dashboard-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 58%, #334155 100%);
+        color: #fff;
+        padding: 1.35rem;
+        border-radius: 22px;
+        margin-bottom: 1rem;
+        box-shadow: 0 22px 44px rgba(15, 23, 42, 0.22);
+    }
+
+    .turni-dashboard-actions {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .turni-action-card {
+        border-radius: 16px;
+        padding: 0.9rem;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .turni-action-card strong,
+    .turni-action-card span {
+        display: block;
+    }
+
+    .turni-dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .turni-export-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .turni-bulk-export-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .turni-bulk-export-status {
+        min-height: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .turni-export-item {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 14px;
+        padding: 0.9rem;
+        background: #fff;
+    }
+
+    .turni-section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .turni-table-wrap {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 18px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .turni-sheet-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        background: #f8fafc;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 18px;
+        margin-bottom: 0.85rem;
+    }
+
+    .turni-sheet-toolbar .btn-group {
+        flex-wrap: nowrap;
+    }
+
+    .turni-scrollbar {
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0.2rem;
+    }
+
+    .turni-scrollbar-track {
+        height: 1px;
+    }
+
+    .turni-table-wrap[data-scrollable-sheet] {
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .turni-table-wrap[data-scrollable-sheet] table {
+        min-width: max-content;
+    }
+
+    .turni-table-wrap[data-scrollable-sheet] tbody th,
+    .turni-table-wrap[data-scrollable-sheet] thead th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #f8fafc;
+    }
+
+    .turni-table-wrap[data-scrollable-sheet] thead th:first-child {
+        z-index: 3;
+    }
+
+    .turni-weekly-cell input {
+        min-width: 150px;
+    }
+
+    .turni-weekly-app-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 1220px;
+        margin: 0;
+    }
+
+    .turni-weekly-app-table td,
+    .turni-weekly-app-table th {
+        border-right: 1px solid rgba(15, 23, 42, 0.08);
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        padding: 0;
+        vertical-align: middle;
+    }
+
+    .turni-weekly-app-table tr:last-child td,
+    .turni-weekly-app-table tr:last-child th {
+        border-bottom: 0;
+    }
+
+    .turni-weekly-app-table td:last-child,
+    .turni-weekly-app-table th:last-child {
+        border-right: 0;
+    }
+
+    .turni-weekly-corner {
+        min-width: 74px;
+        background: #eef5ff;
+    }
+
+    .turni-weekly-sidehead {
+        min-width: 74px;
+        background: #c7dcff;
+        color: #16315c;
+        text-align: center;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+    }
+
+    .turni-weekly-header-cell,
+    .turni-weekly-input-cell,
+    .turni-weekly-time-cell,
+    .turni-weekly-label-cell,
+    .turni-weekly-gap {
+        min-width: 150px;
+    }
+
+    .turni-weekly-header-cell input,
+    .turni-weekly-input-cell input,
+    .turni-weekly-time-cell input {
+        width: 100%;
+        min-width: 150px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0.8rem 0.7rem;
+        min-height: 42px;
+    }
+
+    .turni-weekly-header-cell input {
+        background: #dcebff;
+        color: #16315c;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .turni-weekly-time-cell input {
+        background: #2f61c8;
+        color: #fff;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .turni-weekly-label-cell {
+        background: #c7dcff;
+        color: #16315c;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .turni-weekly-label-cell span {
+        display: inline-block;
+        padding: 0.7rem 0.25rem;
+    }
+
+    .turni-weekly-input-cell input {
+        background: #fff;
+    }
+
+    .turni-weekly-reparto-band input {
+        background: #dcebff;
+        color: #16315c;
+        font-weight: 400;
+        text-align: center;
+    }
+
+    .turni-weekly-input-cell.turni-weekly-accent input {
+        background: #dcebff;
+        color: #16315c;
+    }
+
+    .turni-portineria-app-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 760px;
+        margin: 0;
+    }
+
+    .turni-portineria-app-table td,
+    .turni-portineria-app-table th,
+    .turni-weekend-app-table td,
+    .turni-weekend-app-table th {
+        border-right: 1px solid rgba(15, 23, 42, 0.08);
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        padding: 0;
+    }
+
+    .turni-portineria-app-table tr:last-child td,
+    .turni-portineria-app-table tr:last-child th,
+    .turni-weekend-app-table tr:last-child td,
+    .turni-weekend-app-table tr:last-child th {
+        border-bottom: 0;
+    }
+
+    .turni-portineria-app-table td:last-child,
+    .turni-portineria-app-table th:last-child,
+    .turni-weekend-app-table td:last-child,
+    .turni-weekend-app-table th:last-child {
+        border-right: 0;
+    }
+
+    .turni-portineria-app-table .turni-weekly-corner,
+    .turni-portineria-app-table .turni-weekly-sidehead,
+    .turni-portineria-app-table .turni-weekly-label-cell {
+        min-width: 62px;
+    }
+
+    .turni-portineria-header-cell input,
+    .turni-portineria-time-cell input,
+    .turni-portineria-input-cell input {
+        width: 100%;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0.8rem 0.7rem;
+        min-height: 42px;
+    }
+
+    .turni-portineria-gap {
+        min-width: 44px;
+        background: #eef5ff;
+    }
+
+    .turni-portineria-tag {
+        min-width: 170px;
+        background: #dcebff;
+        color: #16315c;
+        text-align: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 0.55rem 0.35rem;
+    }
+
+    .turni-portineria-header-cell input {
+        min-width: 170px;
+        background: #dcebff;
+        color: #16315c;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .turni-portineria-time-cell input {
+        min-width: 170px;
+        background: #2f61c8;
+        color: #fff;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .turni-portineria-input-cell input {
+        min-width: 170px;
+        background: #fff;
+    }
+
+    .turni-portineria-static {
+        background: #eef5ff;
+    }
+
+    .turni-weekend-meta {
+        display: grid;
+        grid-template-columns: minmax(0, 220px) 1fr;
+        gap: 0.85rem;
+        align-items: end;
+        margin-bottom: 0.9rem;
+    }
+
+    .turni-weekend-app-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 980px;
+        margin: 0;
+        background: #fff;
+    }
+
+    .turni-weekend-app-table thead th {
+        background: #dcebff;
+        color: #16315c;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0.7rem 0.6rem;
+        white-space: nowrap;
+    }
+
+    .turni-weekend-rowhead {
+        min-width: 68px;
+        background: #eef5ff;
+        color: #16315c;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .turni-weekend-app-table td input {
+        width: 100%;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0.8rem 0.7rem;
+        min-height: 42px;
+        background: transparent;
+    }
+
+    .turni-weekend-app-table tbody tr:nth-child(even) td input {
+        background: #fbfdff;
+    }
+
+    .turni-table-wrap .table {
+        margin-bottom: 0;
+    }
+
+    .turni-table-wrap th {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1199px) {
+        .turni-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .turni-sidebar {
+            position: static;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .turni-dashboard-grid,
+        .turni-export-grid,
+        .turni-dashboard-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .turni-topbar {
+            position: static;
+        }
+
+        .turni-sheet-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .turni-weekend-meta {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+<div class="container">
+    <div class="page-hero mb-4">
+        <h2 class="fw-bold mb-1">Turni Planner Online</h2>
+        <p class="mb-0 opacity-75">Area riservata. Una sola versione condivisa per ogni settimana.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card-modern bg-white h-100">
+                <h4 class="fw-semibold mb-3">Apri o crea settimana</h4>
+                <form method="post" class="d-grid gap-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="open_week">
+                    <div>
+                        <label for="week_label" class="form-label">Etichetta settimana</label>
+                        <input
+                            id="week_label"
+                            name="week_label"
+                            type="text"
+                            class="form-control"
+                            placeholder="Week 28 da Lunedi 06/07/2026 a Sabato 11/07/2026"
+                            value="{{ selected_week_label }}"
+                            required
+                        >
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-right"></i> Apri settimana
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card-modern bg-white h-100">
+                <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                    <h4 class="fw-semibold mb-0">Settimane recenti</h4>
+                    <span class="text-muted small">Ultime 12 aggiornate</span>
+                </div>
+                {% if recent_weeks %}
+                    <div class="list-group list-group-flush">
+                        {% for week in recent_weeks %}
+                        <a href="{% url 'turni_planner_home' %}?week={{ week.week_label|urlencode }}" class="list-group-item list-group-item-action px-0 {% if selected_state and selected_state.id == week.id %}active border-0 rounded-3 px-3{% endif %}">
+                            <div class="fw-semibold">{{ week.week_label }}</div>
+                            <div class="small {% if selected_state and selected_state.id == week.id %}text-white-50{% else %}text-muted{% endif %}">
+                                Ultimo aggiornamento: {{ week.updated_at|date:"d/m/Y H:i" }}
+                                {% if week.updated_by %} · {{ week.updated_by.username }}{% endif %}
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-muted">Non ci sono ancora settimane salvate.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card-modern bg-white mt-4">
+        {% if selected_state %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="week_label" value="{{ selected_state.week_label }}">
+
+                <div class="turni-topbar d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                    <div>
+                        <h4 class="fw-semibold mb-1">{{ selected_state.week_label }}</h4>
+                        <div class="text-muted small">
+                            Ultimo aggiornamento {{ selected_state.updated_at|date:"d/m/Y H:i" }}
+                            {% if selected_state.updated_by %}da {{ selected_state.updated_by.username }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <span class="badge text-bg-dark">Bozza condivisa</span>
+                        <button type="submit" name="action" value="save_planner" class="btn btn-primary">
+                            <i class="bi bi-floppy"></i> Salva planner
+                        </button>
+                    </div>
+                </div>
+
+                <div class="turni-shell">
+                    <div class="turni-sidebar">
+                        <div class="card-modern bg-light h-100">
+                            <div class="mb-3">
+                                <div class="fw-semibold">Pannelli planner</div>
+                                <div class="text-muted small">Come nell'app desktop: una sezione alla volta.</div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="button" class="turni-nav-button active" data-turni-panel="dashboard">
+                                    <span>Dashboard <small>riepilogo e export</small></span>
+                                    <i class="bi bi-grid"></i>
+                                </button>
+                                <button type="button" class="turni-nav-button" data-turni-panel="weekly">
+                                    <span>Settimana <small>turni principali</small></span>
+                                    <i class="bi bi-calendar3"></i>
+                                </button>
+                                <button type="button" class="turni-nav-button" data-turni-panel="portineria-weekly">
+                                    <span>Portineria settimana <small>griglia dedicata</small></span>
+                                    <i class="bi bi-building"></i>
+                                </button>
+                                <button type="button" class="turni-nav-button" data-turni-panel="saturday">
+                                    <span>Sabato <small>comandata weekend</small></span>
+                                    <i class="bi bi-sun"></i>
+                                </button>
+                                <button type="button" class="turni-nav-button" data-turni-panel="sunday">
+                                    <span>Domenica <small>comandata weekend</small></span>
+                                    <i class="bi bi-moon-stars"></i>
+                                </button>
+                                <button type="button" class="turni-nav-button" data-turni-panel="portineria-weekend">
+                                    <span>Portineria weekend <small>weekend dedicato</small></span>
+                                    <i class="bi bi-door-open"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="turni-content">
+                        <section class="turni-panel active" data-turni-panel-content="dashboard">
+                            <div class="turni-dashboard-hero">
+                                <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 align-items-xl-center">
+                                    <div>
+                                        <div class="text-uppercase small opacity-75 mb-2">Dashboard planner</div>
+                                        <h3 class="fw-semibold mb-1">{{ selected_state.week_label }}</h3>
+                                        <div class="opacity-75">Vista operativa ispirata all'app desktop: apri un pannello, compila, salva, esporta.</div>
+                                    </div>
+                                    <div class="text-xl-end">
+                                        <div class="small opacity-75">Ultimo aggiornamento</div>
+                                        <div class="fs-5 fw-semibold">{{ selected_state.updated_at|date:"d/m/Y H:i" }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="turni-dashboard-actions">
+                                    <div class="turni-action-card">
+                                        <span class="small opacity-75">Azione rapida</span>
+                                        <strong>Apri settimana</strong>
+                                        <span class="small opacity-75">Cambia foglio dal riquadro in alto.</span>
+                                    </div>
+                                    <div class="turni-action-card">
+                                        <span class="small opacity-75">Azione rapida</span>
+                                        <strong>Salva planner</strong>
+                                        <span class="small opacity-75">Sovrascrive la bozza condivisa.</span>
+                                    </div>
+                                    <div class="turni-action-card">
+                                        <span class="small opacity-75">Export</span>
+                                        <strong>PDF + JPG</strong>
+                                        <span class="small opacity-75">Disponibili per ogni sezione.</span>
+                                    </div>
+                                    <div class="turni-action-card">
+                                        <span class="small opacity-75">Navigazione</span>
+                                        <strong>Menu laterale</strong>
+                                        <span class="small opacity-75">Una pagina alla volta, come nell'app.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="turni-dashboard-grid mb-4">
+                                <div class="turni-grid-card">
+                                    <div class="text-muted small mb-2">Sezione attiva</div>
+                                    <div class="fs-5 fw-semibold">{{ selected_state.week_label }}</div>
+                                    <div class="text-muted small mt-2">Versione condivisa unica. Nessuno storico intermedio.</div>
+                                </div>
+                                <div class="turni-grid-card">
+                                    <div class="text-muted small mb-2">Operativita</div>
+                                    <div class="fw-semibold">Compila come nell'app</div>
+                                    <div class="text-muted small mt-2">Seleziona un pannello a sinistra, modifica, poi salva o scarica.</div>
+                                </div>
+                                <div class="turni-grid-card">
+                                    <div class="text-muted small mb-2">Ultimo aggiornamento</div>
+                                    <div class="fw-semibold">{{ selected_state.updated_at|date:"d/m/Y H:i" }}</div>
+                                    <div class="text-muted small mt-2">{% if selected_state.updated_by %}Operatore: {{ selected_state.updated_by.username }}{% else %}Nessun operatore registrato{% endif %}</div>
+                                </div>
+                                <div class="turni-grid-card">
+                                    <div class="text-muted small mb-2">Scorciatoia</div>
+                                    <div class="fw-semibold">Apri una sezione</div>
+                                    <div class="text-muted small mt-2">Settimana e Portineria settimana sono le due griglie piu dense.</div>
+                                </div>
+                            </div>
+
+                            <div class="turni-grid-card mb-4">
+                                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+                                    <div>
+                                        <h5 class="fw-semibold mb-1">Export planner</h5>
+                                        <div class="text-muted small">Stesso approccio dell'app: scegli sezione e formato.</div>
+                                    </div>
+                                    <span class="badge text-bg-secondary">PDF e JPG</span>
+                                </div>
+                                <div class="turni-bulk-export-actions">
+                                    <button type="button" class="btn btn-dark btn-sm" data-bulk-export-format="pdf">
+                                        <i class="bi bi-file-earmark-pdf"></i> Salva tutti i PDF
+                                    </button>
+                                    <button type="button" class="btn btn-dark btn-sm" data-bulk-export-format="jpg">
+                                        <i class="bi bi-image"></i> Salva tutti i JPG
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm" data-bulk-export-format="all">
+                                        <i class="bi bi-archive"></i> Salva tutti i PDF e JPG
+                                    </button>
+                                </div>
+                                <div class="turni-bulk-export-status text-muted small" data-bulk-export-status>
+                                    Scegli una cartella e il planner salvera li dentro tutti i file separati.
+                                </div>
+                                <div class="turni-export-grid">
+                                    <div class="turni-export-item">
+                                        <div class="fw-semibold mb-2">Settimana</div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="action" value="export_pdf_weekly" class="btn btn-outline-dark btn-sm">PDF</button>
+                                            <button type="submit" name="action" value="export_jpg_weekly" class="btn btn-outline-dark btn-sm">JPG</button>
+                                        </div>
+                                    </div>
+                                    <div class="turni-export-item">
+                                        <div class="fw-semibold mb-2">Portineria settimana</div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="action" value="export_pdf_portineria_weekly" class="btn btn-outline-dark btn-sm">PDF</button>
+                                            <button type="submit" name="action" value="export_jpg_portineria_weekly" class="btn btn-outline-dark btn-sm">JPG</button>
+                                        </div>
+                                    </div>
+                                    <div class="turni-export-item">
+                                        <div class="fw-semibold mb-2">Sabato</div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="action" value="export_pdf_saturday" class="btn btn-outline-dark btn-sm">PDF</button>
+                                            <button type="submit" name="action" value="export_jpg_saturday" class="btn btn-outline-dark btn-sm">JPG</button>
+                                        </div>
+                                    </div>
+                                    <div class="turni-export-item">
+                                        <div class="fw-semibold mb-2">Domenica</div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="action" value="export_pdf_sunday" class="btn btn-outline-dark btn-sm">PDF</button>
+                                            <button type="submit" name="action" value="export_jpg_sunday" class="btn btn-outline-dark btn-sm">JPG</button>
+                                        </div>
+                                    </div>
+                                    <div class="turni-export-item">
+                                        <div class="fw-semibold mb-2">Portineria weekend</div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="action" value="export_pdf_portineria_weekend" class="btn btn-outline-dark btn-sm">PDF</button>
+                                            <button type="submit" name="action" value="export_jpg_portineria_weekend" class="btn btn-outline-dark btn-sm">JPG</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-secondary mb-0">
+                                Salvataggio condiviso senza storico. Ogni nuovo salvataggio sovrascrive questa settimana.
+                            </div>
+                        </section>
+
+                        <section class="turni-panel" data-turni-panel-content="weekly">
+                            <div class="turni-section-head">
+                                <div>
+                                    <h5 class="fw-semibold mb-1">Settimana</h5>
+                                    <div class="text-muted small">Replica della sezione principale dell'app desktop, con scorrimento guidato del foglio.</div>
+                                </div>
+                            </div>
+
+                            <div class="turni-sheet-toolbar">
+                                <div>
+                                    <div class="fw-semibold">Foglio settimanale</div>
+                                    <div class="text-muted small">Usa i pulsanti o la barra sotto per spostarti a destra e sinistra.</div>
+                                </div>
+                                <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                                    <div class="btn-group" role="group" aria-label="Scorrimento foglio settimanale">
+                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-left="weekly-sheet">&larr; Sinistra</button>
+                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-right="weekly-sheet">Destra &rarr;</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="turni-scrollbar mb-2" data-sheet-scrollbar="weekly-sheet" aria-label="Barra scorrimento foglio settimanale">
+                                <div class="turni-scrollbar-track" data-sheet-scrollbar-track="weekly-sheet"></div>
+                            </div>
+
+                            <div class="turni-table-wrap" data-scrollable-sheet="weekly-sheet">
+                                <table class="turni-weekly-app-table">
+                                    <tbody>
+                                        <tr>
+                                            <th class="turni-weekly-sidehead">Turno</th>
+                                            {% for header in weekly_data.headers %}
+                                            <td class="turni-weekly-header-cell">
+                                                <input type="text" name="weekly_headers" class="form-control form-control-sm" value="{{ header }}" placeholder="Reparto">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% for section in weekly_data.sections %}
+                                        <tr>
+                                            <th class="turni-weekly-label-cell"><span>Orari</span></th>
+                                            {% for value in section.time_values %}
+                                            <td class="turni-weekly-time-cell">
+                                                <input type="text" name="weekly_time_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}" placeholder="Orario">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% for row in section.rows %}
+                                        <tr>
+                                            <th class="turni-weekly-label-cell"><span>{{ forloop.parentloop.counter }}&deg;</span></th>
+                                            {% for value in row %}
+                                            <td class="turni-weekly-input-cell">
+                                                <input type="text" name="weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}" placeholder="Nominativo">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                        {% if forloop.counter0 == 2 %}
+                                        <tr>
+                                            <th class="turni-weekly-label-cell"><span></span></th>
+                                            {% for value in weekly_data.central_departments %}
+                                            <td class="turni-weekly-input-cell turni-weekly-reparto-band">
+                                                <input type="text" name="weekly_central_departments" class="form-control form-control-sm" value="{{ value }}" placeholder="Reparto">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="turni-panel" data-turni-panel-content="portineria-weekly">
+                            <div class="turni-section-head">
+                                <div>
+                                    <h5 class="fw-semibold mb-1">Settimana portineria</h5>
+                                    <div class="text-muted small">Pannello separato, come nell'app.</div>
+                                </div>
+                            </div>
+
+                            <div class="turni-sheet-toolbar">
+                                <div>
+                                    <div class="fw-semibold">Foglio portineria</div>
+                                    <div class="text-muted small">Anche qui puoi scorrere il foglio orizzontalmente con una barra dedicata.</div>
+                                </div>
+                                <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                                    <div class="btn-group" role="group" aria-label="Scorrimento foglio portineria settimana">
+                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-left="portineria-weekly-sheet">&larr; Sinistra</button>
+                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-right="portineria-weekly-sheet">Destra &rarr;</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="turni-scrollbar mb-2" data-sheet-scrollbar="portineria-weekly-sheet" aria-label="Barra scorrimento foglio portineria settimana">
+                                <div class="turni-scrollbar-track" data-sheet-scrollbar-track="portineria-weekly-sheet"></div>
+                            </div>
+
+                            <div class="turni-table-wrap" data-scrollable-sheet="portineria-weekly-sheet">
+                                <table class="turni-portineria-app-table">
+                                    <tbody>
+                                        <tr>
+                                            <td class="turni-weekly-corner"></td>
+                                            <th class="turni-portineria-tag">Reparto</th>
+                                            <td class="turni-portineria-gap"></td>
+                                            <th class="turni-portineria-tag">Reparto</th>
+                                            <th class="turni-portineria-tag">Reparto</th>
+                                        </tr>
+                                        <tr>
+                                            <th class="turni-weekly-sidehead">Turno</th>
+                                            {% for header in portineria_weekly_data.headers %}
+                                            {% if forloop.counter0 == 1 %}
+                                            <td class="turni-portineria-static"></td>
+                                            {% endif %}
+                                            <td class="turni-portineria-header-cell">
+                                                <input type="text" name="portineria_weekly_headers" class="form-control form-control-sm" value="{{ header }}" placeholder="Reparto">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% for section in portineria_weekly_data.sections %}
+                                        <tr>
+                                            <th class="turni-weekly-label-cell"><span>Orari</span></th>
+                                            {% for value in section.time_values %}
+                                            {% if forloop.counter0 == 1 %}
+                                            <td class="turni-portineria-static"></td>
+                                            {% endif %}
+                                            <td class="turni-portineria-time-cell">
+                                                <input type="text" name="portineria_weekly_time_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}" placeholder="Orario">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% for row in section.rows %}
+                                        <tr>
+                                            <th class="turni-weekly-label-cell"><span>{% if forloop.counter > 1 %}{{ forloop.parentloop.counter }}&deg;{% endif %}</span></th>
+                                            {% for value in row %}
+                                            {% if forloop.counter0 == 1 %}
+                                            <td class="turni-portineria-static"></td>
+                                            {% endif %}
+                                            <td class="turni-portineria-input-cell">
+                                                <input type="text" name="portineria_weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}" placeholder="Nominativo">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="turni-panel" data-turni-panel-content="saturday">
+                            <div class="turni-section-head">
+                                <div>
+                                    <h5 class="fw-semibold mb-1">Sabato</h5>
+                                    <div class="text-muted small">Comandata weekend dedicata.</div>
+                                </div>
+                            </div>
+                            <div class="turni-weekend-meta">
+                                <div>
+                                    <label class="form-label small text-muted">Data base C4</label>
+                                    <input type="text" name="saturday_base_date" class="form-control" value="{{ saturday_data.base_date }}">
+                                </div>
+                                <div class="text-muted small">La data base compila automaticamente la colonna Data quando la riga contiene altri valori, come nell'app desktop.</div>
+                            </div>
+                            <div class="turni-table-wrap" data-scrollable-sheet="saturday-sheet">
+                                <table class="turni-weekend-app-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">Riga</th>
+                                            {% for column_label in weekend_column_labels %}
+                                            <th>{{ column_label }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in saturday_data.rows %}
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">{{ forloop.counter|add:5 }}</th>
+                                            {% for value in row %}
+                                            <td>
+                                                <input type="text" name="saturday_row_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="turni-panel" data-turni-panel-content="sunday">
+                            <div class="turni-section-head">
+                                <div>
+                                    <h5 class="fw-semibold mb-1">Domenica</h5>
+                                    <div class="text-muted small">Comandata weekend dedicata.</div>
+                                </div>
+                            </div>
+                            <div class="turni-weekend-meta">
+                                <div>
+                                    <label class="form-label small text-muted">Data base C4</label>
+                                    <input type="text" name="sunday_base_date" class="form-control" value="{{ sunday_data.base_date }}">
+                                </div>
+                                <div class="text-muted small">La data base popola la colonna Data delle righe compilate con lo stesso automatismo dell'app.</div>
+                            </div>
+                            <div class="turni-table-wrap" data-scrollable-sheet="sunday-sheet">
+                                <table class="turni-weekend-app-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">Riga</th>
+                                            {% for column_label in weekend_column_labels %}
+                                            <th>{{ column_label }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in sunday_data.rows %}
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">{{ forloop.counter|add:5 }}</th>
+                                            {% for value in row %}
+                                            <td>
+                                                <input type="text" name="sunday_row_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="turni-panel" data-turni-panel-content="portineria-weekend">
+                            <div class="turni-section-head">
+                                <div>
+                                    <h5 class="fw-semibold mb-1">Portineria weekend</h5>
+                                    <div class="text-muted small">Weekend dedicato, separato dal resto.</div>
+                                </div>
+                            </div>
+                            <div class="turni-weekend-meta">
+                                <div>
+                                    <label class="form-label small text-muted">Data base C4</label>
+                                    <input type="text" name="portineria_weekend_base_date" class="form-control" value="{{ portineria_weekend_data.base_date }}">
+                                </div>
+                                <div class="text-muted small">Versione portineria del weekend, con lo stesso foglio operativo a righe numerate dell'app.</div>
+                            </div>
+                            <div class="turni-table-wrap" data-scrollable-sheet="portineria-weekend-sheet">
+                                <table class="turni-weekend-app-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">Riga</th>
+                                            {% for column_label in weekend_column_labels %}
+                                            <th>{{ column_label }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in portineria_weekend_data.rows %}
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">{{ forloop.counter|add:5 }}</th>
+                                            {% for value in row %}
+                                            <td>
+                                                <input type="text" name="portineria_weekend_row_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </form>
+        {% else %}
+            <div class="alert alert-secondary mb-0">
+                Apri o crea una settimana per iniziare. Questa area usera una sola versione condivisa per settimana, senza storico.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const buttons = Array.from(document.querySelectorAll('[data-turni-panel]'));
+        const panels = Array.from(document.querySelectorAll('[data-turni-panel-content]'));
+        const sheetContainers = Array.from(document.querySelectorAll('[data-scrollable-sheet]'));
+        const plannerForm = Array.from(document.querySelectorAll('form[method="post"]')).find((form) => {
+            return form.querySelector('button[name="action"][value="save_planner"]');
+        });
+        const bulkExportButtons = Array.from(document.querySelectorAll('[data-bulk-export-format]'));
+        const bulkExportStatus = document.querySelector('[data-bulk-export-status]');
+
+        const bulkExportActionMap = {
+            pdf: [
+                'export_pdf_weekly',
+                'export_pdf_portineria_weekly',
+                'export_pdf_saturday',
+                'export_pdf_sunday',
+                'export_pdf_portineria_weekend',
+            ],
+            jpg: [
+                'export_jpg_weekly',
+                'export_jpg_portineria_weekly',
+                'export_jpg_saturday',
+                'export_jpg_sunday',
+                'export_jpg_portineria_weekend',
+            ],
+        };
+
+        function setBulkExportStatus(message, tone) {
+            if (!bulkExportStatus) {
+                return;
+            }
+            bulkExportStatus.textContent = message;
+            bulkExportStatus.classList.remove('text-muted', 'text-danger', 'text-success');
+            bulkExportStatus.classList.add(tone === 'error' ? 'text-danger' : tone === 'success' ? 'text-success' : 'text-muted');
+        }
+
+        function setBulkExportBusy(isBusy) {
+            bulkExportButtons.forEach((button) => {
+                button.disabled = isBusy;
+            });
+        }
+
+        function extractFilename(contentDisposition, fallbackName) {
+            const match = /filename="([^"]+)"/i.exec(contentDisposition || '');
+            return match ? match[1] : fallbackName;
+        }
+
+        function isEmbeddedVsCodeBrowser() {
+            const userAgent = navigator.userAgent || '';
+            return userAgent.includes('Electron') || userAgent.includes('Code/');
+        }
+
+        async function fetchExportBlob(actionName) {
+            const formData = new FormData(plannerForm);
+            formData.set('action', actionName);
+            const targetUrl = plannerForm.getAttribute('action') || window.location.href;
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Export non riuscito.');
+            }
+
+            const blob = await response.blob();
+            const filename = extractFilename(response.headers.get('Content-Disposition'), actionName);
+            return { blob, filename };
+        }
+
+        async function saveBlobToDirectory(directoryHandle, fileName, blob) {
+            const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        }
+
+        async function handleBulkExport(format) {
+            if (!plannerForm) {
+                return;
+            }
+            if (!window.showDirectoryPicker) {
+                setBulkExportStatus('Questo browser non supporta il salvataggio diretto in cartella. Usa Edge o Chrome.', 'error');
+                return;
+            }
+
+            const actions = format === 'all'
+                ? [...bulkExportActionMap.pdf, ...bulkExportActionMap.jpg]
+                : bulkExportActionMap[format];
+
+            try {
+                const directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                setBulkExportBusy(true);
+                setBulkExportStatus('Cartella selezionata. Avvio salvataggio file...', 'muted');
+
+                for (let index = 0; index < actions.length; index += 1) {
+                    const actionName = actions[index];
+                    setBulkExportStatus('Salvataggio file ' + (index + 1) + ' di ' + actions.length + '...', 'muted');
+                    const { blob, filename } = await fetchExportBlob(actionName);
+                    await saveBlobToDirectory(directoryHandle, filename, blob);
+                }
+
+                setBulkExportStatus('Tutti i file sono stati salvati nella cartella scelta.', 'success');
+            } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    setBulkExportStatus('Selezione cartella annullata.', 'muted');
+                } else if (error && /getFileHandle|user agent|platform|current context/i.test(error.message || '')) {
+                    if (isEmbeddedVsCodeBrowser()) {
+                        setBulkExportStatus('Il browser integrato di VS Code non permette di salvare tutti i file nella stessa cartella scelta. Apri il planner in Edge o Chrome esterno.', 'error');
+                    } else {
+                        setBulkExportStatus('Questo browser o questa piattaforma non permette di salvare tutti i file nella stessa cartella scelta. Prova con Edge o Chrome esterno.', 'error');
+                    }
+                } else {
+                    const errorDetails = error && error.message ? ' (' + error.message + ')' : '';
+                    setBulkExportStatus('Impossibile aprire o usare la cartella scelta' + errorDetails + '.', 'error');
+                }
+            } finally {
+                setBulkExportBusy(false);
+            }
+        }
+
+        if (!buttons.length || !panels.length) {
+            return;
+        }
+
+        function activatePanel(panelName) {
+            buttons.forEach((button) => {
+                button.classList.toggle('active', button.dataset.turniPanel === panelName);
+            });
+            panels.forEach((panel) => {
+                panel.classList.toggle('active', panel.dataset.turniPanelContent === panelName);
+            });
+        }
+
+        buttons.forEach((button) => {
+            button.addEventListener('click', function () {
+                activatePanel(button.dataset.turniPanel);
+            });
+        });
+
+        function setupSheetScroller(sheetName) {
+            const container = document.querySelector('[data-scrollable-sheet="' + sheetName + '"]');
+            const scrollbar = document.querySelector('[data-sheet-scrollbar="' + sheetName + '"]');
+            const track = document.querySelector('[data-sheet-scrollbar-track="' + sheetName + '"]');
+            const leftButton = document.querySelector('[data-sheet-scroll-left="' + sheetName + '"]');
+            const rightButton = document.querySelector('[data-sheet-scroll-right="' + sheetName + '"]');
+
+            if (!container || !scrollbar || !track) {
+                return;
+            }
+
+            function syncTrackWidth() {
+                track.style.width = container.scrollWidth + 'px';
+            }
+
+            function syncScrollbarFromContainer() {
+                scrollbar.scrollLeft = container.scrollLeft;
+            }
+
+            function syncContainerFromScrollbar() {
+                container.scrollLeft = scrollbar.scrollLeft;
+            }
+
+            if (leftButton) {
+                leftButton.addEventListener('click', function () {
+                    container.scrollBy({ left: -320, behavior: 'smooth' });
+                });
+            }
+
+            if (rightButton) {
+                rightButton.addEventListener('click', function () {
+                    container.scrollBy({ left: 320, behavior: 'smooth' });
+                });
+            }
+
+            container.addEventListener('scroll', syncScrollbarFromContainer);
+            scrollbar.addEventListener('scroll', syncContainerFromScrollbar);
+            window.addEventListener('resize', syncTrackWidth);
+            syncTrackWidth();
+            syncScrollbarFromContainer();
+        }
+
+        sheetContainers.forEach((container) => {
+            setupSheetScroller(container.dataset.scrollableSheet);
+        });
+
+        bulkExportButtons.forEach((button) => {
+            button.addEventListener('click', function () {
+                handleBulkExport(button.dataset.bulkExportFormat);
+            });
+        });
+
+        activatePanel('dashboard');
+    });
+</script>
+{% endblock %}
