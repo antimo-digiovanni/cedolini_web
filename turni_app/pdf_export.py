@@ -35,8 +35,8 @@ SATURDAY_IMAGE_NAME = "Comandata sabato.jpg"
 SUNDAY_IMAGE_NAME = "Comandata domenica.jpg"
 PORTINERIA_WEEKLY_PDF_NAME = "Turno settimanale portineria.pdf"
 PORTINERIA_WEEKLY_IMAGE_NAME = "Turno settimanale portineria.jpg"
-PORTINERIA_WEEKEND_PDF_NAME = "Comandata weekend portineria.pdf"
-PORTINERIA_WEEKEND_IMAGE_NAME = "Comandata weekend portineria.jpg"
+PORTINERIA_WEEKEND_PDF_NAME = "Comandata Sabato - Domenica e festivi Portineria.pdf"
+PORTINERIA_WEEKEND_IMAGE_NAME = "Comandata Sabato - Domenica e festivi Portineria.jpg"
 WEEKEND_SIGNATURE_HEADERS = (
     "FIRMA COMMITTENTE",
     "FIRMA RESPONSABILE AREA",
@@ -313,7 +313,7 @@ def _header_block(title: str, lines: Iterable[str], logo_path: Path | None, styl
     right = [_paragraph(title, styles["title"])]
     for line in lines:
         if line.strip():
-            right.append(_paragraph(line, styles["subtitle"] if "SANVINCENZO" not in line else styles["meta"]))
+            right.append(_paragraph(line, styles["subtitle"] if "SAN VINCENZO" not in line.upper() else styles["meta"]))
 
     table = Table([[right]], colWidths=[265 * mm])
     table.setStyle(
@@ -1030,7 +1030,7 @@ def export_weekend_pdf(
         _header_block(
             data.title,
             [
-                "SANVINCENZO S.R.L - ORGANIZZAZIONE TURNI COMANDATE",
+                "SAN VINCENZO S.R.L - ORGANIZZAZIONE TURNI COMANDATE",
                 f"{data.authorization_date}  Autorizzazione ingresso del personale sottoelencato da Voi richiestoci.",
             ],
             logo_path,

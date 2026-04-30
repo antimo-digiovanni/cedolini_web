@@ -357,6 +357,74 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
 		self.assertEqual(state.updated_by, self.allowed_user)
 
+	def test_turni_planner_new_week_clones_latest_planner_data(self):
+		previous_state = TurniPlannerWeekState.objects.create(
+			week_label="Week 17: da Lunedi 20/04/2026 a Venerdi 24/04/2026",
+			planner_data={
+				"weekly": {
+					"headers": [f"Reparto {index}" for index in range(1, 11)],
+					"central_departments": [""] * 10,
+					"sections": [
+						{
+							"label": "1 turno",
+							"time_values": ["06:00"] * 10,
+							"rows": [["Mario"] * 10, ["Luigi"] * 10, ["Anna"] * 10],
+						},
+						{
+							"label": "2 turno",
+							"time_values": ["14:00"] * 10,
+							"rows": [["Paolo"] * 10, ["Gina"] * 10, ["Luca"] * 10],
+						},
+						{
+							"label": "3 turno",
+							"time_values": ["22:00"] * 10,
+							"rows": [["Sara"] * 10, ["Piero"] * 10, ["Marta"] * 10],
+						},
+						{
+							"label": "4 turno",
+							"time_values": ["00:00"] * 10,
+							"rows": [["Notte A"] * 10, ["Notte B"] * 10, ["Notte C"] * 10],
+						},
+					],
+				},
+				"saturday": {
+					"base_date": "25/04/2026",
+					"rows": [["25/04/2026", "Mattina", "Mario", "Capo A", "Lavaggio", "Reparto A"]],
+				},
+				"sunday": {
+					"base_date": "26/04/2026",
+					"rows": [["26/04/2026", "Sera", "Luigi", "Capo B", "Controllo", "Reparto B"]],
+				},
+				"portineria_weekly": {
+					"headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:14", "08:17", "06:14"], "rows": [["A", "B", "C"], ["D", "E", "F"], ["G", "H", "I"]]},
+						{"label": "2 turno", "time_values": ["14:22", "", "14:22"], "rows": [["L", "M", "N"], ["O", "P", "Q"], ["R", "S", "T"]]},
+						{"label": "3 turno", "time_values": ["22:06", "", "22:06"], "rows": [["U", "V", "Z"], ["AA", "AB", "AC"], ["AD", "AE", "AF"]]},
+					],
+				},
+				"portineria_weekend": {
+					"base_date": "25/04/2026",
+					"rows": [["25/04/2026", "Mattina", "Port A", "Resp A", "Controllo", "Portineria"]],
+				},
+			},
+			updated_by=self.allowed_user,
+		)
+
+		self.client.force_login(self.allowed_user)
+		new_week_label = "Week 19: da Lunedi 04/05/2026 a Venerdi 08/05/2026"
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{"action": "open_week", "week_label": new_week_label},
+		)
+
+		new_state = TurniPlannerWeekState.objects.get(week_label=new_week_label)
+		previous_state.refresh_from_db()
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={new_state.week_label}")
+		self.assertEqual(new_state.updated_by, self.allowed_user)
+		self.assertEqual(new_state.planner_data, previous_state.planner_data)
+		self.assertIsNot(new_state.planner_data, previous_state.planner_data)
+
 	def test_turni_planner_saves_shared_planner_data(self):
 		state = TurniPlannerWeekState.objects.create(
 			week_label="Week 29 da Lunedi 13/07/2026 a Sabato 18/07/2026",
@@ -566,7 +634,7 @@ class TurniPlannerAccessTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response["Content-Type"], "image/jpeg")
-		self.assertIn("Comandata weekend portineria.jpg", response["Content-Disposition"])
+		self.assertIn("Comandata Sabato - Domenica e festivi Portineria.jpg", response["Content-Disposition"])
 		self.assertTrue(response.content.startswith(b"\xff\xd8\xff"))
 
 

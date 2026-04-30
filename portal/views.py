@@ -3,6 +3,7 @@ import csv
 import json
 import io
 import math
+from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 import calendar
 import re
@@ -116,6 +117,17 @@ def _turni_planner_allowed_or_403(request):
     return None
 
 
+def _turni_planner_initial_data_for_new_week(*, week_label):
+    previous_state = (
+        TurniPlannerWeekState.objects.exclude(week_label=week_label)
+        .order_by('-updated_at', '-id')
+        .first()
+    )
+    if previous_state is None:
+        return {}
+    return deepcopy(previous_state.planner_data or {})
+
+
 TURNI_WEEKLY_HEADER_COUNT = 10
 TURNI_WEEKLY_SECTION_LABELS = (
     '1 turno',
@@ -152,7 +164,7 @@ TURNI_PORTINERIA_SECTION_LABELS = (
 )
 TURNI_PORTINERIA_ROWS_PER_SECTION = 3
 TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT = 34
-TURNI_DEFAULT_WEEKLY_PDF_TITLE = 'SANVINCENZO S.R.L.:ORGANIZZAZIONE TURNI'
+TURNI_DEFAULT_WEEKLY_PDF_TITLE = 'SAN VINCENZO S.R.L.:ORGANIZZAZIONE TURNI'
 TURNI_EXPORT_APP_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png'
 TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'ancis-sgq-sga-2026.png'
 TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo-anid.jpg'
@@ -528,19 +540,19 @@ def _turni_planner_export_response(state, *, export_format, export_target):
         'saturday': {
             'pdf_name': SATURDAY_PDF_NAME,
             'image_name': SATURDAY_IMAGE_NAME,
-            'title': 'Comandata pulizie sabato',
+            'title': 'Comandata sabato',
             'row_count': None,
         },
         'sunday': {
             'pdf_name': SUNDAY_PDF_NAME,
             'image_name': SUNDAY_IMAGE_NAME,
-            'title': 'Comandata pulizie domenica',
+            'title': 'Comandata domenica',
             'row_count': None,
         },
         'portineria_weekend': {
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
             'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
-            'title': 'Weekend portineria',
+            'title': 'Sabato - Domenica e festivi Portineria',
             'row_count': TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
         },
     }
@@ -646,19 +658,19 @@ def _turni_planner_bulk_export_response(state, *, export_format):
         'saturday': {
             'pdf_name': SATURDAY_PDF_NAME,
             'image_name': SATURDAY_IMAGE_NAME,
-            'title': 'Comandata pulizie sabato',
+            'title': 'Comandata sabato',
             'row_count': None,
         },
         'sunday': {
             'pdf_name': SUNDAY_PDF_NAME,
             'image_name': SUNDAY_IMAGE_NAME,
-            'title': 'Comandata pulizie domenica',
+            'title': 'Comandata domenica',
             'row_count': None,
         },
         'portineria_weekend': {
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
             'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
-            'title': 'Weekend portineria',
+            'title': 'Sabato - Domenica e festivi Portineria',
             'row_count': TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
         },
     }
@@ -4369,7 +4381,7 @@ def turni_planner_home(request):
             selected_state, created = TurniPlannerWeekState.objects.get_or_create(
                 week_label=week_label,
                 defaults={
-                    'planner_data': {},
+                    'planner_data': _turni_planner_initial_data_for_new_week(week_label=week_label),
                     'updated_by': request.user,
                 },
             )

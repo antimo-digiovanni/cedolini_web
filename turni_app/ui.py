@@ -69,7 +69,7 @@ APP_LOGO_PATH = BASE_DIR / "portal" / "static" / "portal" / "logo.png"
 APP_ICON_PATH = BASE_DIR / "portal" / "static" / "portal" / "icons" / "icon-512.png"
 WEEKEND_ANCIS_LOGO_PATH = BASE_DIR / "portal" / "static" / "portal" / "ancis-sgq-sga-2026.png"
 WEEKEND_ANID_LOGO_PATH = BASE_DIR / "portal" / "static" / "portal" / "logo-anid.jpg"
-DEFAULT_WEEKLY_PDF_TITLE = "SANVINCENZO S.R.L.:ORGANIZZAZIONE TURNI"
+DEFAULT_WEEKLY_PDF_TITLE = "SAN VINCENZO S.R.L.:ORGANIZZAZIONE TURNI"
 PDF_OUTPUT_DIR_SETTING = "pdfOutputDirectory"
 WEEKLY_PRIMARY_COLUMN_INDEXES = (0, 1, 2, 3, 4, 5, 7)
 WEEKLY_SECONDARY_COLUMN_INDEXES = (6, 8, 9)
@@ -1262,10 +1262,10 @@ class MainWindow(QMainWindow):
         self.home_page = HomePage()
         self.weekly_page = WeeklyEditor()
         self.portineria_weekly_page = PortineriaWeeklyEditor()
-        self.saturday_page = WeekendEditor("Comandata pulizie sabato")
-        self.sunday_page = WeekendEditor("Comandata pulizie domenica")
-        self.portineria_weekend_page = WeekendEditor("Weekend portineria")
-        self.portineria_weekend_page.reset_empty_data("Weekend portineria")
+        self.saturday_page = WeekendEditor("Comandata sabato")
+        self.sunday_page = WeekendEditor("Comandata domenica")
+        self.portineria_weekend_page = WeekendEditor("Sabato - Domenica e festivi Portineria")
+        self.portineria_weekend_page.reset_empty_data("Sabato - Domenica e festivi Portineria")
 
         self.stack = QStackedWidget()
         self.stack.addWidget(self.home_page)
@@ -1367,7 +1367,7 @@ class MainWindow(QMainWindow):
         self.workbook = workbook
         if previous_path != path:
             self.portineria_weekly_page.reset_data()
-            self.portineria_weekend_page.reset_empty_data("Weekend portineria")
+            self.portineria_weekend_page.reset_empty_data("Sabato - Domenica e festivi Portineria")
         self._clear_last_undo()
         self.settings.setValue("lastWorkbook", str(path))
         self.settings.setValue("lastDirectory", str(path.parent))
@@ -1455,17 +1455,17 @@ class MainWindow(QMainWindow):
         self.export_portineria_weekly_pdf_to_dir(output_dir)
 
     def export_saturday_pdf(self) -> None:
-        self._export_weekend_pdf(self.saturday_page, SATURDAY_PDF_NAME, SATURDAY_IMAGE_NAME, "Comandata pulizie sabato")
+        self._export_weekend_pdf(self.saturday_page, SATURDAY_PDF_NAME, SATURDAY_IMAGE_NAME, "Comandata sabato")
 
     def export_sunday_pdf(self) -> None:
-        self._export_weekend_pdf(self.sunday_page, SUNDAY_PDF_NAME, SUNDAY_IMAGE_NAME, "Comandata pulizie domenica")
+        self._export_weekend_pdf(self.sunday_page, SUNDAY_PDF_NAME, SUNDAY_IMAGE_NAME, "Comandata domenica")
 
     def export_portineria_weekend_pdf(self) -> None:
         self._export_weekend_pdf(
             self.portineria_weekend_page,
             PORTINERIA_WEEKEND_PDF_NAME,
             PORTINERIA_WEEKEND_IMAGE_NAME,
-            "Weekend portineria",
+            "Sabato - Domenica e festivi Portineria",
         )
 
     def export_all_pdfs(self) -> None:
@@ -1499,10 +1499,10 @@ class MainWindow(QMainWindow):
         self.status.showMessage(self._format_export_message("settimana", pdf_path, exported_paths), 7000)
 
     def export_saturday_pdf_to_dir(self, output_dir: Path) -> None:
-        self._export_weekend_pdf(self.saturday_page, SATURDAY_PDF_NAME, SATURDAY_IMAGE_NAME, "Comandata pulizie sabato", output_dir)
+        self._export_weekend_pdf(self.saturday_page, SATURDAY_PDF_NAME, SATURDAY_IMAGE_NAME, "Comandata sabato", output_dir)
 
     def export_sunday_pdf_to_dir(self, output_dir: Path) -> None:
-        self._export_weekend_pdf(self.sunday_page, SUNDAY_PDF_NAME, SUNDAY_IMAGE_NAME, "Comandata pulizie domenica", output_dir)
+        self._export_weekend_pdf(self.sunday_page, SUNDAY_PDF_NAME, SUNDAY_IMAGE_NAME, "Comandata domenica", output_dir)
 
     def export_portineria_weekly_pdf_to_dir(self, output_dir: Path) -> None:
         if self.workbook is None:
@@ -1530,7 +1530,7 @@ class MainWindow(QMainWindow):
             self.portineria_weekend_page,
             PORTINERIA_WEEKEND_PDF_NAME,
             PORTINERIA_WEEKEND_IMAGE_NAME,
-            "Weekend portineria",
+            "Sabato - Domenica e festivi Portineria",
             output_dir,
         )
 
@@ -1681,7 +1681,7 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(brand)
         nav_layout.addWidget(subtitle)
 
-        for index, label in enumerate(("Dashboard", "Settimana", "Portineria settimana", "Sabato", "Domenica", "Portineria weekend")):
+        for index, label in enumerate(("Dashboard", "Settimana", "Portineria settimana", "Sabato", "Domenica", "Sabato - Domenica e festivi Portineria")):
             button = QPushButton(label)
             button.setCheckable(True)
             button.clicked.connect(lambda checked=False, index=index: self._show_page(index))
@@ -1753,7 +1753,7 @@ class MainWindow(QMainWindow):
         sunday_pdf_action.triggered.connect(self.export_sunday_pdf)
         toolbar.addAction(sunday_pdf_action)
 
-        portineria_weekend_pdf_action = QAction("PDF + JPG weekend portineria", self)
+        portineria_weekend_pdf_action = QAction("PDF + JPG Sabato - Domenica e festivi Portineria", self)
         portineria_weekend_pdf_action.triggered.connect(self.export_portineria_weekend_pdf)
         toolbar.addAction(portineria_weekend_pdf_action)
 
