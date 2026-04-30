@@ -117,15 +117,23 @@ def _turni_planner_allowed_or_403(request):
     return None
 
 
+def _turni_planner_data_has_content(value):
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        return any(_turni_planner_data_has_content(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_turni_planner_data_has_content(item) for item in value)
+    return False
+
+
 def _turni_planner_initial_data_for_new_week(*, week_label):
-    previous_state = (
-        TurniPlannerWeekState.objects.exclude(week_label=week_label)
-        .order_by('-updated_at', '-id')
-        .first()
-    )
-    if previous_state is None:
-        return {}
-    return deepcopy(previous_state.planner_data or {})
+    previous_states = TurniPlannerWeekState.objects.exclude(week_label=week_label).order_by('-updated_at', '-id')
+    for previous_state in previous_states:
+        planner_data = previous_state.planner_data or {}
+        if _turni_planner_data_has_content(planner_data):
+            return deepcopy(planner_data)
+    return {}
 
 
 TURNI_WEEKLY_HEADER_COUNT = 10
@@ -4385,6 +4393,12 @@ def turni_planner_home(request):
                     'updated_by': request.user,
                 },
             )
+            if action == 'open_week' and not _turni_planner_data_has_content(selected_state.planner_data or {}):
+                planner_data = _turni_planner_initial_data_for_new_week(week_label=week_label)
+                if planner_data:
+                    selected_state.planner_data = planner_data
+                    selected_state.updated_by = request.user
+                    selected_state.save(update_fields=['planner_data', 'updated_by', 'updated_at'])
             if action in ('save_weekly', 'save_planner') or action.startswith('export_'):
                 planner_data = dict(selected_state.planner_data or {})
                 planner_data['weekly'] = _extract_turni_weekly_data_from_post(request.POST)

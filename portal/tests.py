@@ -425,6 +425,45 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(new_state.planner_data, previous_state.planner_data)
 		self.assertIsNot(new_state.planner_data, previous_state.planner_data)
 
+	def test_turni_planner_open_week_backfills_existing_empty_week_from_latest_non_empty_state(self):
+		previous_state = TurniPlannerWeekState.objects.create(
+			week_label="Week 17: da Lunedi 20/04/2026 a Venerdi 24/04/2026",
+			planner_data={
+				"weekly": {
+					"headers": [f"Reparto {index}" for index in range(1, 11)],
+					"central_departments": [""] * 10,
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:00"] * 10, "rows": [["Mario"] * 10, ["Luigi"] * 10, ["Anna"] * 10]},
+						{"label": "2 turno", "time_values": ["14:00"] * 10, "rows": [["Paolo"] * 10, ["Gina"] * 10, ["Luca"] * 10]},
+						{"label": "3 turno", "time_values": ["22:00"] * 10, "rows": [["Sara"] * 10, ["Piero"] * 10, ["Marta"] * 10]},
+						{"label": "4 turno", "time_values": ["00:00"] * 10, "rows": [["Notte A"] * 10, ["Notte B"] * 10, ["Notte C"] * 10]},
+					],
+				},
+				"saturday": {"base_date": "25/04/2026", "rows": [["25/04/2026", "Mattina", "Mario", "Capo A", "Lavaggio", "Reparto A"]]},
+			},
+			updated_by=self.allowed_user,
+		)
+		TurniPlannerWeekState.objects.create(
+			week_label="WEEK 18",
+			planner_data={},
+			updated_by=self.allowed_user,
+		)
+		empty_state = TurniPlannerWeekState.objects.create(
+			week_label="Week 19: da Lunedì 04/05/2026 a Venerdì 08/05/2026",
+			planner_data={},
+		)
+
+		self.client.force_login(self.allowed_user)
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{"action": "open_week", "week_label": empty_state.week_label},
+		)
+
+		empty_state.refresh_from_db()
+		previous_state.refresh_from_db()
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={empty_state.week_label}")
+		self.assertEqual(empty_state.planner_data, previous_state.planner_data)
+
 	def test_turni_planner_saves_shared_planner_data(self):
 		state = TurniPlannerWeekState.objects.create(
 			week_label="Week 29 da Lunedi 13/07/2026 a Sabato 18/07/2026",
