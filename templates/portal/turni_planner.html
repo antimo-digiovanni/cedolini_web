@@ -140,6 +140,20 @@
         margin-bottom: 1rem;
     }
 
+    .turni-section-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .turni-row-limit-note {
+        font-size: 0.78rem;
+        color: #64748b;
+        text-align: right;
+    }
+
     .turni-table-wrap {
         border: 1px solid rgba(15, 23, 42, 0.08);
         border-radius: 18px;
@@ -534,6 +548,19 @@
 
         .turni-weekend-meta {
             grid-template-columns: 1fr;
+        }
+
+        .turni-section-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .turni-section-actions {
+            justify-content: flex-start;
+        }
+
+        .turni-row-limit-note {
+            text-align: left;
         }
     }
 </style>
@@ -937,11 +964,19 @@
                             </div>
                         </section>
 
-                        <section class="turni-panel" data-turni-panel-content="saturday">
+                        <section class="turni-panel" data-turni-panel-content="saturday" data-weekend-row-prefix="saturday" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="6" data-weekend-sheet="saturday-sheet">
                             <div class="turni-section-head">
                                 <div>
                                     <h5 class="fw-semibold mb-1">Sabato</h5>
                                     <div class="text-muted small">Comandata weekend dedicata.</div>
+                                </div>
+                                <div class="turni-section-actions">
+                                    <input type="hidden" name="saturday_row_count" value="{{ saturday_data.rows|length }}" data-weekend-row-count>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Gestione righe sabato">
+                                        <button type="button" class="btn btn-outline-dark" data-weekend-row-action="add">Aggiungi riga</button>
+                                        <button type="button" class="btn btn-outline-dark" data-weekend-row-action="remove">Elimina riga</button>
+                                    </div>
+                                    <div class="turni-row-limit-note">Massimo {{ weekend_single_page_max_rows }} righe per restare su una sola pagina.</div>
                                 </div>
                             </div>
                             <div class="turni-weekend-meta">
@@ -977,11 +1012,19 @@
                             </div>
                         </section>
 
-                        <section class="turni-panel" data-turni-panel-content="sunday">
+                        <section class="turni-panel" data-turni-panel-content="sunday" data-weekend-row-prefix="sunday" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="6" data-weekend-sheet="sunday-sheet">
                             <div class="turni-section-head">
                                 <div>
                                     <h5 class="fw-semibold mb-1">Domenica</h5>
                                     <div class="text-muted small">Comandata weekend dedicata.</div>
+                                </div>
+                                <div class="turni-section-actions">
+                                    <input type="hidden" name="sunday_row_count" value="{{ sunday_data.rows|length }}" data-weekend-row-count>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Gestione righe domenica">
+                                        <button type="button" class="btn btn-outline-dark" data-weekend-row-action="add">Aggiungi riga</button>
+                                        <button type="button" class="btn btn-outline-dark" data-weekend-row-action="remove">Elimina riga</button>
+                                    </div>
+                                    <div class="turni-row-limit-note">Massimo {{ weekend_single_page_max_rows }} righe per restare su una sola pagina.</div>
                                 </div>
                             </div>
                             <div class="turni-weekend-meta">
@@ -1266,33 +1309,42 @@
             return input ? input.closest('td, th, .turni-weekend-meta div') : null;
         }
 
-        function buildSheetGrids() {
-            const grids = new Map();
+        const sheetGrids = new Map();
 
-            sheetContainers.forEach((container) => {
-                const sheetName = container.dataset.scrollableSheet;
-                const rows = Array.from(container.querySelectorAll('tr'))
-                    .map((row) => Array.from(row.querySelectorAll('input[type="text"]')))
-                    .filter((row) => row.length);
+        function rebuildSheetGrid(sheetName) {
+            const container = document.querySelector('[data-scrollable-sheet="' + sheetName + '"]');
+            if (!container) {
+                sheetGrids.delete(sheetName);
+                return [];
+            }
 
-                rows.forEach((row, rowIndex) => {
-                    row.forEach((input, colIndex) => {
-                        input.dataset.sheetName = sheetName;
-                        input.dataset.sheetRow = String(rowIndex);
-                        input.dataset.sheetCol = String(colIndex);
-                    });
+            const rows = Array.from(container.querySelectorAll('tr'))
+                .map((row) => Array.from(row.querySelectorAll('input[type="text"]')))
+                .filter((row) => row.length);
+
+            rows.forEach((row, rowIndex) => {
+                row.forEach((input, colIndex) => {
+                    input.dataset.sheetName = sheetName;
+                    input.dataset.sheetRow = String(rowIndex);
+                    input.dataset.sheetCol = String(colIndex);
                 });
-
-                grids.set(sheetName, rows);
             });
 
-            return grids;
+            sheetGrids.set(sheetName, rows);
+            return rows;
         }
 
-        const sheetGrids = buildSheetGrids();
+        function buildSheetGrids() {
+            sheetContainers.forEach((container) => {
+                rebuildSheetGrid(container.dataset.scrollableSheet);
+            });
+        }
+
+        buildSheetGrids();
         const nameSuggestions = plannerForm ? plannerForm.querySelector('#turni-name-suggestions') : null;
         const undoButton = plannerForm ? plannerForm.querySelector('[data-turni-undo]') : null;
         const redoButton = plannerForm ? plannerForm.querySelector('[data-turni-redo]') : null;
+        const weekendRowSections = Array.from(document.querySelectorAll('[data-weekend-row-prefix]'));
         const fillHandle = document.createElement('div');
         const historyStack = [];
         const redoStack = [];
@@ -1386,6 +1438,12 @@
                 return;
             }
             applyChangeBatch(entry.changes, { direction: 'redo', entry });
+        }
+
+        function resetHistoryState() {
+            historyStack.length = 0;
+            redoStack.length = 0;
+            updateHistoryButtons();
         }
 
         function clearGridHighlights() {
@@ -1576,103 +1634,244 @@
             updateActiveGridHighlights(targetInput || sourceInput);
         }
 
-        if (plannerForm) {
-            plannerForm.querySelectorAll('input[type="text"]').forEach((input) => {
-                if (isNameInput(input) && nameSuggestions) {
-                    input.setAttribute('list', 'turni-name-suggestions');
-                    input.setAttribute('autocomplete', 'off');
+        function bindPlannerInput(input) {
+            if (!input || input.dataset.turniInputBound === 'true') {
+                return;
+            }
+            input.dataset.turniInputBound = 'true';
+
+            if (isNameInput(input) && nameSuggestions) {
+                input.setAttribute('list', 'turni-name-suggestions');
+                input.setAttribute('autocomplete', 'off');
+            }
+
+            input.addEventListener('focus', function () {
+                input.dataset.editStartValue = input.value;
+                updateActiveGridHighlights(input);
+            });
+
+            input.addEventListener('blur', function () {
+                if (!fillState) {
+                    updateFillHandlePosition();
+                }
+            });
+
+            input.addEventListener('change', function () {
+                if (suppressHistoryCapture) {
+                    return;
                 }
 
-                input.addEventListener('focus', function () {
+                const beforeValue = input.dataset.editStartValue ?? input.defaultValue ?? '';
+                if (beforeValue !== input.value) {
+                    applyChangeBatch([
+                        {
+                            input,
+                            before: beforeValue,
+                            after: input.value,
+                        },
+                    ]);
                     input.dataset.editStartValue = input.value;
-                    updateActiveGridHighlights(input);
-                });
+                }
+            });
 
-                input.addEventListener('blur', function () {
-                    if (!fillState) {
-                        updateFillHandlePosition();
-                    }
-                });
+            input.addEventListener('input', function () {
+                if (isNameInput(input)) {
+                    refreshNameSuggestions();
+                }
+            });
 
-                input.addEventListener('change', function () {
-                    if (suppressHistoryCapture) {
-                        return;
-                    }
+            input.addEventListener('keydown', function (event) {
+                const wantsUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z';
+                const wantsRedo = ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') || ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z');
 
-                    const beforeValue = input.dataset.editStartValue ?? input.defaultValue ?? '';
-                    if (beforeValue !== input.value) {
-                        applyChangeBatch([
-                            {
-                                input,
-                                before: beforeValue,
-                                after: input.value,
-                            },
-                        ]);
-                        input.dataset.editStartValue = input.value;
-                    }
-                });
-
-                input.addEventListener('input', function () {
-                    if (isNameInput(input)) {
-                        refreshNameSuggestions();
-                    }
-                });
-
-                input.addEventListener('keydown', function (event) {
-                    const wantsUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z';
-                    const wantsRedo = ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') || ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z');
-
-                    if (wantsUndo) {
-                        event.preventDefault();
-                        undoLastChange();
-                        return;
-                    }
-
-                    if (wantsRedo) {
-                        event.preventDefault();
-                        redoLastChange();
-                        return;
-                    }
-
-                    if (!input.dataset.sheetName || event.altKey || event.ctrlKey || event.metaKey) {
-                        return;
-                    }
-
-                    if (event.key === 'ArrowLeft') {
-                        event.preventDefault();
-                        moveGridFocus(input, 0, -1);
-                    } else if (event.key === 'ArrowRight') {
-                        event.preventDefault();
-                        moveGridFocus(input, 0, 1);
-                    } else if (event.key === 'ArrowUp') {
-                        event.preventDefault();
-                        moveGridFocus(input, -1, 0);
-                    } else if (event.key === 'ArrowDown') {
-                        event.preventDefault();
-                        moveGridFocus(input, 1, 0);
-                    } else if (event.key === 'Enter') {
-                        event.preventDefault();
-                        moveGridFocus(input, event.shiftKey ? -1 : 1, 0);
-                    }
-                });
-
-                input.addEventListener('paste', function (event) {
-                    if (!input.dataset.sheetName) {
-                        return;
-                    }
-
-                    const clipboardText = (event.clipboardData || window.clipboardData).getData('text');
-                    if (!clipboardText || (!clipboardText.includes('\t') && !clipboardText.includes('\n'))) {
-                        return;
-                    }
-
+                if (wantsUndo) {
                     event.preventDefault();
-                    pasteGridData(input, clipboardText);
-                });
+                    undoLastChange();
+                    return;
+                }
 
-                input.addEventListener('mousedown', function () {
-                    updateActiveGridHighlights(input);
+                if (wantsRedo) {
+                    event.preventDefault();
+                    redoLastChange();
+                    return;
+                }
+
+                if (!input.dataset.sheetName || event.altKey || event.ctrlKey || event.metaKey) {
+                    return;
+                }
+
+                if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    moveGridFocus(input, 0, -1);
+                } else if (event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    moveGridFocus(input, 0, 1);
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    moveGridFocus(input, -1, 0);
+                } else if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    moveGridFocus(input, 1, 0);
+                } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    moveGridFocus(input, event.shiftKey ? -1 : 1, 0);
+                }
+            });
+
+            input.addEventListener('paste', function (event) {
+                if (!input.dataset.sheetName) {
+                    return;
+                }
+
+                const clipboardText = (event.clipboardData || window.clipboardData).getData('text');
+                if (!clipboardText || (!clipboardText.includes('\t') && !clipboardText.includes('\n'))) {
+                    return;
+                }
+
+                event.preventDefault();
+                pasteGridData(input, clipboardText);
+            });
+
+            input.addEventListener('mousedown', function () {
+                updateActiveGridHighlights(input);
+            });
+        }
+
+        function refreshWeekendRowControls(section) {
+            const prefix = section.dataset.weekendRowPrefix;
+            const start = Number(section.dataset.weekendRowStart || '1');
+            const min = Number(section.dataset.weekendRowMin || '1');
+            const max = Number(section.dataset.weekendRowMax || '999');
+            const rows = Array.from(section.querySelectorAll('tbody tr'));
+            const rowCountInput = section.querySelector('[data-weekend-row-count]');
+            const addButton = section.querySelector('[data-weekend-row-action="add"]');
+            const removeButton = section.querySelector('[data-weekend-row-action="remove"]');
+
+            rows.forEach((row, rowIndex) => {
+                const rowHead = row.querySelector('.turni-weekend-rowhead');
+                if (rowHead) {
+                    rowHead.textContent = String(start + rowIndex);
+                }
+
+                row.querySelectorAll('input[type="text"]').forEach((input) => {
+                    input.name = prefix + '_row_' + rowIndex;
                 });
+            });
+
+            if (rowCountInput) {
+                rowCountInput.value = String(rows.length);
+            }
+
+            if (addButton) {
+                addButton.disabled = rows.length >= max;
+            }
+
+            if (removeButton) {
+                removeButton.disabled = rows.length <= min;
+            }
+        }
+
+        function createWeekendRow(section) {
+            const row = document.createElement('tr');
+            const headerCell = document.createElement('th');
+            const columnCount = Math.max(section.querySelectorAll('thead th').length - 1, 0);
+
+            headerCell.className = 'turni-weekend-rowhead';
+            row.appendChild(headerCell);
+
+            for (let index = 0; index < columnCount; index += 1) {
+                const cell = document.createElement('td');
+                const input = document.createElement('input');
+
+                input.type = 'text';
+                input.className = 'form-control form-control-sm';
+
+                cell.appendChild(input);
+                row.appendChild(cell);
+            }
+
+            return row;
+        }
+
+        function updateWeekendSheet(section, focusTarget) {
+            const sheetName = section.dataset.weekendSheet;
+
+            refreshWeekendRowControls(section);
+            rebuildSheetGrid(sheetName);
+            section.querySelectorAll('tbody input[type="text"]').forEach((input) => {
+                bindPlannerInput(input);
+            });
+            refreshNameSuggestions();
+            resetHistoryState();
+
+            if (focusTarget) {
+                focusCell(focusTarget);
+                updateActiveGridHighlights(focusTarget);
+            } else {
+                activeInput = null;
+                clearGridHighlights();
+                updateFillHandlePosition();
+            }
+        }
+
+        function addWeekendRow(section) {
+            const max = Number(section.dataset.weekendRowMax || '999');
+            const tbody = section.querySelector('tbody');
+            const currentRows = tbody ? tbody.querySelectorAll('tr').length : 0;
+            if (!tbody || currentRows >= max) {
+                return;
+            }
+
+            const row = createWeekendRow(section);
+            tbody.appendChild(row);
+            const firstInput = row.querySelector('input[type="text"]');
+            updateWeekendSheet(section, firstInput);
+        }
+
+        function removeWeekendRow(section) {
+            const min = Number(section.dataset.weekendRowMin || '1');
+            const tbody = section.querySelector('tbody');
+            if (!tbody) {
+                return;
+            }
+
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            if (rows.length <= min) {
+                return;
+            }
+
+            const rowToRemove = rows[rows.length - 1];
+            const fallbackInput = rows.length > 1 ? rows[rows.length - 2].querySelector('input[type="text"]') : null;
+
+            if (activeInput && rowToRemove.contains(activeInput)) {
+                activeInput = null;
+            }
+
+            rowToRemove.remove();
+            updateWeekendSheet(section, fallbackInput);
+        }
+
+        if (plannerForm) {
+            plannerForm.querySelectorAll('input[type="text"]').forEach((input) => {
+                bindPlannerInput(input);
+            });
+
+            weekendRowSections.forEach((section) => {
+                refreshWeekendRowControls(section);
+                const addButton = section.querySelector('[data-weekend-row-action="add"]');
+                const removeButton = section.querySelector('[data-weekend-row-action="remove"]');
+
+                if (addButton) {
+                    addButton.addEventListener('click', function () {
+                        addWeekendRow(section);
+                    });
+                }
+
+                if (removeButton) {
+                    removeButton.addEventListener('click', function () {
+                        removeWeekendRow(section);
+                    });
+                }
             });
 
             refreshNameSuggestions();

@@ -132,7 +132,9 @@ TURNI_WEEKEND_COLUMN_LABELS = (
     'Attivita',
     'Reparto',
 )
+TURNI_WEEKEND_MIN_ROW_COUNT = 1
 TURNI_WEEKEND_DEFAULT_ROW_COUNT = 20
+TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT = 43
 TURNI_PORTINERIA_HEADERS = (
     'PORTINERIA CENTRALE',
     'CENTRALINISTA',
@@ -241,6 +243,12 @@ def _extract_turni_weekly_data_from_post(post_data):
 
 
 def _default_turni_weekend_data(row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
+    row_count = _clamp_turni_weekend_row_count(
+        row_count,
+        default=TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+        minimum=TURNI_WEEKEND_MIN_ROW_COUNT,
+        maximum=TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
+    )
     return {
         'base_date': '',
         'rows': [
@@ -250,7 +258,37 @@ def _default_turni_weekend_data(row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
     }
 
 
-def _merge_turni_weekend_data(raw_weekend_data, row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
+def _clamp_turni_weekend_row_count(raw_value, *, default, minimum, maximum):
+    try:
+        resolved = int(raw_value)
+    except (TypeError, ValueError):
+        resolved = default
+
+    resolved = max(minimum, resolved)
+    if maximum is not None:
+        resolved = min(maximum, resolved)
+    return resolved
+
+
+def _merge_turni_weekend_data(
+    raw_weekend_data,
+    row_count=None,
+    *,
+    default_row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+    minimum=TURNI_WEEKEND_MIN_ROW_COUNT,
+    maximum=TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
+):
+    if row_count is None and isinstance(raw_weekend_data, dict):
+        raw_rows = raw_weekend_data.get('rows')
+        if isinstance(raw_rows, list) and raw_rows:
+            row_count = len(raw_rows)
+
+    row_count = _clamp_turni_weekend_row_count(
+        row_count,
+        default=default_row_count,
+        minimum=minimum,
+        maximum=maximum,
+    )
     weekend_data = _default_turni_weekend_data(row_count=row_count)
     if not isinstance(raw_weekend_data, dict):
         return weekend_data
@@ -267,7 +305,24 @@ def _merge_turni_weekend_data(raw_weekend_data, row_count=TURNI_WEEKEND_DEFAULT_
     return weekend_data
 
 
-def _extract_turni_weekend_data_from_post(post_data, prefix, row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
+def _extract_turni_weekend_data_from_post(
+    post_data,
+    prefix,
+    row_count=None,
+    *,
+    default_row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+    minimum=TURNI_WEEKEND_MIN_ROW_COUNT,
+    maximum=TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
+):
+    if row_count is None:
+        row_count = post_data.get(f'{prefix}_row_count')
+
+    row_count = _clamp_turni_weekend_row_count(
+        row_count,
+        default=default_row_count,
+        minimum=minimum,
+        maximum=maximum,
+    )
     weekend_data = _default_turni_weekend_data(row_count=row_count)
     weekend_data['base_date'] = (post_data.get(f'{prefix}_base_date') or '').strip()
     for row_index in range(row_count):
@@ -385,8 +440,22 @@ def _turni_portineria_weekly_sections_for_export(raw_weekly_data):
     return weekly_data['headers'], sections
 
 
-def _turni_weekend_export_data(raw_weekend_data, *, title, row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
-    weekend_data = _merge_turni_weekend_data(raw_weekend_data, row_count=row_count)
+def _turni_weekend_export_data(
+    raw_weekend_data,
+    *,
+    title,
+    row_count=None,
+    default_row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+    minimum=TURNI_WEEKEND_MIN_ROW_COUNT,
+    maximum=TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
+):
+    weekend_data = _merge_turni_weekend_data(
+        raw_weekend_data,
+        row_count=row_count,
+        default_row_count=default_row_count,
+        minimum=minimum,
+        maximum=maximum,
+    )
     return WeekendExportData(
         title=title,
         authorization_date=weekend_data['base_date'],
@@ -460,13 +529,13 @@ def _turni_planner_export_response(state, *, export_format, export_target):
             'pdf_name': SATURDAY_PDF_NAME,
             'image_name': SATURDAY_IMAGE_NAME,
             'title': 'Comandata pulizie sabato',
-            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+            'row_count': None,
         },
         'sunday': {
             'pdf_name': SUNDAY_PDF_NAME,
             'image_name': SUNDAY_IMAGE_NAME,
             'title': 'Comandata pulizie domenica',
-            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+            'row_count': None,
         },
         'portineria_weekend': {
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
@@ -578,13 +647,13 @@ def _turni_planner_bulk_export_response(state, *, export_format):
             'pdf_name': SATURDAY_PDF_NAME,
             'image_name': SATURDAY_IMAGE_NAME,
             'title': 'Comandata pulizie sabato',
-            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+            'row_count': None,
         },
         'sunday': {
             'pdf_name': SUNDAY_PDF_NAME,
             'image_name': SUNDAY_IMAGE_NAME,
             'title': 'Comandata pulizie domenica',
-            'row_count': TURNI_WEEKEND_DEFAULT_ROW_COUNT,
+            'row_count': None,
         },
         'portineria_weekend': {
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
@@ -4315,6 +4384,7 @@ def turni_planner_home(request):
                         request.POST,
                         'portineria_weekend',
                         row_count=TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
+                        maximum=TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
                     )
                 selected_state.planner_data = planner_data
                 selected_state.updated_by = request.user
@@ -4355,6 +4425,7 @@ def turni_planner_home(request):
     portineria_weekend_data = _merge_turni_weekend_data(
         planner_data.get('portineria_weekend'),
         row_count=TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
+        maximum=TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
     )
 
     return render(request, 'portal/turni_planner.html', {
@@ -4367,6 +4438,7 @@ def turni_planner_home(request):
         'portineria_weekly_data': portineria_weekly_data,
         'portineria_weekend_data': portineria_weekend_data,
         'weekend_column_labels': TURNI_WEEKEND_COLUMN_LABELS,
+        'weekend_single_page_max_rows': TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
     })
 
 

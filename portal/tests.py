@@ -419,6 +419,67 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(state.planner_data["portineria_weekly"]["sections"][0]["rows"][0][1], "Persona B")
 		self.assertEqual(state.planner_data["portineria_weekend"]["rows"][0][5], "Portineria")
 
+	def test_turni_planner_saves_dynamic_weekend_row_counts(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 29 bis da Lunedi 13/07/2026 a Sabato 18/07/2026",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "save_planner",
+				"week_label": state.week_label,
+				"weekly_headers": [f"Reparto {index}" for index in range(1, 11)],
+				"weekly_time_0": [""] * 10,
+				"weekly_time_1": [""] * 10,
+				"weekly_time_2": [""] * 10,
+				"weekly_time_3": [""] * 10,
+				"weekly_row_0_0": [""] * 10,
+				"weekly_row_0_1": [""] * 10,
+				"weekly_row_0_2": [""] * 10,
+				"weekly_row_1_0": [""] * 10,
+				"weekly_row_1_1": [""] * 10,
+				"weekly_row_1_2": [""] * 10,
+				"weekly_row_2_0": [""] * 10,
+				"weekly_row_2_1": [""] * 10,
+				"weekly_row_2_2": [""] * 10,
+				"weekly_row_3_0": [""] * 10,
+				"weekly_row_3_1": [""] * 10,
+				"weekly_row_3_2": [""] * 10,
+				"saturday_base_date": "18/07/2026",
+				"saturday_row_count": "22",
+				"saturday_row_0": ["18/07/2026", "Mattina", "Mario", "Capo A", "Lavaggio", "Reparto A"],
+				"saturday_row_21": ["18/07/2026", "Sera", "Ultimo Sabato", "Capo Z", "Chiusura", "Reparto Z"],
+				"sunday_base_date": "19/07/2026",
+				"sunday_row_count": "21",
+				"sunday_row_0": ["19/07/2026", "Notte", "Luigi", "Capo B", "Sanificazione", "Reparto B"],
+				"sunday_row_20": ["19/07/2026", "Tardo", "Ultima Domenica", "Capo Y", "Controllo", "Reparto Y"],
+				"portineria_weekly_headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
+				"portineria_weekly_time_0": ["06:14", "08:17", "06:14"],
+				"portineria_weekly_time_1": ["14:22", "", "14:22"],
+				"portineria_weekly_time_2": ["22:06", "", "22:06"],
+				"portineria_weekly_row_0_0": ["", "", ""],
+				"portineria_weekly_row_0_1": ["", "", ""],
+				"portineria_weekly_row_0_2": ["", "", ""],
+				"portineria_weekly_row_1_0": ["", "", ""],
+				"portineria_weekly_row_1_1": ["", "", ""],
+				"portineria_weekly_row_1_2": ["", "", ""],
+				"portineria_weekly_row_2_0": ["", "", ""],
+				"portineria_weekly_row_2_1": ["", "", ""],
+				"portineria_weekly_row_2_2": ["", "", ""],
+				"portineria_weekend_base_date": "18/07/2026",
+				"portineria_weekend_row_0": ["18/07/2026", "Mattina", "Port A", "Resp A", "Controllo", "Portineria"],
+			},
+		)
+
+		state.refresh_from_db()
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
+		self.assertEqual(len(state.planner_data["saturday"]["rows"]), 22)
+		self.assertEqual(len(state.planner_data["sunday"]["rows"]), 21)
+		self.assertEqual(state.planner_data["saturday"]["rows"][21][2], "Ultimo Sabato")
+		self.assertEqual(state.planner_data["sunday"]["rows"][20][2], "Ultima Domenica")
+
 	def test_turni_planner_exports_weekly_pdf_download(self):
 		state = TurniPlannerWeekState.objects.create(
 			week_label="Week 30 da Lunedi 20/07/2026 a Sabato 25/07/2026",
