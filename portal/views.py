@@ -4386,6 +4386,9 @@ def turni_planner_home(request):
         action = (request.POST.get('action') or 'open_week').strip()
         week_label = (request.POST.get('week_label') or '').strip()
         if week_label:
+            if action == 'delete_week':
+                TurniPlannerWeekState.objects.filter(week_label=week_label).delete()
+                return redirect(reverse('turni_planner_home'))
             selected_state, created = TurniPlannerWeekState.objects.get_or_create(
                 week_label=week_label,
                 defaults={

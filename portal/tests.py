@@ -357,6 +357,25 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
 		self.assertEqual(state.updated_by, self.allowed_user)
 
+	def test_turni_planner_deletes_requested_week(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 28 da Lunedi 06/07/2026 a Sabato 11/07/2026",
+			planner_data={"weekly": {"headers": ["A"]}},
+		)
+		TurniPlannerWeekState.objects.create(
+			week_label="Week 29 da Lunedi 13/07/2026 a Sabato 18/07/2026",
+			planner_data={"weekly": {"headers": ["B"]}},
+		)
+		self.client.force_login(self.allowed_user)
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{"action": "delete_week", "week_label": state.week_label},
+		)
+
+		self.assertRedirects(response, reverse("turni_planner_home"))
+		self.assertFalse(TurniPlannerWeekState.objects.filter(week_label=state.week_label).exists())
+		self.assertTrue(TurniPlannerWeekState.objects.filter(week_label="Week 29 da Lunedi 13/07/2026 a Sabato 18/07/2026").exists())
+
 	def test_turni_planner_new_week_clones_latest_planner_data(self):
 		previous_state = TurniPlannerWeekState.objects.create(
 			week_label="Week 17: da Lunedi 20/04/2026 a Venerdi 24/04/2026",

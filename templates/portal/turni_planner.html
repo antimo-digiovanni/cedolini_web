@@ -605,13 +605,25 @@
                 {% if recent_weeks %}
                     <div class="list-group list-group-flush">
                         {% for week in recent_weeks %}
-                        <a href="{% url 'turni_planner_home' %}?week={{ week.week_label|urlencode }}" class="list-group-item list-group-item-action px-0 {% if selected_state and selected_state.id == week.id %}active border-0 rounded-3 px-3{% endif %}">
-                            <div class="fw-semibold">{{ week.week_label }}</div>
-                            <div class="small {% if selected_state and selected_state.id == week.id %}text-white-50{% else %}text-muted{% endif %}">
-                                Ultimo aggiornamento: {{ week.updated_at|date:"d/m/Y H:i" }}
-                                {% if week.updated_by %} · {{ week.updated_by.username }}{% endif %}
+                        <div class="list-group-item px-0 {% if selected_state and selected_state.id == week.id %}active border-0 rounded-3 px-3{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <a href="{% url 'turni_planner_home' %}?week={{ week.week_label|urlencode }}" class="text-decoration-none flex-grow-1 {% if selected_state and selected_state.id == week.id %}text-white{% else %}text-body{% endif %}">
+                                    <div class="fw-semibold">{{ week.week_label }}</div>
+                                    <div class="small {% if selected_state and selected_state.id == week.id %}text-white-50{% else %}text-muted{% endif %}">
+                                        Ultimo aggiornamento: {{ week.updated_at|date:"d/m/Y H:i" }}
+                                        {% if week.updated_by %} · {{ week.updated_by.username }}{% endif %}
+                                    </div>
+                                </a>
+                                <form method="post" class="m-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_week">
+                                    <input type="hidden" name="week_label" value="{{ week.week_label }}">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancella settimana" aria-label="Cancella {{ week.week_label }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                             </div>
-                        </a>
+                        </div>
                         {% endfor %}
                     </div>
                 {% else %}
