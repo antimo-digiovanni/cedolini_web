@@ -194,6 +194,66 @@
         z-index: 3;
     }
 
+    .turni-cell-focus {
+        position: relative;
+        box-shadow: inset 0 0 0 2px #0f172a;
+        z-index: 4;
+    }
+
+    .turni-cell-focus input {
+        background: #fffbe8 !important;
+    }
+
+    .turni-row-highlight {
+        background: #f7fbff !important;
+    }
+
+    .turni-row-highlight input {
+        background: #f7fbff !important;
+    }
+
+    .turni-column-highlight {
+        background: #eef6ff !important;
+    }
+
+    .turni-column-highlight input {
+        background: #eef6ff !important;
+    }
+
+    .turni-fill-preview {
+        box-shadow: inset 0 0 0 2px rgba(47, 97, 200, 0.28);
+    }
+
+    .turni-fill-source {
+        box-shadow: inset 0 0 0 2px #2f61c8;
+    }
+
+    .turni-fill-handle {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        background: #2f61c8;
+        border: 1px solid #fff;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.24);
+        cursor: crosshair;
+        z-index: 30;
+        display: none;
+    }
+
+    .turni-topbar-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .turni-topbar-shortcuts {
+        font-size: 0.78rem;
+        color: #64748b;
+    }
+
     .turni-weekly-cell input {
         min-width: 150px;
     }
@@ -539,6 +599,7 @@
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="week_label" value="{{ selected_state.week_label }}">
+                <datalist id="turni-name-suggestions"></datalist>
 
                 <div class="turni-topbar d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
                     <div>
@@ -548,11 +609,18 @@
                             {% if selected_state.updated_by %}da {{ selected_state.updated_by.username }}{% endif %}
                         </div>
                     </div>
-                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <div class="turni-topbar-tools">
                         <span class="badge text-bg-dark">Bozza condivisa</span>
+                        <button type="button" class="btn btn-outline-dark btn-sm" data-turni-undo disabled>
+                            <i class="bi bi-arrow-counterclockwise"></i> Annulla
+                        </button>
+                        <button type="button" class="btn btn-outline-dark btn-sm" data-turni-redo disabled>
+                            <i class="bi bi-arrow-clockwise"></i> Ripristina
+                        </button>
                         <button type="submit" name="action" value="save_planner" class="btn btn-primary">
                             <i class="bi bi-floppy"></i> Salva planner
                         </button>
+                        <div class="turni-topbar-shortcuts">Frecce, trascina per copiare, Ctrl+Z, Ctrl+Y</div>
                     </div>
                 </div>
 
@@ -732,7 +800,7 @@
                             <div class="turni-sheet-toolbar">
                                 <div>
                                     <div class="fw-semibold">Foglio settimanale</div>
-                                    <div class="text-muted small">Usa i pulsanti o la barra sotto per spostarti a destra e sinistra.</div>
+                                    <div class="text-muted small">Usa frecce, Invio e incolla da Excel per muoverti e compilare piu velocemente.</div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
                                     <div class="btn-group" role="group" aria-label="Scorrimento foglio settimanale">
@@ -803,7 +871,7 @@
                             <div class="turni-sheet-toolbar">
                                 <div>
                                     <div class="fw-semibold">Foglio portineria</div>
-                                    <div class="text-muted small">Anche qui puoi scorrere il foglio orizzontalmente con una barra dedicata.</div>
+                                    <div class="text-muted small">Anche qui puoi usare frecce, Invio e incolla multi-cella come in Excel.</div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
                                     <div class="btn-group" role="group" aria-label="Scorrimento foglio portineria settimana">
@@ -1184,6 +1252,491 @@
             window.addEventListener('resize', syncTrackWidth);
             syncTrackWidth();
             syncScrollbarFromContainer();
+        }
+
+        function focusCell(input) {
+            if (!input) {
+                return;
+            }
+            input.focus();
+            input.select();
+        }
+
+        function getCellElement(input) {
+            return input ? input.closest('td, th, .turni-weekend-meta div') : null;
+        }
+
+        function buildSheetGrids() {
+            const grids = new Map();
+
+            sheetContainers.forEach((container) => {
+                const sheetName = container.dataset.scrollableSheet;
+                const rows = Array.from(container.querySelectorAll('tr'))
+                    .map((row) => Array.from(row.querySelectorAll('input[type="text"]')))
+                    .filter((row) => row.length);
+
+                rows.forEach((row, rowIndex) => {
+                    row.forEach((input, colIndex) => {
+                        input.dataset.sheetName = sheetName;
+                        input.dataset.sheetRow = String(rowIndex);
+                        input.dataset.sheetCol = String(colIndex);
+                    });
+                });
+
+                grids.set(sheetName, rows);
+            });
+
+            return grids;
+        }
+
+        const sheetGrids = buildSheetGrids();
+        const nameSuggestions = plannerForm ? plannerForm.querySelector('#turni-name-suggestions') : null;
+        const undoButton = plannerForm ? plannerForm.querySelector('[data-turni-undo]') : null;
+        const redoButton = plannerForm ? plannerForm.querySelector('[data-turni-redo]') : null;
+        const fillHandle = document.createElement('div');
+        const historyStack = [];
+        const redoStack = [];
+        let activeInput = null;
+        let suppressHistoryCapture = false;
+        let fillState = null;
+
+        fillHandle.className = 'turni-fill-handle';
+        document.body.appendChild(fillHandle);
+
+        function isNameInput(input) {
+            if (!input) {
+                return false;
+            }
+            if ((input.getAttribute('placeholder') || '') === 'Nominativo') {
+                return true;
+            }
+
+            const weekendSheets = new Set(['saturday-sheet', 'sunday-sheet', 'portineria-weekend-sheet']);
+            return weekendSheets.has(input.dataset.sheetName) && Number(input.dataset.sheetCol || '-1') === 2;
+        }
+
+        function refreshNameSuggestions() {
+            if (!nameSuggestions || !plannerForm) {
+                return;
+            }
+
+            const values = Array.from(plannerForm.querySelectorAll('input[type="text"]'))
+                .filter((input) => isNameInput(input))
+                .map((input) => input.value.trim())
+                .filter((value) => value.length > 1);
+            const uniqueValues = Array.from(new Set(values)).sort((left, right) => left.localeCompare(right, 'it'));
+
+            nameSuggestions.innerHTML = uniqueValues.map((value) => '<option value="' + value.replace(/"/g, '&quot;') + '"></option>').join('');
+        }
+
+        function updateHistoryButtons() {
+            if (undoButton) {
+                undoButton.disabled = historyStack.length === 0;
+            }
+            if (redoButton) {
+                redoButton.disabled = redoStack.length === 0;
+            }
+        }
+
+        function applyChangeBatch(changes, options = {}) {
+            const filteredChanges = changes.filter((change) => change.before !== change.after);
+            if (!filteredChanges.length) {
+                return;
+            }
+
+            const direction = options.direction === 'undo' ? 'undo' : options.direction === 'redo' ? 'redo' : 'record';
+            const sourceEntry = options.entry || { changes: filteredChanges };
+
+            suppressHistoryCapture = true;
+            filteredChanges.forEach((change) => {
+                const nextValue = direction === 'undo' ? change.before : change.after;
+                change.input.value = nextValue;
+                change.input.dataset.editStartValue = nextValue;
+                change.input.dispatchEvent(new Event('input', { bubbles: true }));
+                change.input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            suppressHistoryCapture = false;
+
+            if (direction === 'record') {
+                historyStack.push({ changes: filteredChanges });
+                redoStack.length = 0;
+            } else if (direction === 'undo') {
+                redoStack.push(sourceEntry);
+            } else if (direction === 'redo') {
+                historyStack.push(sourceEntry);
+            }
+
+            refreshNameSuggestions();
+            updateHistoryButtons();
+        }
+
+        function undoLastChange() {
+            const entry = historyStack.pop();
+            if (!entry) {
+                updateHistoryButtons();
+                return;
+            }
+            applyChangeBatch(entry.changes, { direction: 'undo', entry });
+        }
+
+        function redoLastChange() {
+            const entry = redoStack.pop();
+            if (!entry) {
+                updateHistoryButtons();
+                return;
+            }
+            applyChangeBatch(entry.changes, { direction: 'redo', entry });
+        }
+
+        function clearGridHighlights() {
+            document.querySelectorAll('.turni-cell-focus, .turni-row-highlight, .turni-column-highlight, .turni-fill-source, .turni-fill-preview')
+                .forEach((element) => element.classList.remove('turni-cell-focus', 'turni-row-highlight', 'turni-column-highlight', 'turni-fill-source', 'turni-fill-preview'));
+        }
+
+        function updateFillHandlePosition() {
+            if (!activeInput || !activeInput.dataset.sheetName) {
+                fillHandle.style.display = 'none';
+                return;
+            }
+
+            const cell = getCellElement(activeInput);
+            if (!cell) {
+                fillHandle.style.display = 'none';
+                return;
+            }
+
+            const rect = cell.getBoundingClientRect();
+            fillHandle.style.display = 'block';
+            fillHandle.style.left = window.scrollX + rect.right - 6 + 'px';
+            fillHandle.style.top = window.scrollY + rect.bottom - 6 + 'px';
+        }
+
+        function updateActiveGridHighlights(input) {
+            clearGridHighlights();
+            activeInput = input;
+
+            const activeCell = getCellElement(input);
+            if (activeCell) {
+                activeCell.classList.add('turni-cell-focus');
+            }
+
+            const rowElement = input.closest('tr');
+            if (rowElement) {
+                rowElement.querySelectorAll('td, th').forEach((cell) => cell.classList.add('turni-row-highlight'));
+            }
+
+            if (input.dataset.sheetName && sheetGrids.has(input.dataset.sheetName)) {
+                const rows = sheetGrids.get(input.dataset.sheetName);
+                const currentCol = Number(input.dataset.sheetCol || '0');
+
+                rows.forEach((row) => {
+                    const columnInput = row[currentCol];
+                    const columnCell = getCellElement(columnInput);
+                    if (columnCell) {
+                        columnCell.classList.add('turni-column-highlight');
+                    }
+                });
+            }
+
+            if (activeCell) {
+                activeCell.classList.add('turni-cell-focus');
+            }
+
+            updateFillHandlePosition();
+        }
+
+        function moveGridFocus(input, rowDelta, colDelta) {
+            const sheetName = input.dataset.sheetName;
+            if (!sheetName || !sheetGrids.has(sheetName)) {
+                return;
+            }
+
+            const rows = sheetGrids.get(sheetName);
+            const currentRow = Number(input.dataset.sheetRow || '0');
+            const currentCol = Number(input.dataset.sheetCol || '0');
+            const nextRow = currentRow + rowDelta;
+            if (nextRow < 0 || nextRow >= rows.length) {
+                return;
+            }
+
+            const targetRow = rows[nextRow];
+            const nextCol = currentCol + colDelta;
+            if (nextCol < 0 || nextCol >= targetRow.length) {
+                return;
+            }
+
+            focusCell(targetRow[nextCol]);
+        }
+
+        function normalizeClipboardRows(rawText) {
+            return rawText
+                .replace(/\r/g, '')
+                .split('\n')
+                .filter((line, index, lines) => line !== '' || index < lines.length - 1)
+                .map((line) => line.split('\t'));
+        }
+
+        function pasteGridData(startInput, rawText) {
+            const sheetName = startInput.dataset.sheetName;
+            if (!sheetName || !sheetGrids.has(sheetName)) {
+                return false;
+            }
+
+            const rows = sheetGrids.get(sheetName);
+            const startRow = Number(startInput.dataset.sheetRow || '0');
+            const startCol = Number(startInput.dataset.sheetCol || '0');
+            const clipboardRows = normalizeClipboardRows(rawText);
+            const changes = [];
+            let lastInput = startInput;
+
+            clipboardRows.forEach((clipboardRow, rowOffset) => {
+                const targetRowIndex = startRow + rowOffset;
+                if (targetRowIndex >= rows.length) {
+                    return;
+                }
+
+                clipboardRow.forEach((value, colOffset) => {
+                    const targetColIndex = startCol + colOffset;
+                    const targetInput = rows[targetRowIndex][targetColIndex];
+                    if (!targetInput) {
+                        return;
+                    }
+                    changes.push({
+                        input: targetInput,
+                        before: targetInput.value,
+                        after: value,
+                    });
+                    lastInput = targetInput;
+                });
+            });
+
+            applyChangeBatch(changes);
+            focusCell(lastInput);
+            return true;
+        }
+
+        function buildFillRange(sourceInput, targetInput) {
+            if (!sourceInput || !targetInput || sourceInput.dataset.sheetName !== targetInput.dataset.sheetName) {
+                return [];
+            }
+
+            const rows = sheetGrids.get(sourceInput.dataset.sheetName);
+            const rowStart = Math.min(Number(sourceInput.dataset.sheetRow), Number(targetInput.dataset.sheetRow));
+            const rowEnd = Math.max(Number(sourceInput.dataset.sheetRow), Number(targetInput.dataset.sheetRow));
+            const colStart = Math.min(Number(sourceInput.dataset.sheetCol), Number(targetInput.dataset.sheetCol));
+            const colEnd = Math.max(Number(sourceInput.dataset.sheetCol), Number(targetInput.dataset.sheetCol));
+            const rangeInputs = [];
+
+            for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex += 1) {
+                for (let colIndex = colStart; colIndex <= colEnd; colIndex += 1) {
+                    const candidate = rows[rowIndex] && rows[rowIndex][colIndex];
+                    if (candidate) {
+                        rangeInputs.push(candidate);
+                    }
+                }
+            }
+
+            return rangeInputs;
+        }
+
+        function previewFillRange(sourceInput, targetInput) {
+            clearGridHighlights();
+            const rangeInputs = buildFillRange(sourceInput, targetInput);
+            rangeInputs.forEach((rangeInput) => {
+                const cell = getCellElement(rangeInput);
+                if (cell) {
+                    cell.classList.add('turni-fill-preview');
+                }
+            });
+
+            const sourceCell = getCellElement(sourceInput);
+            if (sourceCell) {
+                sourceCell.classList.add('turni-fill-source');
+                sourceCell.classList.add('turni-cell-focus');
+            }
+        }
+
+        function finishFillDrag() {
+            if (!fillState) {
+                return;
+            }
+
+            const { sourceInput, targetInput } = fillState;
+            const fillValue = sourceInput.value;
+            const rangeInputs = buildFillRange(sourceInput, targetInput);
+            const changes = rangeInputs.map((rangeInput) => ({
+                input: rangeInput,
+                before: rangeInput.value,
+                after: fillValue,
+            }));
+
+            fillState = null;
+            applyChangeBatch(changes);
+            focusCell(targetInput || sourceInput);
+            updateActiveGridHighlights(targetInput || sourceInput);
+        }
+
+        if (plannerForm) {
+            plannerForm.querySelectorAll('input[type="text"]').forEach((input) => {
+                if (isNameInput(input) && nameSuggestions) {
+                    input.setAttribute('list', 'turni-name-suggestions');
+                    input.setAttribute('autocomplete', 'off');
+                }
+
+                input.addEventListener('focus', function () {
+                    input.dataset.editStartValue = input.value;
+                    updateActiveGridHighlights(input);
+                });
+
+                input.addEventListener('blur', function () {
+                    if (!fillState) {
+                        updateFillHandlePosition();
+                    }
+                });
+
+                input.addEventListener('change', function () {
+                    if (suppressHistoryCapture) {
+                        return;
+                    }
+
+                    const beforeValue = input.dataset.editStartValue ?? input.defaultValue ?? '';
+                    if (beforeValue !== input.value) {
+                        applyChangeBatch([
+                            {
+                                input,
+                                before: beforeValue,
+                                after: input.value,
+                            },
+                        ]);
+                        input.dataset.editStartValue = input.value;
+                    }
+                });
+
+                input.addEventListener('input', function () {
+                    if (isNameInput(input)) {
+                        refreshNameSuggestions();
+                    }
+                });
+
+                input.addEventListener('keydown', function (event) {
+                    const wantsUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z';
+                    const wantsRedo = ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') || ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z');
+
+                    if (wantsUndo) {
+                        event.preventDefault();
+                        undoLastChange();
+                        return;
+                    }
+
+                    if (wantsRedo) {
+                        event.preventDefault();
+                        redoLastChange();
+                        return;
+                    }
+
+                    if (!input.dataset.sheetName || event.altKey || event.ctrlKey || event.metaKey) {
+                        return;
+                    }
+
+                    if (event.key === 'ArrowLeft') {
+                        event.preventDefault();
+                        moveGridFocus(input, 0, -1);
+                    } else if (event.key === 'ArrowRight') {
+                        event.preventDefault();
+                        moveGridFocus(input, 0, 1);
+                    } else if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        moveGridFocus(input, -1, 0);
+                    } else if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        moveGridFocus(input, 1, 0);
+                    } else if (event.key === 'Enter') {
+                        event.preventDefault();
+                        moveGridFocus(input, event.shiftKey ? -1 : 1, 0);
+                    }
+                });
+
+                input.addEventListener('paste', function (event) {
+                    if (!input.dataset.sheetName) {
+                        return;
+                    }
+
+                    const clipboardText = (event.clipboardData || window.clipboardData).getData('text');
+                    if (!clipboardText || (!clipboardText.includes('\t') && !clipboardText.includes('\n'))) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    pasteGridData(input, clipboardText);
+                });
+
+                input.addEventListener('mousedown', function () {
+                    updateActiveGridHighlights(input);
+                });
+            });
+
+            refreshNameSuggestions();
+            updateHistoryButtons();
+
+            if (undoButton) {
+                undoButton.addEventListener('click', undoLastChange);
+            }
+
+            if (redoButton) {
+                redoButton.addEventListener('click', redoLastChange);
+            }
+
+            fillHandle.addEventListener('mousedown', function (event) {
+                if (!activeInput || !activeInput.dataset.sheetName) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                fillState = {
+                    sourceInput: activeInput,
+                    targetInput: activeInput,
+                };
+                previewFillRange(activeInput, activeInput);
+            });
+
+            document.addEventListener('mousemove', function (event) {
+                if (!fillState) {
+                    return;
+                }
+
+                const hoveredElement = document.elementFromPoint(event.clientX, event.clientY);
+                const hoveredInput = hoveredElement ? hoveredElement.closest('input[type="text"]') : null;
+                if (!hoveredInput || hoveredInput.dataset.sheetName !== fillState.sourceInput.dataset.sheetName) {
+                    return;
+                }
+
+                fillState.targetInput = hoveredInput;
+                previewFillRange(fillState.sourceInput, hoveredInput);
+            });
+
+            document.addEventListener('mouseup', function () {
+                if (!fillState) {
+                    return;
+                }
+                finishFillDrag();
+            });
+
+            document.addEventListener('keydown', function (event) {
+                const wantsUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z';
+                const wantsRedo = ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') || ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z');
+
+                if (wantsUndo) {
+                    event.preventDefault();
+                    undoLastChange();
+                } else if (wantsRedo) {
+                    event.preventDefault();
+                    redoLastChange();
+                }
+            });
+
+            window.addEventListener('resize', updateFillHandlePosition);
+            window.addEventListener('scroll', updateFillHandlePosition, true);
         }
 
         sheetContainers.forEach((container) => {
