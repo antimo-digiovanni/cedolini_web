@@ -878,7 +878,7 @@
                                             <th class="turni-weekly-label-cell"><span>{{ forloop.parentloop.counter }}&deg;</span></th>
                                             {% for value in row %}
                                             <td class="turni-weekly-input-cell">
-                                                <input type="text" name="weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}" placeholder="Nominativo">
+                                                <input type="text" name="weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
                                             </td>
                                             {% endfor %}
                                         </tr>
@@ -965,7 +965,7 @@
                                             <td class="turni-portineria-static"></td>
                                             {% endif %}
                                             <td class="turni-portineria-input-cell">
-                                                <input type="text" name="portineria_weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}" placeholder="Nominativo">
+                                                <input type="text" name="portineria_weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
                                             </td>
                                             {% endfor %}
                                         </tr>
