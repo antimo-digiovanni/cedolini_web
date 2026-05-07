@@ -4749,57 +4749,71 @@ def admin_payslip_integrity(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    from django.core.files.storage import default_storage
-
     year = request.GET.get('year')
-    employee_id = request.GET.get('employee')
+    employee_id_raw = request.GET.get('employee')
+    run_check = request.GET.get('run') == '1'
 
-    payslips_qs = Payslip.objects.all().select_related('employee').order_by('-year', '-month')
-
-    if year:
-        payslips_qs = payslips_qs.filter(year=year)
-    if employee_id:
-        payslips_qs = payslips_qs.filter(employee_id=employee_id)
-
-    # Limite di sicurezza per non bombardare lo storage
-    payslips_qs = payslips_qs[:2000]
+    try:
+        employee_selected = int(employee_id_raw) if employee_id_raw else None
+    except (TypeError, ValueError):
+        employee_selected = None
 
     missing = []
     checked = 0
+    missing_count = 0
+    missing_ratio = 0
+    integrity_status = "ok"
+    integrity_label = "OK"
+    integrity_reason = "Seleziona i filtri e avvia il controllo per generare il report."
 
-    for p in payslips_qs:
-        checked += 1
-        try:
-            exists = default_storage.exists(p.pdf.name)
-        except Exception:
-            logger.exception("Errore nel controllo esistenza file per payslip id=%s", p.id)
-            exists = False
+    if run_check:
+        from django.core.files.storage import default_storage
 
-        if not exists:
-            missing.append(p)
+        payslips_qs = Payslip.objects.all().select_related('employee').order_by('-year', '-month')
 
-    missing_count = len(missing)
-    missing_ratio = (missing_count / checked) if checked else 0
+        if year:
+            payslips_qs = payslips_qs.filter(year=year)
+        if employee_selected:
+            payslips_qs = payslips_qs.filter(employee_id=employee_selected)
 
-    if missing_count == 0:
-        integrity_status = "ok"
-        integrity_label = "OK"
-        integrity_reason = "Nessun PDF mancante rilevato."
-    elif missing_ratio <= 0.05:
-        integrity_status = "warning"
-        integrity_label = "Attenzione"
-        integrity_reason = "Anomalie limitate: presenza di pochi PDF mancanti."
-    else:
-        integrity_status = "critical"
-        integrity_label = "Critica"
-        integrity_reason = "Anomalie elevate: numero significativo di PDF mancanti."
+        # Limite di sicurezza per non bombardare lo storage
+        payslips_qs = payslips_qs[:2000]
+
+        for payslip in payslips_qs:
+            checked += 1
+            payslip.month_name = MONTH_LABELS_IT.get(payslip.month, str(payslip.month))
+            try:
+                exists = default_storage.exists(payslip.pdf.name)
+            except Exception:
+                logger.exception("Errore nel controllo esistenza file per payslip id=%s", payslip.id)
+                exists = False
+
+            if not exists:
+                missing.append(payslip)
+
+        missing_count = len(missing)
+        missing_ratio = (missing_count / checked) if checked else 0
+
+        if missing_count == 0:
+            integrity_status = "ok"
+            integrity_label = "OK"
+            integrity_reason = "Nessun PDF mancante rilevato."
+        elif missing_ratio <= 0.05:
+            integrity_status = "warning"
+            integrity_label = "Attenzione"
+            integrity_reason = "Anomalie limitate: presenza di pochi PDF mancanti."
+        else:
+            integrity_status = "critical"
+            integrity_label = "Critica"
+            integrity_reason = "Anomalie elevate: numero significativo di PDF mancanti."
 
     employees = Employee.objects.order_by('last_name', 'first_name')
 
     return render(request, "portal/admin_payslip_integrity.html", {
         "employees": employees,
         "year_selected": year,
-        "employee_selected": int(employee_id) if employee_id else None,
+        "employee_selected": employee_selected,
+        "run_check": run_check,
         "checked": checked,
         "missing": missing,
         "missing_count": missing_count,
