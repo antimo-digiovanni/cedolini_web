@@ -739,9 +739,14 @@
                 <div class="card-modern bg-light border mb-4">
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-xl-8">
-                            <label for="export_week_label" class="form-label fw-semibold mb-1">Titolo settimana per PDF/JPG</label>
-                            <input type="text" id="export_week_label" name="export_week_label" class="form-control" value="{{ export_week_label }}" placeholder="Week 19: da Lunedi ...">
-                            <div class="form-text">Se lo cambi, PDF e JPG useranno questo testo. Se lo lasci com'e, usera l'etichetta settimana.</div>
+                            <label for="weekly_export_week_label" class="form-label fw-semibold mb-1">Titolo export Settimana</label>
+                            <input type="text" id="weekly_export_week_label" name="weekly_export_week_label" class="form-control" value="{{ weekly_export_week_label }}" placeholder="Week 19: da Lunedi ...">
+                            <div class="form-text">Usato da PDF e JPG della sezione Settimana. Se non lo cambi, usa l'etichetta settimana.</div>
+                        </div>
+                        <div class="col-12 col-xl-6">
+                            <label for="portineria_weekly_export_week_label" class="form-label fw-semibold mb-1">Titolo export Portineria settimana</label>
+                            <input type="text" id="portineria_weekly_export_week_label" name="portineria_weekly_export_week_label" class="form-control" value="{{ portineria_weekly_export_week_label }}" placeholder="Week 19: da Lunedi ...">
+                            <div class="form-text">Usato da PDF e JPG della sezione Portineria settimana. Se non lo cambi, usa l'etichetta settimana.</div>
                         </div>
                     </div>
                 </div>
@@ -1773,6 +1778,27 @@
             return true;
         }
 
+        function clearSelectedGridData(input) {
+            if (!input || !input.dataset.sheetName) {
+                return false;
+            }
+
+            const selectedInputs = getKeyboardSelectionInputs().filter((candidate) => candidate.dataset.sheetName === input.dataset.sheetName);
+            if (selectedInputs.length <= 1) {
+                return false;
+            }
+
+            const changes = selectedInputs.map((targetInput) => ({
+                input: targetInput,
+                before: targetInput.value,
+                after: '',
+            }));
+
+            applyChangeBatch(changes);
+            focusCell(input);
+            return true;
+        }
+
         function buildFillRange(sourceInput, targetInput) {
             if (!sourceInput || !targetInput || sourceInput.dataset.sheetName !== targetInput.dataset.sheetName) {
                 return [];
@@ -1897,6 +1923,11 @@
                 }
 
                 if (!input.dataset.sheetName || event.altKey || event.ctrlKey || event.metaKey) {
+                    return;
+                }
+
+                if ((event.key === 'Delete' || event.key === 'Backspace') && clearSelectedGridData(input)) {
+                    event.preventDefault();
                     return;
                 }
 

@@ -133,13 +133,18 @@ def _turni_planner_initial_data_for_new_week(*, week_label):
         planner_data = previous_state.planner_data or {}
         if _turni_planner_data_has_content(planner_data):
             cloned_data = deepcopy(planner_data)
-            cloned_data['export_week_label'] = week_label
+            cloned_data['weekly_export_week_label'] = week_label
+            cloned_data['portineria_weekly_export_week_label'] = week_label
             return cloned_data
     return {}
 
 
-def _resolve_turni_export_week_label(planner_data, week_label):
+def _resolve_turni_export_week_label(planner_data, week_label, *, key):
     if isinstance(planner_data, dict):
+        custom_label = str(planner_data.get(key) or '').strip()
+        if custom_label:
+            return custom_label
+        # Backward compatibility for the previous single shared export label.
         custom_label = str(planner_data.get('export_week_label') or '').strip()
         if custom_label:
             return custom_label
@@ -548,7 +553,6 @@ def _turni_combined_jpg_bytes(image_paths):
 
 def _turni_planner_export_response(state, *, export_format, export_target):
     planner_data = dict(state.planner_data or {})
-    export_week_label = _resolve_turni_export_week_label(planner_data, state.week_label)
     logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
     ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
     anid_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH)
@@ -593,6 +597,11 @@ def _turni_planner_export_response(state, *, export_format, export_target):
 
         if export_target in weekly_configs:
             config = weekly_configs[export_target]
+            export_week_label = _resolve_turni_export_week_label(
+                planner_data,
+                state.week_label,
+                key='weekly_export_week_label' if export_target == 'weekly' else 'portineria_weekly_export_week_label',
+            )
             headers, sections = config['builder']()
             if export_format == 'pdf':
                 exported_path = export_weekly_pdf(
@@ -667,7 +676,6 @@ def _turni_planner_export_response(state, *, export_format, export_target):
 
 def _turni_planner_bulk_export_response(state, *, export_format):
     planner_data = dict(state.planner_data or {})
-    export_week_label = _resolve_turni_export_week_label(planner_data, state.week_label)
     logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
     ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
     anid_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH)
@@ -719,7 +727,12 @@ def _turni_planner_bulk_export_response(state, *, export_format):
         archive_buffer = io.BytesIO()
 
         with zipfile.ZipFile(archive_buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
-            for config in weekly_configs.values():
+            for config_key, config in weekly_configs.items():
+                export_week_label = _resolve_turni_export_week_label(
+                    planner_data,
+                    state.week_label,
+                    key='weekly_export_week_label' if config_key == 'weekly' else 'portineria_weekly_export_week_label',
+                )
                 headers, sections = config['builder']()
                 if 'pdf' in formats_to_include:
                     pdf_path = export_weekly_pdf(
@@ -4428,7 +4441,8 @@ def turni_planner_home(request):
                     selected_state.save(update_fields=['planner_data', 'updated_by', 'updated_at'])
             if action in ('save_weekly', 'save_planner') or action.startswith('export_'):
                 planner_data = dict(selected_state.planner_data or {})
-                planner_data['export_week_label'] = (request.POST.get('export_week_label') or '').strip() or selected_state.week_label
+                planner_data['weekly_export_week_label'] = (request.POST.get('weekly_export_week_label') or '').strip() or selected_state.week_label
+                planner_data['portineria_weekly_export_week_label'] = (request.POST.get('portineria_weekly_export_week_label') or '').strip() or selected_state.week_label
                 planner_data['weekly'] = _extract_turni_weekly_data_from_post(request.POST)
                 if action == 'save_planner' or action.startswith('export_'):
                     planner_data['saturday'] = _extract_turni_weekend_data_from_post(request.POST, 'saturday')
@@ -4486,7 +4500,8 @@ def turni_planner_home(request):
         'recent_weeks': recent_weeks,
         'selected_state': selected_state,
         'selected_week_label': selected_week_label,
-        'export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label) if selected_state else '',
+        'weekly_export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label, key='weekly_export_week_label') if selected_state else '',
+        'portineria_weekly_export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label, key='portineria_weekly_export_week_label') if selected_state else '',
         'weekly_data': weekly_data,
         'saturday_data': saturday_data,
         'sunday_data': sunday_data,
