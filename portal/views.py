@@ -11,6 +11,7 @@ import tempfile
 import zipfile
 import urllib.request
 import uuid
+from email.message import EmailMessage as StdlibEmailMessage
 import unicodedata
 from collections import OrderedDict
 from datetime import date
@@ -809,6 +810,119 @@ def _turni_planner_bulk_export_response(state, *, export_format):
             content_type='application/zip',
             filename=filename_map[export_format],
         )
+
+
+
+def _turni_weekend_email_filename(week_label):
+    normalized = unicodedata.normalize('NFKD', week_label or '')
+    normalized = normalized.encode('ascii', 'ignore').decode('ascii')
+    normalized = re.sub(r'[^a-zA-Z0-9]+', '-', normalized).strip('-').lower()
+    return f'turni-weekend-{normalized or "settimana"}.eml'
+
+
+def _turni_email_recipients_from_text(raw_value):
+    return [item.strip() for item in re.split(r'[;,]+', raw_value or '') if item.strip()]
+
+
+def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_text='', body_text=''):
+    planner_data = dict(state.planner_data or {})
+    logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
+    ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
+    anid_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH)
+
+    weekend_configs = [
+        {
+            'key': 'saturday',
+            'pdf_name': SATURDAY_PDF_NAME,
+            'title': 'Comandata sabato',
+            'include_if_empty': True,
+        },
+        {
+            'key': 'sunday',
+            'pdf_name': SUNDAY_PDF_NAME,
+            'title': 'Comandata domenica',
+            'include_if_empty': True,
+        },
+        {
+            'key': 'jolly_weekend',
+            'pdf_name': JOLLY_WEEKEND_PDF_NAME,
+            'title': 'Comandata jolly',
+            'include_if_empty': False,
+        },
+        {
+            'key': 'portineria_weekend',
+            'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
+            'title': 'Sabato - Domenica e festivi Portineria',
+            'include_if_empty': True,
+        },
+    ]
+
+    attachments = []
+    attachment_labels = []
+
+    with tempfile.TemporaryDirectory(prefix='turni_planner_weekend_mail_') as temp_dir:
+        export_dir = Path(temp_dir)
+        for config in weekend_configs:
+            raw_weekend_data = planner_data.get(config['key'])
+            if not config['include_if_empty'] and not _turni_planner_data_has_content(raw_weekend_data):
+                continue
+
+            export_data = _turni_weekend_export_data(
+                raw_weekend_data,
+                title=config['title'],
+                row_count=None,
+            )
+            exported_path = export_weekend_pdf(
+                export_dir / config['pdf_name'],
+                data=export_data,
+                logo_path=logo_path,
+                cert_logo_path=ancis_logo_path,
+                anid_logo_path=anid_logo_path,
+            )
+            attachments.append((config['pdf_name'], exported_path.read_bytes()))
+            attachment_labels.append(export_data.title or config['title'])
+
+    recipients = _turni_email_recipients_from_text(recipient_text)
+    if not recipients:
+        recipients = [email for email in getattr(settings, 'ADMIN_NOTIFICATION_EMAILS', []) if email]
+    subject = subject_text.strip() or f'Turni weekend {state.week_label}'
+    normalized_body = (body_text or '').replace('\r\n', '\n').replace('\r', '\n').strip('\n')
+    if normalized_body:
+        body_lines = normalized_body.split('\n')
+        body_lines.extend([
+            '',
+            'Allegati inclusi:',
+        ])
+    else:
+        body_lines = [
+            'Buongiorno,',
+            '',
+            f'in allegato trovate i PDF weekend della settimana {state.week_label}.',
+            '',
+            'Allegati inclusi:',
+        ]
+    body_lines.extend(f'- {label}' for label in attachment_labels)
+    body_lines.extend([
+        '',
+        'Cordiali saluti',
+    ])
+
+    message = StdlibEmailMessage()
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or 'cedolini@sanvincenzosrl.com'
+    message['Subject'] = subject
+    message['From'] = from_email
+    if recipients:
+        message['To'] = ', '.join(recipients)
+    message.set_content('\n'.join(body_lines))
+
+    for filename, content in attachments:
+        message.add_attachment(content, maintype='application', subtype='pdf', filename=filename)
+
+    return _turni_download_response(
+        message.as_bytes(),
+        content_type='message/rfc822',
+        filename=_turni_weekend_email_filename(state.week_label),
+    )
 
 
 def _extract_amount_from_text(text):
@@ -4456,6 +4570,13 @@ def turni_planner_home(request):
                     selected_state.planner_data = planner_data
                     selected_state.updated_by = request.user
                     selected_state.save(update_fields=['planner_data', 'updated_by', 'updated_at'])
+            if action == 'generate_weekend_email':
+                return _turni_planner_weekend_mail_response(
+                    selected_state,
+                    recipient_text=(request.POST.get('mail_recipients') or '').strip(),
+                    subject_text=(request.POST.get('mail_subject') or '').strip(),
+                    body_text=request.POST.get('mail_body') or '',
+                )
             if action in ('save_weekly', 'save_planner') or action.startswith('export_'):
                 planner_data = dict(selected_state.planner_data or {})
                 planner_data['weekly_export_week_label'] = (request.POST.get('weekly_export_week_label') or '').strip() or selected_state.week_label

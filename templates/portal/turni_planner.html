@@ -684,14 +684,30 @@
                                         {% if week.updated_by %} · {{ week.updated_by.username }}{% endif %}
                                     </div>
                                 </a>
-                                <form method="post" class="m-0">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="delete_week">
-                                    <input type="hidden" name="week_label" value="{{ week.week_label }}">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancella settimana" aria-label="Cancella {{ week.week_label }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <div class="flex-shrink-0" style="min-width: 360px;">
+                                    <form method="post" class="m-0 d-flex flex-column gap-2">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="generate_weekend_email">
+                                        <input type="hidden" name="week_label" value="{{ week.week_label }}">
+                                        <input type="text" name="mail_recipients" class="form-control form-control-sm" placeholder="destinatario@email.it" aria-label="Destinatari mail per {{ week.week_label }}">
+                                        <input type="text" name="mail_subject" class="form-control form-control-sm" placeholder="Oggetto mail" aria-label="Oggetto mail per {{ week.week_label }}">
+                                        <textarea name="mail_body" class="form-control form-control-sm" rows="3" placeholder="Testo mail" aria-label="Testo mail per {{ week.week_label }}"></textarea>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end">
+                                            <button type="submit" class="btn btn-outline-dark btn-sm" title="Crea mail weekend" aria-label="Crea mail weekend per {{ week.week_label }}">
+                                                <i class="bi bi-envelope-paper"></i>
+                                            </button>
+                                    </form>
+                                            <form method="post" class="m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_week">
+                                                <input type="hidden" name="week_label" value="{{ week.week_label }}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancella settimana" aria-label="Cancella {{ week.week_label }}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}

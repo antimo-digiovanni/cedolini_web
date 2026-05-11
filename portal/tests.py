@@ -1,3 +1,6 @@
+from tempfile import NamedTemporaryFile
+from email import policy
+from email.parser import BytesParser
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -687,6 +690,94 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(response["Content-Type"], "application/pdf")
 		self.assertIn("Comandata jolly.pdf", response["Content-Disposition"])
 		self.assertTrue(response.content.startswith(b"%PDF"))
+
+	def test_turni_planner_generates_weekend_mail_with_jolly_attachment_only_if_compiled(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 33 da Lunedi 10/08/2026 a Sabato 15/08/2026",
+			planner_data={
+				"saturday": {
+					"base_date": "15/08/2026",
+					"rows": [["15/08/2026", "Mattina", "Sabato A", "Capo A", "Presidio", "Reparto A"]],
+				},
+				"sunday": {
+					"base_date": "16/08/2026",
+					"rows": [["16/08/2026", "Notte", "Domenica A", "Capo B", "Supporto", "Reparto B"]],
+				},
+				"jolly_weekend": {
+					"title": "Comandata ferragosto",
+					"base_date": "15/08/2026",
+					"rows": [["15/08/2026", "Sera", "Jolly A", "Capo J", "Controllo", "Reparto J"]],
+				},
+				"portineria_weekend": {
+					"base_date": "15/08/2026",
+					"rows": [["15/08/2026", "Mattina", "Port A", "Resp A", "Vigilanza", "Portineria"]],
+				},
+			},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "generate_weekend_email",
+				"week_label": state.week_label,
+				"mail_recipients": "turni@example.com;caposervizio@example.com",
+				"mail_subject": "Turni weekend Ferragosto",
+				"mail_body": "Buongiorno team,\ninvio i PDF weekend aggiornati.",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "message/rfc822")
+		self.assertIn("turni-weekend-week-33-da-lunedi-10-08-2026-a-sabato-15-08-2026.eml", response["Content-Disposition"])
+
+		message = BytesParser(policy=policy.default).parsebytes(response.content)
+		self.assertEqual(message.get("To"), "turni@example.com, caposervizio@example.com")
+		self.assertEqual(message.get("Subject"), "Turni weekend Ferragosto")
+		attachment_names = sorted(
+			part.get_filename()
+			for part in message.iter_attachments()
+			if part.get_filename()
+		)
+		self.assertEqual(
+			attachment_names,
+			sorted([
+				"Comandata sabato.pdf",
+				"Comandata domenica.pdf",
+				"Comandata jolly.pdf",
+				"Comandata Sabato - Domenica e festivi Portineria.pdf",
+			]),
+		)
+		plain_body = message.get_body(preferencelist=("plain",)).get_content()
+		self.assertIn("Buongiorno team,", plain_body)
+		self.assertIn("invio i PDF weekend aggiornati.", plain_body)
+		self.assertIn("Comandata ferragosto", message.get_body(preferencelist=("plain",)).get_content())
+
+		state.planner_data["jolly_weekend"] = {"title": "", "base_date": "", "rows": [["", "", "", "", "", ""]]}
+		state.save(update_fields=["planner_data"])
+
+		response_without_jolly = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "generate_weekend_email",
+				"week_label": state.week_label,
+			},
+		)
+
+		message_without_jolly = BytesParser(policy=policy.default).parsebytes(response_without_jolly.content)
+		attachment_names_without_jolly = sorted(
+			part.get_filename()
+			for part in message_without_jolly.iter_attachments()
+			if part.get_filename()
+		)
+		self.assertEqual(
+			attachment_names_without_jolly,
+			sorted([
+				"Comandata sabato.pdf",
+				"Comandata domenica.pdf",
+				"Comandata Sabato - Domenica e festivi Portineria.pdf",
+			]),
+		)
 
 	def test_turni_planner_exports_weekly_pdf_download(self):
 		state = TurniPlannerWeekState.objects.create(
