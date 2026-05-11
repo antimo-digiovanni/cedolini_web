@@ -380,6 +380,7 @@ class TurniPlannerAccessTests(TestCase):
 		previous_state = TurniPlannerWeekState.objects.create(
 			week_label="Week 17: da Lunedi 20/04/2026 a Venerdi 24/04/2026",
 			planner_data={
+				"export_week_label": "Titolo export week 17",
 				"weekly": {
 					"headers": [f"Reparto {index}" for index in range(1, 11)],
 					"central_departments": [""] * 10,
@@ -441,13 +442,18 @@ class TurniPlannerAccessTests(TestCase):
 		previous_state.refresh_from_db()
 		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={new_state.week_label}")
 		self.assertEqual(new_state.updated_by, self.allowed_user)
-		self.assertEqual(new_state.planner_data, previous_state.planner_data)
+		self.assertEqual(new_state.planner_data["weekly"], previous_state.planner_data["weekly"])
+		self.assertEqual(new_state.planner_data["saturday"], previous_state.planner_data["saturday"])
+		self.assertEqual(new_state.planner_data["portineria_weekly"], previous_state.planner_data["portineria_weekly"])
+		self.assertEqual(new_state.planner_data["portineria_weekend"], previous_state.planner_data["portineria_weekend"])
+		self.assertEqual(new_state.planner_data["export_week_label"], new_week_label)
 		self.assertIsNot(new_state.planner_data, previous_state.planner_data)
 
 	def test_turni_planner_open_week_backfills_existing_empty_week_from_latest_non_empty_state(self):
 		previous_state = TurniPlannerWeekState.objects.create(
 			week_label="Week 17: da Lunedi 20/04/2026 a Venerdi 24/04/2026",
 			planner_data={
+				"export_week_label": "Titolo export week 17",
 				"weekly": {
 					"headers": [f"Reparto {index}" for index in range(1, 11)],
 					"central_departments": [""] * 10,
@@ -481,7 +487,9 @@ class TurniPlannerAccessTests(TestCase):
 		empty_state.refresh_from_db()
 		previous_state.refresh_from_db()
 		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={empty_state.week_label}")
-		self.assertEqual(empty_state.planner_data, previous_state.planner_data)
+		self.assertEqual(empty_state.planner_data["weekly"], previous_state.planner_data["weekly"])
+		self.assertEqual(empty_state.planner_data["saturday"], previous_state.planner_data["saturday"])
+		self.assertEqual(empty_state.planner_data["export_week_label"], empty_state.week_label)
 
 	def test_turni_planner_saves_shared_planner_data(self):
 		state = TurniPlannerWeekState.objects.create(
@@ -494,6 +502,7 @@ class TurniPlannerAccessTests(TestCase):
 			{
 				"action": "save_planner",
 				"week_label": state.week_label,
+				"export_week_label": "Week 29 personalizzata per PDF",
 				"weekly_headers": [f"Reparto {index}" for index in range(1, 11)],
 				"weekly_time_0": ["06:00"] * 10,
 				"weekly_time_1": ["14:00"] * 10,
@@ -536,6 +545,7 @@ class TurniPlannerAccessTests(TestCase):
 		state.refresh_from_db()
 		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
 		self.assertEqual(state.updated_by, self.allowed_user)
+		self.assertEqual(state.planner_data["export_week_label"], "Week 29 personalizzata per PDF")
 		self.assertEqual(state.planner_data["weekly"]["headers"][0], "Reparto 1")
 		self.assertEqual(state.planner_data["weekly"]["sections"][0]["rows"][0][0], "Mario")
 		self.assertEqual(state.planner_data["weekly"]["sections"][3]["rows"][2][9], "Notte C")
@@ -595,7 +605,9 @@ class TurniPlannerAccessTests(TestCase):
 				"portineria_weekly_row_2_1": ["", "", ""],
 				"portineria_weekly_row_2_2": ["", "", ""],
 				"portineria_weekend_base_date": "18/07/2026",
+				"portineria_weekend_row_count": "23",
 				"portineria_weekend_row_0": ["18/07/2026", "Mattina", "Port A", "Resp A", "Controllo", "Portineria"],
+				"portineria_weekend_row_22": ["18/07/2026", "Notte", "Port Ultima", "Resp Ultimo", "Sorveglianza", "Portineria"],
 			},
 		)
 
@@ -603,8 +615,10 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
 		self.assertEqual(len(state.planner_data["saturday"]["rows"]), 22)
 		self.assertEqual(len(state.planner_data["sunday"]["rows"]), 21)
+		self.assertEqual(len(state.planner_data["portineria_weekend"]["rows"]), 23)
 		self.assertEqual(state.planner_data["saturday"]["rows"][21][2], "Ultimo Sabato")
 		self.assertEqual(state.planner_data["sunday"]["rows"][20][2], "Ultima Domenica")
+		self.assertEqual(state.planner_data["portineria_weekend"]["rows"][22][2], "Port Ultima")
 
 	def test_turni_planner_exports_weekly_pdf_download(self):
 		state = TurniPlannerWeekState.objects.create(
@@ -618,6 +632,7 @@ class TurniPlannerAccessTests(TestCase):
 			{
 				"action": "export_pdf_weekly",
 				"week_label": state.week_label,
+				"export_week_label": "Week 30 titolo PDF personalizzato",
 				"weekly_headers": [f"Reparto {index}" for index in range(1, 11)],
 				"weekly_time_0": ["06:00"] * 10,
 				"weekly_time_1": ["14:00"] * 10,
@@ -646,6 +661,8 @@ class TurniPlannerAccessTests(TestCase):
 		)
 
 		self.assertEqual(response.status_code, 200)
+		state.refresh_from_db()
+		self.assertEqual(state.planner_data["export_week_label"], "Week 30 titolo PDF personalizzato")
 		self.assertEqual(response["Content-Type"], "application/pdf")
 		self.assertIn("Turno settimanale.pdf", response["Content-Disposition"])
 		self.assertTrue(response.content.startswith(b"%PDF"))

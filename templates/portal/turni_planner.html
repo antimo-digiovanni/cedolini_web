@@ -3,16 +3,33 @@
 
 {% block content %}
 <style>
+    .container {
+        max-width: min(98vw, 1880px);
+    }
+
     .turni-shell {
         display: grid;
         grid-template-columns: 260px minmax(0, 1fr);
         gap: 1.5rem;
+        transition: grid-template-columns 0.2s ease;
+    }
+
+    .turni-shell.turni-shell-collapsed {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .turni-sidebar {
         position: sticky;
         top: 1rem;
         align-self: start;
+        transition: opacity 0.2s ease, max-width 0.2s ease;
+    }
+
+    .turni-shell.turni-shell-collapsed .turni-sidebar {
+        opacity: 0;
+        max-width: 0;
+        overflow: hidden;
+        pointer-events: none;
     }
 
     .turni-content {
@@ -178,9 +195,7 @@
     }
 
     .turni-scrollbar {
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding-bottom: 0.2rem;
+        display: none;
     }
 
     .turni-scrollbar-track {
@@ -188,12 +203,13 @@
     }
 
     .turni-table-wrap[data-scrollable-sheet] {
-        overflow-x: auto;
+        overflow-x: hidden;
         overflow-y: hidden;
     }
 
     .turni-table-wrap[data-scrollable-sheet] table {
-        min-width: max-content;
+        width: 100%;
+        min-width: 0;
     }
 
     .turni-table-wrap[data-scrollable-sheet] tbody th,
@@ -218,41 +234,50 @@
         background: #fffbe8 !important;
     }
 
-    .turni-row-highlight {
-        background: #f7fbff !important;
-    }
-
-    .turni-row-highlight input {
-        background: #f7fbff !important;
-    }
-
-    .turni-column-highlight {
-        background: #eef6ff !important;
-    }
-
-    .turni-column-highlight input {
-        background: #eef6ff !important;
-    }
-
     .turni-fill-preview {
-        box-shadow: inset 0 0 0 2px rgba(47, 97, 200, 0.28);
+        background: #dbeafe !important;
+        box-shadow: inset 0 0 0 2px rgba(47, 97, 200, 0.55);
+    }
+
+    .turni-fill-preview input {
+        background: #dbeafe !important;
     }
 
     .turni-fill-source {
-        box-shadow: inset 0 0 0 2px #2f61c8;
+        background: #dcfce7 !important;
+        box-shadow: inset 0 0 0 2px #15803d;
+    }
+
+    .turni-fill-source input {
+        background: #dcfce7 !important;
+    }
+
+    .turni-cell-selection {
+        background: #e0f2fe !important;
+        box-shadow: inset 0 0 0 2px rgba(3, 105, 161, 0.4);
+    }
+
+    .turni-cell-selection input {
+        background: #e0f2fe !important;
     }
 
     .turni-fill-handle {
         position: absolute;
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
         border-radius: 2px;
         background: #2f61c8;
         border: 1px solid #fff;
         box-shadow: 0 2px 8px rgba(15, 23, 42, 0.24);
-        cursor: crosshair;
+        cursor: copy;
         z-index: 30;
         display: none;
+    }
+
+    .turni-table-wrap input,
+    .turni-table-wrap td,
+    .turni-table-wrap th {
+        cursor: default;
     }
 
     .turni-topbar-tools {
@@ -268,6 +293,10 @@
         color: #64748b;
     }
 
+    .turni-sidebar-toggle {
+        min-width: 140px;
+    }
+
     .turni-weekly-cell input {
         min-width: 150px;
     }
@@ -275,7 +304,9 @@
     .turni-weekly-app-table {
         border-collapse: separate;
         border-spacing: 0;
-        min-width: 1220px;
+        min-width: 0;
+        width: 100%;
+        table-layout: fixed;
         margin: 0;
     }
 
@@ -316,18 +347,18 @@
     .turni-weekly-time-cell,
     .turni-weekly-label-cell,
     .turni-weekly-gap {
-        min-width: 150px;
+        min-width: 0;
     }
 
     .turni-weekly-header-cell input,
     .turni-weekly-input-cell input,
     .turni-weekly-time-cell input {
         width: 100%;
-        min-width: 150px;
+        min-width: 0;
         border: 0;
         border-radius: 0;
         box-shadow: none;
-        padding: 0.8rem 0.7rem;
+        padding: 0.65rem 0.45rem;
         min-height: 42px;
     }
 
@@ -377,7 +408,9 @@
     .turni-portineria-app-table {
         border-collapse: separate;
         border-spacing: 0;
-        min-width: 760px;
+        min-width: 0;
+        width: 100%;
+        table-layout: fixed;
         margin: 0;
     }
 
@@ -414,10 +447,11 @@
     .turni-portineria-time-cell input,
     .turni-portineria-input-cell input {
         width: 100%;
+        min-width: 0;
         border: 0;
         border-radius: 0;
         box-shadow: none;
-        padding: 0.8rem 0.7rem;
+        padding: 0.65rem 0.45rem;
         min-height: 42px;
     }
 
@@ -439,7 +473,6 @@
     }
 
     .turni-portineria-header-cell input {
-        min-width: 170px;
         background: #dcebff;
         color: #16315c;
         font-weight: 700;
@@ -447,7 +480,6 @@
     }
 
     .turni-portineria-time-cell input {
-        min-width: 170px;
         background: #2f61c8;
         color: #fff;
         font-weight: 700;
@@ -474,7 +506,9 @@
     .turni-weekend-app-table {
         border-collapse: separate;
         border-spacing: 0;
-        min-width: 980px;
+        min-width: 0;
+        width: 100%;
+        table-layout: fixed;
         margin: 0;
         background: #fff;
     }
@@ -496,6 +530,42 @@
         color: #16315c;
         text-align: center;
         font-weight: 700;
+        padding: 0.35rem 0.2rem !important;
+    }
+
+    .turni-weekend-rowtools {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+    }
+
+    .turni-weekend-rowtools span {
+        min-width: 1.7rem;
+    }
+
+    .turni-weekend-rowbuttons {
+        display: inline-flex;
+        gap: 0.2rem;
+    }
+
+    .turni-weekend-rowbutton {
+        border: 0;
+        background: transparent;
+        color: #334155;
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 0.35rem;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .turni-weekend-rowbutton:hover:not(:disabled) {
+        background: rgba(15, 23, 42, 0.08);
+    }
+
+    .turni-weekend-rowbutton:disabled {
+        opacity: 0.35;
     }
 
     .turni-weekend-app-table td input {
@@ -503,7 +573,7 @@
         border: 0;
         border-radius: 0;
         box-shadow: none;
-        padding: 0.8rem 0.7rem;
+        padding: 0.65rem 0.45rem;
         min-height: 42px;
         background: transparent;
     }
@@ -650,6 +720,9 @@
                     </div>
                     <div class="turni-topbar-tools">
                         <span class="badge text-bg-dark">Bozza condivisa</span>
+                        <button type="button" class="btn btn-outline-dark btn-sm turni-sidebar-toggle" data-turni-sidebar-toggle>
+                            <i class="bi bi-layout-sidebar-inset"></i> Nascondi menu
+                        </button>
                         <button type="button" class="btn btn-outline-dark btn-sm" data-turni-undo disabled>
                             <i class="bi bi-arrow-counterclockwise"></i> Annulla
                         </button>
@@ -663,7 +736,17 @@
                     </div>
                 </div>
 
-                <div class="turni-shell">
+                <div class="card-modern bg-light border mb-4">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-xl-8">
+                            <label for="export_week_label" class="form-label fw-semibold mb-1">Titolo settimana per PDF/JPG</label>
+                            <input type="text" id="export_week_label" name="export_week_label" class="form-control" value="{{ export_week_label }}" placeholder="Week 19: da Lunedi ...">
+                            <div class="form-text">Se lo cambi, PDF e JPG useranno questo testo. Se lo lasci com'e, usera l'etichetta settimana.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="turni-shell" data-turni-shell>
                     <div class="turni-sidebar">
                         <div class="card-modern bg-light h-100">
                             <div class="mb-3">
@@ -930,16 +1013,12 @@
                                         <tr>
                                             <td class="turni-weekly-corner"></td>
                                             <th class="turni-portineria-tag">Reparto</th>
-                                            <td class="turni-portineria-gap"></td>
                                             <th class="turni-portineria-tag">Reparto</th>
                                             <th class="turni-portineria-tag">Reparto</th>
                                         </tr>
                                         <tr>
                                             <th class="turni-weekly-sidehead">Turno</th>
                                             {% for header in portineria_weekly_data.headers %}
-                                            {% if forloop.counter0 == 1 %}
-                                            <td class="turni-portineria-static"></td>
-                                            {% endif %}
                                             <td class="turni-portineria-header-cell">
                                                 <input type="text" name="portineria_weekly_headers" class="form-control form-control-sm" value="{{ header }}" placeholder="Reparto">
                                             </td>
@@ -949,9 +1028,6 @@
                                         <tr>
                                             <th class="turni-weekly-label-cell"><span>Orari</span></th>
                                             {% for value in section.time_values %}
-                                            {% if forloop.counter0 == 1 %}
-                                            <td class="turni-portineria-static"></td>
-                                            {% endif %}
                                             <td class="turni-portineria-time-cell">
                                                 <input type="text" name="portineria_weekly_time_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}" placeholder="Orario">
                                             </td>
@@ -961,9 +1037,6 @@
                                         <tr>
                                             <th class="turni-weekly-label-cell"><span>{% if forloop.counter > 1 %}{{ forloop.parentloop.counter }}&deg;{% endif %}</span></th>
                                             {% for value in row %}
-                                            {% if forloop.counter0 == 1 %}
-                                            <td class="turni-portineria-static"></td>
-                                            {% endif %}
                                             <td class="turni-portineria-input-cell">
                                                 <input type="text" name="portineria_weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
                                             </td>
@@ -976,7 +1049,7 @@
                             </div>
                         </section>
 
-                        <section class="turni-panel" data-turni-panel-content="saturday" data-weekend-row-prefix="saturday" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="6" data-weekend-sheet="saturday-sheet">
+                        <section class="turni-panel" data-turni-panel-content="saturday" data-weekend-row-prefix="saturday" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="1" data-weekend-sheet="saturday-sheet">
                             <div class="turni-section-head">
                                 <div>
                                     <h5 class="fw-semibold mb-1">Sabato</h5>
@@ -1011,7 +1084,7 @@
                                     <tbody>
                                         {% for row in saturday_data.rows %}
                                         <tr>
-                                            <th class="turni-weekend-rowhead">{{ forloop.counter|add:5 }}</th>
+                                            <th class="turni-weekend-rowhead">{{ forloop.counter }}</th>
                                             {% for value in row %}
                                             <td>
                                                 <input type="text" name="saturday_row_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
@@ -1024,7 +1097,7 @@
                             </div>
                         </section>
 
-                        <section class="turni-panel" data-turni-panel-content="sunday" data-weekend-row-prefix="sunday" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="6" data-weekend-sheet="sunday-sheet">
+                        <section class="turni-panel" data-turni-panel-content="sunday" data-weekend-row-prefix="sunday" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="1" data-weekend-sheet="sunday-sheet">
                             <div class="turni-section-head">
                                 <div>
                                     <h5 class="fw-semibold mb-1">Domenica</h5>
@@ -1059,7 +1132,7 @@
                                     <tbody>
                                         {% for row in sunday_data.rows %}
                                         <tr>
-                                            <th class="turni-weekend-rowhead">{{ forloop.counter|add:5 }}</th>
+                                            <th class="turni-weekend-rowhead">{{ forloop.counter }}</th>
                                             {% for value in row %}
                                             <td>
                                                 <input type="text" name="sunday_row_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
@@ -1072,7 +1145,7 @@
                             </div>
                         </section>
 
-                        <section class="turni-panel" data-turni-panel-content="portineria-weekend">
+                        <section class="turni-panel" data-turni-panel-content="portineria-weekend" data-weekend-row-prefix="portineria_weekend" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="1" data-weekend-sheet="portineria-weekend-sheet">
                             <div class="turni-section-head">
                                 <div>
                                     <h5 class="fw-semibold mb-1">Sabato - Domenica e festivi Portineria</h5>
@@ -1099,7 +1172,7 @@
                                     <tbody>
                                         {% for row in portineria_weekend_data.rows %}
                                         <tr>
-                                            <th class="turni-weekend-rowhead">{{ forloop.counter|add:5 }}</th>
+                                            <th class="turni-weekend-rowhead">{{ forloop.counter }}</th>
                                             {% for value in row %}
                                             <td>
                                                 <input type="text" name="portineria_weekend_row_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
@@ -1127,6 +1200,8 @@
         const buttons = Array.from(document.querySelectorAll('[data-turni-panel]'));
         const panels = Array.from(document.querySelectorAll('[data-turni-panel-content]'));
         const sheetContainers = Array.from(document.querySelectorAll('[data-scrollable-sheet]'));
+        const turniShell = document.querySelector('[data-turni-shell]');
+        const sidebarToggle = document.querySelector('[data-turni-sidebar-toggle]');
         const plannerForm = Array.from(document.querySelectorAll('form[method="post"]')).find((form) => {
             return form.querySelector('button[name="action"][value="save_planner"]');
         });
@@ -1252,6 +1327,16 @@
             return;
         }
 
+        function setSidebarCollapsed(collapsed) {
+            if (!turniShell || !sidebarToggle) {
+                return;
+            }
+            turniShell.classList.toggle('turni-shell-collapsed', collapsed);
+            sidebarToggle.innerHTML = collapsed
+                ? '<i class="bi bi-layout-sidebar"></i> Mostra menu'
+                : '<i class="bi bi-layout-sidebar-inset"></i> Nascondi menu';
+        }
+
         function activatePanel(panelName) {
             buttons.forEach((button) => {
                 button.classList.toggle('active', button.dataset.turniPanel === panelName);
@@ -1259,6 +1344,7 @@
             panels.forEach((panel) => {
                 panel.classList.toggle('active', panel.dataset.turniPanelContent === panelName);
             });
+            setSidebarCollapsed(panelName !== 'dashboard');
         }
 
         buttons.forEach((button) => {
@@ -1266,6 +1352,12 @@
                 activatePanel(button.dataset.turniPanel);
             });
         });
+
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function () {
+                setSidebarCollapsed(!turniShell.classList.contains('turni-shell-collapsed'));
+            });
+        }
 
         function setupSheetScroller(sheetName) {
             const container = document.querySelector('[data-scrollable-sheet="' + sheetName + '"]');
@@ -1363,6 +1455,8 @@
         let activeInput = null;
         let suppressHistoryCapture = false;
         let fillState = null;
+        let keyboardSelection = null;
+        let pointerSelectionState = null;
 
         fillHandle.className = 'turni-fill-handle';
         document.body.appendChild(fillHandle);
@@ -1371,7 +1465,8 @@
             if (!input) {
                 return false;
             }
-            if ((input.getAttribute('placeholder') || '') === 'Nominativo') {
+            const inputName = input.name || '';
+            if (inputName.startsWith('weekly_row_') || inputName.startsWith('portineria_weekly_row_')) {
                 return true;
             }
 
@@ -1459,8 +1554,99 @@
         }
 
         function clearGridHighlights() {
-            document.querySelectorAll('.turni-cell-focus, .turni-row-highlight, .turni-column-highlight, .turni-fill-source, .turni-fill-preview')
-                .forEach((element) => element.classList.remove('turni-cell-focus', 'turni-row-highlight', 'turni-column-highlight', 'turni-fill-source', 'turni-fill-preview'));
+            document.querySelectorAll('.turni-cell-focus, .turni-fill-source, .turni-fill-preview, .turni-cell-selection')
+                .forEach((element) => element.classList.remove('turni-cell-focus', 'turni-fill-source', 'turni-fill-preview', 'turni-cell-selection'));
+        }
+
+        function getGridTargetInput(input, rowDelta, colDelta) {
+            const sheetName = input.dataset.sheetName;
+            if (!sheetName || !sheetGrids.has(sheetName)) {
+                return null;
+            }
+
+            const rows = sheetGrids.get(sheetName);
+            const currentRow = Number(input.dataset.sheetRow || '0');
+            const currentCol = Number(input.dataset.sheetCol || '0');
+            const nextRow = currentRow + rowDelta;
+            if (nextRow < 0 || nextRow >= rows.length) {
+                return null;
+            }
+
+            const targetRow = rows[nextRow];
+            const nextCol = currentCol + colDelta;
+            if (nextCol < 0 || nextCol >= targetRow.length) {
+                return null;
+            }
+
+            return targetRow[nextCol] || null;
+        }
+
+        function getKeyboardSelectionInputs() {
+            if (!keyboardSelection) {
+                return [];
+            }
+            return buildFillRange(keyboardSelection.anchorInput, keyboardSelection.focusInput);
+        }
+
+        function paintKeyboardSelection() {
+            const selectedInputs = getKeyboardSelectionInputs();
+            if (selectedInputs.length <= 1) {
+                return;
+            }
+
+            selectedInputs.forEach((rangeInput) => {
+                const cell = getCellElement(rangeInput);
+                if (cell) {
+                    cell.classList.add('turni-cell-selection');
+                }
+            });
+        }
+
+        function clearKeyboardSelection() {
+            keyboardSelection = null;
+        }
+
+        function startPointerSelection(input) {
+            if (!input || !input.dataset.sheetName) {
+                return;
+            }
+
+            keyboardSelection = {
+                anchorInput: input,
+                focusInput: input,
+            };
+            pointerSelectionState = {
+                anchorInput: input,
+            };
+            updateActiveGridHighlights(input);
+        }
+
+        function updatePointerSelection(targetInput) {
+            if (!pointerSelectionState || !targetInput || !targetInput.dataset.sheetName) {
+                return;
+            }
+
+            if (targetInput.dataset.sheetName !== pointerSelectionState.anchorInput.dataset.sheetName) {
+                return;
+            }
+
+            keyboardSelection = {
+                anchorInput: pointerSelectionState.anchorInput,
+                focusInput: targetInput,
+            };
+            activeInput = targetInput;
+            updateActiveGridHighlights(targetInput);
+        }
+
+        function finishPointerSelection() {
+            if (!pointerSelectionState) {
+                return;
+            }
+
+            const focusTarget = activeInput || pointerSelectionState.anchorInput;
+            pointerSelectionState = null;
+            focusCell(focusTarget);
+            updateActiveGridHighlights(focusTarget);
         }
 
         function updateFillHandlePosition() {
@@ -1485,29 +1671,9 @@
             clearGridHighlights();
             activeInput = input;
 
+            paintKeyboardSelection();
+
             const activeCell = getCellElement(input);
-            if (activeCell) {
-                activeCell.classList.add('turni-cell-focus');
-            }
-
-            const rowElement = input.closest('tr');
-            if (rowElement) {
-                rowElement.querySelectorAll('td, th').forEach((cell) => cell.classList.add('turni-row-highlight'));
-            }
-
-            if (input.dataset.sheetName && sheetGrids.has(input.dataset.sheetName)) {
-                const rows = sheetGrids.get(input.dataset.sheetName);
-                const currentCol = Number(input.dataset.sheetCol || '0');
-
-                rows.forEach((row) => {
-                    const columnInput = row[currentCol];
-                    const columnCell = getCellElement(columnInput);
-                    if (columnCell) {
-                        columnCell.classList.add('turni-column-highlight');
-                    }
-                });
-            }
-
             if (activeCell) {
                 activeCell.classList.add('turni-cell-focus');
             }
@@ -1516,26 +1682,31 @@
         }
 
         function moveGridFocus(input, rowDelta, colDelta) {
-            const sheetName = input.dataset.sheetName;
-            if (!sheetName || !sheetGrids.has(sheetName)) {
+            const targetInput = getGridTargetInput(input, rowDelta, colDelta);
+            if (!targetInput) {
                 return;
             }
 
-            const rows = sheetGrids.get(sheetName);
-            const currentRow = Number(input.dataset.sheetRow || '0');
-            const currentCol = Number(input.dataset.sheetCol || '0');
-            const nextRow = currentRow + rowDelta;
-            if (nextRow < 0 || nextRow >= rows.length) {
+            clearKeyboardSelection();
+            focusCell(targetInput);
+        }
+
+        function extendGridSelection(input, rowDelta, colDelta) {
+            const targetInput = getGridTargetInput(input, rowDelta, colDelta);
+            if (!targetInput) {
                 return;
             }
 
-            const targetRow = rows[nextRow];
-            const nextCol = currentCol + colDelta;
-            if (nextCol < 0 || nextCol >= targetRow.length) {
-                return;
+            if (!keyboardSelection || keyboardSelection.focusInput !== input || keyboardSelection.anchorInput.dataset.sheetName !== input.dataset.sheetName) {
+                keyboardSelection = {
+                    anchorInput: input,
+                    focusInput: targetInput,
+                };
+            } else {
+                keyboardSelection.focusInput = targetInput;
             }
 
-            focusCell(targetRow[nextCol]);
+            focusCell(targetInput);
         }
 
         function normalizeClipboardRows(rawText) {
@@ -1556,8 +1727,25 @@
             const startRow = Number(startInput.dataset.sheetRow || '0');
             const startCol = Number(startInput.dataset.sheetCol || '0');
             const clipboardRows = normalizeClipboardRows(rawText);
+            const selectedInputs = getKeyboardSelectionInputs().filter((candidate) => candidate.dataset.sheetName === sheetName);
             const changes = [];
             let lastInput = startInput;
+
+            if (selectedInputs.length > 1 && clipboardRows.length === 1 && clipboardRows[0].length === 1) {
+                const fillValue = clipboardRows[0][0];
+                selectedInputs.forEach((targetInput) => {
+                    changes.push({
+                        input: targetInput,
+                        before: targetInput.value,
+                        after: fillValue,
+                    });
+                    lastInput = targetInput;
+                });
+
+                applyChangeBatch(changes);
+                focusCell(lastInput);
+                return true;
+            }
 
             clipboardRows.forEach((clipboardRow, rowOffset) => {
                 const targetRowIndex = startRow + rowOffset;
@@ -1714,16 +1902,32 @@
 
                 if (event.key === 'ArrowLeft') {
                     event.preventDefault();
-                    moveGridFocus(input, 0, -1);
+                    if (event.shiftKey) {
+                        extendGridSelection(input, 0, -1);
+                    } else {
+                        moveGridFocus(input, 0, -1);
+                    }
                 } else if (event.key === 'ArrowRight') {
                     event.preventDefault();
-                    moveGridFocus(input, 0, 1);
+                    if (event.shiftKey) {
+                        extendGridSelection(input, 0, 1);
+                    } else {
+                        moveGridFocus(input, 0, 1);
+                    }
                 } else if (event.key === 'ArrowUp') {
                     event.preventDefault();
-                    moveGridFocus(input, -1, 0);
+                    if (event.shiftKey) {
+                        extendGridSelection(input, -1, 0);
+                    } else {
+                        moveGridFocus(input, -1, 0);
+                    }
                 } else if (event.key === 'ArrowDown') {
                     event.preventDefault();
-                    moveGridFocus(input, 1, 0);
+                    if (event.shiftKey) {
+                        extendGridSelection(input, 1, 0);
+                    } else {
+                        moveGridFocus(input, 1, 0);
+                    }
                 } else if (event.key === 'Enter') {
                     event.preventDefault();
                     moveGridFocus(input, event.shiftKey ? -1 : 1, 0);
@@ -1736,7 +1940,8 @@
                 }
 
                 const clipboardText = (event.clipboardData || window.clipboardData).getData('text');
-                if (!clipboardText || (!clipboardText.includes('\t') && !clipboardText.includes('\n'))) {
+                const hasSelectionRange = getKeyboardSelectionInputs().length > 1;
+                if (!clipboardText || (!clipboardText.includes('\t') && !clipboardText.includes('\n') && !hasSelectionRange)) {
                     return;
                 }
 
@@ -1744,8 +1949,20 @@
                 pasteGridData(input, clipboardText);
             });
 
-            input.addEventListener('mousedown', function () {
-                updateActiveGridHighlights(input);
+            input.addEventListener('mousedown', function (event) {
+                if (event.button !== 0 || !input.dataset.sheetName) {
+                    return;
+                }
+
+                event.preventDefault();
+                startPointerSelection(input);
+            });
+
+            input.addEventListener('mouseenter', function () {
+                if (!pointerSelectionState) {
+                    return;
+                }
+                updatePointerSelection(input);
             });
         }
 
@@ -1762,7 +1979,15 @@
             rows.forEach((row, rowIndex) => {
                 const rowHead = row.querySelector('.turni-weekend-rowhead');
                 if (rowHead) {
-                    rowHead.textContent = String(start + rowIndex);
+                    rowHead.innerHTML = [
+                        '<div class="turni-weekend-rowtools">',
+                        '<span>' + String(start + rowIndex) + '</span>',
+                        '<div class="turni-weekend-rowbuttons">',
+                        '<button type="button" class="turni-weekend-rowbutton" data-weekend-insert-after="' + rowIndex + '" title="Inserisci riga sotto"' + (rows.length >= max ? ' disabled' : '') + '><i class="bi bi-plus-square"></i></button>',
+                        '<button type="button" class="turni-weekend-rowbutton" data-weekend-delete-row="' + rowIndex + '" title="Cancella questa riga"' + (rows.length <= min ? ' disabled' : '') + '><i class="bi bi-trash"></i></button>',
+                        '</div>',
+                        '</div>',
+                    ].join('');
                 }
 
                 row.querySelectorAll('input[type="text"]').forEach((input) => {
@@ -1821,6 +2046,7 @@
                 updateActiveGridHighlights(focusTarget);
             } else {
                 activeInput = null;
+                clearKeyboardSelection();
                 clearGridHighlights();
                 updateFillHandlePosition();
             }
@@ -1840,6 +2066,20 @@
             updateWeekendSheet(section, firstInput);
         }
 
+        function insertWeekendRowAfter(section, rowIndex) {
+            const max = Number(section.dataset.weekendRowMax || '999');
+            const tbody = section.querySelector('tbody');
+            const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+            if (!tbody || rows.length >= max) {
+                return;
+            }
+
+            const row = createWeekendRow(section);
+            const nextRow = rows[rowIndex + 1] || null;
+            tbody.insertBefore(row, nextRow);
+            updateWeekendSheet(section, row.querySelector('input[type="text"]'));
+        }
+
         function removeWeekendRow(section) {
             const min = Number(section.dataset.weekendRowMin || '1');
             const tbody = section.querySelector('tbody');
@@ -1854,6 +2094,26 @@
 
             const rowToRemove = rows[rows.length - 1];
             const fallbackInput = rows.length > 1 ? rows[rows.length - 2].querySelector('input[type="text"]') : null;
+
+            if (activeInput && rowToRemove.contains(activeInput)) {
+                activeInput = null;
+            }
+
+            rowToRemove.remove();
+            updateWeekendSheet(section, fallbackInput);
+        }
+
+        function removeWeekendRowAt(section, rowIndex) {
+            const min = Number(section.dataset.weekendRowMin || '1');
+            const tbody = section.querySelector('tbody');
+            const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+            if (!tbody || rows.length <= min || !rows[rowIndex]) {
+                return;
+            }
+
+            const rowToRemove = rows[rowIndex];
+            const fallbackRow = rows[rowIndex + 1] || rows[rowIndex - 1] || null;
+            const fallbackInput = fallbackRow ? fallbackRow.querySelector('input[type="text"]') : null;
 
             if (activeInput && rowToRemove.contains(activeInput)) {
                 activeInput = null;
@@ -1884,6 +2144,19 @@
                         removeWeekendRow(section);
                     });
                 }
+
+                section.addEventListener('click', function (event) {
+                    const insertButton = event.target.closest('[data-weekend-insert-after]');
+                    if (insertButton) {
+                        insertWeekendRowAfter(section, Number(insertButton.dataset.weekendInsertAfter || '-1'));
+                        return;
+                    }
+
+                    const deleteButton = event.target.closest('[data-weekend-delete-row]');
+                    if (deleteButton) {
+                        removeWeekendRowAt(section, Number(deleteButton.dataset.weekendDeleteRow || '-1'));
+                    }
+                });
             });
 
             refreshNameSuggestions();
@@ -1908,11 +2181,23 @@
                     sourceInput: activeInput,
                     targetInput: activeInput,
                 };
+                clearKeyboardSelection();
                 previewFillRange(activeInput, activeInput);
             });
 
             document.addEventListener('mousemove', function (event) {
                 if (!fillState) {
+                    if (!pointerSelectionState) {
+                        return;
+                    }
+
+                    const hoveredElement = document.elementFromPoint(event.clientX, event.clientY);
+                    const hoveredInput = hoveredElement ? hoveredElement.closest('input[type="text"]') : null;
+                    if (!hoveredInput) {
+                        return;
+                    }
+
+                    updatePointerSelection(hoveredInput);
                     return;
                 }
 
@@ -1927,10 +2212,12 @@
             });
 
             document.addEventListener('mouseup', function () {
-                if (!fillState) {
+                if (fillState) {
+                    finishFillDrag();
                     return;
                 }
-                finishFillDrag();
+
+                finishPointerSelection();
             });
 
             document.addEventListener('keydown', function (event) {
