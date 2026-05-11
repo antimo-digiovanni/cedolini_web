@@ -3,15 +3,13 @@ import csv
 import json
 import io
 import math
-from copy import deepcopy
-from decimal import Decimal, InvalidOperation
 import calendar
+from copy import deepcopy
 import re
 import tempfile
 import zipfile
 import urllib.request
 import uuid
-from email.message import EmailMessage as StdlibEmailMessage
 import unicodedata
 from collections import OrderedDict
 from datetime import date
@@ -813,11 +811,54 @@ def _turni_planner_bulk_export_response(state, *, export_format):
 
 
 
-def _turni_weekend_email_filename(week_label):
+def _turni_weekend_outlook_package_filename(week_label):
     normalized = unicodedata.normalize('NFKD', week_label or '')
     normalized = normalized.encode('ascii', 'ignore').decode('ascii')
     normalized = re.sub(r'[^a-zA-Z0-9]+', '-', normalized).strip('-').lower()
-    return f'turni-weekend-{normalized or "settimana"}.eml'
+    return f'turni-weekend-outlook-{normalized or "settimana"}.zip'
+
+
+def _turni_vbs_string_literal(value):
+    return '"' + (value or '').replace('"', '""') + '"'
+
+
+def _turni_outlook_vbs_body_expression(lines):
+    quoted_lines = [_turni_vbs_string_literal(line) for line in lines]
+    if not quoted_lines:
+        return '""'
+    return ' & vbCrLf & '.join(quoted_lines)
+
+
+def _turni_outlook_vbs_script(*, recipients, subject, body_lines, attachment_names):
+    recipient_value = '; '.join(recipients)
+    attachment_lines = '\n'.join(
+        f'mail.Attachments.Add basePath & "\\" & {_turni_vbs_string_literal(name)}'
+        for name in attachment_names
+    )
+    return (
+        'Option Explicit\n'
+        'Dim shell, fso, basePath, outlookApp, mail\n'
+        'Set shell = CreateObject("WScript.Shell")\n'
+        'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+        'basePath = fso.GetParentFolderName(WScript.ScriptFullName)\n'
+        'On Error Resume Next\n'
+        'Set outlookApp = GetObject(, "Outlook.Application")\n'
+        'If Err.Number <> 0 Then\n'
+        '    Err.Clear\n'
+        '    Set outlookApp = CreateObject("Outlook.Application")\n'
+        'End If\n'
+        'On Error GoTo 0\n'
+        'If outlookApp Is Nothing Then\n'
+        '    MsgBox "Outlook non disponibile su questo PC.", vbExclamation, "Turni Planner"\n'
+        '    WScript.Quit 1\n'
+        'End If\n'
+        'Set mail = outlookApp.CreateItem(0)\n'
+        f'mail.To = {_turni_vbs_string_literal(recipient_value)}\n'
+        f'mail.Subject = {_turni_vbs_string_literal(subject)}\n'
+        f'mail.Body = {_turni_outlook_vbs_body_expression(body_lines)}\n'
+        f'{attachment_lines}\n'
+        'mail.Display\n'
+    )
 
 
 def _turni_email_recipients_from_text(raw_value):
@@ -907,21 +948,24 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
         'Cordiali saluti',
     ])
 
-    message = StdlibEmailMessage()
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or 'cedolini@sanvincenzosrl.com'
-    message['Subject'] = subject
-    message['From'] = from_email
-    if recipients:
-        message['To'] = ', '.join(recipients)
-    message.set_content('\n'.join(body_lines))
+    archive_buffer = io.BytesIO()
+    attachment_names = [filename for filename, _ in attachments]
+    script_content = _turni_outlook_vbs_script(
+        recipients=recipients,
+        subject=subject,
+        body_lines=body_lines,
+        attachment_names=attachment_names,
+    )
 
-    for filename, content in attachments:
-        message.add_attachment(content, maintype='application', subtype='pdf', filename=filename)
+    with zipfile.ZipFile(archive_buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr('apri_mail_outlook.vbs', script_content.encode('utf-8'))
+        for filename, content in attachments:
+            archive.writestr(filename, content)
 
     return _turni_download_response(
-        message.as_bytes(),
-        content_type='message/rfc822',
-        filename=_turni_weekend_email_filename(state.week_label),
+        archive_buffer.getvalue(),
+        content_type='application/zip',
+        filename=_turni_weekend_outlook_package_filename(state.week_label),
     )
 
 

@@ -1,6 +1,6 @@
+import io
 from tempfile import NamedTemporaryFile
-from email import policy
-from email.parser import BytesParser
+import zipfile
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -728,30 +728,27 @@ class TurniPlannerAccessTests(TestCase):
 		)
 
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response["Content-Type"], "message/rfc822")
-		self.assertIn("turni-weekend-week-33-da-lunedi-10-08-2026-a-sabato-15-08-2026.eml", response["Content-Disposition"])
+		self.assertEqual(response["Content-Type"], "application/zip")
+		self.assertIn("turni-weekend-outlook-week-33-da-lunedi-10-08-2026-a-sabato-15-08-2026.zip", response["Content-Disposition"])
 
-		message = BytesParser(policy=policy.default).parsebytes(response.content)
-		self.assertEqual(message.get("To"), "turni@example.com, caposervizio@example.com")
-		self.assertEqual(message.get("Subject"), "Turni weekend Ferragosto")
-		attachment_names = sorted(
-			part.get_filename()
-			for part in message.iter_attachments()
-			if part.get_filename()
-		)
+		archive = zipfile.ZipFile(io.BytesIO(response.content))
+		archive_names = sorted(archive.namelist())
 		self.assertEqual(
-			attachment_names,
+			archive_names,
 			sorted([
+				"apri_mail_outlook.vbs",
 				"Comandata sabato.pdf",
 				"Comandata domenica.pdf",
 				"Comandata jolly.pdf",
 				"Comandata Sabato - Domenica e festivi Portineria.pdf",
 			]),
 		)
-		plain_body = message.get_body(preferencelist=("plain",)).get_content()
-		self.assertIn("Buongiorno team,", plain_body)
-		self.assertIn("invio i PDF weekend aggiornati.", plain_body)
-		self.assertIn("Comandata ferragosto", message.get_body(preferencelist=("plain",)).get_content())
+		script_content = archive.read("apri_mail_outlook.vbs").decode("utf-8")
+		self.assertIn('mail.To = "turni@example.com; caposervizio@example.com"', script_content)
+		self.assertIn('mail.Subject = "Turni weekend Ferragosto"', script_content)
+		self.assertIn('"Buongiorno team," & vbCrLf & "invio i PDF weekend aggiornati."', script_content)
+		self.assertIn('"- Comandata ferragosto"', script_content)
+		self.assertIn('mail.Attachments.Add basePath & "\\" & "Comandata jolly.pdf"', script_content)
 
 		state.planner_data["jolly_weekend"] = {"title": "", "base_date": "", "rows": [["", "", "", "", "", ""]]}
 		state.save(update_fields=["planner_data"])
@@ -764,15 +761,12 @@ class TurniPlannerAccessTests(TestCase):
 			},
 		)
 
-		message_without_jolly = BytesParser(policy=policy.default).parsebytes(response_without_jolly.content)
-		attachment_names_without_jolly = sorted(
-			part.get_filename()
-			for part in message_without_jolly.iter_attachments()
-			if part.get_filename()
-		)
+		archive_without_jolly = zipfile.ZipFile(io.BytesIO(response_without_jolly.content))
+		attachment_names_without_jolly = sorted(archive_without_jolly.namelist())
 		self.assertEqual(
 			attachment_names_without_jolly,
 			sorted([
+				"apri_mail_outlook.vbs",
 				"Comandata sabato.pdf",
 				"Comandata domenica.pdf",
 				"Comandata Sabato - Domenica e festivi Portineria.pdf",
