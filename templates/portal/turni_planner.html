@@ -9,31 +9,18 @@
 
     .turni-shell {
         display: grid;
-        grid-template-columns: 260px minmax(0, 1fr);
-        gap: 1rem;
-        transition: grid-template-columns 0.2s ease;
-    }
-
-    .turni-shell.turni-shell-collapsed {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: 165px minmax(0, 1fr);
+        gap: 0.6rem;
     }
 
     .turni-sidebar {
         position: sticky;
         top: 1rem;
         align-self: start;
-        transition: opacity 0.2s ease, max-width 0.2s ease;
     }
 
-    .turni-shell.turni-shell-collapsed .turni-sidebar {
-        display: none;
-        opacity: 0;
-        max-width: 0;
-        max-height: 0;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        pointer-events: none;
+    .turni-sidebar-card {
+        padding: 0.55rem !important;
     }
 
     .turni-content {
@@ -60,15 +47,18 @@
     .turni-nav-button {
         width: 100%;
         border: 0;
-        border-radius: 14px;
-        padding: 0.9rem 1rem;
+        border-radius: 10px;
+        padding: 0.42rem 0.5rem;
         background: transparent;
         color: #1f2937;
         display: flex;
+        gap: 0.3rem;
         justify-content: space-between;
         align-items: center;
         text-align: left;
         font-weight: 600;
+        line-height: 1.2;
+        font-size: 0.86rem;
     }
 
     .turni-nav-button.active {
@@ -77,10 +67,13 @@
         box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
     }
 
-    .turni-nav-button small {
-        display: block;
-        font-weight: 400;
-        opacity: 0.72;
+    .turni-nav-button span {
+        min-width: 0;
+    }
+
+    .turni-nav-button i {
+        font-size: 0.88rem;
+        flex: 0 0 auto;
     }
 
     .turni-panel {
@@ -829,9 +822,6 @@
                     </div>
                     <div class="turni-topbar-tools">
                         <span class="badge text-bg-dark">Bozza condivisa</span>
-                        <button type="button" class="btn btn-outline-dark btn-sm turni-sidebar-toggle" data-turni-sidebar-toggle>
-                            <i class="bi bi-layout-sidebar-inset"></i> Nascondi menu
-                        </button>
                         <button type="button" class="btn btn-outline-dark btn-sm" data-turni-undo disabled>
                             <i class="bi bi-arrow-counterclockwise"></i> Annulla
                         </button>
@@ -862,39 +852,38 @@
 
                 <div class="turni-shell" data-turni-shell>
                     <div class="turni-sidebar">
-                        <div class="card-modern bg-light h-100">
+                        <div class="card-modern bg-light h-100 turni-sidebar-card">
                             <div class="mb-3">
-                                <div class="fw-semibold">Pannelli planner</div>
-                                <div class="text-muted small">Come nell'app desktop: una sezione alla volta.</div>
+                                <div class="fw-semibold">Pannelli</div>
                             </div>
 
                             <div class="d-grid gap-2">
                                 <button type="button" class="turni-nav-button active" data-turni-panel="dashboard">
-                                    <span>Dashboard <small>riepilogo e export</small></span>
+                                    <span>Dashboard</span>
                                     <i class="bi bi-grid"></i>
                                 </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="weekly">
-                                    <span>Settimana <small>turni principali</small></span>
+                                    <span>Settimana</span>
                                     <i class="bi bi-calendar3"></i>
                                 </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="portineria-weekly">
-                                    <span>Portineria settimana <small>griglia dedicata</small></span>
+                                    <span>Portineria settimana</span>
                                     <i class="bi bi-building"></i>
                                 </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="saturday">
-                                    <span>Sabato <small>comandata weekend</small></span>
+                                    <span>Sabato</span>
                                     <i class="bi bi-sun"></i>
                                 </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="sunday">
-                                    <span>Domenica <small>comandata weekend</small></span>
+                                    <span>Domenica</span>
                                     <i class="bi bi-moon-stars"></i>
                                 </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="jolly-weekend">
-                                    <span>Jolly <small>festivo infrasettimanale</small></span>
+                                    <span>Jolly</span>
                                     <i class="bi bi-calendar-heart"></i>
                                 </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="portineria-weekend">
-                                    <span>Sabato - Domenica e festivi Portineria <small>weekend dedicato</small></span>
+                                    <span>Portineria weekend</span>
                                     <i class="bi bi-door-open"></i>
                                 </button>
                             </div>
@@ -1377,8 +1366,6 @@
         const buttons = Array.from(document.querySelectorAll('[data-turni-panel]'));
         const panels = Array.from(document.querySelectorAll('[data-turni-panel-content]'));
         const sheetContainers = Array.from(document.querySelectorAll('[data-scrollable-sheet]'));
-        const turniShell = document.querySelector('[data-turni-shell]');
-        const sidebarToggle = document.querySelector('[data-turni-sidebar-toggle]');
         const plannerForm = Array.from(document.querySelectorAll('form[method="post"]')).find((form) => {
             return form.querySelector('button[name="action"][value="save_planner"]');
         });
@@ -1524,16 +1511,6 @@
             return;
         }
 
-        function setSidebarCollapsed(collapsed) {
-            if (!turniShell || !sidebarToggle) {
-                return;
-            }
-            turniShell.classList.toggle('turni-shell-collapsed', collapsed);
-            sidebarToggle.innerHTML = collapsed
-                ? '<i class="bi bi-layout-sidebar"></i> Mostra menu'
-                : '<i class="bi bi-layout-sidebar-inset"></i> Nascondi menu';
-        }
-
         function activatePanel(panelName) {
             buttons.forEach((button) => {
                 button.classList.toggle('active', button.dataset.turniPanel === panelName);
@@ -1541,7 +1518,6 @@
             panels.forEach((panel) => {
                 panel.classList.toggle('active', panel.dataset.turniPanelContent === panelName);
             });
-            setSidebarCollapsed(panelName !== 'dashboard');
         }
 
         buttons.forEach((button) => {
@@ -1549,12 +1525,6 @@
                 activatePanel(button.dataset.turniPanel);
             });
         });
-
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', function () {
-                setSidebarCollapsed(!turniShell.classList.contains('turni-shell-collapsed'));
-            });
-        }
 
         function setupSheetScroller(sheetName) {
             const container = document.querySelector('[data-scrollable-sheet="' + sheetName + '"]');
