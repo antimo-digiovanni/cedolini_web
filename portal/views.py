@@ -9,6 +9,7 @@ import re
 import tempfile
 import zipfile
 import urllib.request
+from urllib.parse import quote
 import uuid
 import unicodedata
 from collections import OrderedDict
@@ -818,49 +819,6 @@ def _turni_weekend_outlook_package_filename(week_label):
     return f'turni-weekend-outlook-{normalized or "settimana"}.zip'
 
 
-def _turni_vbs_string_literal(value):
-    return '"' + (value or '').replace('"', '""') + '"'
-
-
-def _turni_outlook_vbs_body_expression(lines):
-    quoted_lines = [_turni_vbs_string_literal(line) for line in lines]
-    if not quoted_lines:
-        return '""'
-    return ' & vbCrLf & '.join(quoted_lines)
-
-
-def _turni_outlook_vbs_script(*, recipients, subject, body_lines, attachment_names):
-    recipient_value = '; '.join(recipients)
-    attachment_lines = '\n'.join(
-        f'mail.Attachments.Add basePath & "\\" & {_turni_vbs_string_literal(name)}'
-        for name in attachment_names
-    )
-    return (
-        'Option Explicit\n'
-        'Dim shell, fso, basePath, outlookApp, mail\n'
-        'Set shell = CreateObject("WScript.Shell")\n'
-        'Set fso = CreateObject("Scripting.FileSystemObject")\n'
-        'basePath = fso.GetParentFolderName(WScript.ScriptFullName)\n'
-        'On Error Resume Next\n'
-        'Set outlookApp = GetObject(, "Outlook.Application")\n'
-        'If Err.Number <> 0 Then\n'
-        '    Err.Clear\n'
-        '    Set outlookApp = CreateObject("Outlook.Application")\n'
-        'End If\n'
-        'On Error GoTo 0\n'
-        'If outlookApp Is Nothing Then\n'
-        '    MsgBox "Outlook non disponibile su questo PC.", vbExclamation, "Turni Planner"\n'
-        '    WScript.Quit 1\n'
-        'End If\n'
-        'Set mail = outlookApp.CreateItem(0)\n'
-        f'mail.To = {_turni_vbs_string_literal(recipient_value)}\n'
-        f'mail.Subject = {_turni_vbs_string_literal(subject)}\n'
-        f'mail.Body = {_turni_outlook_vbs_body_expression(body_lines)}\n'
-        f'{attachment_lines}\n'
-        'mail.Display\n'
-    )
-
-
 def _turni_email_recipients_from_text(raw_value):
     return [item.strip() for item in re.split(r'[;,]+', raw_value or '') if item.strip()]
 
@@ -925,7 +883,7 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
 
     recipients = _turni_email_recipients_from_text(recipient_text)
     if not recipients:
-        recipients = [email for email in getattr(settings, 'ADMIN_NOTIFICATION_EMAILS', []) if email]
+        raise ValueError('Inserisci almeno un destinatario email.')
     subject = subject_text.strip() or f'Turni weekend {state.week_label}'
     normalized_body = (body_text or '').replace('\r\n', '\n').replace('\r', '\n').strip('\n')
     if normalized_body:
@@ -948,25 +906,16 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
         'Cordiali saluti',
     ])
 
-    archive_buffer = io.BytesIO()
-    attachment_names = [filename for filename, _ in attachments]
-    script_content = _turni_outlook_vbs_script(
-        recipients=recipients,
+    email = EmailMultiAlternatives(
         subject=subject,
-        body_lines=body_lines,
-        attachment_names=attachment_names,
+        body='\n'.join(body_lines),
+        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', '') or 'cedolini@sanvincenzosrl.com',
+        to=recipients,
     )
-
-    with zipfile.ZipFile(archive_buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr('apri_mail_outlook.vbs', script_content.encode('utf-8'))
-        for filename, content in attachments:
-            archive.writestr(filename, content)
-
-    return _turni_download_response(
-        archive_buffer.getvalue(),
-        content_type='application/zip',
-        filename=_turni_weekend_outlook_package_filename(state.week_label),
-    )
+    for filename, content in attachments:
+        email.attach(filename, content, 'application/pdf')
+    email.send(fail_silently=False)
+    return recipients
 
 
 def _extract_amount_from_text(text):
@@ -4615,11 +4564,24 @@ def turni_planner_home(request):
                     selected_state.updated_by = request.user
                     selected_state.save(update_fields=['planner_data', 'updated_by', 'updated_at'])
             if action == 'generate_weekend_email':
-                return _turni_planner_weekend_mail_response(
-                    selected_state,
-                    recipient_text=(request.POST.get('mail_recipients') or '').strip(),
-                    subject_text=(request.POST.get('mail_subject') or '').strip(),
-                    body_text=request.POST.get('mail_body') or '',
+                try:
+                    recipients = _turni_planner_weekend_mail_response(
+                        selected_state,
+                        recipient_text=(request.POST.get('mail_recipients') or '').strip(),
+                        subject_text=(request.POST.get('mail_subject') or '').strip(),
+                        body_text=request.POST.get('mail_body') or '',
+                    )
+                except ValueError as error:
+                    return redirect(
+                        f"{reverse('turni_planner_home')}?week={selected_state.week_label}&mail_status=error&mail_message={quote(str(error))}"
+                    )
+                except Exception:
+                    logger.exception('Errore invio mail planner weekend week=%s', selected_state.week_label)
+                    return redirect(
+                        f"{reverse('turni_planner_home')}?week={selected_state.week_label}&mail_status=error&mail_message={quote('Invio email non riuscito. Controlla configurazione SMTP e destinatari.')}"
+                    )
+                return redirect(
+                    f"{reverse('turni_planner_home')}?week={selected_state.week_label}&mail_status=success&mail_message={quote('Email inviata a: ' + ', '.join(recipients))}"
                 )
             if action in ('save_weekly', 'save_planner') or action.startswith('export_'):
                 planner_data = dict(selected_state.planner_data or {})
@@ -4667,6 +4629,9 @@ def turni_planner_home(request):
     if selected_week_label:
         selected_state = TurniPlannerWeekState.objects.filter(week_label=selected_week_label).first()
 
+    mail_status = (request.GET.get('mail_status') or '').strip()
+    mail_message = (request.GET.get('mail_message') or '').strip()
+
     recent_weeks = TurniPlannerWeekState.objects.all()[:12]
     planner_data = selected_state.planner_data or {} if selected_state else {}
     weekly_data = _merge_turni_weekly_data(planner_data.get('weekly'))
@@ -4684,6 +4649,8 @@ def turni_planner_home(request):
         'recent_weeks': recent_weeks,
         'selected_state': selected_state,
         'selected_week_label': selected_week_label,
+        'mail_status': mail_status,
+        'mail_message': mail_message,
         'weekly_export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label, key='weekly_export_week_label') if selected_state else '',
         'portineria_weekly_export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label, key='portineria_weekly_export_week_label') if selected_state else '',
         'weekly_data': weekly_data,

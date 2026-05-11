@@ -1,6 +1,5 @@
-import io
 from tempfile import NamedTemporaryFile
-import zipfile
+from django.core import mail
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -727,46 +726,44 @@ class TurniPlannerAccessTests(TestCase):
 			},
 		)
 
-		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response["Content-Type"], "application/zip")
-		self.assertIn("turni-weekend-outlook-week-33-da-lunedi-10-08-2026-a-sabato-15-08-2026.zip", response["Content-Disposition"])
-
-		archive = zipfile.ZipFile(io.BytesIO(response.content))
-		archive_names = sorted(archive.namelist())
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}&mail_status=success&mail_message=Email%20inviata%20a%3A%20turni%40example.com%2C%20caposervizio%40example.com")
+		self.assertEqual(len(mail.outbox), 1)
+		email_message = mail.outbox[0]
+		attachment_names = sorted(attachment[0] for attachment in email_message.attachments)
 		self.assertEqual(
-			archive_names,
+			attachment_names,
 			sorted([
-				"apri_mail_outlook.vbs",
 				"Comandata sabato.pdf",
 				"Comandata domenica.pdf",
 				"Comandata jolly.pdf",
 				"Comandata Sabato - Domenica e festivi Portineria.pdf",
 			]),
 		)
-		script_content = archive.read("apri_mail_outlook.vbs").decode("utf-8")
-		self.assertIn('mail.To = "turni@example.com; caposervizio@example.com"', script_content)
-		self.assertIn('mail.Subject = "Turni weekend Ferragosto"', script_content)
-		self.assertIn('"Buongiorno team," & vbCrLf & "invio i PDF weekend aggiornati."', script_content)
-		self.assertIn('"- Comandata ferragosto"', script_content)
-		self.assertIn('mail.Attachments.Add basePath & "\\" & "Comandata jolly.pdf"', script_content)
+		self.assertEqual(email_message.to, ["turni@example.com", "caposervizio@example.com"])
+		self.assertEqual(email_message.subject, "Turni weekend Ferragosto")
+		self.assertIn("Buongiorno team,", email_message.body)
+		self.assertIn("invio i PDF weekend aggiornati.", email_message.body)
+		self.assertIn("Comandata ferragosto", email_message.body)
 
 		state.planner_data["jolly_weekend"] = {"title": "", "base_date": "", "rows": [["", "", "", "", "", ""]]}
 		state.save(update_fields=["planner_data"])
+		mail.outbox = []
 
 		response_without_jolly = self.client.post(
 			reverse("turni_planner_home"),
 			{
 				"action": "generate_weekend_email",
 				"week_label": state.week_label,
+				"mail_recipients": "turni@example.com",
 			},
 		)
 
-		archive_without_jolly = zipfile.ZipFile(io.BytesIO(response_without_jolly.content))
-		attachment_names_without_jolly = sorted(archive_without_jolly.namelist())
+		self.assertRedirects(response_without_jolly, f"{reverse('turni_planner_home')}?week={state.week_label}&mail_status=success&mail_message=Email%20inviata%20a%3A%20turni%40example.com")
+		self.assertEqual(len(mail.outbox), 1)
+		attachment_names_without_jolly = sorted(attachment[0] for attachment in mail.outbox[0].attachments)
 		self.assertEqual(
 			attachment_names_without_jolly,
 			sorted([
-				"apri_mail_outlook.vbs",
 				"Comandata sabato.pdf",
 				"Comandata domenica.pdf",
 				"Comandata Sabato - Domenica e festivi Portineria.pdf",
