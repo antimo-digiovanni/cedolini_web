@@ -780,6 +780,10 @@
                                     <span>Domenica <small>comandata weekend</small></span>
                                     <i class="bi bi-moon-stars"></i>
                                 </button>
+                                <button type="button" class="turni-nav-button" data-turni-panel="jolly-weekend">
+                                    <span>Jolly <small>festivo infrasettimanale</small></span>
+                                    <i class="bi bi-calendar-heart"></i>
+                                </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="portineria-weekend">
                                     <span>Sabato - Domenica e festivi Portineria <small>weekend dedicato</small></span>
                                     <i class="bi bi-door-open"></i>
@@ -899,6 +903,13 @@
                                         <div class="d-flex gap-2">
                                             <button type="submit" name="action" value="export_pdf_sunday" class="btn btn-outline-dark btn-sm">PDF</button>
                                             <button type="submit" name="action" value="export_jpg_sunday" class="btn btn-outline-dark btn-sm">JPG</button>
+                                        </div>
+                                    </div>
+                                    <div class="turni-export-item">
+                                        <div class="fw-semibold mb-2">Jolly</div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="action" value="export_pdf_jolly_weekend" class="btn btn-outline-dark btn-sm">PDF</button>
+                                            <button type="submit" name="action" value="export_jpg_jolly_weekend" class="btn btn-outline-dark btn-sm">JPG</button>
                                         </div>
                                     </div>
                                     <div class="turni-export-item">
@@ -1150,6 +1161,58 @@
                             </div>
                         </section>
 
+                        <section class="turni-panel" data-turni-panel-content="jolly-weekend" data-weekend-row-prefix="jolly_weekend" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="1" data-weekend-sheet="jolly-weekend-sheet">
+                            <div class="turni-section-head">
+                                <div>
+                                    <h5 class="fw-semibold mb-1">Jolly</h5>
+                                    <div class="text-muted small">Planner dedicato per festivi infrasettimanali o giornate extra.</div>
+                                </div>
+                                <div class="turni-section-actions">
+                                    <input type="hidden" name="jolly_weekend_row_count" value="{{ jolly_weekend_data.rows|length }}" data-weekend-row-count>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Gestione righe jolly">
+                                        <button type="button" class="btn btn-outline-dark" data-weekend-row-action="add">Aggiungi riga</button>
+                                        <button type="button" class="btn btn-outline-dark" data-weekend-row-action="remove">Elimina riga</button>
+                                    </div>
+                                    <div class="turni-row-limit-note">Massimo {{ weekend_single_page_max_rows }} righe per restare su una sola pagina.</div>
+                                </div>
+                            </div>
+                            <div class="turni-weekend-meta">
+                                <div>
+                                    <label class="form-label small text-muted">Titolo comandata</label>
+                                    <input type="text" name="jolly_weekend_title" class="form-control" value="{{ jolly_weekend_data.title }}" placeholder="Comandata primo maggio">
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted">Data base C4</label>
+                                    <input type="text" name="jolly_weekend_base_date" class="form-control" value="{{ jolly_weekend_data.base_date }}">
+                                </div>
+                                <div class="text-muted small">Usa lo stesso foglio di Sabato e Domenica, ma qui puoi dare un titolo libero alla comandata.</div>
+                            </div>
+                            <div class="turni-table-wrap" data-scrollable-sheet="jolly-weekend-sheet">
+                                <table class="turni-weekend-app-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">Riga</th>
+                                            {% for column_label in weekend_column_labels %}
+                                            <th>{{ column_label }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in jolly_weekend_data.rows %}
+                                        <tr>
+                                            <th class="turni-weekend-rowhead">{{ forloop.counter }}</th>
+                                            {% for value in row %}
+                                            <td>
+                                                <input type="text" name="jolly_weekend_row_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
                         <section class="turni-panel" data-turni-panel-content="portineria-weekend" data-weekend-row-prefix="portineria_weekend" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="1" data-weekend-sheet="portineria-weekend-sheet">
                             <div class="turni-section-head">
                                 <div>
@@ -1219,6 +1282,7 @@
                 'export_pdf_portineria_weekly',
                 'export_pdf_saturday',
                 'export_pdf_sunday',
+                'export_pdf_jolly_weekend',
                 'export_pdf_portineria_weekend',
             ],
             jpg: [
@@ -1226,6 +1290,7 @@
                 'export_jpg_portineria_weekly',
                 'export_jpg_saturday',
                 'export_jpg_sunday',
+                'export_jpg_jolly_weekend',
                 'export_jpg_portineria_weekend',
             ],
         };
@@ -1475,7 +1540,7 @@
                 return true;
             }
 
-            const weekendSheets = new Set(['saturday-sheet', 'sunday-sheet', 'portineria-weekend-sheet']);
+            const weekendSheets = new Set(['saturday-sheet', 'sunday-sheet', 'jolly-weekend-sheet', 'portineria-weekend-sheet']);
             return weekendSheets.has(input.dataset.sheetName) && Number(input.dataset.sheetCol || '-1') === 2;
         }
 

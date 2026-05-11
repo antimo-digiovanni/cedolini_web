@@ -57,6 +57,8 @@ import secrets
 from PIL import Image
 
 from turni_app.pdf_export import (
+    JOLLY_WEEKEND_IMAGE_NAME,
+    JOLLY_WEEKEND_PDF_NAME,
     PORTINERIA_WEEKEND_IMAGE_NAME,
     PORTINERIA_WEEKEND_PDF_NAME,
     PORTINERIA_WEEKLY_IMAGE_NAME,
@@ -285,6 +287,7 @@ def _default_turni_weekend_data(row_count=TURNI_WEEKEND_DEFAULT_ROW_COUNT):
         maximum=TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
     )
     return {
+        'title': '',
         'base_date': '',
         'rows': [
             ['' for _ in range(len(TURNI_WEEKEND_COLUMN_LABELS))]
@@ -328,6 +331,7 @@ def _merge_turni_weekend_data(
     if not isinstance(raw_weekend_data, dict):
         return weekend_data
 
+    weekend_data['title'] = str(raw_weekend_data.get('title') or '').strip()
     weekend_data['base_date'] = str(raw_weekend_data.get('base_date') or '').strip()
     raw_rows = raw_weekend_data.get('rows')
     if isinstance(raw_rows, list):
@@ -359,6 +363,7 @@ def _extract_turni_weekend_data_from_post(
         maximum=maximum,
     )
     weekend_data = _default_turni_weekend_data(row_count=row_count)
+    weekend_data['title'] = (post_data.get(f'{prefix}_title') or '').strip()
     weekend_data['base_date'] = (post_data.get(f'{prefix}_base_date') or '').strip()
     for row_index in range(row_count):
         raw_row_values = post_data.getlist(f'{prefix}_row_{row_index}')
@@ -504,7 +509,7 @@ def _turni_weekend_export_data(
         maximum=maximum,
     )
     return WeekendExportData(
-        title=title,
+        title=str(weekend_data.get('title') or '').strip() or title,
         authorization_date=weekend_data['base_date'],
         rows=[list(row) for row in weekend_data['rows']],
     )
@@ -582,6 +587,12 @@ def _turni_planner_export_response(state, *, export_format, export_target):
             'pdf_name': SUNDAY_PDF_NAME,
             'image_name': SUNDAY_IMAGE_NAME,
             'title': 'Comandata domenica',
+            'row_count': None,
+        },
+        'jolly_weekend': {
+            'pdf_name': JOLLY_WEEKEND_PDF_NAME,
+            'image_name': JOLLY_WEEKEND_IMAGE_NAME,
+            'title': 'Comandata jolly',
             'row_count': None,
         },
         'portineria_weekend': {
@@ -705,6 +716,12 @@ def _turni_planner_bulk_export_response(state, *, export_format):
             'pdf_name': SUNDAY_PDF_NAME,
             'image_name': SUNDAY_IMAGE_NAME,
             'title': 'Comandata domenica',
+            'row_count': None,
+        },
+        'jolly_weekend': {
+            'pdf_name': JOLLY_WEEKEND_PDF_NAME,
+            'image_name': JOLLY_WEEKEND_IMAGE_NAME,
+            'title': 'Comandata jolly',
             'row_count': None,
         },
         'portineria_weekend': {
@@ -4447,6 +4464,7 @@ def turni_planner_home(request):
                 if action == 'save_planner' or action.startswith('export_'):
                     planner_data['saturday'] = _extract_turni_weekend_data_from_post(request.POST, 'saturday')
                     planner_data['sunday'] = _extract_turni_weekend_data_from_post(request.POST, 'sunday')
+                    planner_data['jolly_weekend'] = _extract_turni_weekend_data_from_post(request.POST, 'jolly_weekend')
                     planner_data['portineria_weekly'] = _extract_turni_portineria_weekly_data_from_post(request.POST)
                     planner_data['portineria_weekend'] = _extract_turni_weekend_data_from_post(
                         request.POST,
@@ -4489,6 +4507,7 @@ def turni_planner_home(request):
     weekly_data = _merge_turni_weekly_data(planner_data.get('weekly'))
     saturday_data = _merge_turni_weekend_data(planner_data.get('saturday'))
     sunday_data = _merge_turni_weekend_data(planner_data.get('sunday'))
+    jolly_weekend_data = _merge_turni_weekend_data(planner_data.get('jolly_weekend'))
     portineria_weekly_data = _merge_turni_portineria_weekly_data(planner_data.get('portineria_weekly'))
     portineria_weekend_data = _merge_turni_weekend_data(
         planner_data.get('portineria_weekend'),
@@ -4505,6 +4524,7 @@ def turni_planner_home(request):
         'weekly_data': weekly_data,
         'saturday_data': saturday_data,
         'sunday_data': sunday_data,
+        'jolly_weekend_data': jolly_weekend_data,
         'portineria_weekly_data': portineria_weekly_data,
         'portineria_weekend_data': portineria_weekend_data,
         'weekend_column_labels': TURNI_WEEKEND_COLUMN_LABELS,
