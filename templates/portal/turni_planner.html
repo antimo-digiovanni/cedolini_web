@@ -10,7 +10,7 @@
     .turni-shell {
         display: grid;
         grid-template-columns: 260px minmax(0, 1fr);
-        gap: 1.5rem;
+        gap: 1rem;
         transition: grid-template-columns 0.2s ease;
     }
 
@@ -26,8 +26,12 @@
     }
 
     .turni-shell.turni-shell-collapsed .turni-sidebar {
+        display: none;
         opacity: 0;
         max-width: 0;
+        max-height: 0;
+        margin: 0;
+        padding: 0;
         overflow: hidden;
         pointer-events: none;
     }
@@ -35,6 +39,22 @@
     .turni-content {
         min-width: 0;
         width: 100%;
+    }
+
+    .turni-page-hero {
+        margin-bottom: 0.85rem;
+    }
+
+    .turni-mail-status {
+        margin-bottom: 0.85rem;
+    }
+
+    .turni-opening-row {
+        margin-bottom: 0.85rem;
+    }
+
+    .turni-planner-card {
+        margin-top: 0.85rem !important;
     }
 
     .turni-nav-button {
@@ -80,7 +100,20 @@
         border: 1px solid rgba(15, 23, 42, 0.08);
         border-radius: 18px;
         padding: 0.9rem 1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .turni-export-label-card {
+        padding: 1rem 1.1rem !important;
+        margin-bottom: 0.7rem !important;
+    }
+
+    .turni-export-label-card .form-text {
+        margin-top: 0.2rem;
+    }
+
+    .turni-panel > :first-child {
+        margin-top: 0;
     }
 
     .turni-grid-card {
@@ -203,7 +236,7 @@
         justify-content: space-between;
         gap: 1rem;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 0.65rem;
     }
 
     .turni-section-actions {
@@ -684,18 +717,18 @@
     }
 </style>
 <div class="container">
-    <div class="page-hero mb-4">
+    <div class="page-hero turni-page-hero">
         <h2 class="fw-bold mb-1">Turni Planner Online</h2>
         <p class="mb-0 opacity-75">Area riservata. Una sola versione condivisa per ogni settimana.</p>
     </div>
 
     {% if mail_message %}
-    <div class="alert {% if mail_status == 'success' %}alert-success{% else %}alert-danger{% endif %} mb-4">
+    <div class="alert {% if mail_status == 'success' %}alert-success{% else %}alert-danger{% endif %} turni-mail-status">
         {{ mail_message }}
     </div>
     {% endif %}
 
-    <div class="row g-4">
+    <div class="row g-4 turni-opening-row">
         <div class="col-lg-5">
             <div class="card-modern bg-white h-100">
                 <h4 class="fw-semibold mb-3">Apri o crea settimana</h4>
@@ -779,7 +812,7 @@
         </div>
     </div>
 
-    <div class="card-modern bg-white mt-4">
+    <div class="card-modern bg-white turni-planner-card">
         {% if selected_state %}
             <form method="post">
                 {% csrf_token %}
@@ -812,7 +845,7 @@
                     </div>
                 </div>
 
-                <div class="card-modern bg-light border mb-4">
+                <div class="card-modern bg-light border turni-export-label-card">
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-xl-8">
                             <label for="weekly_export_week_label" class="form-label fw-semibold mb-1">Titolo export Settimana</label>
