@@ -1149,7 +1149,7 @@
                                         </tr>
                                         {% for row in section.rows %}
                                         <tr>
-                                            <th class="turni-weekly-label-cell"><span>{% if forloop.counter > 1 %}{{ forloop.parentloop.counter }}&deg;{% endif %}</span></th>
+                                            <th class="turni-weekly-label-cell"><span>{{ forloop.parentloop.counter }}&deg;</span></th>
                                             {% for value in row %}
                                             <td class="turni-portineria-input-cell">
                                                 <input type="text" name="portineria_weekly_row_{{ forloop.parentloop.parentloop.counter0 }}_{{ forloop.parentloop.counter0 }}" class="form-control form-control-sm" value="{{ value }}">
