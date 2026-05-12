@@ -172,7 +172,8 @@ class AuditEventAdmin(admin.ModelAdmin):
 
 @admin.register(TurniPlannerWeekState)
 class TurniPlannerWeekStateAdmin(admin.ModelAdmin):
-    list_display = ('week_label', 'updated_by', 'updated_at', 'created_at')
+    list_display = ('week_label', 'visible_to_employees', 'updated_by', 'updated_at', 'created_at')
+    list_filter = ('visible_to_employees',)
     search_fields = ('week_label',)
     readonly_fields = ('created_at', 'updated_at')
 

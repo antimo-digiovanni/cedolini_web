@@ -246,6 +246,104 @@ class VacationRequestFlowTests(TestCase):
 		self.assertContains(report_response, "FERIE")
 
 
+class EmployeePublishedTurniDashboardTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.antimo_user = get_user_model().objects.create_user(
+			username="antimo",
+			password="Password123!",
+			is_staff=True,
+		)
+		self.other_user = get_user_model().objects.create_user(
+			username="mario",
+			password="Password123!",
+		)
+		self.user = get_user_model().objects.create_user(
+			username="employee.turni",
+			password="Password123!",
+		)
+		self.employee = Employee.objects.create(
+			user=self.user,
+			first_name="Mario",
+			last_name="Rossi",
+		)
+		self.state = TurniPlannerWeekState.objects.create(
+			week_label="WEEK 21",
+			visible_to_employees=True,
+			planner_data={
+				"weekly": {
+					"headers": ["Reparto A", "Reparto B", "Reparto C", "", "", "", "", "", "", ""],
+					"central_departments": [""] * 10,
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:00", "06:00", "06:00", "", "", "", "", "", "", ""], "rows": [["Mario", "Luca", "Anna", "", "", "", "", "", "", ""], [""] * 10, [""] * 10]},
+						{"label": "2 turno", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+						{"label": "3 turno", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+						{"label": "turno centrale", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+					],
+				},
+				"saturday": {
+					"base_date": "24/05/2026",
+					"rows": [["24/05/2026", "Mattina", "Mario", "Capo A", "Presidio", "Reparto A"]],
+				},
+				"sunday": {
+					"base_date": "25/05/2026",
+					"rows": [["25/05/2026", "Sera", "Luca", "Capo B", "Supporto", "Reparto B"]],
+				},
+				"jolly_weekend": {
+					"title": "Comandata jolly demo",
+					"base_date": "26/05/2026",
+					"rows": [["26/05/2026", "Mattina", "Jolly A", "Capo J", "Presidio", "Reparto J"]],
+				},
+				"portineria_weekly": {
+					"headers": ["PORTINERIA CENTRALE", "CENTRALINISTA", "PORTINERIA CELLA"],
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:14", "08:17", "06:14"], "rows": [["A", "B", "C"], ["", "", ""], ["", "", ""]]},
+						{"label": "2 turno", "time_values": ["14:22", "", "14:22"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+						{"label": "3 turno", "time_values": ["22:06", "", "22:06"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+					],
+				},
+				"portineria_weekend": {
+					"base_date": "24/05/2026",
+					"rows": [["24/05/2026", "Mattina", "Port A", "Resp A", "Controllo", "Portineria"]],
+				},
+			},
+		)
+
+	def test_employee_dashboard_shows_only_published_turni_images(self):
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Turni della settimana")
+		self.assertContains(response, self.state.week_label)
+		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["saturday"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["sunday"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["jolly_weekend"]))
+		self.assertNotContains(response, "Portineria settimana")
+		self.assertNotContains(response, "Portineria weekend")
+
+		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertEqual(image_response.status_code, 200)
+		self.assertEqual(image_response["Content-Type"], "image/jpeg")
+		self.assertTrue(image_response.content.startswith(b"\xff\xd8\xff"))
+
+		portineria_response = self.client.get(reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertEqual(portineria_response.status_code, 404)
+
+	def test_employee_dashboard_hides_turni_when_nothing_is_published(self):
+		self.state.visible_to_employees = False
+		self.state.save(update_fields=["visible_to_employees"])
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, "Turni della settimana")
+
+		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertEqual(image_response.status_code, 404)
+
+
 class SmartAgendaTests(TestCase):
 	def setUp(self):
 		self.client = Client()
@@ -640,6 +738,107 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(state.planner_data["jolly_weekend"]["title"], "Comandata ferragosto")
 		self.assertEqual(state.planner_data["jolly_weekend"]["rows"][23][2], "Jolly Fine")
 		self.assertEqual(state.planner_data["portineria_weekend"]["rows"][22][2], "Port Ultima")
+
+	def test_turni_planner_save_sets_employee_visibility_exclusively(self):
+		old_state = TurniPlannerWeekState.objects.create(
+			week_label="WEEK 21",
+			planner_data={},
+			visible_to_employees=True,
+		)
+		new_state = TurniPlannerWeekState.objects.create(
+			week_label="WEEK 22",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "save_planner",
+				"week_label": new_state.week_label,
+				"visible_to_employees": "on",
+				"weekly_headers": [""] * 10,
+				"weekly_time_0": [""] * 10,
+				"weekly_time_1": [""] * 10,
+				"weekly_time_2": [""] * 10,
+				"weekly_time_3": [""] * 10,
+				"weekly_row_0_0": [""] * 10,
+				"weekly_row_0_1": [""] * 10,
+				"weekly_row_0_2": [""] * 10,
+				"weekly_row_1_0": [""] * 10,
+				"weekly_row_1_1": [""] * 10,
+				"weekly_row_1_2": [""] * 10,
+				"weekly_row_2_0": [""] * 10,
+				"weekly_row_2_1": [""] * 10,
+				"weekly_row_2_2": [""] * 10,
+				"weekly_row_3_0": [""] * 10,
+				"weekly_row_3_1": [""] * 10,
+				"weekly_row_3_2": [""] * 10,
+				"saturday_base_date": "",
+				"sunday_base_date": "",
+				"portineria_weekly_headers": [""] * 3,
+				"portineria_weekly_time_0": [""] * 3,
+				"portineria_weekly_time_1": [""] * 3,
+				"portineria_weekly_time_2": [""] * 3,
+				"portineria_weekend_base_date": "",
+			},
+		)
+
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={new_state.week_label}")
+		old_state.refresh_from_db()
+		new_state.refresh_from_db()
+		self.assertFalse(old_state.visible_to_employees)
+		self.assertTrue(new_state.visible_to_employees)
+
+	def test_turni_planner_save_without_checkbox_hides_turni_from_employees(self):
+		old_state = TurniPlannerWeekState.objects.create(
+			week_label="WEEK 21",
+			planner_data={},
+			visible_to_employees=True,
+		)
+		new_state = TurniPlannerWeekState.objects.create(
+			week_label="WEEK 22",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "save_planner",
+				"week_label": new_state.week_label,
+				"weekly_headers": [""] * 10,
+				"weekly_time_0": [""] * 10,
+				"weekly_time_1": [""] * 10,
+				"weekly_time_2": [""] * 10,
+				"weekly_time_3": [""] * 10,
+				"weekly_row_0_0": [""] * 10,
+				"weekly_row_0_1": [""] * 10,
+				"weekly_row_0_2": [""] * 10,
+				"weekly_row_1_0": [""] * 10,
+				"weekly_row_1_1": [""] * 10,
+				"weekly_row_1_2": [""] * 10,
+				"weekly_row_2_0": [""] * 10,
+				"weekly_row_2_1": [""] * 10,
+				"weekly_row_2_2": [""] * 10,
+				"weekly_row_3_0": [""] * 10,
+				"weekly_row_3_1": [""] * 10,
+				"weekly_row_3_2": [""] * 10,
+				"saturday_base_date": "",
+				"sunday_base_date": "",
+				"portineria_weekly_headers": [""] * 3,
+				"portineria_weekly_time_0": [""] * 3,
+				"portineria_weekly_time_1": [""] * 3,
+				"portineria_weekly_time_2": [""] * 3,
+				"portineria_weekend_base_date": "",
+			},
+		)
+
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={new_state.week_label}")
+		old_state.refresh_from_db()
+		new_state.refresh_from_db()
+		self.assertFalse(old_state.visible_to_employees)
+		self.assertFalse(new_state.visible_to_employees)
 
 	def test_turni_planner_exports_jolly_weekend_pdf_download(self):
 		state = TurniPlannerWeekState.objects.create(

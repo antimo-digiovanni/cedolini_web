@@ -13,6 +13,7 @@ from urllib.parse import quote
 import uuid
 import unicodedata
 from collections import OrderedDict
+from decimal import Decimal, InvalidOperation
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -193,6 +194,12 @@ TURNI_DEFAULT_WEEKLY_PDF_TITLE = 'SAN VINCENZO S.R.L.:ORGANIZZAZIONE TURNI'
 TURNI_EXPORT_APP_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png'
 TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'ancis-sgq-sga-2026.png'
 TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo-anid.jpg'
+TURNI_EMPLOYEE_SECTION_META = OrderedDict([
+    ('weekly', {'label': 'Settimana'}),
+    ('saturday', {'label': 'Sabato'}),
+    ('sunday', {'label': 'Domenica'}),
+    ('jolly_weekend', {'label': 'Jolly'}),
+])
 
 
 def _default_turni_weekly_data():
@@ -683,6 +690,135 @@ def _turni_planner_export_response(state, *, export_format, export_target):
             )
 
     return HttpResponse('Export non disponibile per questa sezione.', status=400)
+
+
+def _turni_planner_published_state():
+    return TurniPlannerWeekState.objects.filter(visible_to_employees=True).order_by('-updated_at', '-id').first()
+
+
+def _turni_planner_employee_sections(state):
+    if not state:
+        return []
+
+    planner_data = dict(state.planner_data or {})
+    sections = []
+    for section_key, section_meta in TURNI_EMPLOYEE_SECTION_META.items():
+        if section_key == 'jolly_weekend' and not _turni_planner_data_has_content(planner_data.get('jolly_weekend')):
+            continue
+        sections.append({
+            'key': section_key,
+            'label': section_meta['label'],
+            'image_url': reverse('employee_turni_published_image', args=[section_key]),
+        })
+    return sections
+
+
+def _turni_planner_employee_allowed_targets(state):
+	allowed_targets = [key for key in TURNI_EMPLOYEE_SECTION_META.keys() if key != 'jolly_weekend']
+	if state and _turni_planner_data_has_content(dict(state.planner_data or {}).get('jolly_weekend')):
+		allowed_targets.append('jolly_weekend')
+	return allowed_targets
+
+
+def _turni_planner_employee_jpg_payload(state, *, export_target):
+    if export_target not in _turni_planner_employee_allowed_targets(state):
+        raise ValueError('Sezione turni non disponibile per i dipendenti.')
+
+    planner_data = dict(state.planner_data or {})
+    logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
+    ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
+    anid_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH)
+
+    weekly_configs = {
+        'weekly': {
+            'image_name': WEEKLY_IMAGE_NAME,
+            'pdf_name': WEEKLY_PDF_NAME,
+            'layout': 'default',
+            'builder': lambda: _turni_weekly_sections_for_export(planner_data.get('weekly')),
+            'label_key': 'weekly_export_week_label',
+        },
+        'portineria_weekly': {
+            'image_name': PORTINERIA_WEEKLY_IMAGE_NAME,
+            'pdf_name': PORTINERIA_WEEKLY_PDF_NAME,
+            'layout': 'portineria',
+            'builder': lambda: _turni_portineria_weekly_sections_for_export(planner_data.get('portineria_weekly')),
+            'label_key': 'portineria_weekly_export_week_label',
+        },
+    }
+    weekend_configs = {
+        'saturday': {
+            'image_name': SATURDAY_IMAGE_NAME,
+            'title': 'Comandata sabato',
+        },
+        'sunday': {
+            'image_name': SUNDAY_IMAGE_NAME,
+            'title': 'Comandata domenica',
+        },
+        'jolly_weekend': {
+            'image_name': JOLLY_WEEKEND_IMAGE_NAME,
+            'title': 'Comandata jolly',
+        },
+        'portineria_weekend': {
+            'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
+            'title': 'Sabato - Domenica e festivi Portineria',
+        },
+    }
+
+    with tempfile.TemporaryDirectory(prefix='turni_planner_employee_') as temp_dir:
+        export_dir = Path(temp_dir)
+
+        if export_target in weekly_configs:
+            config = weekly_configs[export_target]
+            export_week_label = _resolve_turni_export_week_label(
+                planner_data,
+                state.week_label,
+                key=config['label_key'],
+            )
+            headers, sections = config['builder']()
+            exported_paths = export_weekly_images(
+                export_dir / config['image_name'],
+                title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                week_label=export_week_label,
+                signature='',
+                headers=headers,
+                sections=sections,
+                logo_path=logo_path,
+                temp_pdf_name=config['pdf_name'],
+                layout=config['layout'],
+            )
+            return _turni_combined_jpg_bytes(exported_paths), config['image_name']
+
+        if export_target in weekend_configs:
+            config = weekend_configs[export_target]
+            exported_paths = export_weekend_images(
+                export_dir / config['image_name'],
+                data=_turni_weekend_export_data(planner_data.get(export_target), title=config['title']),
+                logo_path=logo_path,
+                cert_logo_path=ancis_logo_path,
+                anid_logo_path=anid_logo_path,
+            )
+            return _turni_combined_jpg_bytes(exported_paths), config['image_name']
+
+    raise ValueError('Sezione turni non disponibile per i dipendenti.')
+
+
+@login_required
+def employee_turni_published_image(request, section_key):
+    if not request.user.is_staff and not Employee.objects.filter(user=request.user).exists():
+        return HttpResponse('Non autorizzato', status=403)
+
+    state = _turni_planner_published_state()
+    if not state:
+        return HttpResponse('Nessun turno pubblicato.', status=404)
+
+    try:
+        image_bytes, image_name = _turni_planner_employee_jpg_payload(state, export_target=section_key)
+    except ValueError:
+        return HttpResponse('Sezione turni non disponibile.', status=404)
+
+    response = HttpResponse(image_bytes, content_type='image/jpeg')
+    response['Content-Disposition'] = f'inline; filename="{image_name}"'
+    return _disable_response_cache(response)
 
 
 def _turni_planner_bulk_export_response(state, *, export_format):
@@ -2636,6 +2772,9 @@ def dashboard(request):
         .order_by('-created_at')[:6]
     )
 
+    published_turni_state = _turni_planner_published_state()
+    published_turni_sections = _turni_planner_employee_sections(published_turni_state)
+
     agenda_sections = _agenda_sections_context(request.user, today=today)
 
     response = render(request, 'portal/dashboard.html', {
@@ -2651,6 +2790,8 @@ def dashboard(request):
         'request_status': request_status,
         'vacation_status': vacation_status,
         'is_vacation_today': is_vacation_today,
+        'published_turni_state': published_turni_state,
+        'published_turni_sections': published_turni_sections,
         'recent_vacation_requests': recent_vacation_requests,
         'dashboard_secretary_items': agenda_sections['daily_items'] + agenda_sections['today_items'] + agenda_sections['overdue_items'],
         'dashboard_secretary_total_open': agenda_sections['secretary_total_open'],
@@ -4584,6 +4725,7 @@ def turni_planner_home(request):
                     f"{reverse('turni_planner_home')}?week={selected_state.week_label}&mail_status=success&mail_message={quote('Email inviata a: ' + ', '.join(recipients))}"
                 )
             if action in ('save_weekly', 'save_planner') or action.startswith('export_'):
+                visible_to_employees = request.POST.get('visible_to_employees') == 'on'
                 planner_data = dict(selected_state.planner_data or {})
                 planner_data['weekly_export_week_label'] = (request.POST.get('weekly_export_week_label') or '').strip() or selected_state.week_label
                 planner_data['portineria_weekly_export_week_label'] = (request.POST.get('portineria_weekly_export_week_label') or '').strip() or selected_state.week_label
@@ -4599,9 +4741,12 @@ def turni_planner_home(request):
                         default_row_count=TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT,
                         maximum=TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
                     )
-                selected_state.planner_data = planner_data
-                selected_state.updated_by = request.user
-                selected_state.save(update_fields=['planner_data', 'updated_by', 'updated_at'])
+                with transaction.atomic():
+                    TurniPlannerWeekState.objects.exclude(pk=selected_state.pk).filter(visible_to_employees=True).update(visible_to_employees=False)
+                    selected_state.planner_data = planner_data
+                    selected_state.visible_to_employees = visible_to_employees
+                    selected_state.updated_by = request.user
+                    selected_state.save(update_fields=['planner_data', 'visible_to_employees', 'updated_by', 'updated_at'])
                 if action.startswith('export_pdf_'):
                     return _turni_planner_export_response(
                         selected_state,
@@ -4649,6 +4794,7 @@ def turni_planner_home(request):
         'recent_weeks': recent_weeks,
         'selected_state': selected_state,
         'selected_week_label': selected_week_label,
+        'visible_to_employees': selected_state.visible_to_employees if selected_state else False,
         'mail_status': mail_status,
         'mail_message': mail_message,
         'weekly_export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label, key='weekly_export_week_label') if selected_state else '',

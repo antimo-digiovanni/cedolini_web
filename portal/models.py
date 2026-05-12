@@ -93,6 +93,7 @@ class ImportJob(models.Model):
 class TurniPlannerWeekState(models.Model):
     week_label = models.CharField(max_length=255, unique=True)
     planner_data = models.JSONField(default=dict, blank=True)
+    visible_to_employees = models.BooleanField(default=False)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="updated_turni_planner_states")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

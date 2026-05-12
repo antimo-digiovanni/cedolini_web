@@ -137,6 +137,19 @@
         padding: 0.9rem;
         background: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(255, 255, 255, 0.12);
+        color: inherit;
+        text-align: left;
+        width: 100%;
+        cursor: pointer;
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .turni-action-card:hover,
+    .turni-action-card:focus-visible {
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.26);
+        transform: translateY(-1px);
+        outline: none;
     }
 
     .turni-action-card strong,
@@ -366,6 +379,20 @@
     .turni-topbar-shortcuts {
         font-size: 0.78rem;
         color: #64748b;
+    }
+
+    .turni-employee-visibility {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.86rem;
+        color: #334155;
+        margin-bottom: 0;
+    }
+
+    .turni-employee-visibility .form-check-input {
+        margin-top: 0;
+        cursor: pointer;
     }
 
     .turni-sidebar-toggle {
@@ -721,7 +748,7 @@
     </div>
     {% endif %}
 
-    <div class="row g-4 turni-opening-row">
+            <div class="row g-4 turni-opening-row" data-turni-opening-row>
         <div class="col-lg-5">
             <div class="card-modern bg-white h-100">
                 <h4 class="fw-semibold mb-3">Apri o crea settimana</h4>
@@ -822,6 +849,10 @@
                     </div>
                     <div class="turni-topbar-tools">
                         <span class="badge text-bg-dark">Bozza condivisa</span>
+                        <label class="form-check form-switch turni-employee-visibility">
+                            <input class="form-check-input" type="checkbox" name="visible_to_employees" {% if visible_to_employees %}checked{% endif %}>
+                            <span class="form-check-label">Mostra JPG ai dipendenti</span>
+                        </label>
                         <button type="button" class="btn btn-outline-dark btn-sm" data-turni-undo disabled>
                             <i class="bi bi-arrow-counterclockwise"></i> Annulla
                         </button>
@@ -906,26 +937,26 @@
                                 </div>
 
                                 <div class="turni-dashboard-actions">
-                                    <div class="turni-action-card">
+                                    <button type="button" class="turni-action-card" data-turni-dashboard-action="open-week">
                                         <span class="small opacity-75">Azione rapida</span>
                                         <strong>Apri settimana</strong>
                                         <span class="small opacity-75">Cambia foglio dal riquadro in alto.</span>
-                                    </div>
-                                    <div class="turni-action-card">
+                                    </button>
+                                    <button type="button" class="turni-action-card" data-turni-dashboard-action="save-planner">
                                         <span class="small opacity-75">Azione rapida</span>
                                         <strong>Salva planner</strong>
                                         <span class="small opacity-75">Sovrascrive la bozza condivisa.</span>
-                                    </div>
-                                    <div class="turni-action-card">
+                                    </button>
+                                    <button type="button" class="turni-action-card" data-turni-dashboard-action="show-export">
                                         <span class="small opacity-75">Export</span>
                                         <strong>PDF + JPG</strong>
                                         <span class="small opacity-75">Disponibili per ogni sezione.</span>
-                                    </div>
-                                    <div class="turni-action-card">
+                                    </button>
+                                    <button type="button" class="turni-action-card" data-turni-dashboard-action="open-panel-menu">
                                         <span class="small opacity-75">Navigazione</span>
                                         <strong>Menu laterale</strong>
                                         <span class="small opacity-75">Una pagina alla volta, come nell'app.</span>
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
 
@@ -952,7 +983,7 @@
                                 </div>
                             </div>
 
-                            <div class="turni-grid-card mb-4">
+                            <div class="turni-grid-card mb-4" data-turni-export-block>
                                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
                                     <div>
                                         <h5 class="fw-semibold mb-1">Export planner</h5>
@@ -1365,10 +1396,15 @@
     document.addEventListener('DOMContentLoaded', function () {
         const buttons = Array.from(document.querySelectorAll('[data-turni-panel]'));
         const panels = Array.from(document.querySelectorAll('[data-turni-panel-content]'));
+        const dashboardActionButtons = Array.from(document.querySelectorAll('[data-turni-dashboard-action]'));
         const sheetContainers = Array.from(document.querySelectorAll('[data-scrollable-sheet]'));
         const plannerForm = Array.from(document.querySelectorAll('form[method="post"]')).find((form) => {
             return form.querySelector('button[name="action"][value="save_planner"]');
         });
+        const weekLabelInput = document.querySelector('#week_label');
+        const openingRow = document.querySelector('[data-turni-opening-row]');
+        const exportBlock = document.querySelector('[data-turni-export-block]');
+        const savePlannerButton = plannerForm ? plannerForm.querySelector('button[name="action"][value="save_planner"]') : null;
         const bulkExportButtons = Array.from(document.querySelectorAll('[data-bulk-export-format]'));
         const bulkExportStatus = document.querySelector('[data-bulk-export-status]');
         const mailForms = Array.from(document.querySelectorAll('[data-turni-mail-form]'));
@@ -1526,6 +1562,47 @@
             });
         });
 
+        dashboardActionButtons.forEach((button) => {
+            button.addEventListener('click', function () {
+                const actionName = button.dataset.turniDashboardAction;
+
+                if (actionName === 'open-week') {
+                    if (openingRow) {
+                        openingRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    if (weekLabelInput) {
+                        window.setTimeout(() => {
+                            weekLabelInput.focus();
+                            weekLabelInput.select();
+                        }, 180);
+                    }
+                    return;
+                }
+
+                if (actionName === 'save-planner') {
+                    if (savePlannerButton) {
+                        savePlannerButton.click();
+                    }
+                    return;
+                }
+
+                if (actionName === 'show-export') {
+                    if (exportBlock) {
+                        exportBlock.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    return;
+                }
+
+                if (actionName === 'open-panel-menu') {
+                    activatePanel('weekly');
+                    const weeklyButton = buttons.find((navButton) => navButton.dataset.turniPanel === 'weekly');
+                    if (weeklyButton) {
+                        weeklyButton.focus();
+                    }
+                }
+            });
+        });
+
         function setupSheetScroller(sheetName) {
             const container = document.querySelector('[data-scrollable-sheet="' + sheetName + '"]');
             const scrollbar = document.querySelector('[data-sheet-scrollbar="' + sheetName + '"]');
@@ -1617,9 +1694,11 @@
         const redoButton = plannerForm ? plannerForm.querySelector('[data-turni-redo]') : null;
         const weekendRowSections = Array.from(document.querySelectorAll('[data-weekend-row-prefix]'));
         const fillHandle = document.createElement('div');
+        const historyLimit = 20;
         const historyStack = [];
         const redoStack = [];
         let activeInput = null;
+        let pendingHistoryInput = null;
         let suppressHistoryCapture = false;
         let fillState = null;
         let keyboardSelection = null;
@@ -1655,13 +1734,60 @@
             nameSuggestions.innerHTML = uniqueValues.map((value) => '<option value="' + value.replace(/"/g, '&quot;') + '"></option>').join('');
         }
 
+        function hasPendingHistoryChange() {
+            if (!pendingHistoryInput || !document.contains(pendingHistoryInput)) {
+                return false;
+            }
+
+            const beforeValue = pendingHistoryInput.dataset.editStartValue ?? pendingHistoryInput.defaultValue ?? '';
+            return beforeValue !== pendingHistoryInput.value;
+        }
+
         function updateHistoryButtons() {
             if (undoButton) {
-                undoButton.disabled = historyStack.length === 0;
+                undoButton.disabled = historyStack.length === 0 && !hasPendingHistoryChange();
             }
             if (redoButton) {
                 redoButton.disabled = redoStack.length === 0;
             }
+        }
+
+        function commitInputHistory(input) {
+            if (!input || suppressHistoryCapture) {
+                return false;
+            }
+
+            const beforeValue = input.dataset.editStartValue ?? input.defaultValue ?? '';
+            if (beforeValue === input.value) {
+                input.dataset.editStartValue = input.value;
+                if (pendingHistoryInput === input) {
+                    pendingHistoryInput = null;
+                }
+                updateHistoryButtons();
+                return false;
+            }
+
+            applyChangeBatch([
+                {
+                    input,
+                    before: beforeValue,
+                    after: input.value,
+                },
+            ]);
+            input.dataset.editStartValue = input.value;
+            if (pendingHistoryInput === input) {
+                pendingHistoryInput = null;
+            }
+            return true;
+        }
+
+        function commitPendingHistoryInput() {
+            if (!pendingHistoryInput || !document.contains(pendingHistoryInput)) {
+                pendingHistoryInput = null;
+                return false;
+            }
+
+            return commitInputHistory(pendingHistoryInput);
         }
 
         function applyChangeBatch(changes, options = {}) {
@@ -1685,6 +1811,9 @@
 
             if (direction === 'record') {
                 historyStack.push({ changes: filteredChanges });
+                while (historyStack.length > historyLimit) {
+                    historyStack.shift();
+                }
                 redoStack.length = 0;
             } else if (direction === 'undo') {
                 redoStack.push(sourceEntry);
@@ -1697,6 +1826,7 @@
         }
 
         function undoLastChange() {
+            commitPendingHistoryInput();
             const entry = historyStack.pop();
             if (!entry) {
                 updateHistoryButtons();
@@ -1706,6 +1836,7 @@
         }
 
         function redoLastChange() {
+            commitPendingHistoryInput();
             const entry = redoStack.pop();
             if (!entry) {
                 updateHistoryButtons();
@@ -2035,37 +2166,27 @@
 
             input.addEventListener('focus', function () {
                 input.dataset.editStartValue = input.value;
+                pendingHistoryInput = null;
                 updateActiveGridHighlights(input);
             });
 
             input.addEventListener('blur', function () {
+                commitInputHistory(input);
                 if (!fillState) {
                     updateFillHandlePosition();
                 }
             });
 
             input.addEventListener('change', function () {
-                if (suppressHistoryCapture) {
-                    return;
-                }
-
-                const beforeValue = input.dataset.editStartValue ?? input.defaultValue ?? '';
-                if (beforeValue !== input.value) {
-                    applyChangeBatch([
-                        {
-                            input,
-                            before: beforeValue,
-                            after: input.value,
-                        },
-                    ]);
-                    input.dataset.editStartValue = input.value;
-                }
+                commitInputHistory(input);
             });
 
             input.addEventListener('input', function () {
+                pendingHistoryInput = input;
                 if (isNameInput(input)) {
                     refreshNameSuggestions();
                 }
+                updateHistoryButtons();
             });
 
             input.addEventListener('keydown', function (event) {
@@ -2356,11 +2477,15 @@
             updateHistoryButtons();
 
             if (undoButton) {
-                undoButton.addEventListener('click', undoLastChange);
+                undoButton.addEventListener('click', function () {
+                    undoLastChange();
+                });
             }
 
             if (redoButton) {
-                redoButton.addEventListener('click', redoLastChange);
+                redoButton.addEventListener('click', function () {
+                    redoLastChange();
+                });
             }
 
             fillHandle.addEventListener('mousedown', function (event) {

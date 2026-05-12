@@ -61,6 +61,34 @@
     font-size: 0.95rem;
 }
 
+.employee-turni-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.employee-turni-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.employee-turni-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.employee-turni-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 12px;
+    border: 1px solid #dbe4f0;
+    background: #fff;
+}
+
 @media (max-width: 767.98px) {
     .employee-mobile-quickbar {
         position: sticky;
@@ -148,6 +176,30 @@
     </div>
 
     {% include "portal/_secretary_today_panel.html" with show_secretary_link=True %}
+    {% endif %}
+
+    {% if published_turni_sections %}
+    <div class="mt-5" id="turni-section">
+        <h2 class="mb-3">Turni della settimana</h2>
+        <div class="card-modern bg-white">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+                <div>
+                    <div class="fw-semibold">{{ published_turni_state.week_label }}</div>
+                    <div class="text-muted small">Il planner pubblicato dall'ufficio e visibile solo in formato JPG.</div>
+                </div>
+            </div>
+            <div class="employee-turni-gallery">
+                {% for section in published_turni_sections %}
+                <div class="employee-turni-card">
+                    <div class="fw-semibold mb-2">{{ section.label }}</div>
+                    <a class="employee-turni-link" href="{{ section.image_url }}">
+                        <img src="{{ section.image_url }}" alt="{{ section.label }} {{ published_turni_state.week_label }}" loading="lazy">
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
     {% endif %}
 
         <h2 class="mb-3">Marcature</h2>
