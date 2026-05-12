@@ -3,13 +3,19 @@ from django.dispatch import receiver
 from django.contrib.auth.signals import user_logged_in
 from django.contrib.auth.models import User
 
-from .models import Employee, AuditEvent, Payslip, Cud
+from .models import Employee, PortalUserSetting, AuditEvent, Payslip, Cud
 
 
 @receiver(post_save, sender=Employee)
 def invia_invito_registrazione(sender, instance, created, **kwargs):
     # Nessun invio automatico, usiamo il link manuale dall'admin
     pass
+
+
+@receiver(post_save, sender=User)
+def ensure_portal_user_setting(sender, instance, created, **kwargs):
+    if created:
+        PortalUserSetting.objects.get_or_create(user=instance)
 
 
 @receiver(user_logged_in, sender=User)

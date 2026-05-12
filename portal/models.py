@@ -32,6 +32,14 @@ class Employee(models.Model):
         return self.full_name
 
 
+class PortalUserSetting(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='portal_setting')
+    show_published_turni = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.user.get_username()
+
+
 class Payslip(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="payslips")
     year = models.PositiveIntegerField()

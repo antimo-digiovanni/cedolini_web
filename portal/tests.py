@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import datetime
 
 from .access import TODAY_MARKINGS_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
-from .models import Cud, Employee, ImportJob, Payslip, SmartAgendaItem, SmartAgendaMessage, TurniPlannerWeekState, VacationRequest, WorkSession
+from .models import Cud, Employee, ImportJob, Payslip, PortalUserSetting, SmartAgendaItem, SmartAgendaMessage, TurniPlannerWeekState, VacationRequest, WorkSession
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -65,6 +65,24 @@ class TodayMarkingsAccessTests(TestCase):
 			work_date=timezone.localdate(),
 			started_at=timezone.now(),
 		)
+		self.turni_state = TurniPlannerWeekState.objects.create(
+			week_label="WEEK OWNER",
+			visible_to_employees=True,
+			planner_data={
+				"weekly": {
+					"headers": ["Reparto A", "Reparto B", "Reparto C", "", "", "", "", "", "", ""],
+					"central_departments": [""] * 10,
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:00", "06:00", "06:00", "", "", "", "", "", "", ""], "rows": [["Mario", "Luca", "Anna", "", "", "", "", "", "", ""], [""] * 10, [""] * 10]},
+						{"label": "2 turno", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+						{"label": "3 turno", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+						{"label": "turno centrale", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+					],
+				},
+				"saturday": {"base_date": "24/05/2026", "rows": [["24/05/2026", "Mattina", "Mario", "Capo A", "Presidio", "Reparto A"]]},
+				"sunday": {"base_date": "25/05/2026", "rows": [["25/05/2026", "Sera", "Luca", "Capo B", "Supporto", "Reparto B"]]},
+			},
+		)
 
 	def test_home_redirects_limited_user_to_today_markings(self):
 		self.client.force_login(self.owner_user)
@@ -87,6 +105,32 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Chi ha marcato oggi")
 		self.assertContains(response, "Luca Verdi")
+
+	def test_limited_user_sees_published_turni_on_today_markings_by_default(self):
+		self.client.force_login(self.owner_user)
+		response = self.client.get(reverse("today_markings_dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Turni della settimana")
+		self.assertContains(response, self.turni_state.week_label)
+		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
+
+		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertEqual(image_response.status_code, 200)
+
+	def test_limited_user_can_be_disabled_from_published_turni(self):
+		PortalUserSetting.objects.update_or_create(
+			user=self.owner_user,
+			defaults={"show_published_turni": False},
+		)
+		self.client.force_login(self.owner_user)
+
+		response = self.client.get(reverse("today_markings_dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, "Turni della settimana")
+
+		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertEqual(image_response.status_code, 404)
 
 	def test_limited_user_can_view_previous_day_markings(self):
 		WorkSession.objects.create(

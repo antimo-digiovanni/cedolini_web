@@ -720,8 +720,15 @@ def _turni_planner_employee_allowed_targets(state):
 	return allowed_targets
 
 
-def _employee_can_view_published_turni(employee):
-    return bool(employee and employee.show_published_turni)
+def _user_can_view_published_turni(user, employee=None):
+    if user_has_full_admin_access(user):
+        return True
+    if employee and not employee.show_published_turni:
+        return False
+    setting = getattr(user, 'portal_setting', None)
+    if setting is not None:
+        return bool(setting.show_published_turni)
+    return True
 
 
 def _turni_planner_employee_jpg_payload(state, *, export_target):
@@ -809,9 +816,9 @@ def _turni_planner_employee_jpg_payload(state, *, export_target):
 @login_required
 def employee_turni_published_image(request, section_key):
     employee = Employee.objects.filter(user=request.user).first()
-    if not request.user.is_staff and not employee:
+    if not request.user.is_staff and not employee and not user_has_today_markings_access(request.user):
         return HttpResponse('Non autorizzato', status=403)
-    if not request.user.is_staff and not _employee_can_view_published_turni(employee):
+    if not request.user.is_staff and not _user_can_view_published_turni(request.user, employee=employee):
         return HttpResponse('Sezione turni non disponibile.', status=404)
 
     state = _turni_planner_published_state()
@@ -2781,7 +2788,7 @@ def dashboard(request):
 
     published_turni_state = _turni_planner_published_state()
     published_turni_sections = []
-    if _employee_can_view_published_turni(employee):
+    if _user_can_view_published_turni(request.user, employee=employee):
         published_turni_sections = _turni_planner_employee_sections(published_turni_state)
 
     agenda_sections = _agenda_sections_context(request.user, today=today)
@@ -4934,6 +4941,10 @@ def today_markings_dashboard(request):
     previous_date = selected_date - timedelta(days=1)
     next_date = selected_date + timedelta(days=1) if selected_date < today else None
     agenda_sections = _agenda_sections_context(request.user, today=today)
+    published_turni_state = _turni_planner_published_state()
+    published_turni_sections = []
+    if _user_can_view_published_turni(request.user):
+        published_turni_sections = _turni_planner_employee_sections(published_turni_state)
 
     response = render(request, 'portal/today_markings_dashboard.html', {
         'today': today,
@@ -4945,6 +4956,8 @@ def today_markings_dashboard(request):
         'dashboard_secretary_items': agenda_sections['daily_items'] + agenda_sections['today_items'] + agenda_sections['overdue_items'],
         'dashboard_secretary_total_open': agenda_sections['secretary_total_open'],
         'secretary_total_open': agenda_sections['secretary_total_open'],
+        'published_turni_state': published_turni_state,
+        'published_turni_sections': published_turni_sections,
         'daily_items': agenda_sections['daily_items'],
         'today_items': agenda_sections['today_items'],
         'overdue_items': agenda_sections['overdue_items'],

@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from .models import (
     Employee,
+    PortalUserSetting,
     Payslip,
     Cud,
     AuditEvent,
@@ -31,6 +32,14 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_editable = ('show_published_turni',)
     search_fields = ('first_name', 'last_name', 'external_code')
     list_filter = ('show_published_turni', 'must_change_password', 'invito_inviato')
+
+
+@admin.register(PortalUserSetting)
+class PortalUserSettingAdmin(admin.ModelAdmin):
+    list_display = ('user', 'show_published_turni')
+    list_editable = ('show_published_turni',)
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'user__email')
+    autocomplete_fields = ('user',)
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
