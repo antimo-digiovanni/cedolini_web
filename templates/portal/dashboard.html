@@ -80,6 +80,10 @@
     color: inherit;
 }
 
+.employee-turni-open {
+    margin-top: 0.85rem;
+}
+
 .employee-turni-card img {
     width: 100%;
     height: auto;
@@ -185,7 +189,6 @@
             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
                 <div>
                     <div class="fw-semibold">{{ published_turni_state.week_label }}</div>
-                    <div class="text-muted small">Il planner pubblicato dall'ufficio e visibile solo in formato JPG.</div>
                 </div>
             </div>
             <div class="employee-turni-gallery">
@@ -195,6 +198,7 @@
                     <a class="employee-turni-link" href="{{ section.image_url }}">
                         <img src="{{ section.image_url }}" alt="{{ section.label }} {{ published_turni_state.week_label }}" loading="lazy">
                     </a>
+                    <a class="btn btn-outline-primary btn-sm employee-turni-open" href="{{ section.image_url }}">Apri</a>
                 </div>
                 {% endfor %}
             </div>

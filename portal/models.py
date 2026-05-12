@@ -10,6 +10,7 @@ class Employee(models.Model):
     first_name = models.CharField(max_length=80, blank=True, null=True)
     last_name = models.CharField(max_length=80, blank=True, null=True)
     email_invio = models.EmailField(max_length=255, blank=True, null=True)
+    show_published_turni = models.BooleanField(default=True)
     invito_inviato = models.BooleanField(default=False)
     external_code = models.CharField(max_length=10, blank=True, null=True)
     must_change_password = models.BooleanField(default=True)

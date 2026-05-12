@@ -27,9 +27,10 @@ admin.site.index_title = "Pannello di amministrazione"
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'external_code', 'must_change_password', 'invito_inviato')
+    list_display = ('first_name', 'last_name', 'external_code', 'show_published_turni', 'must_change_password', 'invito_inviato')
+    list_editable = ('show_published_turni',)
     search_fields = ('first_name', 'last_name', 'external_code')
-    list_filter = ('must_change_password', 'invito_inviato')
+    list_filter = ('show_published_turni', 'must_change_password', 'invito_inviato')
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)

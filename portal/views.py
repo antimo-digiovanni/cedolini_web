@@ -720,6 +720,10 @@ def _turni_planner_employee_allowed_targets(state):
 	return allowed_targets
 
 
+def _employee_can_view_published_turni(employee):
+    return bool(employee and employee.show_published_turni)
+
+
 def _turni_planner_employee_jpg_payload(state, *, export_target):
     if export_target not in _turni_planner_employee_allowed_targets(state):
         raise ValueError('Sezione turni non disponibile per i dipendenti.')
@@ -804,8 +808,11 @@ def _turni_planner_employee_jpg_payload(state, *, export_target):
 
 @login_required
 def employee_turni_published_image(request, section_key):
-    if not request.user.is_staff and not Employee.objects.filter(user=request.user).exists():
+    employee = Employee.objects.filter(user=request.user).first()
+    if not request.user.is_staff and not employee:
         return HttpResponse('Non autorizzato', status=403)
+    if not request.user.is_staff and not _employee_can_view_published_turni(employee):
+        return HttpResponse('Sezione turni non disponibile.', status=404)
 
     state = _turni_planner_published_state()
     if not state:
@@ -2773,7 +2780,9 @@ def dashboard(request):
     )
 
     published_turni_state = _turni_planner_published_state()
-    published_turni_sections = _turni_planner_employee_sections(published_turni_state)
+    published_turni_sections = []
+    if _employee_can_view_published_turni(employee):
+        published_turni_sections = _turni_planner_employee_sections(published_turni_state)
 
     agenda_sections = _agenda_sections_context(request.user, today=today)
 

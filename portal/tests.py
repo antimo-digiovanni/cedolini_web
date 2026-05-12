@@ -343,6 +343,25 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
 		self.assertEqual(image_response.status_code, 404)
 
+	def test_employee_dashboard_hides_turni_for_employee_disabled_in_admin(self):
+		self.employee.show_published_turni = False
+		self.employee.save(update_fields=["show_published_turni"])
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, "Turni della settimana")
+
+		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertEqual(image_response.status_code, 404)
+
+	def test_staff_can_still_open_published_turni_images(self):
+		self.client.force_login(self.antimo_user)
+
+		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertEqual(image_response.status_code, 200)
+		self.assertEqual(image_response["Content-Type"], "image/jpeg")
+
 
 class SmartAgendaTests(TestCase):
 	def setUp(self):
