@@ -81,6 +81,15 @@ class TodayMarkingsAccessTests(TestCase):
 				},
 				"saturday": {"base_date": "24/05/2026", "rows": [["24/05/2026", "Mattina", "Mario", "Capo A", "Presidio", "Reparto A"]]},
 				"sunday": {"base_date": "25/05/2026", "rows": [["25/05/2026", "Sera", "Luca", "Capo B", "Supporto", "Reparto B"]]},
+				"portineria_weekly": {
+					"headers": ["PORTINERIA CENTRALE", "CENTRALINISTA", "PORTINERIA CELLA"],
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:14", "08:17", "06:14"], "rows": [["A", "B", "C"], ["", "", ""], ["", "", ""]]},
+						{"label": "2 turno", "time_values": ["14:22", "", "14:22"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+						{"label": "3 turno", "time_values": ["22:06", "", "22:06"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+					],
+				},
+				"portineria_weekend": {"base_date": "24/05/2026", "rows": [["24/05/2026", "Mattina", "Port A", "Resp A", "Controllo", "Portineria"]]},
 			},
 		)
 
@@ -114,9 +123,15 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertContains(response, "Turni della settimana")
 		self.assertContains(response, self.turni_state.week_label)
 		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekend"]))
+		self.assertContains(response, "Portineria settimana")
+		self.assertContains(response, "Portineria weekend")
 
 		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
 		self.assertEqual(image_response.status_code, 200)
+		portineria_response = self.client.get(reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertEqual(portineria_response.status_code, 200)
 
 	def test_limited_user_can_be_disabled_from_published_turni(self):
 		PortalUserSetting.objects.update_or_create(

@@ -200,6 +200,14 @@ TURNI_EMPLOYEE_SECTION_META = OrderedDict([
     ('sunday', {'label': 'Domenica'}),
     ('jolly_weekend', {'label': 'Jolly'}),
 ])
+TURNI_MARKINGS_SECTION_META = OrderedDict([
+    ('weekly', {'label': 'Settimana'}),
+    ('portineria_weekly', {'label': 'Portineria settimana'}),
+    ('saturday', {'label': 'Sabato'}),
+    ('sunday', {'label': 'Domenica'}),
+    ('jolly_weekend', {'label': 'Jolly'}),
+    ('portineria_weekend', {'label': 'Portineria weekend'}),
+])
 
 
 def _default_turni_weekly_data():
@@ -696,13 +704,14 @@ def _turni_planner_published_state():
     return TurniPlannerWeekState.objects.filter(visible_to_employees=True).order_by('-updated_at', '-id').first()
 
 
-def _turni_planner_employee_sections(state):
+def _turni_planner_employee_sections(state, *, include_portineria=False):
     if not state:
         return []
 
     planner_data = dict(state.planner_data or {})
     sections = []
-    for section_key, section_meta in TURNI_EMPLOYEE_SECTION_META.items():
+    section_meta_map = TURNI_MARKINGS_SECTION_META if include_portineria else TURNI_EMPLOYEE_SECTION_META
+    for section_key, section_meta in section_meta_map.items():
         if section_key == 'jolly_weekend' and not _turni_planner_data_has_content(planner_data.get('jolly_weekend')):
             continue
         sections.append({
@@ -713,11 +722,12 @@ def _turni_planner_employee_sections(state):
     return sections
 
 
-def _turni_planner_employee_allowed_targets(state):
-	allowed_targets = [key for key in TURNI_EMPLOYEE_SECTION_META.keys() if key != 'jolly_weekend']
-	if state and _turni_planner_data_has_content(dict(state.planner_data or {}).get('jolly_weekend')):
-		allowed_targets.append('jolly_weekend')
-	return allowed_targets
+def _turni_planner_allowed_targets(state, *, include_portineria=False):
+    section_meta_map = TURNI_MARKINGS_SECTION_META if include_portineria else TURNI_EMPLOYEE_SECTION_META
+    allowed_targets = [key for key in section_meta_map.keys() if key != 'jolly_weekend']
+    if state and _turni_planner_data_has_content(dict(state.planner_data or {}).get('jolly_weekend')):
+        allowed_targets.append('jolly_weekend')
+    return allowed_targets
 
 
 def _user_can_view_published_turni(user, employee=None):
@@ -731,8 +741,8 @@ def _user_can_view_published_turni(user, employee=None):
     return True
 
 
-def _turni_planner_employee_jpg_payload(state, *, export_target):
-    if export_target not in _turni_planner_employee_allowed_targets(state):
+def _turni_planner_employee_jpg_payload(state, *, export_target, include_portineria=False):
+    if export_target not in _turni_planner_allowed_targets(state, include_portineria=include_portineria):
         raise ValueError('Sezione turni non disponibile per i dipendenti.')
 
     planner_data = dict(state.planner_data or {})
@@ -816,6 +826,7 @@ def _turni_planner_employee_jpg_payload(state, *, export_target):
 @login_required
 def employee_turni_published_image(request, section_key):
     employee = Employee.objects.filter(user=request.user).first()
+    include_portineria = user_has_today_markings_access(request.user) or user_has_full_admin_access(request.user)
     if not request.user.is_staff and not employee and not user_has_today_markings_access(request.user):
         return HttpResponse('Non autorizzato', status=403)
     if not request.user.is_staff and not _user_can_view_published_turni(request.user, employee=employee):
@@ -826,7 +837,11 @@ def employee_turni_published_image(request, section_key):
         return HttpResponse('Nessun turno pubblicato.', status=404)
 
     try:
-        image_bytes, image_name = _turni_planner_employee_jpg_payload(state, export_target=section_key)
+        image_bytes, image_name = _turni_planner_employee_jpg_payload(
+            state,
+            export_target=section_key,
+            include_portineria=include_portineria,
+        )
     except ValueError:
         return HttpResponse('Sezione turni non disponibile.', status=404)
 
@@ -4944,7 +4959,7 @@ def today_markings_dashboard(request):
     published_turni_state = _turni_planner_published_state()
     published_turni_sections = []
     if _user_can_view_published_turni(request.user):
-        published_turni_sections = _turni_planner_employee_sections(published_turni_state)
+        published_turni_sections = _turni_planner_employee_sections(published_turni_state, include_portineria=True)
 
     response = render(request, 'portal/today_markings_dashboard.html', {
         'today': today,
