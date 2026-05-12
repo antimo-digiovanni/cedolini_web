@@ -8,12 +8,10 @@ from copy import deepcopy
 import re
 import tempfile
 import zipfile
-import urllib.request
 from urllib.parse import quote
 import uuid
 import unicodedata
 from collections import OrderedDict
-from decimal import Decimal, InvalidOperation
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -46,8 +44,6 @@ from .models import (
     WorkSession,
     WorkMarkRequest,
     VacationRequest,
-    SmartAgendaItem,
-    SmartAgendaMessage,
     TurniPlannerWeekState,
 )
 from .models import AuditEvent
@@ -81,7 +77,6 @@ from turni_app.workbook import WeeklySectionData
 from .utils_import import parse_payslip_filename
 from .access import (
     user_has_full_admin_access,
-    user_has_smart_agenda_access,
     user_has_turni_planner_access,
     user_has_today_markings_access,
     user_home_url_name,
@@ -106,12 +101,6 @@ MONTH_LABELS_IT = {
 }
 
 MAX_SHIFT_DURATION_HOURS = 18
-
-
-def _agenda_allowed_or_403(request):
-    if not user_has_smart_agenda_access(request.user):
-        return HttpResponse('Agenda non disponibile per questo account.', status=403)
-    return None
 
 
 def _turni_planner_allowed_or_403(request):
@@ -147,7 +136,6 @@ def _resolve_turni_export_week_label(planner_data, week_label, *, key):
         custom_label = str(planner_data.get(key) or '').strip()
         if custom_label:
             return custom_label
-        # Backward compatibility for the previous single shared export label.
         custom_label = str(planner_data.get('export_week_label') or '').strip()
         if custom_label:
             return custom_label
@@ -826,7 +814,7 @@ def _turni_planner_employee_jpg_payload(state, *, export_target, include_portine
 @login_required
 def employee_turni_published_image(request, section_key):
     employee = Employee.objects.filter(user=request.user).first()
-    include_portineria = user_has_today_markings_access(request.user) or user_has_full_admin_access(request.user)
+    include_portineria = bool(employee) or user_has_today_markings_access(request.user) or user_has_full_admin_access(request.user)
     if not request.user.is_staff and not employee and not user_has_today_markings_access(request.user):
         return HttpResponse('Non autorizzato', status=403)
     if not request.user.is_staff and not _user_can_view_published_turni(request.user, employee=employee):
@@ -1081,282 +1069,6 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
         email.attach(filename, content, 'application/pdf')
     email.send(fail_silently=False)
     return recipients
-
-
-def _extract_amount_from_text(text):
-    match = re.search(r'(\d+(?:[\.,]\d{1,2})?)\s*€', text or '', flags=re.IGNORECASE)
-    if not match:
-        return None
-    try:
-        return Decimal(match.group(1).replace('.', '').replace(',', '.'))
-    except InvalidOperation:
-        return None
-
-
-def _extract_remind_date_from_text(text):
-    normalized = (text or '').lower()
-    today = timezone.localdate()
-    if 'dopodomani' in normalized:
-        return today + timedelta(days=2)
-    if 'domani' in normalized:
-        return today + timedelta(days=1)
-    if 'oggi' in normalized:
-        return today
-
-    match = re.search(r'\b(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\b', normalized)
-    if not match:
-        return None
-
-    try:
-        return date(
-            int(match.group(3)) if match.group(3) else today.year,
-            int(match.group(2)),
-            int(match.group(1)),
-        )
-    except ValueError:
-        return None
-
-
-def _extract_remind_time_from_text(text):
-    normalized = (text or '').lower()
-    match = re.search(r'\b(?:alle|ore)\s*(\d{1,2})(?:[:\.](\d{2}))?\b', normalized)
-    if not match:
-        return None
-
-    hour = int(match.group(1))
-    minute = int(match.group(2) or '00')
-    if hour > 23 or minute > 59:
-        return None
-    return datetime.strptime(f'{hour:02d}:{minute:02d}', '%H:%M').time()
-
-
-def _extract_priority_from_text(text):
-    normalized = _normalize_import_name(text)
-    if any(token in normalized for token in ['urgent', 'urgente', 'subito', 'importantissimo']):
-        return SmartAgendaItem.PRIORITY_URGENT
-    if any(token in normalized for token in ['alta priorita', 'importante', 'priorita alta']):
-        return SmartAgendaItem.PRIORITY_HIGH
-    if any(token in normalized for token in ['bassa priorita', 'quando puoi', 'non urgente']):
-        return SmartAgendaItem.PRIORITY_LOW
-    return SmartAgendaItem.PRIORITY_NORMAL
-
-
-def _extract_daily_flag_from_text(text):
-    normalized = _normalize_import_name(text)
-    keywords = ['ogni giorno', 'quotidianamente', 'tutti i giorni', 'giornaliero', 'giornalmente']
-    return any(keyword in normalized for keyword in keywords)
-
-
-def _agenda_is_summary_prompt(text):
-    normalized = _normalize_import_name(text)
-    keywords = ['cosa devo fare', 'cosa mi devo ricordare', 'riepilogo', 'riassunto', 'agenda di oggi', 'impegni di oggi']
-    return any(keyword in normalized for keyword in keywords)
-
-
-def _agenda_is_reminder_prompt(text):
-    normalized = _normalize_import_name(text)
-    keywords = ['ricordami', 'promemoria', 'segnami', 'aggiungi', 'appunto', 'nota', 'da fare', 'agenda']
-    return any(keyword in normalized for keyword in keywords)
-
-
-def _agenda_compact_title(text):
-    raw = (text or '').strip()
-    raw = re.sub(r'^(ricordami|segnami|aggiungi|promemoria|nota)\s*[:,-]?\s*', '', raw, flags=re.IGNORECASE)
-    raw = re.sub(r'\s+', ' ', raw).strip(' .;-')
-    return (raw or 'Nuovo promemoria')[:200]
-
-
-def _agenda_local_analysis(prompt):
-    is_daily = _extract_daily_flag_from_text(prompt)
-    return {
-        'create_item': _agenda_is_reminder_prompt(prompt) or not _agenda_is_summary_prompt(prompt),
-        'title': _agenda_compact_title(prompt),
-        'note': (prompt or '').strip(),
-        'remind_on': None if is_daily else _extract_remind_date_from_text(prompt),
-        'remind_time': _extract_remind_time_from_text(prompt),
-        'is_daily': is_daily,
-        'priority': _extract_priority_from_text(prompt),
-        'quoted_amount': _extract_amount_from_text(prompt),
-    }
-
-
-def _agenda_items_digest(items):
-    lines = []
-    for item in items[:8]:
-        line = item.title
-        if item.is_daily:
-            line += ' | ogni giorno'
-        if item.remind_on:
-            line += f' | scadenza {item.remind_on.strftime("%d/%m/%Y")}'
-        if item.remind_time:
-            line += f' | ore {item.remind_time.strftime("%H:%M")}'
-        if item.quoted_amount is not None:
-            line += f' | importo {item.quoted_amount} euro'
-        lines.append(line)
-    return '\n'.join(lines) if lines else 'Nessun promemoria aperto.'
-
-
-def _agenda_ai_reply(prompt, open_items, created_item=None):
-    api_key = getattr(settings, 'OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', '')
-    if not api_key:
-        return None
-
-    model = getattr(settings, 'SMART_AGENDA_OPENAI_MODEL', 'gpt-4o-mini')
-    payload = {
-        'model': model,
-        'messages': [
-            {
-                'role': 'system',
-                'content': (
-                    'Sei un assistente agenda personale in italiano. Rispondi in modo breve, pratico e orientato all azione. '
-                    'Se e stato creato un promemoria, confermalo chiaramente.'
-                ),
-            },
-            {
-                'role': 'user',
-                'content': (
-                    f'Prompt: {prompt}\n\n'
-                    f'Promemoria aperti:\n{_agenda_items_digest(open_items)}\n\n'
-                    f'Promemoria appena creato: {created_item.title if created_item else "nessuno"}\n\n'
-                    'Rispondi in massimo 5 righe.'
-                ),
-            },
-        ],
-        'temperature': 0.3,
-    }
-
-    try:
-        http_request = urllib.request.Request(
-            'https://api.openai.com/v1/chat/completions',
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json',
-            },
-            data=json.dumps(payload).encode('utf-8'),
-            method='POST',
-        )
-        with urllib.request.urlopen(http_request, timeout=20) as response:
-            data = json.loads(response.read().decode('utf-8'))
-        return data['choices'][0]['message']['content'].strip()
-    except Exception:
-        logger.exception('Agenda AI request failed')
-        return None
-
-
-def _agenda_fallback_reply(prompt, open_items, created_item=None):
-    if _agenda_is_summary_prompt(prompt):
-        if not open_items:
-            return 'Al momento non hai promemoria aperti.'
-        preview = []
-        for item in open_items[:5]:
-            piece = item.title
-            if item.is_daily:
-                piece += ' ogni giorno'
-            elif item.remind_on:
-                piece += f' entro il {item.remind_on.strftime("%d/%m")}'
-            if item.remind_time:
-                piece += f' alle {item.remind_time.strftime("%H:%M")}'
-            preview.append(piece)
-        return 'Ti tengo in ordine cosi: ' + '; '.join(preview) + '.'
-
-    if created_item:
-        reply = f'Promemoria salvato: {created_item.title}.'
-        if created_item.quoted_amount is not None:
-            reply += f' Ho rilevato un importo di {created_item.quoted_amount} euro.'
-        if created_item.is_daily:
-            reply += ' Te lo tengo tra le attivita quotidiane.'
-        elif created_item.remind_on:
-            reply += f' Te lo ripropongo per il {created_item.remind_on.strftime("%d/%m/%Y")}.'
-        if created_item.remind_time:
-            reply += f' Orario segnato: {created_item.remind_time.strftime("%H:%M")}. '
-        if not created_item.is_daily and not created_item.remind_on:
-            reply += ' Resta nella tua agenda finche non lo chiudi.'
-        return reply
-
-    return 'Messaggio ricevuto. Se vuoi posso salvarlo come promemoria operativo.'
-
-
-def _agenda_priority_badge(priority):
-    return {
-        SmartAgendaItem.PRIORITY_LOW: ('Bassa', 'bg-secondary'),
-        SmartAgendaItem.PRIORITY_NORMAL: ('Normale', 'bg-primary'),
-        SmartAgendaItem.PRIORITY_HIGH: ('Alta', 'bg-warning text-dark'),
-        SmartAgendaItem.PRIORITY_URGENT: ('Urgente', 'bg-danger'),
-    }.get(priority, ('Normale', 'bg-primary'))
-
-
-def _decorate_agenda_items(items, today=None):
-    today = today or timezone.localdate()
-    decorated = []
-    for item in items:
-        item.priority_label, item.priority_badge = _agenda_priority_badge(item.priority)
-        if item.is_daily:
-            item.when_label = 'Ogni giorno'
-        elif item.remind_on and item.remind_time:
-            item.when_label = f"{item.remind_on.strftime('%d/%m/%Y')} alle {item.remind_time.strftime('%H:%M')}"
-        elif item.remind_on:
-            item.when_label = item.remind_on.strftime('%d/%m/%Y')
-        elif item.remind_time:
-            item.when_label = f"Oggi alle {item.remind_time.strftime('%H:%M')}"
-        else:
-            item.when_label = 'Senza data'
-
-        item.is_overdue = bool(item.remind_on and item.remind_on < today)
-        item.is_today = bool(item.remind_on == today)
-        decorated.append(item)
-    return decorated
-
-
-def _dashboard_secretary_snapshot(user, today=None, limit=5):
-    today = today or timezone.localdate()
-    if not user_has_smart_agenda_access(user):
-        return [], 0
-
-    agenda_open_items = _decorate_agenda_items(
-        list(
-            SmartAgendaItem.objects.filter(
-                owner=user,
-                status=SmartAgendaItem.STATUS_OPEN,
-            )
-        ),
-        today=today,
-    )
-    secretary_items = [
-        item for item in agenda_open_items
-        if item.is_daily or item.is_today or item.is_overdue
-    ][:limit]
-    return secretary_items, len(agenda_open_items)
-
-
-def _agenda_sections_context(user, today=None):
-    today = today or timezone.localdate()
-    if not user_has_smart_agenda_access(user):
-        return {
-            'open_items': [],
-            'daily_items': [],
-            'overdue_items': [],
-            'today_items': [],
-            'upcoming_items': [],
-            'unscheduled_items': [],
-            'secretary_total_open': 0,
-        }
-
-    open_items = list(SmartAgendaItem.objects.filter(owner=user, status=SmartAgendaItem.STATUS_OPEN))
-    open_items = _decorate_agenda_items(open_items, today=today)
-    daily_items = [item for item in open_items if item.is_daily]
-    overdue_items = [item for item in open_items if item.is_overdue and not item.is_daily]
-    today_items = [item for item in open_items if item.is_today and not item.is_daily]
-    upcoming_items = [item for item in open_items if item.remind_on and item.remind_on > today and not item.is_daily]
-    unscheduled_items = [item for item in open_items if not item.is_daily and not item.remind_on]
-    return {
-        'open_items': open_items,
-        'daily_items': daily_items,
-        'overdue_items': overdue_items,
-        'today_items': today_items,
-        'upcoming_items': upcoming_items,
-        'unscheduled_items': unscheduled_items,
-        'secretary_total_open': len(open_items),
-    }
 
 
 def _normalize_import_name(value):
@@ -2804,9 +2516,7 @@ def dashboard(request):
     published_turni_state = _turni_planner_published_state()
     published_turni_sections = []
     if _user_can_view_published_turni(request.user, employee=employee):
-        published_turni_sections = _turni_planner_employee_sections(published_turni_state)
-
-    agenda_sections = _agenda_sections_context(request.user, today=today)
+        published_turni_sections = _turni_planner_employee_sections(published_turni_state, include_portineria=True)
 
     response = render(request, 'portal/dashboard.html', {
         'employee': employee,
@@ -2824,14 +2534,6 @@ def dashboard(request):
         'published_turni_state': published_turni_state,
         'published_turni_sections': published_turni_sections,
         'recent_vacation_requests': recent_vacation_requests,
-        'dashboard_secretary_items': agenda_sections['daily_items'] + agenda_sections['today_items'] + agenda_sections['overdue_items'],
-        'dashboard_secretary_total_open': agenda_sections['secretary_total_open'],
-        'secretary_total_open': agenda_sections['secretary_total_open'],
-        'daily_items': agenda_sections['daily_items'],
-        'today_items': agenda_sections['today_items'],
-        'overdue_items': agenda_sections['overdue_items'],
-        'upcoming_items': agenda_sections['upcoming_items'],
-        'unscheduled_items': agenda_sections['unscheduled_items'],
     })
     return _disable_response_cache(response)
 
@@ -4841,81 +4543,6 @@ def turni_planner_home(request):
     })
 
 
-@login_required
-def smart_agenda(request):
-    denied = _agenda_allowed_or_403(request)
-    if denied:
-        return denied
-
-    today = timezone.localdate()
-
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-
-        if action == 'ask':
-            prompt = (request.POST.get('prompt') or '').strip()
-            if prompt:
-                SmartAgendaMessage.objects.create(
-                    owner=request.user,
-                    role=SmartAgendaMessage.ROLE_USER,
-                    content=prompt,
-                )
-
-                analysis = _agenda_local_analysis(prompt)
-                created_item = None
-                if analysis['create_item']:
-                    created_item = SmartAgendaItem.objects.create(
-                        owner=request.user,
-                        title=analysis['title'],
-                        note=analysis['note'],
-                        source_text=prompt,
-                        remind_on=analysis['remind_on'],
-                        remind_time=analysis['remind_time'],
-                        is_daily=analysis['is_daily'],
-                        priority=analysis['priority'],
-                        quoted_amount=analysis['quoted_amount'],
-                    )
-
-                open_items = list(SmartAgendaItem.objects.filter(owner=request.user, status=SmartAgendaItem.STATUS_OPEN))
-                assistant_reply = _agenda_ai_reply(prompt, open_items, created_item) or _agenda_fallback_reply(prompt, open_items, created_item)
-                SmartAgendaMessage.objects.create(
-                    owner=request.user,
-                    role=SmartAgendaMessage.ROLE_ASSISTANT,
-                    content=assistant_reply,
-                    related_item=created_item,
-                )
-
-            return redirect('smart_agenda')
-
-        if action in {'complete_item', 'reopen_item', 'delete_item'}:
-            item = SmartAgendaItem.objects.filter(id=request.POST.get('item_id'), owner=request.user).first()
-            if item:
-                if action == 'delete_item':
-                    item.delete()
-                else:
-                    item.status = SmartAgendaItem.STATUS_DONE if action == 'complete_item' else SmartAgendaItem.STATUS_OPEN
-                    item.completed_at = timezone.now() if action == 'complete_item' else None
-                    item.save(update_fields=['status', 'completed_at', 'updated_at'])
-            return redirect('smart_agenda')
-
-    agenda_sections = _agenda_sections_context(request.user, today=today)
-    done_items = SmartAgendaItem.objects.filter(owner=request.user, status=SmartAgendaItem.STATUS_DONE)[:20]
-    messages = SmartAgendaMessage.objects.filter(owner=request.user).select_related('related_item').order_by('-created_at')[:20]
-
-    return render(request, 'portal/smart_agenda.html', {
-        'open_items': agenda_sections['open_items'],
-        'daily_items': agenda_sections['daily_items'],
-        'overdue_items': agenda_sections['overdue_items'],
-        'today_items': agenda_sections['today_items'],
-        'upcoming_items': agenda_sections['upcoming_items'],
-        'unscheduled_items': agenda_sections['unscheduled_items'],
-        'secretary_total_open': agenda_sections['secretary_total_open'],
-        'done_items': done_items,
-        'messages': reversed(list(messages)),
-        'today': today,
-    })
-
-
 def _today_marked_sessions_queryset(target_date):
     return (
         WorkSession.objects
@@ -4955,7 +4582,6 @@ def today_markings_dashboard(request):
 
     previous_date = selected_date - timedelta(days=1)
     next_date = selected_date + timedelta(days=1) if selected_date < today else None
-    agenda_sections = _agenda_sections_context(request.user, today=today)
     published_turni_state = _turni_planner_published_state()
     published_turni_sections = []
     if _user_can_view_published_turni(request.user):
@@ -4968,16 +4594,8 @@ def today_markings_dashboard(request):
         'selected_marked_sessions': selected_marked_sessions,
         'previous_date': previous_date,
         'next_date': next_date,
-        'dashboard_secretary_items': agenda_sections['daily_items'] + agenda_sections['today_items'] + agenda_sections['overdue_items'],
-        'dashboard_secretary_total_open': agenda_sections['secretary_total_open'],
-        'secretary_total_open': agenda_sections['secretary_total_open'],
         'published_turni_state': published_turni_state,
         'published_turni_sections': published_turni_sections,
-        'daily_items': agenda_sections['daily_items'],
-        'today_items': agenda_sections['today_items'],
-        'overdue_items': agenda_sections['overdue_items'],
-        'upcoming_items': agenda_sections['upcoming_items'],
-        'unscheduled_items': agenda_sections['unscheduled_items'],
     })
     return _disable_response_cache(response)
 

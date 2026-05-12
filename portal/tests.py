@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import datetime
 
 from .access import TODAY_MARKINGS_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
-from .models import Cud, Employee, ImportJob, Payslip, PortalUserSetting, SmartAgendaItem, SmartAgendaMessage, TurniPlannerWeekState, VacationRequest, WorkSession
+from .models import Cud, Employee, ImportJob, Payslip, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -185,27 +185,6 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertContains(response_yesterday, "Luca Verdi")
 		self.assertContains(response_yesterday, "17:00")
 
-	def test_today_markings_shows_secretary_widget_for_antimo_account(self):
-		self.owner_user.first_name = "Antimo"
-		self.owner_user.save(update_fields=["first_name"])
-		SmartAgendaItem.objects.create(
-			owner=self.owner_user,
-			title="Controllare le priorita del giorno",
-			status=SmartAgendaItem.STATUS_OPEN,
-			is_daily=True,
-			priority=SmartAgendaItem.PRIORITY_HIGH,
-		)
-
-		self.client.force_login(self.owner_user)
-		response = self.client.get(reverse("today_markings_dashboard"))
-		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Segretaria del giorno")
-		self.assertContains(response, "Controllare le priorita del giorno")
-		self.assertContains(response, "Quotidiani")
-		self.assertContains(response, "Da fare oggi")
-		self.assertContains(response, "In ritardo")
-
-
 class PublicMachineryPageTests(TestCase):
 	def test_public_machinery_page_shows_real_vehicle_cards(self):
 		response = self.client.get(reverse("public_machinery"))
@@ -376,11 +355,13 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 		self.assertContains(response, "Turni della settimana")
 		self.assertContains(response, self.state.week_label)
 		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekly"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["saturday"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["sunday"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["jolly_weekend"]))
-		self.assertNotContains(response, "Portineria settimana")
-		self.assertNotContains(response, "Portineria weekend")
+		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekend"]))
+		self.assertContains(response, "Portineria settimana")
+		self.assertContains(response, "Portineria weekend")
 
 		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
 		self.assertEqual(image_response.status_code, 200)
@@ -388,7 +369,7 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 		self.assertTrue(image_response.content.startswith(b"\xff\xd8\xff"))
 
 		portineria_response = self.client.get(reverse("employee_turni_published_image", args=["portineria_weekly"]))
-		self.assertEqual(portineria_response.status_code, 404)
+		self.assertEqual(portineria_response.status_code, 200)
 
 	def test_employee_dashboard_hides_turni_when_nothing_is_published(self):
 		self.state.visible_to_employees = False
@@ -420,86 +401,6 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 		image_response = self.client.get(reverse("employee_turni_published_image", args=["weekly"]))
 		self.assertEqual(image_response.status_code, 200)
 		self.assertEqual(image_response["Content-Type"], "image/jpeg")
-
-
-class SmartAgendaTests(TestCase):
-	def setUp(self):
-		self.client = Client()
-		self.antimo_user = get_user_model().objects.create_user(
-			username="antimo",
-			password="Password123!",
-			is_staff=True,
-		)
-		self.other_user = get_user_model().objects.create_user(
-			username="mario",
-			password="Password123!",
-		)
-
-	def test_smart_agenda_is_reserved_to_antimo_account(self):
-		self.client.force_login(self.other_user)
-		response = self.client.get(reverse("smart_agenda"))
-		self.assertEqual(response.status_code, 403)
-
-	def test_smart_agenda_allows_antimo_by_first_name(self):
-		antimo_named_user = get_user_model().objects.create_user(
-			username="admin.1",
-			first_name="Antimo",
-			password="Password123!",
-		)
-		self.client.force_login(antimo_named_user)
-		response = self.client.get(reverse("smart_agenda"))
-		self.assertEqual(response.status_code, 200)
-
-	def test_smart_agenda_creates_reminder_from_prompt(self):
-		self.client.force_login(self.antimo_user)
-		response = self.client.post(
-			reverse("smart_agenda"),
-			{
-				"action": "ask",
-				"prompt": "Ricordami lavaggio critico della linea, chiediamo 700€ domani",
-			},
-		)
-
-		self.assertRedirects(response, reverse("smart_agenda"))
-		item = SmartAgendaItem.objects.get(owner=self.antimo_user)
-		self.assertIn("lavaggio critico", item.title.lower())
-		self.assertEqual(str(item.quoted_amount), "700.00")
-		self.assertEqual(item.remind_on, timezone.localdate() + timezone.timedelta(days=1))
-		self.assertEqual(SmartAgendaMessage.objects.filter(owner=self.antimo_user).count(), 2)
-
-	def test_smart_agenda_creates_daily_task_with_time(self):
-		self.client.force_login(self.antimo_user)
-		response = self.client.post(
-			reverse("smart_agenda"),
-			{
-				"action": "ask",
-				"prompt": "Ricordami ogni giorno di controllare i messaggi alle 08:30",
-			},
-		)
-
-		self.assertRedirects(response, reverse("smart_agenda"))
-		item = SmartAgendaItem.objects.filter(owner=self.antimo_user).latest("created_at")
-		self.assertTrue(item.is_daily)
-		self.assertIsNone(item.remind_on)
-		self.assertEqual(item.remind_time.strftime("%H:%M"), "08:30")
-
-	def test_smart_agenda_creates_precise_date_and_priority(self):
-		self.client.force_login(self.antimo_user)
-		response = self.client.post(
-			reverse("smart_agenda"),
-			{
-				"action": "ask",
-				"prompt": "Segnami urgente: il 24/04 alle 15 chiama il cliente per il lavaggio critico della linea",
-			},
-		)
-
-		self.assertRedirects(response, reverse("smart_agenda"))
-		item = SmartAgendaItem.objects.filter(owner=self.antimo_user).latest("created_at")
-		self.assertEqual(item.priority, SmartAgendaItem.PRIORITY_URGENT)
-		self.assertEqual(item.remind_on.strftime("%d/%m"), "24/04")
-		self.assertEqual(item.remind_time.strftime("%H:%M"), "15:00")
-
-
 class TurniPlannerAccessTests(TestCase):
 	def setUp(self):
 		self.client = Client()
