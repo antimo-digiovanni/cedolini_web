@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 db.sqlite3
+dist/
+tmp/
+*.spec
 gestionalepreventivi/build/
 gestionalepreventivi/dist/
 gestionalepreventivi/generated_pdfs/
