@@ -316,7 +316,7 @@ main {
             <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
-            {% elif has_today_markings_access %}
+            {% elif has_today_markings_only_access %}
             <a href="{% url 'today_markings_dashboard' %}" class="{% if request.resolver_match.url_name == 'today_markings_dashboard' %}active{% endif %}">
                 <i class="bi bi-calendar-check"></i> Chi ha marcato oggi
             </a>
@@ -333,6 +333,11 @@ main {
             <button type="button" id="sidebarInstallAppButton" class="sidebar-install-button" aria-label="Installa app del portale">
                 <i class="bi bi-phone"></i> Installa app
             </button>
+            {% if has_today_markings_access %}
+            <a href="{% url 'today_markings_dashboard' %}" class="{% if request.resolver_match.url_name == 'today_markings_dashboard' %}active{% endif %}">
+                <i class="bi bi-calendar-check"></i> Chi ha marcato oggi
+            </a>
+            {% endif %}
             {% endif %}
 
             {% if has_full_admin_access %}

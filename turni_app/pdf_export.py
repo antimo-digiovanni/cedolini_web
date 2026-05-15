@@ -757,7 +757,7 @@ def _build_portineria_weekly_sheet_table(
         time_row_indexes.append(len(rows))
         rows.append([_paragraph("", styles["smallBold"])] + [_paragraph(value, styles["timeWhite"]) for value in section.time_values])
         for row_number, assignment_row in enumerate(section.rows):
-            shift_label = f"{index + 1}°" if row_number > 0 else ""
+            shift_label = f"{index + 1}°"
             label = Spacer(1, 1) if not shift_label else _paragraph(shift_label, styles["shiftBand"])
             rows.append([label] + [_paragraph(_normalize_weekly_text(value), portineria_name_style) for value in assignment_row])
 

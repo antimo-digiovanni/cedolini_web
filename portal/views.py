@@ -79,6 +79,7 @@ from .access import (
     user_has_full_admin_access,
     user_has_turni_planner_access,
     user_has_today_markings_access,
+    user_has_today_markings_only_access,
     user_home_url_name,
 )
 
@@ -2347,7 +2348,7 @@ def dashboard(request):
 def dashboard(request):
     if user_has_full_admin_access(request.user):
         return redirect('admin_dashboard')
-    if user_has_today_markings_access(request.user):
+    if user_has_today_markings_only_access(request.user):
         return redirect('today_markings_dashboard')
 
     employee = Employee.objects.filter(user=request.user).first()
@@ -2959,7 +2960,7 @@ def timekeeping(request):
     """Marcatura dipendente: avvio/fine giornata con supporto geolocalizzazione."""
     if user_has_full_admin_access(request.user):
         return redirect('admin_timekeeping')
-    if user_has_today_markings_access(request.user):
+    if user_has_today_markings_only_access(request.user):
         return redirect('today_markings_dashboard')
 
     employee = get_object_or_404(Employee, user=request.user)
@@ -4268,7 +4269,7 @@ def open_cud(request, cud_id):
 @login_required
 def admin_dashboard(request):
     if not user_has_full_admin_access(request.user):
-        if user_has_today_markings_access(request.user):
+        if user_has_today_markings_only_access(request.user):
             return redirect('today_markings_dashboard')
         return redirect('dashboard')
 

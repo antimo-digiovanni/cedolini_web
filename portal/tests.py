@@ -108,6 +108,26 @@ class TodayMarkingsAccessTests(TestCase):
 		response = self.client.get(reverse("admin_dashboard"))
 		self.assertRedirects(response, reverse("today_markings_dashboard"))
 
+	def test_employee_with_today_markings_group_keeps_employee_home(self):
+		self.employee_user.groups.add(self.group)
+		self.client.force_login(self.employee_user)
+		response = self.client.get(reverse("home"))
+		self.assertRedirects(response, reverse("dashboard"))
+
+	def test_employee_with_today_markings_group_keeps_timekeeping_page(self):
+		self.employee_user.groups.add(self.group)
+		self.client.force_login(self.employee_user)
+		response = self.client.get(reverse("timekeeping"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Marcatura")
+
+	def test_employee_with_today_markings_group_can_still_open_today_markings_page(self):
+		self.employee_user.groups.add(self.group)
+		self.client.force_login(self.employee_user)
+		response = self.client.get(reverse("today_markings_dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Chi ha marcato oggi")
+
 	def test_limited_user_can_view_today_markings_page(self):
 		self.client.force_login(self.owner_user)
 		response = self.client.get(reverse("today_markings_dashboard"))
