@@ -162,6 +162,22 @@ class TodayMarkingsAccessTests(TestCase):
 		portineria_response = self.client.get(reverse("employee_turni_published_image", args=["portineria_weekly"]))
 		self.assertEqual(portineria_response.status_code, 200)
 
+	def test_limited_user_sees_only_selected_published_turni_sections(self):
+		self.turni_state.planner_data["published_sections"] = ["weekly", "saturday", "sunday"]
+		self.turni_state.save(update_fields=["planner_data"])
+		self.client.force_login(self.owner_user)
+
+		response = self.client.get(reverse("today_markings_dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["saturday"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["sunday"]))
+		self.assertNotContains(response, reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertNotContains(response, reverse("employee_turni_published_image", args=["portineria_weekend"]))
+
+		portineria_response = self.client.get(reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertEqual(portineria_response.status_code, 404)
+
 	def test_limited_user_can_be_disabled_from_published_turni(self):
 		PortalUserSetting.objects.update_or_create(
 			user=self.owner_user,
@@ -399,6 +415,22 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 
 		portineria_response = self.client.get(reverse("employee_turni_published_image", args=["portineria_weekly"]))
 		self.assertEqual(portineria_response.status_code, 200)
+
+	def test_employee_dashboard_shows_only_selected_published_turni_images(self):
+		self.state.planner_data["published_sections"] = ["weekly", "saturday", "sunday"]
+		self.state.save(update_fields=["planner_data"])
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["saturday"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["sunday"]))
+		self.assertNotContains(response, reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertNotContains(response, reverse("employee_turni_published_image", args=["portineria_weekend"]))
+
+		portineria_response = self.client.get(reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertEqual(portineria_response.status_code, 404)
 
 	def test_employee_dashboard_hides_turni_when_nothing_is_published(self):
 		self.state.visible_to_employees = False
@@ -797,6 +829,52 @@ class TurniPlannerAccessTests(TestCase):
 		new_state.refresh_from_db()
 		self.assertFalse(old_state.visible_to_employees)
 		self.assertTrue(new_state.visible_to_employees)
+		self.assertEqual(new_state.planner_data["published_sections"], [])
+
+	def test_turni_planner_save_persists_selected_published_sections(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="WEEK 23",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "save_planner",
+				"week_label": state.week_label,
+				"visible_to_employees": "on",
+				"published_sections": ["weekly", "saturday", "sunday"],
+				"weekly_headers": [""] * 10,
+				"weekly_time_0": [""] * 10,
+				"weekly_time_1": [""] * 10,
+				"weekly_time_2": [""] * 10,
+				"weekly_time_3": [""] * 10,
+				"weekly_row_0_0": [""] * 10,
+				"weekly_row_0_1": [""] * 10,
+				"weekly_row_0_2": [""] * 10,
+				"weekly_row_1_0": [""] * 10,
+				"weekly_row_1_1": [""] * 10,
+				"weekly_row_1_2": [""] * 10,
+				"weekly_row_2_0": [""] * 10,
+				"weekly_row_2_1": [""] * 10,
+				"weekly_row_2_2": [""] * 10,
+				"weekly_row_3_0": [""] * 10,
+				"weekly_row_3_1": [""] * 10,
+				"weekly_row_3_2": [""] * 10,
+				"saturday_base_date": "",
+				"sunday_base_date": "",
+				"portineria_weekly_headers": [""] * 3,
+				"portineria_weekly_time_0": [""] * 3,
+				"portineria_weekly_time_1": [""] * 3,
+				"portineria_weekly_time_2": [""] * 3,
+				"portineria_weekend_base_date": "",
+			},
+		)
+
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}")
+		state.refresh_from_db()
+		self.assertEqual(state.planner_data["published_sections"], ["weekly", "saturday", "sunday"])
 
 	def test_turni_planner_save_without_checkbox_hides_turni_from_employees(self):
 		old_state = TurniPlannerWeekState.objects.create(

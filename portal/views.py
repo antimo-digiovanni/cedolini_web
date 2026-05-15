@@ -197,6 +197,7 @@ TURNI_MARKINGS_SECTION_META = OrderedDict([
     ('jolly_weekend', {'label': 'Jolly'}),
     ('portineria_weekend', {'label': 'Portineria weekend'}),
 ])
+TURNI_PUBLISHED_SECTIONS_KEY = 'published_sections'
 
 
 def _default_turni_weekly_data():
@@ -693,15 +694,45 @@ def _turni_planner_published_state():
     return TurniPlannerWeekState.objects.filter(visible_to_employees=True).order_by('-updated_at', '-id').first()
 
 
-def _turni_planner_employee_sections(state, *, include_portineria=False):
+def _normalize_turni_published_sections(raw_sections, *, include_portineria=False):
+    section_meta_map = TURNI_MARKINGS_SECTION_META if include_portineria else TURNI_EMPLOYEE_SECTION_META
+    if not isinstance(raw_sections, list):
+        return []
+
+    normalized_sections = []
+    for section_key in section_meta_map.keys():
+        if section_key in raw_sections:
+            normalized_sections.append(section_key)
+    return normalized_sections
+
+
+def _turni_planner_selected_section_keys(state, *, include_portineria=False):
     if not state:
         return []
 
     planner_data = dict(state.planner_data or {})
+    allowed_targets = _turni_planner_allowed_targets(state, include_portineria=include_portineria)
+    selected_sections = _normalize_turni_published_sections(
+        planner_data.get(TURNI_PUBLISHED_SECTIONS_KEY),
+        include_portineria=include_portineria,
+    )
+    if not selected_sections:
+        return allowed_targets if state.visible_to_employees else []
+    return [section_key for section_key in selected_sections if section_key in allowed_targets]
+
+
+def _turni_planner_published_section_keys(state, *, include_portineria=False):
+    if not state or not state.visible_to_employees:
+        return []
+    return _turni_planner_selected_section_keys(state, include_portineria=include_portineria)
+
+
+def _turni_planner_employee_sections(state, *, include_portineria=False):
     sections = []
     section_meta_map = TURNI_MARKINGS_SECTION_META if include_portineria else TURNI_EMPLOYEE_SECTION_META
-    for section_key, section_meta in section_meta_map.items():
-        if section_key == 'jolly_weekend' and not _turni_planner_data_has_content(planner_data.get('jolly_weekend')):
+    for section_key in _turni_planner_published_section_keys(state, include_portineria=include_portineria):
+        section_meta = section_meta_map.get(section_key)
+        if not section_meta:
             continue
         sections.append({
             'key': section_key,
@@ -731,7 +762,7 @@ def _user_can_view_published_turni(user, employee=None):
 
 
 def _turni_planner_employee_jpg_payload(state, *, export_target, include_portineria=False):
-    if export_target not in _turni_planner_allowed_targets(state, include_portineria=include_portineria):
+    if export_target not in _turni_planner_published_section_keys(state, include_portineria=include_portineria):
         raise ValueError('Sezione turni non disponibile per i dipendenti.')
 
     planner_data = dict(state.planner_data or {})
@@ -4467,6 +4498,10 @@ def turni_planner_home(request):
             if action in ('save_weekly', 'save_planner') or action.startswith('export_'):
                 visible_to_employees = request.POST.get('visible_to_employees') == 'on'
                 planner_data = dict(selected_state.planner_data or {})
+                planner_data[TURNI_PUBLISHED_SECTIONS_KEY] = _normalize_turni_published_sections(
+                    request.POST.getlist('published_sections'),
+                    include_portineria=True,
+                )
                 planner_data['weekly_export_week_label'] = (request.POST.get('weekly_export_week_label') or '').strip() or selected_state.week_label
                 planner_data['portineria_weekly_export_week_label'] = (request.POST.get('portineria_weekly_export_week_label') or '').strip() or selected_state.week_label
                 planner_data['weekly'] = _extract_turni_weekly_data_from_post(request.POST)
@@ -4535,6 +4570,8 @@ def turni_planner_home(request):
         'selected_state': selected_state,
         'selected_week_label': selected_week_label,
         'visible_to_employees': selected_state.visible_to_employees if selected_state else False,
+        'published_turni_section_choices': list(TURNI_MARKINGS_SECTION_META.items()),
+        'selected_published_turni_sections': _turni_planner_selected_section_keys(selected_state, include_portineria=True),
         'mail_status': mail_status,
         'mail_message': mail_message,
         'weekly_export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label, key='weekly_export_week_label') if selected_state else '',
