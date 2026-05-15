@@ -128,6 +128,15 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Chi ha marcato oggi")
 
+	def test_employee_with_today_markings_group_sees_markings_open_in_dashboard(self):
+		self.employee_user.groups.add(self.group)
+		self.client.force_login(self.employee_user)
+		response = self.client.get(reverse("dashboard"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Chi ha marcato oggi")
+		self.assertContains(response, "Ingresso")
+		self.assertContains(response, "Luca Verdi")
+
 	def test_limited_user_can_view_today_markings_page(self):
 		self.client.force_login(self.owner_user)
 		response = self.client.get(reverse("today_markings_dashboard"))

@@ -2514,6 +2514,10 @@ def dashboard(request):
         .order_by('-created_at')[:6]
     )
 
+    today_marked_sessions = []
+    if user_has_today_markings_access(request.user):
+        today_marked_sessions = _prepare_marked_sessions_for_date(list(_today_marked_sessions_queryset(today)), today)
+
     published_turni_state = _turni_planner_published_state()
     published_turni_sections = []
     if _user_can_view_published_turni(request.user, employee=employee):
@@ -2535,6 +2539,8 @@ def dashboard(request):
         'published_turni_state': published_turni_state,
         'published_turni_sections': published_turni_sections,
         'recent_vacation_requests': recent_vacation_requests,
+        'today': today,
+        'today_marked_sessions': today_marked_sessions,
     })
     return _disable_response_cache(response)
 
