@@ -463,6 +463,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="mt-5" id="quick-start-section">
         <h2 class="mb-3">Avvio rapido</h2>
+        {% if has_today_markings_access %}
+        <div class="card-modern bg-white mb-3">
+            <p class="mb-2">Apri subito la panoramica delle marcature di oggi.</p>
+            <a href="{% url 'today_markings_dashboard' %}" class="btn btn-primary">
+                Chi ha marcato oggi
+            </a>
+        </div>
+        {% endif %}
         <div class="card-modern bg-white">
             {% if latest_payslip %}
                 <p class="mb-2">Apri velocemente l'ultimo cedolino caricato.</p>
