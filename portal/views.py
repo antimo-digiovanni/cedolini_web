@@ -835,14 +835,26 @@ def _turni_planner_export_response(state, *, export_format, export_target):
         if export_target == 'scorrimento':
             export_data = _turni_scorrimento_export_data(planner_data.get('scorrimento'))
             if export_format == 'pdf':
-                exported_path = export_scorrimento_pdf(export_dir / SCORRIMENTO_PDF_NAME, data=export_data)
+                exported_path = export_scorrimento_pdf(
+                    export_dir / SCORRIMENTO_PDF_NAME,
+                    data=export_data,
+                    logo_path=logo_path,
+                    cert_logo_path=ancis_logo_path,
+                    anid_logo_path=anid_logo_path,
+                )
                 return _turni_download_response(
                     exported_path.read_bytes(),
                     content_type='application/pdf',
                     filename=SCORRIMENTO_PDF_NAME,
                 )
 
-            exported_paths = export_scorrimento_images(export_dir / SCORRIMENTO_IMAGE_NAME, data=export_data)
+            exported_paths = export_scorrimento_images(
+                export_dir / SCORRIMENTO_IMAGE_NAME,
+                data=export_data,
+                logo_path=logo_path,
+                cert_logo_path=ancis_logo_path,
+                anid_logo_path=anid_logo_path,
+            )
             return _turni_download_response(
                 _turni_combined_jpg_bytes(exported_paths),
                 content_type='image/jpeg',
@@ -1186,10 +1198,22 @@ def _turni_planner_bulk_export_response(state, *, export_format):
         with zipfile.ZipFile(archive_buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
             scorrimento_export_data = _turni_scorrimento_export_data(planner_data.get('scorrimento'))
             if 'pdf' in formats_to_include:
-                pdf_path = export_scorrimento_pdf(export_dir / SCORRIMENTO_PDF_NAME, data=scorrimento_export_data)
+                pdf_path = export_scorrimento_pdf(
+                    export_dir / SCORRIMENTO_PDF_NAME,
+                    data=scorrimento_export_data,
+                    logo_path=logo_path,
+                    cert_logo_path=ancis_logo_path,
+                    anid_logo_path=anid_logo_path,
+                )
                 archive.writestr(SCORRIMENTO_PDF_NAME, pdf_path.read_bytes())
             if 'jpg' in formats_to_include:
-                image_paths = export_scorrimento_images(export_dir / SCORRIMENTO_IMAGE_NAME, data=scorrimento_export_data)
+                image_paths = export_scorrimento_images(
+                    export_dir / SCORRIMENTO_IMAGE_NAME,
+                    data=scorrimento_export_data,
+                    logo_path=logo_path,
+                    cert_logo_path=ancis_logo_path,
+                    anid_logo_path=anid_logo_path,
+                )
                 for image_path in image_paths:
                     archive.writestr(image_path.name, image_path.read_bytes())
 
@@ -1337,6 +1361,9 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
                 exported_path = export_scorrimento_pdf(
                     export_dir / config['pdf_name'],
                     data=_turni_scorrimento_export_data(raw_weekend_data),
+                    logo_path=logo_path,
+                    cert_logo_path=ancis_logo_path,
+                    anid_logo_path=anid_logo_path,
                 )
             attachments.append((config['pdf_name'], exported_path.read_bytes()))
             attachment_labels.append(export_data.title or config['title'])

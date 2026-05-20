@@ -873,6 +873,9 @@ def _build_scorrimento_main_table(
     data: ScorrimentoExportData,
     styles: dict[str, ParagraphStyle],
     fill_width_mm: float,
+    logo_path: Path | None = None,
+    cert_logo_path: Path | None = None,
+    anid_logo_path: Path | None = None,
 ) -> Table:
     scorrimento_title_band = BRAND_BLUE
     scorrimento_block_band = BRAND_BLUE_SOFT
@@ -922,9 +925,37 @@ def _build_scorrimento_main_table(
         textColor=colors.white,
     )
 
+    logo_cells = []
+    for image_path in (logo_path, cert_logo_path, anid_logo_path):
+        if image_path and image_path.exists():
+            logo_cells.append(
+                Image(
+                    str(image_path),
+                    width=13.5 * mm,
+                    height=9.5 * mm,
+                    kind="proportional",
+                )
+            )
+        else:
+            logo_cells.append("")
+
+    logo_table = Table([logo_cells], colWidths=[13.5 * mm, 13.5 * mm, 13.5 * mm], rowHeights=[9.5 * mm])
+    logo_table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ]
+        )
+    )
+
     rows: list[list] = []
     rows.append([
-        _paragraph("", styles["smallBold"]),
+        logo_table,
         _paragraph(data.title, title_style),
     ] + [""] * 27)
 
@@ -955,8 +986,10 @@ def _build_scorrimento_main_table(
 
     table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
     style_commands = [
+        ("SPAN", (0, 0), (0, 2)),
         ("SPAN", (1, 0), (-1, 0)),
         ("BACKGROUND", (1, 0), (-1, 0), scorrimento_title_band),
+        ("BACKGROUND", (0, 0), (0, 2), colors.white),
         ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
         ("BOX", (0, 0), (-1, -1), 1.0, BRAND_NAVY),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -1166,6 +1199,9 @@ def export_scorrimento_pdf(
     output_path: Path,
     *,
     data: ScorrimentoExportData,
+    logo_path: Path | None = None,
+    cert_logo_path: Path | None = None,
+    anid_logo_path: Path | None = None,
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     styles = _styles()
@@ -1184,7 +1220,14 @@ def export_scorrimento_pdf(
         bottomMargin=bottom_margin_mm * mm,
     )
 
-    main_table = _build_scorrimento_main_table(data, styles, total_width_mm)
+    main_table = _build_scorrimento_main_table(
+        data,
+        styles,
+        total_width_mm,
+        logo_path=logo_path,
+        cert_logo_path=cert_logo_path,
+        anid_logo_path=anid_logo_path,
+    )
     footer_widths = [0.88, 1.0, 1.0, 1.0, 1.0, 1.0]
     footer_scale = total_width_mm / sum(footer_widths)
     footer_col_widths_mm = [value * footer_scale for value in footer_widths]
@@ -1217,10 +1260,23 @@ def export_scorrimento_pdf(
     return output_path
 
 
-def export_scorrimento_images(output_path: Path, *, data: ScorrimentoExportData) -> list[Path]:
+def export_scorrimento_images(
+    output_path: Path,
+    *,
+    data: ScorrimentoExportData,
+    logo_path: Path | None = None,
+    cert_logo_path: Path | None = None,
+    anid_logo_path: Path | None = None,
+) -> list[Path]:
     with tempfile.TemporaryDirectory(prefix="turni_planner_scorrimento_") as temp_dir:
         temp_pdf_path = Path(temp_dir) / SCORRIMENTO_PDF_NAME
-        export_scorrimento_pdf(temp_pdf_path, data=data)
+        export_scorrimento_pdf(
+            temp_pdf_path,
+            data=data,
+            logo_path=logo_path,
+            cert_logo_path=cert_logo_path,
+            anid_logo_path=anid_logo_path,
+        )
         return _render_pdf_to_jpg_files(temp_pdf_path, output_path)
 
 
