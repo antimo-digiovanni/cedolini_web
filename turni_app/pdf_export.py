@@ -873,9 +873,6 @@ def _build_scorrimento_main_table(
     data: ScorrimentoExportData,
     styles: dict[str, ParagraphStyle],
     fill_width_mm: float,
-    logo_path: Path | None = None,
-    cert_logo_path: Path | None = None,
-    anid_logo_path: Path | None = None,
 ) -> Table:
     scorrimento_title_band = BRAND_BLUE
     scorrimento_block_band = BRAND_BLUE_SOFT
@@ -925,37 +922,9 @@ def _build_scorrimento_main_table(
         textColor=colors.white,
     )
 
-    logo_cells = []
-    for image_path in (logo_path, cert_logo_path, anid_logo_path):
-        if image_path and image_path.exists():
-            logo_cells.append(
-                Image(
-                    str(image_path),
-                    width=13.5 * mm,
-                    height=9.5 * mm,
-                    kind="proportional",
-                )
-            )
-        else:
-            logo_cells.append("")
-
-    logo_table = Table([logo_cells], colWidths=[13.5 * mm, 13.5 * mm, 13.5 * mm], rowHeights=[9.5 * mm])
-    logo_table.setStyle(
-        TableStyle(
-            [
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 1),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
-                ("TOPPADDING", (0, 0), (-1, -1), 1),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-            ]
-        )
-    )
-
     rows: list[list] = []
     rows.append([
-        logo_table,
+        _paragraph("", styles["smallBold"]),
         _paragraph(data.title, title_style),
     ] + [""] * 27)
 
@@ -986,10 +955,8 @@ def _build_scorrimento_main_table(
 
     table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
     style_commands = [
-        ("SPAN", (0, 0), (0, 2)),
         ("SPAN", (1, 0), (-1, 0)),
         ("BACKGROUND", (1, 0), (-1, 0), scorrimento_title_band),
-        ("BACKGROUND", (0, 0), (0, 2), colors.white),
         ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
         ("BOX", (0, 0), (-1, -1), 1.0, BRAND_NAVY),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -1195,6 +1162,80 @@ def _build_scorrimento_legend_table(styles: dict[str, ParagraphStyle], width_mm:
     return table
 
 
+def _build_scorrimento_logo_strip(
+    width_mm: float,
+    *,
+    logo_path: Path | None = None,
+    cert_logo_path: Path | None = None,
+    anid_logo_path: Path | None = None,
+) -> Table:
+    logo_cells = []
+    for image_path in (logo_path, cert_logo_path, anid_logo_path):
+        if image_path and image_path.exists():
+            logo_cells.append(
+                Image(
+                    str(image_path),
+                    width=12.8 * mm,
+                    height=8.8 * mm,
+                    kind="proportional",
+                )
+            )
+        else:
+            logo_cells.append("")
+
+    table = Table([logo_cells], colWidths=[(width_mm / 3) * mm] * 3, rowHeights=[10.2 * mm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("BOX", (0, 0), (-1, -1), 0.9, BRAND_NAVY),
+                ("INNERGRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ]
+        )
+    )
+    return table
+
+
+def _build_scorrimento_legend_logo_block(
+    styles: dict[str, ParagraphStyle],
+    width_mm: float,
+    *,
+    logo_path: Path | None = None,
+    cert_logo_path: Path | None = None,
+    anid_logo_path: Path | None = None,
+) -> Table:
+    legend_table = _build_scorrimento_legend_table(styles, width_mm)
+    logo_table = _build_scorrimento_logo_strip(
+        width_mm,
+        logo_path=logo_path,
+        cert_logo_path=cert_logo_path,
+        anid_logo_path=anid_logo_path,
+    )
+    table = Table(
+        [[legend_table], [logo_table]],
+        colWidths=[width_mm * mm],
+        rowHeights=[None, None],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return table
+
+
 def export_scorrimento_pdf(
     output_path: Path,
     *,
@@ -1224,9 +1265,6 @@ def export_scorrimento_pdf(
         data,
         styles,
         total_width_mm,
-        logo_path=logo_path,
-        cert_logo_path=cert_logo_path,
-        anid_logo_path=anid_logo_path,
     )
     footer_widths = [0.88, 1.0, 1.0, 1.0, 1.0, 1.0]
     footer_scale = total_width_mm / sum(footer_widths)
@@ -1237,7 +1275,13 @@ def export_scorrimento_pdf(
         _build_scorrimento_assignment_table(data.department_titles[1], data.department_names[1], styles, footer_col_widths_mm[2]),
         _build_scorrimento_assignment_table(data.department_titles[2], data.department_names[2], styles, footer_col_widths_mm[3]),
         _build_scorrimento_stanzette_table(data.department_titles[3], data.department_names[3], styles, footer_col_widths_mm[4]),
-        _build_scorrimento_legend_table(styles, footer_col_widths_mm[5]),
+        _build_scorrimento_legend_logo_block(
+            styles,
+            footer_col_widths_mm[5],
+            logo_path=logo_path,
+            cert_logo_path=cert_logo_path,
+            anid_logo_path=anid_logo_path,
+        ),
     ]
     footer_table = Table([footer_tables], colWidths=[width * mm for width in footer_col_widths_mm])
     footer_table.setStyle(

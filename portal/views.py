@@ -473,8 +473,10 @@ def _default_turni_scorrimento_data():
         'day_labels': list(TURNI_SCORRIMENTO_DEFAULT_DAY_LABELS),
         'squad_labels': list(TURNI_SCORRIMENTO_DEFAULT_SQUAD_LABELS),
         'matrix': [
-            ['' for _ in range(TURNI_SCORRIMENTO_TOTAL_COLUMNS)]
-            for _ in range(TURNI_SCORRIMENTO_SQUAD_COUNT)
+            ['N', 'N', 'N', 'R', 'P', 'P', 'R', 'M', 'M', 'R', 'N', 'N', 'N', 'N', 'R', 'P', 'P', 'P', 'R', 'M', 'M', 'P', 'R', 'M', 'M', 'M', 'R', 'P'],
+            ['M', 'M', 'R', 'N', 'N', 'N', 'N', 'R', 'P', 'P', 'P', 'R', 'M', 'M', 'P', 'R', 'M', 'M', 'M', 'R', 'P', 'N', 'N', 'N', 'R', 'P', 'P', 'R'],
+            ['R', 'P', 'P', 'P', 'R', 'M', 'M', 'P', 'R', 'M', 'M', 'M', 'R', 'P', 'N', 'N', 'N', 'R', 'P', 'P', 'R', 'M', 'M', 'R', 'N', 'N', 'N', 'N'],
+            ['P', 'R', 'M', 'M', 'M', 'R', 'P', 'N', 'N', 'N', 'R', 'P', 'P', 'R', 'M', 'M', 'R', 'N', 'N', 'N', 'N', 'R', 'P', 'P', 'P', 'R', 'M', 'M'],
         ],
         'department_titles': list(TURNI_SCORRIMENTO_DEFAULT_DEPARTMENT_TITLES),
         'department_names': [list(names) for names in TURNI_SCORRIMENTO_DEFAULT_DEPARTMENT_NAMES],
