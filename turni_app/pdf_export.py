@@ -198,6 +198,97 @@ class CertificationPanelFlowable(Flowable):
         canvas.restoreState()
 
 
+def _draw_center_watermark(canvas, *, logo_path: Path | None, page_width: float, page_height: float, alpha: float) -> None:
+    if not (logo_path and logo_path.exists()):
+        return
+    watermark_size = 118 * mm
+    x = (page_width - watermark_size) / 2
+    y = (page_height - watermark_size) / 2 - (8 * mm)
+    canvas.saveState()
+    if hasattr(canvas, "setFillAlpha"):
+        canvas.setFillAlpha(alpha)
+    canvas.drawImage(
+        str(logo_path),
+        x,
+        y,
+        width=watermark_size,
+        height=watermark_size,
+        mask="auto",
+        preserveAspectRatio=True,
+    )
+    canvas.restoreState()
+
+
+def _draw_certification_panel(
+    canvas,
+    *,
+    styles: dict[str, ParagraphStyle],
+    logo_path: Path | None,
+    cert_logo_path: Path | None,
+    anid_logo_path: Path | None,
+    panel_x: float,
+    panel_y: float,
+    panel_width: float,
+    panel_height: float,
+) -> None:
+    shadow_offset = 0.8 * mm
+    radius = 3 * mm
+
+    canvas.saveState()
+    canvas.setFillColor(colors.HexColor("#DCE8F8"))
+    canvas.roundRect(panel_x + shadow_offset, panel_y - shadow_offset, panel_width, panel_height, radius, fill=1, stroke=0)
+    canvas.setFillColor(colors.white)
+    canvas.roundRect(panel_x, panel_y, panel_width, panel_height, radius, fill=1, stroke=0)
+    canvas.setStrokeColor(BRAND_BLUE)
+    canvas.setLineWidth(0.7)
+    canvas.roundRect(panel_x, panel_y, panel_width, panel_height, radius, fill=0, stroke=1)
+
+    logo_box_width = min(21 * mm, (panel_width - (18 * mm)) / 3)
+    logo_box_height = 10.5 * mm
+    gap = (panel_width - (logo_box_width * 3)) / 4
+    start_x = panel_x + gap
+    logo_top_y = panel_y + panel_height - logo_box_height - (2.3 * mm)
+    logo_slots = [
+        (logo_path, start_x),
+        (cert_logo_path, start_x + logo_box_width + gap),
+        (anid_logo_path, start_x + ((logo_box_width + gap) * 2)),
+    ]
+    for image_path, slot_x in logo_slots:
+        canvas.setStrokeColor(colors.HexColor("#D7E4F7"))
+        canvas.setLineWidth(0.35)
+        canvas.roundRect(slot_x, logo_top_y, logo_box_width, logo_box_height, 1.8 * mm, fill=0, stroke=1)
+        if image_path and image_path.exists():
+            canvas.drawImage(
+                str(image_path),
+                slot_x + (0.7 * mm),
+                logo_top_y + (0.7 * mm),
+                width=logo_box_width - (1.4 * mm),
+                height=logo_box_height - (1.4 * mm),
+                mask="auto",
+                preserveAspectRatio=True,
+                anchor="c",
+            )
+
+    separator_y = panel_y + (11.6 * mm)
+    canvas.setStrokeColor(colors.HexColor("#D7E4F7"))
+    canvas.setLineWidth(0.4)
+    canvas.line(panel_x + (4 * mm), separator_y, panel_x + panel_width - (4 * mm), separator_y)
+
+    text_width = panel_width - (8 * mm)
+    text_x = panel_x + (4 * mm)
+    text_story = [
+        _paragraph("Organismo accreditato da ACCREDIA", styles["certMini"]),
+        _paragraph("Certificazione SGQ / SGA  |  UNI EN 16636 N.102PSE", styles["certBody"]),
+        _paragraph("Associata ANID", styles["certMini"]),
+    ]
+    current_y = separator_y - (1.1 * mm)
+    for paragraph in text_story:
+        _, paragraph_height = paragraph.wrap(text_width, 8 * mm)
+        paragraph.drawOn(canvas, text_x, current_y - paragraph_height)
+        current_y -= paragraph_height + (0.35 * mm)
+    canvas.restoreState()
+
+
 def _styles() -> dict[str, ParagraphStyle]:
     base = getSampleStyleSheet()
     return {
@@ -643,82 +734,23 @@ def _draw_weekend_page_overlay(
     right_margin: float,
 ) -> None:
     page_width, page_height = canvas._pagesize
-
-    if logo_path and logo_path.exists():
-        watermark_size = 118 * mm
-        x = (page_width - watermark_size) / 2
-        y = (page_height - watermark_size) / 2 - (8 * mm)
-        canvas.saveState()
-        if hasattr(canvas, "setFillAlpha"):
-            canvas.setFillAlpha(0.06)
-        canvas.drawImage(str(logo_path), x, y, width=watermark_size, height=watermark_size, mask="auto", preserveAspectRatio=True)
-        canvas.restoreState()
+    _draw_center_watermark(canvas, logo_path=logo_path, page_width=page_width, page_height=page_height, alpha=0.06)
 
     cert_panel_width = 86 * mm
     cert_panel_height = 27 * mm
     cert_panel_x = page_width - right_margin - cert_panel_width
     cert_panel_y = 3.8 * mm
-
-    canvas.saveState()
-    canvas.setFillColor(colors.HexColor("#DCE8F8"))
-    canvas.roundRect(cert_panel_x + 0.8 * mm, cert_panel_y - 0.8 * mm, cert_panel_width, cert_panel_height, 3 * mm, fill=1, stroke=0)
-    canvas.setFillColor(colors.white)
-    canvas.roundRect(cert_panel_x, cert_panel_y, cert_panel_width, cert_panel_height, 3 * mm, fill=1, stroke=0)
-    canvas.restoreState()
-
-    logo_box_width = 21 * mm
-    logo_box_height = 10.5 * mm
-    logo_top_y = cert_panel_y + cert_panel_height - logo_box_height - (2.3 * mm)
-    gap = 5 * mm
-    first_logo_x = cert_panel_x + ((cert_panel_width - ((logo_box_width * 3) + (gap * 2))) / 2)
-    logo_slots = [
-        (logo_path, first_logo_x),
-        (cert_logo_path, first_logo_x + logo_box_width + gap),
-        (anid_logo_path, first_logo_x + ((logo_box_width + gap) * 2)),
-    ]
-    for image_path, slot_x in logo_slots:
-        canvas.saveState()
-        canvas.setStrokeColor(colors.HexColor("#D7E4F7"))
-        canvas.setLineWidth(0.35)
-        canvas.roundRect(slot_x, logo_top_y, logo_box_width, logo_box_height, 1.8 * mm, fill=0, stroke=1)
-        if image_path and image_path.exists():
-            canvas.drawImage(
-                str(image_path),
-                slot_x + (0.7 * mm),
-                logo_top_y + (0.7 * mm),
-                width=logo_box_width - (1.4 * mm),
-                height=logo_box_height - (1.4 * mm),
-                mask="auto",
-                preserveAspectRatio=True,
-                anchor="c",
-            )
-        canvas.restoreState()
-
-    separator_y = cert_panel_y + (11.6 * mm)
-    canvas.saveState()
-    canvas.setStrokeColor(colors.HexColor("#D7E4F7"))
-    canvas.setLineWidth(0.4)
-    canvas.line(cert_panel_x + (4 * mm), separator_y, cert_panel_x + cert_panel_width - (4 * mm), separator_y)
-    canvas.restoreState()
-
-    text_width = cert_panel_width - (8 * mm)
-    text_x = cert_panel_x + (4 * mm)
-    text_story = [
-        _paragraph("Organismo accreditato da ACCREDIA", styles["certMini"]),
-        _paragraph("Certificazione SGQ / SGA  |  UNI EN 16636 N.102PSE", styles["certBody"]),
-        _paragraph("Associata ANID", styles["certMini"]),
-    ]
-    current_y = separator_y - (1.1 * mm)
-    for paragraph in text_story:
-        _, paragraph_height = paragraph.wrap(text_width, 8 * mm)
-        paragraph.drawOn(canvas, text_x, current_y - paragraph_height)
-        current_y -= paragraph_height + (0.35 * mm)
-
-    canvas.saveState()
-    canvas.setStrokeColor(BRAND_BLUE)
-    canvas.setLineWidth(0.7)
-    canvas.roundRect(cert_panel_x, cert_panel_y, cert_panel_width, cert_panel_height, 3 * mm, fill=0, stroke=1)
-    canvas.restoreState()
+    _draw_certification_panel(
+        canvas,
+        styles=styles,
+        logo_path=logo_path,
+        cert_logo_path=cert_logo_path,
+        anid_logo_path=anid_logo_path,
+        panel_x=cert_panel_x,
+        panel_y=cert_panel_y,
+        panel_width=cert_panel_width,
+        panel_height=cert_panel_height,
+    )
 
     footer_lines = [
         "Firma per Autorizzazione servizi generali  MAGNUM ICE CREAM",
@@ -1253,31 +1285,35 @@ def _build_scorrimento_legend_logo_block(
     cert_logo_path: Path | None = None,
     anid_logo_path: Path | None = None,
 ) -> Table:
-    legend_table = _build_scorrimento_legend_table(styles, width_mm)
-    logo_panel = CertificationPanelFlowable(
-        width_mm=width_mm,
+    return _build_scorrimento_legend_table(styles, width_mm)
+
+
+def _draw_scorrimento_page_overlay(
+    canvas,
+    *,
+    styles: dict[str, ParagraphStyle],
+    logo_path: Path | None,
+    cert_logo_path: Path | None,
+    anid_logo_path: Path | None,
+    right_margin: float,
+) -> None:
+    page_width, page_height = canvas._pagesize
+    _draw_center_watermark(canvas, logo_path=logo_path, page_width=page_width, page_height=page_height, alpha=0.04)
+    panel_width = 136 * mm
+    panel_height = 27 * mm
+    panel_x = page_width - right_margin - panel_width
+    panel_y = 3.8 * mm
+    _draw_certification_panel(
+        canvas,
         styles=styles,
         logo_path=logo_path,
         cert_logo_path=cert_logo_path,
         anid_logo_path=anid_logo_path,
+        panel_x=panel_x,
+        panel_y=panel_y,
+        panel_width=panel_width,
+        panel_height=panel_height,
     )
-    table = Table(
-        [[legend_table], [logo_panel]],
-        colWidths=[width_mm * mm],
-        rowHeights=[None, None],
-    )
-    table.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ]
-        )
-    )
-    return table
 
 
 def export_scorrimento_pdf(
@@ -1340,11 +1376,21 @@ def export_scorrimento_pdf(
         )
     )
 
+    def draw_first_page(canvas, doc):
+        _draw_scorrimento_page_overlay(
+            canvas,
+            styles=styles,
+            logo_path=logo_path,
+            cert_logo_path=cert_logo_path,
+            anid_logo_path=anid_logo_path,
+            right_margin=doc.rightMargin,
+        )
+
     document.build([
         main_table,
         Spacer(1, 2.5 * mm),
         footer_table,
-    ])
+    ], onFirstPage=draw_first_page)
     return output_path
 
 
