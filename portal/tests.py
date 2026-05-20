@@ -1,4 +1,5 @@
 from tempfile import NamedTemporaryFile
+from django.conf import settings
 from django.core import mail
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
@@ -485,6 +486,9 @@ class TurniPlannerAccessTests(TestCase):
 			username="basic.user",
 			password="Password123!",
 		)
+
+	def test_turni_planner_allows_large_post_payloads(self):
+		self.assertGreaterEqual(settings.DATA_UPLOAD_MAX_NUMBER_FIELDS, 20000)
 
 	def test_home_redirects_turni_planner_user_to_planner(self):
 		self.client.force_login(self.allowed_user)
