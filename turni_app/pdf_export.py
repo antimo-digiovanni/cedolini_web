@@ -31,10 +31,12 @@ WEEKLY_PDF_NAME = "Turno settimanale.pdf"
 SATURDAY_PDF_NAME = "Comandata sabato.pdf"
 SUNDAY_PDF_NAME = "Comandata domenica.pdf"
 JOLLY_WEEKEND_PDF_NAME = "Comandata jolly.pdf"
+SCORRIMENTO_PDF_NAME = "Scorrimento.pdf"
 WEEKLY_IMAGE_NAME = "Turno settimanale.jpg"
 SATURDAY_IMAGE_NAME = "Comandata sabato.jpg"
 SUNDAY_IMAGE_NAME = "Comandata domenica.jpg"
 JOLLY_WEEKEND_IMAGE_NAME = "Comandata jolly.jpg"
+SCORRIMENTO_IMAGE_NAME = "Scorrimento.jpg"
 PORTINERIA_WEEKLY_PDF_NAME = "Turno settimanale portineria.pdf"
 PORTINERIA_WEEKLY_IMAGE_NAME = "Turno settimanale portineria.jpg"
 PORTINERIA_WEEKEND_PDF_NAME = "Comandata Sabato - Domenica e festivi Portineria.pdf"
@@ -59,6 +61,17 @@ class WeekendExportData:
     title: str
     authorization_date: str
     rows: list[list[str]]
+
+
+@dataclass(frozen=True)
+class ScorrimentoExportData:
+    title: str
+    block_labels: list[str]
+    day_labels: list[str]
+    squad_labels: list[str]
+    matrix: list[list[str]]
+    department_titles: list[str]
+    department_names: list[list[str]]
 
 
 class WeekendPdfCanvas(pdf_canvas.Canvas):
@@ -854,6 +867,361 @@ def _build_weekend_table(
         )
     )
     return table
+
+
+def _build_scorrimento_main_table(
+    data: ScorrimentoExportData,
+    styles: dict[str, ParagraphStyle],
+    fill_width_mm: float,
+) -> Table:
+    scorrimento_title_band = BRAND_BLUE
+    scorrimento_block_band = BRAND_BLUE_SOFT
+    title_style = ParagraphStyle(
+        "ScorrimentoTitle",
+        parent=styles["titleBanner"],
+        fontSize=18,
+        leading=20,
+        alignment=1,
+        textColor=colors.white,
+    )
+    block_style = ParagraphStyle(
+        "ScorrimentoBlock",
+        parent=styles["smallBold"],
+        fontSize=9.4,
+        leading=10,
+        alignment=1,
+        textColor=BRAND_NAVY,
+    )
+    day_style = ParagraphStyle(
+        "ScorrimentoDay",
+        parent=styles["smallBold"],
+        fontSize=8,
+        leading=8.5,
+        alignment=1,
+        textColor=BRAND_NAVY,
+    )
+    squad_style = ParagraphStyle(
+        "ScorrimentoSquad",
+        parent=styles["smallBold"],
+        fontSize=7.4,
+        leading=7.8,
+        alignment=0,
+        textColor=BRAND_NAVY,
+    )
+    value_style = ParagraphStyle(
+        "ScorrimentoValue",
+        parent=styles["headerBig"],
+        fontSize=12.5,
+        leading=13.2,
+        alignment=1,
+        textColor=BRAND_TEXT,
+    )
+    value_rest_style = ParagraphStyle(
+        "ScorrimentoValueRest",
+        parent=value_style,
+        textColor=colors.white,
+    )
+
+    rows: list[list] = []
+    rows.append([
+        _paragraph("", styles["smallBold"]),
+        _paragraph(data.title, title_style),
+    ] + [""] * 27)
+
+    block_row = [_paragraph("", styles["smallBold"])]
+    for block_label in data.block_labels:
+        block_row.append(_paragraph(block_label, block_style))
+        block_row.extend([""] * 6)
+    rows.append(block_row)
+
+    day_row = [_paragraph("", styles["smallBold"])]
+    for _ in data.block_labels:
+        for day_label in data.day_labels:
+            day_row.append(_paragraph(day_label, day_style))
+    rows.append(day_row)
+
+    for squad_index, squad_label in enumerate(data.squad_labels):
+        matrix_row = [_paragraph(squad_label, squad_style)]
+        current_values = data.matrix[squad_index] if squad_index < len(data.matrix) else []
+        for value_index in range(len(data.block_labels) * len(data.day_labels)):
+            value = str(current_values[value_index] or "").strip() if value_index < len(current_values) else ""
+            matrix_row.append(_paragraph(value, value_rest_style if value.upper() == "R" else value_style))
+        rows.append(matrix_row)
+
+    first_column_width_mm = 24
+    dynamic_width_mm = max((fill_width_mm - first_column_width_mm) / 28, 6.4)
+    col_widths = [first_column_width_mm * mm] + [dynamic_width_mm * mm for _ in range(28)]
+    row_heights = [17 * mm, 8 * mm, 8 * mm] + [16 * mm for _ in data.squad_labels]
+
+    table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
+    style_commands = [
+        ("SPAN", (1, 0), (-1, 0)),
+        ("BACKGROUND", (1, 0), (-1, 0), scorrimento_title_band),
+        ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
+        ("BOX", (0, 0), (-1, -1), 1.0, BRAND_NAVY),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 1.6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 1.6),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.2),
+        ("BACKGROUND", (0, 2), (-1, 2), colors.white),
+        ("BACKGROUND", (0, 3), (0, -1), BRAND_BLUE_LIGHT),
+    ]
+    for block_index in range(4):
+        start_col = 1 + (block_index * 7)
+        end_col = start_col + 6
+        style_commands.append(("SPAN", (start_col, 1), (end_col, 1)))
+        style_commands.append(("BACKGROUND", (start_col, 1), (end_col, 1), scorrimento_block_band))
+        if block_index > 0:
+            style_commands.append(("LINEBEFORE", (start_col, 1), (start_col, -1), 1.2, BRAND_NAVY))
+    for squad_offset in range(len(data.squad_labels)):
+        row_index = 3 + squad_offset
+        for value_index, value in enumerate(data.matrix[squad_offset] if squad_offset < len(data.matrix) else []):
+            if str(value or "").strip().upper() == "R":
+                style_commands.append(("BACKGROUND", (value_index + 1, row_index), (value_index + 1, row_index), BRAND_BLUE))
+                style_commands.append(("TEXTCOLOR", (value_index + 1, row_index), (value_index + 1, row_index), colors.white))
+    table.setStyle(TableStyle(style_commands))
+    return table
+
+
+def _build_scorrimento_assignment_table(
+    title: str,
+    names: list[str],
+    styles: dict[str, ParagraphStyle],
+    width_mm: float,
+) -> Table:
+    title_style = ParagraphStyle(
+        "ScorrimentoAssignmentTitle",
+        parent=styles["smallBold"],
+        fontSize=8.6,
+        leading=9.1,
+        alignment=1,
+        textColor=BRAND_NAVY,
+    )
+    name_style = ParagraphStyle(
+        "ScorrimentoAssignmentName",
+        parent=styles["smallBold"],
+        fontSize=8.3,
+        leading=8.8,
+        alignment=1,
+        textColor=BRAND_TEXT,
+    )
+    rows = [[_paragraph(title, title_style)]]
+    for row_index in range(4):
+        name = names[row_index] if row_index < len(names) else ""
+        rows.append([_paragraph(name, name_style)])
+
+    row_heights = [8.4 * mm] + [9.1 * mm for _ in range(4)]
+    table = Table(rows, colWidths=[width_mm * mm], rowHeights=row_heights)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, 0), BRAND_BLUE_LIGHT),
+                ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
+                ("BOX", (0, 0), (-1, -1), 0.9, BRAND_NAVY),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.4),
+            ]
+        )
+    )
+    return table
+
+
+def _build_scorrimento_squad_table(
+    squad_labels: list[str],
+    styles: dict[str, ParagraphStyle],
+    width_mm: float,
+) -> Table:
+    squad_style = ParagraphStyle(
+        "ScorrimentoFooterSquadOnly",
+        parent=styles["smallBold"],
+        fontSize=7.3,
+        leading=7.7,
+        alignment=0,
+        textColor=BRAND_NAVY,
+    )
+
+    rows = [[_paragraph("", styles["smallBold"])]]
+    for row_index in range(4):
+        squad_label = squad_labels[row_index] if row_index < len(squad_labels) else f"SQUADRA {row_index + 1}"
+        rows.append([_paragraph(squad_label, squad_style)])
+
+    row_heights = [8.4 * mm] + [9.1 * mm for _ in range(4)]
+    table = Table(rows, colWidths=[width_mm * mm], rowHeights=row_heights)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, 0), BRAND_BLUE_LIGHT),
+                ("BACKGROUND", (0, 1), (0, -1), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
+                ("BOX", (0, 0), (-1, -1), 0.9, BRAND_NAVY),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.4),
+            ]
+        )
+    )
+    return table
+
+
+def _build_scorrimento_stanzette_table(
+    title: str,
+    names: list[str],
+    styles: dict[str, ParagraphStyle],
+    width_mm: float,
+) -> Table:
+    title_style = ParagraphStyle(
+        "ScorrimentoStanzetteTitle",
+        parent=styles["smallBold"],
+        fontSize=8.6,
+        leading=9.1,
+        alignment=1,
+        textColor=BRAND_NAVY,
+    )
+    name_style = ParagraphStyle(
+        "ScorrimentoStanzetteName",
+        parent=styles["smallBold"],
+        fontSize=8.3,
+        leading=8.8,
+        alignment=1,
+        textColor=BRAND_TEXT,
+    )
+    rows = [[_paragraph(title, title_style)]]
+    for row_index in range(4):
+        name = names[row_index] if row_index < len(names) else ""
+        rows.append([_paragraph(name, name_style)])
+    row_heights = [8.4 * mm] + [9.1 * mm for _ in range(4)]
+    table = Table(rows, colWidths=[width_mm * mm], rowHeights=row_heights)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, 0), BRAND_BLUE_LIGHT),
+                ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
+                ("BOX", (0, 0), (-1, -1), 0.9, BRAND_NAVY),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.4),
+            ]
+        )
+    )
+    return table
+
+
+def _build_scorrimento_legend_table(styles: dict[str, ParagraphStyle], width_mm: float) -> Table:
+    title_style = ParagraphStyle(
+        "ScorrimentoLegendTitle",
+        parent=styles["smallBold"],
+        fontSize=8.6,
+        leading=9.1,
+        alignment=1,
+        textColor=BRAND_NAVY,
+    )
+    label_style = ParagraphStyle(
+        "ScorrimentoLegendLabel",
+        parent=styles["smallBold"],
+        fontSize=8.3,
+        leading=8.8,
+        alignment=1,
+        textColor=BRAND_TEXT,
+    )
+    rows = [
+        [_paragraph("LEGGENDA", title_style), ""],
+        [_paragraph("MATTINA", label_style), _paragraph("M", label_style)],
+        [_paragraph("POMERIGGIO", label_style), _paragraph("P", label_style)],
+        [_paragraph("NOTTE", label_style), _paragraph("N", label_style)],
+        [_paragraph("RIPOSO", label_style), _paragraph("R", label_style)],
+    ]
+    row_heights = [8.4 * mm] + [9.1 * mm for _ in range(4)]
+    table = Table(rows, colWidths=[(width_mm * 0.72) * mm, (width_mm * 0.28) * mm], rowHeights=row_heights)
+    table.setStyle(
+        TableStyle(
+            [
+                ("SPAN", (0, 0), (1, 0)),
+                ("BACKGROUND", (0, 0), (1, 0), BRAND_BLUE_LIGHT),
+                ("BACKGROUND", (0, 4), (1, 4), BRAND_BLUE_SOFT),
+                ("GRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
+                ("BOX", (0, 0), (-1, -1), 0.9, BRAND_NAVY),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.1),
+            ]
+        )
+    )
+    return table
+
+
+def export_scorrimento_pdf(
+    output_path: Path,
+    *,
+    data: ScorrimentoExportData,
+) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    styles = _styles()
+    page_size = landscape(A4)
+    left_margin_mm = 4
+    right_margin_mm = 4
+    top_margin_mm = 5
+    bottom_margin_mm = 5
+    total_width_mm = (page_size[0] / mm) - left_margin_mm - right_margin_mm
+    document = SimpleDocTemplate(
+        str(output_path),
+        pagesize=page_size,
+        leftMargin=left_margin_mm * mm,
+        rightMargin=right_margin_mm * mm,
+        topMargin=top_margin_mm * mm,
+        bottomMargin=bottom_margin_mm * mm,
+    )
+
+    main_table = _build_scorrimento_main_table(data, styles, total_width_mm)
+    footer_widths = [0.88, 1.0, 1.0, 1.0, 1.0, 1.0]
+    footer_scale = total_width_mm / sum(footer_widths)
+    footer_col_widths_mm = [value * footer_scale for value in footer_widths]
+    footer_tables = [
+        _build_scorrimento_squad_table(data.squad_labels, styles, footer_col_widths_mm[0]),
+        _build_scorrimento_assignment_table(data.department_titles[0], data.department_names[0], styles, footer_col_widths_mm[1]),
+        _build_scorrimento_assignment_table(data.department_titles[1], data.department_names[1], styles, footer_col_widths_mm[2]),
+        _build_scorrimento_assignment_table(data.department_titles[2], data.department_names[2], styles, footer_col_widths_mm[3]),
+        _build_scorrimento_stanzette_table(data.department_titles[3], data.department_names[3], styles, footer_col_widths_mm[4]),
+        _build_scorrimento_legend_table(styles, footer_col_widths_mm[5]),
+    ]
+    footer_table = Table([footer_tables], colWidths=[width * mm for width in footer_col_widths_mm])
+    footer_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+
+    document.build([
+        main_table,
+        Spacer(1, 2.5 * mm),
+        footer_table,
+    ])
+    return output_path
+
+
+def export_scorrimento_images(output_path: Path, *, data: ScorrimentoExportData) -> list[Path]:
+    with tempfile.TemporaryDirectory(prefix="turni_planner_scorrimento_") as temp_dir:
+        temp_pdf_path = Path(temp_dir) / SCORRIMENTO_PDF_NAME
+        export_scorrimento_pdf(temp_pdf_path, data=data)
+        return _render_pdf_to_jpg_files(temp_pdf_path, output_path)
 
 
 def _cleanup_existing_image_outputs(output_path: Path) -> None:

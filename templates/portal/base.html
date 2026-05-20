@@ -751,6 +751,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
+            var isTurniPlannerPage = "{{ request.resolver_match.url_name|default:'' }}" === 'turni_planner_home';
+            if (isTurniPlannerPage) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    registrations.forEach(function (registration) {
+                        registration.unregister();
+                    });
+                }).catch(function () {
+                    return null;
+                });
+                return;
+            }
+
             navigator.serviceWorker.register("{% url 'service_worker' %}").catch(function () {
                 return null;
             });

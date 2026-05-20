@@ -60,13 +60,18 @@ from turni_app.pdf_export import (
     PORTINERIA_WEEKEND_PDF_NAME,
     PORTINERIA_WEEKLY_IMAGE_NAME,
     PORTINERIA_WEEKLY_PDF_NAME,
+    SCORRIMENTO_IMAGE_NAME,
+    SCORRIMENTO_PDF_NAME,
     SATURDAY_IMAGE_NAME,
     SATURDAY_PDF_NAME,
     SUNDAY_IMAGE_NAME,
     SUNDAY_PDF_NAME,
+    ScorrimentoExportData,
     WEEKLY_IMAGE_NAME,
     WEEKLY_PDF_NAME,
     WeekendExportData,
+    export_scorrimento_images,
+    export_scorrimento_pdf,
     export_weekend_images,
     export_weekend_pdf,
     export_weekly_images,
@@ -179,6 +184,26 @@ TURNI_PORTINERIA_SECTION_LABELS = (
 )
 TURNI_PORTINERIA_ROWS_PER_SECTION = 3
 TURNI_PORTINERIA_WEEKEND_DEFAULT_ROW_COUNT = 34
+TURNI_SCORRIMENTO_BLOCK_COUNT = 4
+TURNI_SCORRIMENTO_DAYS_PER_BLOCK = 7
+TURNI_SCORRIMENTO_TOTAL_COLUMNS = TURNI_SCORRIMENTO_BLOCK_COUNT * TURNI_SCORRIMENTO_DAYS_PER_BLOCK
+TURNI_SCORRIMENTO_SQUAD_COUNT = 4
+TURNI_SCORRIMENTO_DEFAULT_TITLE = 'SANVINCENZO S.R.L :ORGANIZZAZIONE TURNI A SCORRIMENTO'
+TURNI_SCORRIMENTO_DEFAULT_BLOCK_LABELS = (
+    '3:7:11:15:19:23:27:31:35:39:43:47:51',
+    '4:8:12:16:20:24:28:32:36:40:44:48:52',
+    '1:5:9:13:17:21:25:29:33:37:41:45:49',
+    '2:6:10:14:18:22:26:30:34:38:42:46:50',
+)
+TURNI_SCORRIMENTO_DEFAULT_DAY_LABELS = ('L', 'M', 'M', 'G', 'V', 'S', 'D')
+TURNI_SCORRIMENTO_DEFAULT_SQUAD_LABELS = ('SQUADRA 1', 'SQUADRA 2', 'SQUADRA 3', 'SQUADRA 4')
+TURNI_SCORRIMENTO_DEFAULT_DEPARTMENT_TITLES = ('PRODUZIONE', 'NAVETTA', 'IMPIANTO TIGER', 'STANZETTE')
+TURNI_SCORRIMENTO_DEFAULT_DEPARTMENT_NAMES = (
+    ('CAIA', 'FERRARA', 'LANDOLFO', 'PROSITTO'),
+    ('SALZILLO', 'CERRONE F.', 'ARTUSO', 'CHIACCHIO'),
+    ('ACERRA R.', 'GATTA', 'CIPOLLETTA', 'MENNILLO'),
+    ('', '', '', ''),
+)
 TURNI_DEFAULT_WEEKLY_PDF_TITLE = 'SAN VINCENZO S.R.L.:ORGANIZZAZIONE TURNI'
 TURNI_EXPORT_APP_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png'
 TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'ancis-sgq-sga-2026.png'
@@ -188,6 +213,7 @@ TURNI_EMPLOYEE_SECTION_META = OrderedDict([
     ('saturday', {'label': 'Sabato'}),
     ('sunday', {'label': 'Domenica'}),
     ('jolly_weekend', {'label': 'Jolly'}),
+    ('scorrimento', {'label': 'Scorrimento'}),
 ])
 TURNI_MARKINGS_SECTION_META = OrderedDict([
     ('weekly', {'label': 'Settimana'}),
@@ -195,6 +221,7 @@ TURNI_MARKINGS_SECTION_META = OrderedDict([
     ('saturday', {'label': 'Sabato'}),
     ('sunday', {'label': 'Domenica'}),
     ('jolly_weekend', {'label': 'Jolly'}),
+    ('scorrimento', {'label': 'Scorrimento'}),
     ('portineria_weekend', {'label': 'Portineria weekend'}),
 ])
 TURNI_PUBLISHED_SECTIONS_KEY = 'published_sections'
@@ -438,6 +465,194 @@ def _merge_turni_portineria_weekly_data(raw_portineria_weekly_data):
     return weekly_data
 
 
+def _default_turni_scorrimento_data():
+    return {
+        'title': TURNI_SCORRIMENTO_DEFAULT_TITLE,
+        'base_date': '',
+        'block_labels': list(TURNI_SCORRIMENTO_DEFAULT_BLOCK_LABELS),
+        'day_labels': list(TURNI_SCORRIMENTO_DEFAULT_DAY_LABELS),
+        'squad_labels': list(TURNI_SCORRIMENTO_DEFAULT_SQUAD_LABELS),
+        'matrix': [
+            ['' for _ in range(TURNI_SCORRIMENTO_TOTAL_COLUMNS)]
+            for _ in range(TURNI_SCORRIMENTO_SQUAD_COUNT)
+        ],
+        'department_titles': list(TURNI_SCORRIMENTO_DEFAULT_DEPARTMENT_TITLES),
+        'department_names': [list(names) for names in TURNI_SCORRIMENTO_DEFAULT_DEPARTMENT_NAMES],
+        'rows': [],
+    }
+
+
+def _merge_turni_scorrimento_data(raw_scorrimento_data):
+    scorrimento_data = _default_turni_scorrimento_data()
+    if not isinstance(raw_scorrimento_data, dict):
+        return scorrimento_data
+
+    title = str(raw_scorrimento_data.get('title') or '').strip()
+    if title:
+        scorrimento_data['title'] = title
+    scorrimento_data['base_date'] = str(raw_scorrimento_data.get('base_date') or '').strip()
+
+    raw_block_labels = raw_scorrimento_data.get('block_labels')
+    if isinstance(raw_block_labels, list):
+        for index in range(min(len(raw_block_labels), TURNI_SCORRIMENTO_BLOCK_COUNT)):
+            scorrimento_data['block_labels'][index] = str(raw_block_labels[index] or '').strip()
+
+    raw_day_labels = raw_scorrimento_data.get('day_labels')
+    if isinstance(raw_day_labels, list):
+        for index in range(min(len(raw_day_labels), TURNI_SCORRIMENTO_DAYS_PER_BLOCK)):
+            scorrimento_data['day_labels'][index] = str(raw_day_labels[index] or '').strip()
+
+    raw_squad_labels = raw_scorrimento_data.get('squad_labels')
+    if isinstance(raw_squad_labels, list):
+        for index in range(min(len(raw_squad_labels), TURNI_SCORRIMENTO_SQUAD_COUNT)):
+            scorrimento_data['squad_labels'][index] = str(raw_squad_labels[index] or '').strip()
+
+    raw_matrix = raw_scorrimento_data.get('matrix')
+    if isinstance(raw_matrix, list):
+        for row_index in range(min(len(raw_matrix), TURNI_SCORRIMENTO_SQUAD_COUNT)):
+            raw_row = raw_matrix[row_index]
+            if not isinstance(raw_row, list):
+                continue
+            for col_index in range(min(len(raw_row), TURNI_SCORRIMENTO_TOTAL_COLUMNS)):
+                scorrimento_data['matrix'][row_index][col_index] = str(raw_row[col_index] or '').strip().upper()
+
+    raw_department_titles = raw_scorrimento_data.get('department_titles')
+    if isinstance(raw_department_titles, list):
+        for index in range(min(len(raw_department_titles), TURNI_SCORRIMENTO_BLOCK_COUNT)):
+            scorrimento_data['department_titles'][index] = str(raw_department_titles[index] or '').strip()
+
+    raw_department_names = raw_scorrimento_data.get('department_names')
+    if isinstance(raw_department_names, list):
+        for block_index in range(min(len(raw_department_names), TURNI_SCORRIMENTO_BLOCK_COUNT)):
+            raw_block_names = raw_department_names[block_index]
+            if not isinstance(raw_block_names, list):
+                continue
+            for row_index in range(min(len(raw_block_names), TURNI_SCORRIMENTO_SQUAD_COUNT)):
+                scorrimento_data['department_names'][block_index][row_index] = str(raw_block_names[row_index] or '').strip()
+
+    raw_rows = raw_scorrimento_data.get('rows')
+    if isinstance(raw_rows, list):
+        compat_rows = []
+        for raw_row in raw_rows:
+            if not isinstance(raw_row, list):
+                continue
+            compat_rows.append([str(value or '').strip() for value in raw_row[:len(TURNI_WEEKEND_COLUMN_LABELS)]])
+        scorrimento_data['rows'] = compat_rows
+    return scorrimento_data
+
+
+def _extract_turni_scorrimento_data_from_post(post_data):
+    scorrimento_data = _default_turni_scorrimento_data()
+    scorrimento_data['title'] = (post_data.get('scorrimento_title') or '').strip() or TURNI_SCORRIMENTO_DEFAULT_TITLE
+    scorrimento_data['base_date'] = (post_data.get('scorrimento_base_date') or '').strip()
+
+    raw_block_labels = post_data.getlist('scorrimento_block_labels')
+    for index in range(min(len(raw_block_labels), TURNI_SCORRIMENTO_BLOCK_COUNT)):
+        scorrimento_data['block_labels'][index] = raw_block_labels[index].strip()
+
+    raw_day_labels = post_data.getlist('scorrimento_day_labels')
+    for index in range(min(len(raw_day_labels), TURNI_SCORRIMENTO_DAYS_PER_BLOCK)):
+        scorrimento_data['day_labels'][index] = raw_day_labels[index].strip()
+
+    raw_squad_labels = post_data.getlist('scorrimento_squad_labels')
+    for index in range(min(len(raw_squad_labels), TURNI_SCORRIMENTO_SQUAD_COUNT)):
+        scorrimento_data['squad_labels'][index] = raw_squad_labels[index].strip()
+
+    raw_department_titles = post_data.getlist('scorrimento_department_titles')
+    for index in range(min(len(raw_department_titles), TURNI_SCORRIMENTO_BLOCK_COUNT)):
+        scorrimento_data['department_titles'][index] = raw_department_titles[index].strip()
+
+    for row_index in range(TURNI_SCORRIMENTO_SQUAD_COUNT):
+        raw_row_values = post_data.getlist(f'scorrimento_matrix_{row_index}')
+        for col_index in range(min(len(raw_row_values), TURNI_SCORRIMENTO_TOTAL_COLUMNS)):
+            scorrimento_data['matrix'][row_index][col_index] = raw_row_values[col_index].strip().upper()
+
+    for block_index in range(TURNI_SCORRIMENTO_BLOCK_COUNT):
+        raw_names = post_data.getlist(f'scorrimento_department_names_{block_index}')
+        for row_index in range(min(len(raw_names), TURNI_SCORRIMENTO_SQUAD_COUNT)):
+            scorrimento_data['department_names'][block_index][row_index] = raw_names[row_index].strip()
+
+    legacy_row_count = post_data.get('scorrimento_row_count')
+    if legacy_row_count is not None or post_data.getlist('scorrimento_row_0'):
+        compat_rows = _extract_turni_weekend_data_from_post(post_data, 'scorrimento')['rows']
+        scorrimento_data['rows'] = compat_rows
+
+    return scorrimento_data
+
+
+def _turni_scorrimento_export_data(raw_scorrimento_data):
+    scorrimento_data = _merge_turni_scorrimento_data(raw_scorrimento_data)
+    return ScorrimentoExportData(
+        title=scorrimento_data['title'],
+        block_labels=list(scorrimento_data['block_labels']),
+        day_labels=list(scorrimento_data['day_labels']),
+        squad_labels=list(scorrimento_data['squad_labels']),
+        matrix=[list(row) for row in scorrimento_data['matrix']],
+        department_titles=list(scorrimento_data['department_titles']),
+        department_names=[list(row) for row in scorrimento_data['department_names']],
+    )
+
+
+def _turni_scorrimento_template_blocks(scorrimento_data):
+    blocks = []
+    for block_index, block_label in enumerate(scorrimento_data['block_labels']):
+        start = block_index * TURNI_SCORRIMENTO_DAYS_PER_BLOCK
+        columns = []
+        for offset, day_label in enumerate(scorrimento_data['day_labels']):
+            columns.append({
+                'index': start + offset,
+                'day_label': day_label,
+            })
+        blocks.append({
+            'index': block_index,
+            'label': block_label,
+            'columns': columns,
+        })
+    return blocks
+
+
+def _turni_scorrimento_template_rows(scorrimento_data):
+    rows = []
+    for squad_index, squad_label in enumerate(scorrimento_data['squad_labels']):
+        current_matrix_row = scorrimento_data['matrix'][squad_index] if squad_index < len(scorrimento_data['matrix']) else []
+        cells = []
+        for block_index in range(TURNI_SCORRIMENTO_BLOCK_COUNT):
+            start = block_index * TURNI_SCORRIMENTO_DAYS_PER_BLOCK
+            for offset in range(TURNI_SCORRIMENTO_DAYS_PER_BLOCK):
+                column_index = start + offset
+                value = str(current_matrix_row[column_index] or '').strip().upper() if column_index < len(current_matrix_row) else ''
+                cells.append([
+                    value,
+                    block_index > 0 and offset == 0,
+                    value == 'R',
+                ])
+        rows.append({
+            'index': squad_index,
+            'label': squad_label,
+            'cells': cells,
+        })
+    return rows
+
+
+def _turni_scorrimento_template_department_blocks(scorrimento_data):
+    blocks = []
+    department_titles = scorrimento_data.get('department_titles') or []
+    for block_index, block_title in enumerate(department_titles):
+        block_names = scorrimento_data['department_names'][block_index] if block_index < len(scorrimento_data['department_names']) else []
+        rows = []
+        for squad_index, squad_label in enumerate(scorrimento_data['squad_labels']):
+            rows.append([
+                squad_label,
+                block_names[squad_index] if squad_index < len(block_names) else '',
+            ])
+        blocks.append({
+            'index': block_index,
+            'title': block_title,
+            'rows': rows,
+        })
+    return blocks
+
+
 def _extract_turni_portineria_weekly_data_from_post(post_data):
     weekly_data = _default_turni_portineria_weekly_data()
     raw_headers = post_data.getlist('portineria_weekly_headers')
@@ -600,6 +815,12 @@ def _turni_planner_export_response(state, *, export_format, export_target):
             'title': 'Comandata jolly',
             'row_count': None,
         },
+        'scorrimento': {
+            'pdf_name': SCORRIMENTO_PDF_NAME,
+            'image_name': SCORRIMENTO_IMAGE_NAME,
+            'title': 'Scorrimento',
+            'row_count': None,
+        },
         'portineria_weekend': {
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
             'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
@@ -610,6 +831,23 @@ def _turni_planner_export_response(state, *, export_format, export_target):
 
     with tempfile.TemporaryDirectory(prefix='turni_planner_export_') as temp_dir:
         export_dir = Path(temp_dir)
+
+        if export_target == 'scorrimento':
+            export_data = _turni_scorrimento_export_data(planner_data.get('scorrimento'))
+            if export_format == 'pdf':
+                exported_path = export_scorrimento_pdf(export_dir / SCORRIMENTO_PDF_NAME, data=export_data)
+                return _turni_download_response(
+                    exported_path.read_bytes(),
+                    content_type='application/pdf',
+                    filename=SCORRIMENTO_PDF_NAME,
+                )
+
+            exported_paths = export_scorrimento_images(export_dir / SCORRIMENTO_IMAGE_NAME, data=export_data)
+            return _turni_download_response(
+                _turni_combined_jpg_bytes(exported_paths),
+                content_type='image/jpeg',
+                filename=SCORRIMENTO_IMAGE_NAME,
+            )
 
         if export_target in weekly_configs:
             config = weekly_configs[export_target]
@@ -799,6 +1037,10 @@ def _turni_planner_employee_jpg_payload(state, *, export_target, include_portine
             'image_name': JOLLY_WEEKEND_IMAGE_NAME,
             'title': 'Comandata jolly',
         },
+        'scorrimento': {
+            'image_name': SCORRIMENTO_IMAGE_NAME,
+            'title': 'Scorrimento',
+        },
         'portineria_weekend': {
             'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
             'title': 'Sabato - Domenica e festivi Portineria',
@@ -807,6 +1049,13 @@ def _turni_planner_employee_jpg_payload(state, *, export_target, include_portine
 
     with tempfile.TemporaryDirectory(prefix='turni_planner_employee_') as temp_dir:
         export_dir = Path(temp_dir)
+
+        if export_target == 'scorrimento':
+            exported_paths = export_scorrimento_images(
+                export_dir / SCORRIMENTO_IMAGE_NAME,
+                data=_turni_scorrimento_export_data(planner_data.get('scorrimento')),
+            )
+            return _turni_combined_jpg_bytes(exported_paths), SCORRIMENTO_IMAGE_NAME
 
         if export_target in weekly_configs:
             config = weekly_configs[export_target]
@@ -909,6 +1158,12 @@ def _turni_planner_bulk_export_response(state, *, export_format):
             'title': 'Comandata jolly',
             'row_count': None,
         },
+        'scorrimento': {
+            'pdf_name': SCORRIMENTO_PDF_NAME,
+            'image_name': SCORRIMENTO_IMAGE_NAME,
+            'title': 'Scorrimento',
+            'row_count': None,
+        },
         'portineria_weekend': {
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
             'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
@@ -929,6 +1184,15 @@ def _turni_planner_bulk_export_response(state, *, export_format):
         archive_buffer = io.BytesIO()
 
         with zipfile.ZipFile(archive_buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
+            scorrimento_export_data = _turni_scorrimento_export_data(planner_data.get('scorrimento'))
+            if 'pdf' in formats_to_include:
+                pdf_path = export_scorrimento_pdf(export_dir / SCORRIMENTO_PDF_NAME, data=scorrimento_export_data)
+                archive.writestr(SCORRIMENTO_PDF_NAME, pdf_path.read_bytes())
+            if 'jpg' in formats_to_include:
+                image_paths = export_scorrimento_images(export_dir / SCORRIMENTO_IMAGE_NAME, data=scorrimento_export_data)
+                for image_path in image_paths:
+                    archive.writestr(image_path.name, image_path.read_bytes())
+
             for config_key, config in weekly_configs.items():
                 export_week_label = _resolve_turni_export_week_label(
                     planner_data,
@@ -1034,6 +1298,12 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
             'include_if_empty': False,
         },
         {
+            'key': 'scorrimento',
+            'pdf_name': SCORRIMENTO_PDF_NAME,
+            'title': 'Scorrimento',
+            'include_if_empty': False,
+        },
+        {
             'key': 'portineria_weekend',
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
             'title': 'Sabato - Domenica e festivi Portineria',
@@ -1063,6 +1333,11 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
                 cert_logo_path=ancis_logo_path,
                 anid_logo_path=anid_logo_path,
             )
+            if config['key'] == 'scorrimento':
+                exported_path = export_scorrimento_pdf(
+                    export_dir / config['pdf_name'],
+                    data=_turni_scorrimento_export_data(raw_weekend_data),
+                )
             attachments.append((config['pdf_name'], exported_path.read_bytes()))
             attachment_labels.append(export_data.title or config['title'])
 
@@ -4509,6 +4784,7 @@ def turni_planner_home(request):
                     planner_data['saturday'] = _extract_turni_weekend_data_from_post(request.POST, 'saturday')
                     planner_data['sunday'] = _extract_turni_weekend_data_from_post(request.POST, 'sunday')
                     planner_data['jolly_weekend'] = _extract_turni_weekend_data_from_post(request.POST, 'jolly_weekend')
+                    planner_data['scorrimento'] = _extract_turni_scorrimento_data_from_post(request.POST)
                     planner_data['portineria_weekly'] = _extract_turni_portineria_weekly_data_from_post(request.POST)
                     planner_data['portineria_weekend'] = _extract_turni_weekend_data_from_post(
                         request.POST,
@@ -4558,6 +4834,7 @@ def turni_planner_home(request):
     saturday_data = _merge_turni_weekend_data(planner_data.get('saturday'))
     sunday_data = _merge_turni_weekend_data(planner_data.get('sunday'))
     jolly_weekend_data = _merge_turni_weekend_data(planner_data.get('jolly_weekend'))
+    scorrimento_data = _merge_turni_scorrimento_data(planner_data.get('scorrimento'))
     portineria_weekly_data = _merge_turni_portineria_weekly_data(planner_data.get('portineria_weekly'))
     portineria_weekend_data = _merge_turni_weekend_data(
         planner_data.get('portineria_weekend'),
@@ -4565,7 +4842,7 @@ def turni_planner_home(request):
         maximum=TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
     )
 
-    return render(request, 'portal/turni_planner.html', {
+    response = render(request, 'portal/turni_planner.html', {
         'recent_weeks': recent_weeks,
         'selected_state': selected_state,
         'selected_week_label': selected_week_label,
@@ -4580,11 +4857,17 @@ def turni_planner_home(request):
         'saturday_data': saturday_data,
         'sunday_data': sunday_data,
         'jolly_weekend_data': jolly_weekend_data,
+        'scorrimento_data': scorrimento_data,
+        'scorrimento_blocks': _turni_scorrimento_template_blocks(scorrimento_data),
+        'scorrimento_rows': _turni_scorrimento_template_rows(scorrimento_data),
+        'scorrimento_department_blocks': _turni_scorrimento_template_department_blocks(scorrimento_data),
+        'scorrimento_stanzette_names': scorrimento_data['department_names'][3] if len(scorrimento_data['department_names']) > 3 else [],
         'portineria_weekly_data': portineria_weekly_data,
         'portineria_weekend_data': portineria_weekend_data,
         'weekend_column_labels': TURNI_WEEKEND_COLUMN_LABELS,
         'weekend_single_page_max_rows': TURNI_WEEKEND_MAX_SINGLE_PAGE_ROW_COUNT,
     })
+    return _disable_response_cache(response)
 
 
 def _today_marked_sessions_queryset(target_date):

@@ -81,6 +81,7 @@ class TodayMarkingsAccessTests(TestCase):
 				},
 				"saturday": {"base_date": "24/05/2026", "rows": [["24/05/2026", "Mattina", "Mario", "Capo A", "Presidio", "Reparto A"]]},
 				"sunday": {"base_date": "25/05/2026", "rows": [["25/05/2026", "Sera", "Luca", "Capo B", "Supporto", "Reparto B"]]},
+				"scorrimento": {"title": "Scorrimento demo", "base_date": "08/05/2026", "rows": [["08/05/2026", "Mattina", "Mario Rossi", "Capo A", "Scorrimento", "Reparto A"]]},
 				"portineria_weekly": {
 					"headers": ["PORTINERIA CENTRALE", "CENTRALINISTA", "PORTINERIA CELLA"],
 					"sections": [
@@ -153,7 +154,9 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertContains(response, self.turni_state.week_label)
 		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekly"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["scorrimento"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekend"]))
+		self.assertContains(response, "Scorrimento")
 		self.assertContains(response, "Portineria settimana")
 		self.assertContains(response, "Portineria weekend")
 
@@ -377,6 +380,11 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 					"base_date": "26/05/2026",
 					"rows": [["26/05/2026", "Mattina", "Jolly A", "Capo J", "Presidio", "Reparto J"]],
 				},
+				"scorrimento": {
+					"title": "Scorrimento demo",
+					"base_date": "08/05/2026",
+					"rows": [["08/05/2026", "Mattina", "Mario Rossi", "Capo A", "Scorrimento", "Reparto A"]],
+				},
 				"portineria_weekly": {
 					"headers": ["PORTINERIA CENTRALE", "CENTRALINISTA", "PORTINERIA CELLA"],
 					"sections": [
@@ -404,7 +412,9 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 		self.assertContains(response, reverse("employee_turni_published_image", args=["saturday"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["sunday"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["jolly_weekend"]))
+		self.assertContains(response, reverse("employee_turni_published_image", args=["scorrimento"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekend"]))
+		self.assertContains(response, "Scorrimento")
 		self.assertContains(response, "Portineria settimana")
 		self.assertContains(response, "Portineria weekend")
 
@@ -486,6 +496,14 @@ class TurniPlannerAccessTests(TestCase):
 		response = self.client.get(reverse("turni_planner_home"))
 		self.assertEqual(response.status_code, 403)
 
+	def test_turni_planner_disables_cache_headers(self):
+		self.client.force_login(self.allowed_user)
+		response = self.client.get(reverse("turni_planner_home"))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Cache-Control"], "no-store, no-cache, must-revalidate, max-age=0")
+		self.assertEqual(response["Pragma"], "no-cache")
+		self.assertEqual(response["Expires"], "0")
+
 	def test_turni_planner_allows_group_user_and_creates_shared_week(self):
 		self.client.force_login(self.allowed_user)
 		response = self.client.post(
@@ -556,6 +574,11 @@ class TurniPlannerAccessTests(TestCase):
 					"base_date": "26/04/2026",
 					"rows": [["26/04/2026", "Sera", "Luigi", "Capo B", "Controllo", "Reparto B"]],
 				},
+				"scorrimento": {
+					"title": "Scorrimento 24/04/2026",
+					"base_date": "24/04/2026",
+					"rows": [["24/04/2026", "Mattina", "Mario Rossi", "Capo A", "Scorrimento", "Reparto A"]],
+				},
 				"portineria_weekly": {
 					"headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
 					"sections": [
@@ -585,6 +608,7 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(new_state.updated_by, self.allowed_user)
 		self.assertEqual(new_state.planner_data["weekly"], previous_state.planner_data["weekly"])
 		self.assertEqual(new_state.planner_data["saturday"], previous_state.planner_data["saturday"])
+		self.assertEqual(new_state.planner_data["scorrimento"], previous_state.planner_data["scorrimento"])
 		self.assertEqual(new_state.planner_data["portineria_weekly"], previous_state.planner_data["portineria_weekly"])
 		self.assertEqual(new_state.planner_data["portineria_weekend"], previous_state.planner_data["portineria_weekend"])
 		self.assertEqual(new_state.planner_data["weekly_export_week_label"], new_week_label)
@@ -672,6 +696,9 @@ class TurniPlannerAccessTests(TestCase):
 				"jolly_weekend_title": "Comandata primo maggio",
 				"jolly_weekend_base_date": "01/05/2026",
 				"jolly_weekend_row_0": ["01/05/2026", "Mattina", "Jolly A", "Capo J", "Presidio", "Reparto J"],
+				"scorrimento_title": "Scorrimento 08/05/2026",
+				"scorrimento_base_date": "08/05/2026",
+				"scorrimento_row_0": ["08/05/2026", "Mattina", "Mario Rossi", "Capo A", "Scorrimento", "Reparto A"],
 				"portineria_weekly_headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
 				"portineria_weekly_time_0": ["06:14", "08:17", "06:14"],
 				"portineria_weekly_time_1": ["14:22", "", "14:22"],
@@ -703,6 +730,8 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(state.planner_data["sunday"]["rows"][0][4], "Sanificazione")
 		self.assertEqual(state.planner_data["jolly_weekend"]["title"], "Comandata primo maggio")
 		self.assertEqual(state.planner_data["jolly_weekend"]["rows"][0][2], "Jolly A")
+		self.assertEqual(state.planner_data["scorrimento"]["title"], "Scorrimento 08/05/2026")
+		self.assertEqual(state.planner_data["scorrimento"]["rows"][0][2], "Mario Rossi")
 		self.assertEqual(state.planner_data["portineria_weekly"]["sections"][0]["rows"][0][1], "Persona B")
 		self.assertEqual(state.planner_data["portineria_weekend"]["rows"][0][5], "Portineria")
 
@@ -747,6 +776,11 @@ class TurniPlannerAccessTests(TestCase):
 				"jolly_weekend_row_count": "24",
 				"jolly_weekend_row_0": ["15/08/2026", "Mattina", "Jolly Inizio", "Capo J", "Presidio", "Reparto J"],
 				"jolly_weekend_row_23": ["15/08/2026", "Sera", "Jolly Fine", "Capo K", "Supporto", "Reparto K"],
+				"scorrimento_title": "Scorrimento ferragosto",
+				"scorrimento_base_date": "15/08/2026",
+				"scorrimento_row_count": "25",
+				"scorrimento_row_0": ["15/08/2026", "Mattina", "Scorrimento Inizio", "Capo S", "Supporto", "Reparto S"],
+				"scorrimento_row_24": ["15/08/2026", "Sera", "Scorrimento Fine", "Capo T", "Chiusura", "Reparto T"],
 				"portineria_weekly_headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
 				"portineria_weekly_time_0": ["06:14", "08:17", "06:14"],
 				"portineria_weekly_time_1": ["14:22", "", "14:22"],
@@ -772,11 +806,14 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(len(state.planner_data["saturday"]["rows"]), 22)
 		self.assertEqual(len(state.planner_data["sunday"]["rows"]), 21)
 		self.assertEqual(len(state.planner_data["jolly_weekend"]["rows"]), 24)
+		self.assertEqual(len(state.planner_data["scorrimento"]["rows"]), 25)
 		self.assertEqual(len(state.planner_data["portineria_weekend"]["rows"]), 23)
 		self.assertEqual(state.planner_data["saturday"]["rows"][21][2], "Ultimo Sabato")
 		self.assertEqual(state.planner_data["sunday"]["rows"][20][2], "Ultima Domenica")
 		self.assertEqual(state.planner_data["jolly_weekend"]["title"], "Comandata ferragosto")
 		self.assertEqual(state.planner_data["jolly_weekend"]["rows"][23][2], "Jolly Fine")
+		self.assertEqual(state.planner_data["scorrimento"]["title"], "Scorrimento ferragosto")
+		self.assertEqual(state.planner_data["scorrimento"]["rows"][24][2], "Scorrimento Fine")
 		self.assertEqual(state.planner_data["portineria_weekend"]["rows"][22][2], "Port Ultima")
 
 	def test_turni_planner_save_sets_employee_visibility_exclusively(self):
@@ -975,6 +1012,55 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertIn("Comandata jolly.pdf", response["Content-Disposition"])
 		self.assertTrue(response.content.startswith(b"%PDF"))
 
+	def test_turni_planner_exports_scorrimento_pdf_download(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 32 bis da Lunedi 03/08/2026 a Sabato 08/08/2026",
+			planner_data={},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "export_pdf_scorrimento",
+				"week_label": state.week_label,
+				"weekly_export_week_label": state.week_label,
+				"portineria_weekly_export_week_label": state.week_label,
+				"weekly_headers": [""] * 10,
+				"weekly_time_0": [""] * 10,
+				"weekly_time_1": [""] * 10,
+				"weekly_time_2": [""] * 10,
+				"weekly_time_3": [""] * 10,
+				"weekly_row_0_0": [""] * 10,
+				"weekly_row_0_1": [""] * 10,
+				"weekly_row_0_2": [""] * 10,
+				"weekly_row_1_0": [""] * 10,
+				"weekly_row_1_1": [""] * 10,
+				"weekly_row_1_2": [""] * 10,
+				"weekly_row_2_0": [""] * 10,
+				"weekly_row_2_1": [""] * 10,
+				"weekly_row_2_2": [""] * 10,
+				"weekly_row_3_0": [""] * 10,
+				"weekly_row_3_1": [""] * 10,
+				"weekly_row_3_2": [""] * 10,
+				"saturday_base_date": "08/08/2026",
+				"sunday_base_date": "09/08/2026",
+				"scorrimento_title": "Scorrimento 08/05/2026",
+				"scorrimento_base_date": "08/05/2026",
+				"scorrimento_row_0": ["08/05/2026", "Mattina", "Mario Rossi", "Capo A", "Scorrimento", "Reparto A"],
+				"portineria_weekly_headers": ["Portineria Centrale", "Centralinista", "Portineria Cella"],
+				"portineria_weekly_time_0": ["06:14", "08:17", "06:14"],
+				"portineria_weekly_time_1": ["14:22", "", "14:22"],
+				"portineria_weekly_time_2": ["22:06", "", "22:06"],
+				"portineria_weekend_base_date": "08/08/2026",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "application/pdf")
+		self.assertIn("Scorrimento.pdf", response["Content-Disposition"])
+		self.assertTrue(response.content.startswith(b"%PDF"))
+
 	def test_turni_planner_generates_weekend_mail_with_jolly_attachment_only_if_compiled(self):
 		state = TurniPlannerWeekState.objects.create(
 			week_label="Week 33 da Lunedi 10/08/2026 a Sabato 15/08/2026",
@@ -991,6 +1077,11 @@ class TurniPlannerAccessTests(TestCase):
 					"title": "Comandata ferragosto",
 					"base_date": "15/08/2026",
 					"rows": [["15/08/2026", "Sera", "Jolly A", "Capo J", "Controllo", "Reparto J"]],
+				},
+				"scorrimento": {
+					"title": "Scorrimento ferragosto",
+					"base_date": "15/08/2026",
+					"rows": [["15/08/2026", "Mattina", "Mario Rossi", "Capo S", "Scorrimento", "Reparto S"]],
 				},
 				"portineria_weekend": {
 					"base_date": "15/08/2026",
@@ -1021,6 +1112,7 @@ class TurniPlannerAccessTests(TestCase):
 				"Comandata sabato.pdf",
 				"Comandata domenica.pdf",
 				"Comandata jolly.pdf",
+				"Scorrimento.pdf",
 				"Comandata Sabato - Domenica e festivi Portineria.pdf",
 			]),
 		)
@@ -1029,8 +1121,10 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertIn("Buongiorno team,", email_message.body)
 		self.assertIn("invio i PDF weekend aggiornati.", email_message.body)
 		self.assertIn("Comandata ferragosto", email_message.body)
+		self.assertIn("Scorrimento ferragosto", email_message.body)
 
 		state.planner_data["jolly_weekend"] = {"title": "", "base_date": "", "rows": [["", "", "", "", "", ""]]}
+		state.planner_data["scorrimento"] = {"title": "", "base_date": "", "rows": [["", "", "", "", "", ""]]}
 		state.save(update_fields=["planner_data"])
 		mail.outbox = []
 

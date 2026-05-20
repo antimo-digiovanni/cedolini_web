@@ -368,6 +368,256 @@
         cursor: default;
     }
 
+    .turni-scorrimento-wrap {
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 20px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        background: #fff;
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+    }
+
+    .turni-scorrimento-sheet {
+        min-width: 1240px;
+    }
+
+    .turni-scorrimento-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .turni-scorrimento-table th,
+    .turni-scorrimento-table td {
+        border: 1px solid #1e293b;
+        padding: 0;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-title-cell {
+        background: #dbeafe;
+        padding: 0.7rem;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-title-cell input {
+        border: 0;
+        background: transparent;
+        text-align: center;
+        font-size: 1.02rem;
+        font-weight: 800;
+        color: #0f172a;
+        text-transform: uppercase;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-block-cell {
+        background: #eff6ff;
+        padding: 0.3rem;
+        width: 266px;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-block-cell input,
+    .turni-scorrimento-table .turni-scorrimento-day-cell input,
+    .turni-scorrimento-table .turni-scorrimento-squad-label input,
+    .turni-scorrimento-footer-card input,
+    .turni-scorrimento-footer-card textarea {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        text-align: center;
+        font-weight: 700;
+        color: #0f172a;
+        padding: 0.2rem;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-day-cell {
+        background: #fff;
+        width: 38px;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-day-cell input {
+        font-size: 0.74rem;
+        min-width: 0;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-squad-label {
+        background: #f8fafc;
+        min-width: 132px;
+        width: 132px;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-squad-label input {
+        text-align: left;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        padding-left: 0.4rem;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-value-cell {
+        width: 38px;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-value-cell input {
+        min-width: 0;
+        padding: 0.8rem 0.1rem;
+        font-size: 1rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-value-cell.is-rest {
+        background: #1d4ed8;
+    }
+
+    .turni-scorrimento-table .turni-scorrimento-value-cell.is-rest input {
+        color: #fff;
+    }
+
+    .turni-scorrimento-group-start {
+        border-left-width: 3px !important;
+    }
+
+    .turni-scorrimento-footer-grid {
+        display: grid;
+        grid-template-columns: 0.78fr 1fr 1fr 1fr 0.72fr 0.72fr;
+        gap: 0;
+        border-top: 1px solid #1e293b;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .turni-scorrimento-footer-card {
+        border-right: 1px solid #1e293b;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .turni-scorrimento-footer-card:last-child {
+        border-right: 0;
+    }
+
+    .turni-scorrimento-footer-title {
+        background: #dbeafe;
+        border-bottom: 1px solid #1e293b;
+        padding: 0.25rem;
+        min-height: 38px;
+    }
+
+    .turni-scorrimento-footer-title.is-blank {
+        background: #fff;
+    }
+
+    .turni-scorrimento-footer-title input {
+        text-transform: uppercase;
+    }
+
+    .turni-scorrimento-footer-row {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        border-bottom: 1px solid #1e293b;
+        min-height: 34px;
+    }
+
+    .turni-scorrimento-footer-row:last-child {
+        border-bottom: 0;
+    }
+
+    .turni-scorrimento-footer-row.is-squad-only,
+    .turni-scorrimento-footer-row.is-value-only {
+        grid-template-columns: 1fr;
+    }
+
+    .turni-scorrimento-footer-label,
+    .turni-scorrimento-footer-value {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+    }
+
+    .turni-scorrimento-footer-label {
+        border-right: 1px solid #1e293b;
+        background: #f8fafc;
+        padding: 0.15rem 0.35rem;
+        font-size: 0.78rem;
+    }
+
+    .turni-scorrimento-footer-label.is-standalone {
+        border-right: 0;
+        justify-content: flex-start;
+    }
+
+    .turni-scorrimento-footer-label input {
+        text-align: left;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+    }
+
+    .turni-scorrimento-footer-value input {
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+
+    .turni-scorrimento-footer-value.is-full {
+        width: 100%;
+    }
+
+    .turni-scorrimento-footer-card.is-stanzette {
+        min-height: 100%;
+    }
+
+    .turni-scorrimento-stanzette-body {
+        display: grid;
+        grid-template-rows: repeat(4, 12px) 1fr;
+        min-height: 136px;
+        flex: 1 1 auto;
+    }
+
+    .turni-scorrimento-blank-row {
+        border-bottom: 1px solid #1e293b;
+        min-height: 12px;
+    }
+
+    .turni-scorrimento-blank-row:last-child {
+        border-bottom: 0;
+    }
+
+    .turni-scorrimento-stanzette-fill {
+        border-top: 0;
+    }
+
+    .turni-scorrimento-legend-row {
+        display: grid;
+        grid-template-columns: 1fr 42px;
+        border-bottom: 1px solid #1e293b;
+        min-height: 34px;
+    }
+
+    .turni-scorrimento-legend-row:last-child {
+        border-bottom: 0;
+    }
+
+    .turni-scorrimento-legend-row.is-rest {
+        background: #dbeafe;
+    }
+
+    .turni-scorrimento-legend-label,
+    .turni-scorrimento-legend-value {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        color: #0f172a;
+        font-size: 0.82rem;
+    }
+
+    .turni-scorrimento-legend-label {
+        border-right: 1px solid #1e293b;
+    }
+
     .turni-topbar-tools {
         display: flex;
         flex-wrap: wrap;
@@ -896,6 +1146,25 @@
                     </div>
                 </div>
 
+                <div class="card-modern bg-light border turni-export-label-card">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-xl-4">
+                            <label for="turni-surname-find" class="form-label fw-semibold mb-1">Cognome attuale</label>
+                            <input type="text" id="turni-surname-find" class="form-control" placeholder="Es. Rossi" data-turni-surname-find>
+                        </div>
+                        <div class="col-12 col-xl-4">
+                            <label for="turni-surname-replace" class="form-label fw-semibold mb-1">Nuovo cognome</label>
+                            <input type="text" id="turni-surname-replace" class="form-control" placeholder="Es. Bianchi" data-turni-surname-replace>
+                        </div>
+                        <div class="col-12 col-xl-4 d-flex flex-column justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-dark" data-turni-surname-apply>
+                                <i class="bi bi-arrow-repeat"></i> Cambia cognome in tutti i nominativi
+                            </button>
+                            <div class="form-text mt-0" data-turni-surname-status>Lavora solo sui campi nominativi del planner.</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="turni-shell" data-turni-shell>
                     <div class="turni-sidebar">
                         <div class="card-modern bg-light h-100 turni-sidebar-card">
@@ -927,6 +1196,10 @@
                                 <button type="button" class="turni-nav-button" data-turni-panel="jolly-weekend">
                                     <span>Jolly</span>
                                     <i class="bi bi-calendar-heart"></i>
+                                </button>
+                                <button type="button" class="turni-nav-button" data-turni-panel="scorrimento">
+                                    <span>Scorrimento</span>
+                                    <i class="bi bi-arrow-left-right"></i>
                                 </button>
                                 <button type="button" class="turni-nav-button" data-turni-panel="portineria-weekend">
                                     <span>Portineria weekend</span>
@@ -1054,6 +1327,13 @@
                                         <div class="d-flex gap-2">
                                             <button type="submit" name="action" value="export_pdf_jolly_weekend" class="btn btn-outline-dark btn-sm">PDF</button>
                                             <button type="submit" name="action" value="export_jpg_jolly_weekend" class="btn btn-outline-dark btn-sm">JPG</button>
+                                        </div>
+                                    </div>
+                                    <div class="turni-export-item">
+                                        <div class="fw-semibold mb-2">Scorrimento</div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="action" value="export_pdf_scorrimento" class="btn btn-outline-dark btn-sm">PDF</button>
+                                            <button type="submit" name="action" value="export_jpg_scorrimento" class="btn btn-outline-dark btn-sm">JPG</button>
                                         </div>
                                     </div>
                                     <div class="turni-export-item">
@@ -1357,6 +1637,108 @@
                             </div>
                         </section>
 
+                        <section class="turni-panel" data-turni-panel-content="scorrimento" data-turni-sheet="scorrimento-sheet">
+                            <div class="turni-section-head">
+                                <div>
+                                    <h5 class="fw-semibold mb-1">Scorrimento</h5>
+                                    <div class="text-muted small">Foglio dedicato a scorrimento con la stessa impostazione del PDF di riferimento, ma con i colori del planner turni.</div>
+                                </div>
+                            </div>
+                            <div class="turni-scorrimento-wrap">
+                                <div class="turni-scorrimento-sheet">
+                                <table class="turni-scorrimento-table" data-scrollable-sheet="scorrimento-sheet">
+                                    <tbody>
+                                        <tr>
+                                            <th rowspan="3" class="turni-scorrimento-squad-label"></th>
+                                            <th colspan="28" class="turni-scorrimento-title-cell">
+                                                <input type="text" name="scorrimento_title" value="{{ scorrimento_data.title }}">
+                                            </th>
+                                        </tr>
+                                        <tr>
+                                            {% for block in scorrimento_blocks %}
+                                            <th colspan="7" class="turni-scorrimento-block-cell {% if not forloop.first %}turni-scorrimento-group-start{% endif %}">
+                                                <input type="text" name="scorrimento_block_labels" value="{{ block.label }}">
+                                            </th>
+                                            {% endfor %}
+                                        </tr>
+                                        <tr>
+                                            {% for block in scorrimento_blocks %}
+                                                {% for column in block.columns %}
+                                                <th class="turni-scorrimento-day-cell {% if forloop.first %}turni-scorrimento-group-start{% endif %}">
+                                                    {% if block.index == 0 %}
+                                                    <input type="text" name="scorrimento_day_labels" value="{{ column.day_label }}">
+                                                    {% else %}
+                                                    <div class="small fw-bold">{{ column.day_label }}</div>
+                                                    {% endif %}
+                                                </th>
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </tr>
+                                        {% for row in scorrimento_rows %}
+                                        <tr>
+                                            <th class="turni-scorrimento-squad-label">
+                                                <input type="text" name="scorrimento_squad_labels" value="{{ row.label }}">
+                                            </th>
+                                            {% for cell in row.cells %}
+                                                    <td class="turni-scorrimento-value-cell {% if cell.1 %}turni-scorrimento-group-start{% endif %}{% if cell.2 %} is-rest{% endif %}">
+                                                        <input type="text" name="scorrimento_matrix_{{ row.index }}" value="{{ cell.0 }}">
+                                                    </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                </div>
+                            </div>
+                            <div class="turni-scorrimento-footer-grid">
+                                    <div class="turni-scorrimento-footer-card">
+                                        <div class="turni-scorrimento-footer-title is-blank"></div>
+                                        {% for squad_label in scorrimento_data.squad_labels %}
+                                        <div class="turni-scorrimento-footer-row is-squad-only">
+                                            <div class="turni-scorrimento-footer-label is-standalone">
+                                                <div class="small fw-bold text-start w-100 px-2">{{ squad_label }}</div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% for block in scorrimento_department_blocks %}
+                                    <div class="turni-scorrimento-footer-card{% if block.index == 3 %} is-stanzette{% endif %}">
+                                        <div class="turni-scorrimento-footer-title">
+                                            <input type="text" name="scorrimento_department_titles" value="{{ block.title }}">
+                                        </div>
+                                        {% for block_row in block.rows %}
+                                        <div class="turni-scorrimento-footer-row is-value-only">
+                                            <div class="turni-scorrimento-footer-value is-full">
+                                                <input type="text" name="scorrimento_department_names_{{ block.index }}" value="{{ block_row.1 }}">
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endfor %}
+                                    <div class="turni-scorrimento-footer-card">
+                                        <div class="turni-scorrimento-footer-title">
+                                            <div class="fw-bold text-center">LEGENDA</div>
+                                        </div>
+                                        <div class="turni-scorrimento-legend-row">
+                                            <div class="turni-scorrimento-legend-label">MATTINA</div>
+                                            <div class="turni-scorrimento-legend-value">M</div>
+                                        </div>
+                                        <div class="turni-scorrimento-legend-row">
+                                            <div class="turni-scorrimento-legend-label">POMERIGGIO</div>
+                                            <div class="turni-scorrimento-legend-value">P</div>
+                                        </div>
+                                        <div class="turni-scorrimento-legend-row">
+                                            <div class="turni-scorrimento-legend-label">NOTTE</div>
+                                            <div class="turni-scorrimento-legend-value">N</div>
+                                        </div>
+                                        <div class="turni-scorrimento-legend-row is-rest">
+                                            <div class="turni-scorrimento-legend-label">RIPOSO</div>
+                                            <div class="turni-scorrimento-legend-value">R</div>
+                                        </div>
+                                    </div>
+                            </div>
+                        </section>
+
                         <section class="turni-panel" data-turni-panel-content="portineria-weekend" data-weekend-row-prefix="portineria_weekend" data-weekend-row-min="1" data-weekend-row-max="{{ weekend_single_page_max_rows }}" data-weekend-row-start="1" data-weekend-sheet="portineria-weekend-sheet">
                             <div class="turni-section-head">
                                 <div>
@@ -1406,6 +1788,7 @@
         {% endif %}
     </div>
 </div>
+{{ scorrimento_stanzette_names|json_script:"turni-scorrimento-stanzette-data" }}
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -1432,6 +1815,7 @@
                 'export_pdf_saturday',
                 'export_pdf_sunday',
                 'export_pdf_jolly_weekend',
+                'export_pdf_scorrimento',
                 'export_pdf_portineria_weekend',
             ],
             jpg: [
@@ -1440,6 +1824,7 @@
                 'export_jpg_saturday',
                 'export_jpg_sunday',
                 'export_jpg_jolly_weekend',
+                'export_jpg_scorrimento',
                 'export_jpg_portineria_weekend',
             ],
         };
@@ -1705,6 +2090,10 @@
 
         buildSheetGrids();
         const nameSuggestions = plannerForm ? plannerForm.querySelector('#turni-name-suggestions') : null;
+        const surnameFindInput = plannerForm ? plannerForm.querySelector('[data-turni-surname-find]') : null;
+        const surnameReplaceInput = plannerForm ? plannerForm.querySelector('[data-turni-surname-replace]') : null;
+        const surnameApplyButton = plannerForm ? plannerForm.querySelector('[data-turni-surname-apply]') : null;
+        const surnameStatus = plannerForm ? plannerForm.querySelector('[data-turni-surname-status]') : null;
         const undoButton = plannerForm ? plannerForm.querySelector('[data-turni-undo]') : null;
         const redoButton = plannerForm ? plannerForm.querySelector('[data-turni-redo]') : null;
         const weekendRowSections = Array.from(document.querySelectorAll('[data-weekend-row-prefix]'));
@@ -1730,6 +2119,9 @@
             if (inputName.startsWith('weekly_row_') || inputName.startsWith('portineria_weekly_row_')) {
                 return true;
             }
+            if (inputName.startsWith('scorrimento_department_names_')) {
+                return true;
+            }
 
             const weekendSheets = new Set(['saturday-sheet', 'sunday-sheet', 'jolly-weekend-sheet', 'portineria-weekend-sheet']);
             return weekendSheets.has(input.dataset.sheetName) && Number(input.dataset.sheetCol || '-1') === 2;
@@ -1747,6 +2139,55 @@
             const uniqueValues = Array.from(new Set(values)).sort((left, right) => left.localeCompare(right, 'it'));
 
             nameSuggestions.innerHTML = uniqueValues.map((value) => '<option value="' + value.replace(/"/g, '&quot;') + '"></option>').join('');
+        }
+
+        function setSurnameStatus(message, tone) {
+            if (!surnameStatus) {
+                return;
+            }
+            surnameStatus.textContent = message;
+            surnameStatus.classList.remove('text-muted', 'text-danger', 'text-success');
+            surnameStatus.classList.add(tone === 'error' ? 'text-danger' : tone === 'success' ? 'text-success' : 'text-muted');
+        }
+
+        function replaceSurnameInValue(value, currentSurname, nextSurname) {
+            const normalizedCurrent = currentSurname.trim();
+            if (!normalizedCurrent) {
+                return value;
+            }
+
+            const matcher = new RegExp(normalizedCurrent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            return value.replace(matcher, nextSurname.trim());
+        }
+
+        function applySurnameReplacement() {
+            if (!plannerForm || !surnameFindInput || !surnameReplaceInput) {
+                return;
+            }
+
+            const currentSurname = surnameFindInput.value.trim();
+            const nextSurname = surnameReplaceInput.value.trim();
+            if (!currentSurname || !nextSurname) {
+                setSurnameStatus('Compila sia il cognome attuale sia il nuovo cognome.', 'error');
+                return;
+            }
+
+            const changes = Array.from(plannerForm.querySelectorAll('input[type="text"]'))
+                .filter((input) => isNameInput(input))
+                .map((input) => ({
+                    input,
+                    before: input.value,
+                    after: replaceSurnameInValue(input.value, currentSurname, nextSurname),
+                }))
+                .filter((change) => change.before !== change.after);
+
+            if (!changes.length) {
+                setSurnameStatus('Nessuna occorrenza trovata nei nominativi.', 'muted');
+                return;
+            }
+
+            applyChangeBatch(changes);
+            setSurnameStatus('Cognome aggiornato in ' + changes.length + ' celle nominativo.', 'success');
         }
 
         function hasPendingHistoryChange() {
@@ -2174,6 +2615,10 @@
             }
             input.dataset.turniInputBound = 'true';
 
+
+        if (surnameApplyButton) {
+            surnameApplyButton.addEventListener('click', applySurnameReplacement);
+        }
             if (isNameInput(input) && nameSuggestions) {
                 input.setAttribute('list', 'turni-name-suggestions');
                 input.setAttribute('autocomplete', 'off');
@@ -2292,6 +2737,54 @@
                     return;
                 }
                 updatePointerSelection(input);
+            });
+        }
+
+        function ensureScorrimentoStanzetteCard() {
+            if (!plannerForm) {
+                return;
+            }
+
+            const rawData = document.getElementById('turni-scorrimento-stanzette-data');
+            const stanzetteCard = plannerForm.querySelector('.turni-scorrimento-footer-card.is-stanzette');
+            if (!rawData || !stanzetteCard) {
+                return;
+            }
+
+            if (!stanzetteCard.querySelector('.turni-scorrimento-stanzette-body')) {
+                return;
+            }
+
+            let stanzetteNames = [];
+            try {
+                stanzetteNames = JSON.parse(rawData.textContent || '[]');
+            } catch (error) {
+                stanzetteNames = [];
+            }
+
+            const titleSection = stanzetteCard.querySelector('.turni-scorrimento-footer-title');
+            Array.from(stanzetteCard.children).forEach((child) => {
+                if (child !== titleSection) {
+                    child.remove();
+                }
+            });
+
+            stanzetteNames.forEach((name) => {
+                const row = document.createElement('div');
+                row.className = 'turni-scorrimento-footer-row is-value-only';
+
+                const value = document.createElement('div');
+                value.className = 'turni-scorrimento-footer-value is-full';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = 'scorrimento_department_names_3';
+                input.value = String(name || '');
+
+                value.appendChild(input);
+                row.appendChild(value);
+                stanzetteCard.appendChild(row);
+                bindPlannerInput(input);
             });
         }
 
@@ -2456,6 +2949,8 @@
             plannerForm.querySelectorAll('input[type="text"]').forEach((input) => {
                 bindPlannerInput(input);
             });
+
+            ensureScorrimentoStanzetteCard();
 
             weekendRowSections.forEach((section) => {
                 refreshWeekendRowControls(section);
