@@ -14,7 +14,7 @@ from reportlab.lib.pagesizes import A4, landscape, portrait
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as pdf_canvas
-from reportlab.platypus import Image, KeepInFrame, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Flowable, Image, KeepInFrame, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .workbook import WEEKEND_COLUMN_LABELS, WeeklySectionData
 
@@ -113,6 +113,89 @@ class WeekendPdfCanvas(pdf_canvas.Canvas):
             )
             super().showPage()
         super().save()
+
+
+class CertificationPanelFlowable(Flowable):
+    def __init__(
+        self,
+        *,
+        width_mm: float,
+        styles: dict[str, ParagraphStyle],
+        logo_path: Path | None,
+        cert_logo_path: Path | None,
+        anid_logo_path: Path | None,
+    ):
+        super().__init__()
+        self.width = width_mm * mm
+        self.height = 27 * mm
+        self._styles = styles
+        self._logo_path = logo_path
+        self._cert_logo_path = cert_logo_path
+        self._anid_logo_path = anid_logo_path
+
+    def wrap(self, availWidth, availHeight):
+        return min(availWidth, self.width), self.height
+
+    def draw(self):
+        canvas = self.canv
+        width = self.width
+        height = self.height
+        shadow_offset = 0.8 * mm
+        radius = 3 * mm
+
+        canvas.saveState()
+        canvas.setFillColor(colors.HexColor("#DCE8F8"))
+        canvas.roundRect(shadow_offset, -shadow_offset, width, height, radius, fill=1, stroke=0)
+        canvas.setFillColor(colors.white)
+        canvas.roundRect(0, 0, width, height, radius, fill=1, stroke=0)
+        canvas.setStrokeColor(BRAND_BLUE)
+        canvas.setLineWidth(0.7)
+        canvas.roundRect(0, 0, width, height, radius, fill=0, stroke=1)
+
+        logo_box_width = min(21 * mm, (width - (18 * mm)) / 3)
+        logo_box_height = 10.5 * mm
+        gap = (width - (logo_box_width * 3)) / 4
+        start_x = gap
+        logo_top_y = height - logo_box_height - (2.3 * mm)
+        logo_slots = [
+            (self._logo_path, start_x),
+            (self._cert_logo_path, start_x + logo_box_width + gap),
+            (self._anid_logo_path, start_x + ((logo_box_width + gap) * 2)),
+        ]
+        for image_path, slot_x in logo_slots:
+            canvas.setStrokeColor(colors.HexColor("#D7E4F7"))
+            canvas.setLineWidth(0.35)
+            canvas.roundRect(slot_x, logo_top_y, logo_box_width, logo_box_height, 1.8 * mm, fill=0, stroke=1)
+            if image_path and image_path.exists():
+                canvas.drawImage(
+                    str(image_path),
+                    slot_x + (0.7 * mm),
+                    logo_top_y + (0.7 * mm),
+                    width=logo_box_width - (1.4 * mm),
+                    height=logo_box_height - (1.4 * mm),
+                    mask="auto",
+                    preserveAspectRatio=True,
+                    anchor="c",
+                )
+
+        separator_y = 11.6 * mm
+        canvas.setStrokeColor(colors.HexColor("#D7E4F7"))
+        canvas.setLineWidth(0.4)
+        canvas.line(4 * mm, separator_y, width - (4 * mm), separator_y)
+
+        text_width = width - (8 * mm)
+        text_x = 4 * mm
+        text_story = [
+            _paragraph("Organismo accreditato da ACCREDIA", self._styles["certMini"]),
+            _paragraph("Certificazione SGQ / SGA  |  UNI EN 16636 N.102PSE", self._styles["certBody"]),
+            _paragraph("Associata ANID", self._styles["certMini"]),
+        ]
+        current_y = separator_y - (1.1 * mm)
+        for paragraph in text_story:
+            _, paragraph_height = paragraph.wrap(text_width, 8 * mm)
+            paragraph.drawOn(canvas, text_x, current_y - paragraph_height)
+            current_y -= paragraph_height + (0.35 * mm)
+        canvas.restoreState()
 
 
 def _styles() -> dict[str, ParagraphStyle]:
@@ -1162,46 +1245,6 @@ def _build_scorrimento_legend_table(styles: dict[str, ParagraphStyle], width_mm:
     return table
 
 
-def _build_scorrimento_logo_strip(
-    width_mm: float,
-    *,
-    logo_path: Path | None = None,
-    cert_logo_path: Path | None = None,
-    anid_logo_path: Path | None = None,
-) -> Table:
-    logo_cells = []
-    for image_path in (logo_path, cert_logo_path, anid_logo_path):
-        if image_path and image_path.exists():
-            logo_cells.append(
-                Image(
-                    str(image_path),
-                    width=12.8 * mm,
-                    height=8.8 * mm,
-                    kind="proportional",
-                )
-            )
-        else:
-            logo_cells.append("")
-
-    table = Table([logo_cells], colWidths=[(width_mm / 3) * mm] * 3, rowHeights=[10.2 * mm])
-    table.setStyle(
-        TableStyle(
-            [
-                ("BOX", (0, 0), (-1, -1), 0.9, BRAND_NAVY),
-                ("INNERGRID", (0, 0), (-1, -1), 0.55, BRAND_NAVY),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 1),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
-                ("TOPPADDING", (0, 0), (-1, -1), 1),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-            ]
-        )
-    )
-    return table
-
-
 def _build_scorrimento_legend_logo_block(
     styles: dict[str, ParagraphStyle],
     width_mm: float,
@@ -1211,14 +1254,15 @@ def _build_scorrimento_legend_logo_block(
     anid_logo_path: Path | None = None,
 ) -> Table:
     legend_table = _build_scorrimento_legend_table(styles, width_mm)
-    logo_table = _build_scorrimento_logo_strip(
-        width_mm,
+    logo_panel = CertificationPanelFlowable(
+        width_mm=width_mm,
+        styles=styles,
         logo_path=logo_path,
         cert_logo_path=cert_logo_path,
         anid_logo_path=anid_logo_path,
     )
     table = Table(
-        [[legend_table], [logo_table]],
+        [[legend_table], [logo_panel]],
         colWidths=[width_mm * mm],
         rowHeights=[None, None],
     )
