@@ -216,25 +216,72 @@
 
     .turni-week-mail-details {
         width: 100%;
+        border: 1px solid rgba(37, 99, 235, 0.22);
+        border-radius: 14px;
+        background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
     }
 
     .turni-week-mail-details summary {
         cursor: pointer;
         list-style: none;
-        font-size: 0.82rem;
-        color: #475569;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #1d4ed8;
         user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.75rem 0.9rem;
     }
 
     .turni-week-mail-details summary::-webkit-details-marker {
         display: none;
     }
 
+    .turni-week-mail-summary-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+    }
+
+    .turni-week-mail-summary-title {
+        line-height: 1.2;
+    }
+
+    .turni-week-mail-summary-note {
+        font-size: 0.76rem;
+        font-weight: 500;
+        color: #475569;
+    }
+
+    .turni-week-mail-summary-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.8rem;
+        height: 1.8rem;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.12);
+    }
+
     .turni-week-mail-fields {
         display: flex;
         flex-direction: column;
         gap: 0.45rem;
-        margin-top: 0.45rem;
+        margin-top: 0;
+        padding: 0 0.9rem 0.9rem;
+    }
+
+    .turni-week-mail-format-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1rem;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 12px;
+        background: #ffffff;
     }
 
     .turni-week-mail-attachments {
@@ -1078,13 +1125,32 @@
                                                 <i class="bi bi-envelope-paper"></i>
                                             </button>
                                         </div>
-                                        <details class="turni-week-mail-details">
-                                            <summary>Dettagli mail</summary>
+                                        <details class="turni-week-mail-details" open>
+                                            <summary>
+                                                <span class="turni-week-mail-summary-text">
+                                                    <span class="turni-week-mail-summary-title">Scegli che turno inviare</span>
+                                                    <span class="turni-week-mail-summary-note">Seleziona turni e formato allegati prima dell'invio</span>
+                                                </span>
+                                                <span class="turni-week-mail-summary-icon"><i class="bi bi-sliders"></i></span>
+                                            </summary>
                                             <div class="turni-week-mail-fields">
                                                 <input type="text" name="mail_subject" class="form-control form-control-sm" placeholder="Oggetto mail" aria-label="Oggetto mail per {{ week.week_label }}" data-turni-mail-subject>
                                                 <textarea name="mail_body" class="form-control form-control-sm" rows="3" placeholder="Testo mail" aria-label="Testo mail per {{ week.week_label }}" data-turni-mail-body></textarea>
                                                 <div>
-                                                    <div class="turni-week-mail-attachments-label">Allegati da inviare</div>
+                                                    <div class="turni-week-mail-attachments-label">Formato allegati</div>
+                                                    <div class="turni-week-mail-format-options">
+                                                        <label class="turni-week-mail-attachment-option">
+                                                            <input type="checkbox" name="mail_file_type" value="pdf" checked data-turni-mail-file-type>
+                                                            <span>PDF</span>
+                                                        </label>
+                                                        <label class="turni-week-mail-attachment-option">
+                                                            <input type="checkbox" name="mail_file_type" value="jpg" checked data-turni-mail-file-type>
+                                                            <span>JPG</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div class="turni-week-mail-attachments-label">Turni da inviare</div>
                                                     <div class="turni-week-mail-attachments">
                                                         {% for attachment_option in mail_attachment_options %}
                                                         <label class="turni-week-mail-attachment-option">
@@ -3039,6 +3105,7 @@
             const bodyInput = form.querySelector('[data-turni-mail-body]');
             const fillLastButton = form.querySelector('[data-turni-mail-fill-last]');
             const attachmentInputs = Array.from(form.querySelectorAll('[data-turni-mail-attachment]'));
+            const fileTypeInputs = Array.from(form.querySelectorAll('[data-turni-mail-file-type]'));
 
             if (fillLastButton) {
                 fillLastButton.addEventListener('click', function () {
@@ -3058,6 +3125,12 @@
                             input.checked = selectedAttachments.has(input.value);
                         });
                     }
+                    if (Array.isArray(storedDraft.fileTypes) && fileTypeInputs.length) {
+                        const selectedFileTypes = new Set(storedDraft.fileTypes);
+                        fileTypeInputs.forEach((input) => {
+                            input.checked = selectedFileTypes.has(input.value);
+                        });
+                    }
                 });
             }
 
@@ -3067,6 +3140,7 @@
                     subject: subjectInput ? subjectInput.value : '',
                     body: bodyInput ? bodyInput.value : '',
                     attachments: attachmentInputs.filter((input) => input.checked).map((input) => input.value),
+                    fileTypes: fileTypeInputs.filter((input) => input.checked).map((input) => input.value),
                 });
             });
         });

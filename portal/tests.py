@@ -1213,6 +1213,7 @@ class TurniPlannerAccessTests(TestCase):
 				"mail_subject": "Turni selezionati",
 				"mail_body": "Invio solo gli allegati richiesti.",
 				"mail_attachment": ["scorrimento", "portineria_weekend"],
+				"mail_file_type": ["pdf", "jpg"],
 			},
 		)
 
@@ -1232,6 +1233,49 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertIn("- Scorrimento estate", email_message.body)
 		self.assertIn("- Sabato - Domenica e festivi Portineria", email_message.body)
 		self.assertNotIn("Turno settimanale", email_message.body)
+
+	def test_turni_planner_mail_can_send_pdf_only_for_selected_attachments(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 35 da Lunedi 24/08/2026 a Sabato 29/08/2026",
+			planner_data={
+				"weekly": {
+					"headers": [f"Reparto {index}" for index in range(1, 11)],
+					"central_departments": [""] * 10,
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:00"] * 10, "rows": [["Mario"] * 10, ["Luigi"] * 10, ["Anna"] * 10]},
+						{"label": "2 turno", "time_values": ["14:00"] * 10, "rows": [["Paolo"] * 10, ["Gina"] * 10, ["Luca"] * 10]},
+						{"label": "3 turno", "time_values": ["22:00"] * 10, "rows": [["Sara"] * 10, ["Piero"] * 10, ["Marta"] * 10]},
+						{"label": "turno centrale", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+					],
+				},
+				"scorrimento": {
+					"title": "Scorrimento fine agosto",
+					"base_date": "29/08/2026",
+					"rows": [["29/08/2026", "Mattina", "Mario Rossi", "Capo S", "Scorrimento", "Reparto S"]],
+				},
+			},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "generate_weekend_email",
+				"week_label": state.week_label,
+				"mail_recipients": "turni@example.com",
+				"mail_subject": "Solo PDF",
+				"mail_body": "Invio il solo PDF richiesto.",
+				"mail_attachment": ["scorrimento"],
+				"mail_file_type": ["pdf"],
+			},
+		)
+
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}&mail_status=success&mail_message=Email%20inviata%20a%3A%20turni%40example.com")
+		self.assertEqual(len(mail.outbox), 1)
+		email_message = mail.outbox[0]
+		attachment_names = sorted(attachment[0] for attachment in email_message.attachments)
+		self.assertEqual(attachment_names, ["Scorrimento.pdf"])
+		self.assertIn("- Scorrimento fine agosto", email_message.body)
 
 	def test_turni_planner_exports_weekly_pdf_download(self):
 		state = TurniPlannerWeekState.objects.create(

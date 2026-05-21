@@ -1309,7 +1309,7 @@ TURNI_PLANNER_MAIL_ATTACHMENT_OPTIONS = [
 ]
 
 
-def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_text='', body_text='', selected_attachment_keys=None):
+def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_text='', body_text='', selected_attachment_keys=None, selected_file_types=None):
     planner_data = dict(state.planner_data or {})
     logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
     ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
@@ -1380,6 +1380,19 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
         }
         if not normalized_attachment_keys:
             raise ValueError('Seleziona almeno un allegato da inviare.')
+    normalized_file_types = None
+    if selected_file_types is not None:
+        normalized_file_types = {
+            value.strip().lower()
+            for value in selected_file_types
+            if value and value.strip()
+        }
+        normalized_file_types &= {'pdf', 'jpg'}
+        if not normalized_file_types:
+            raise ValueError('Seleziona almeno un formato da inviare.')
+
+    include_pdf = normalized_file_types is None or 'pdf' in normalized_file_types
+    include_jpg = normalized_file_types is None or 'jpg' in normalized_file_types
 
     with tempfile.TemporaryDirectory(prefix='turni_planner_weekend_mail_') as temp_dir:
         export_dir = Path(temp_dir)
@@ -1402,21 +1415,24 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
                 logo_path=logo_path,
                 layout=config['layout'],
             )
-            attachments.append((config['pdf_name'], pdf_path.read_bytes(), 'application/pdf'))
+            if include_pdf:
+                attachments.append((config['pdf_name'], pdf_path.read_bytes(), 'application/pdf'))
 
-            image_paths = export_weekly_images(
-                export_dir / config['image_name'],
-                title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
-                week_label=export_week_label,
-                signature='',
-                headers=headers,
-                sections=sections,
-                logo_path=logo_path,
-                temp_pdf_name=config['pdf_name'],
-                layout=config['layout'],
-            )
-            attachments.append((config['image_name'], _turni_combined_jpg_bytes(image_paths), 'image/jpeg'))
-            attachment_labels.append(config['title'])
+            if include_jpg:
+                image_paths = export_weekly_images(
+                    export_dir / config['image_name'],
+                    title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                    week_label=export_week_label,
+                    signature='',
+                    headers=headers,
+                    sections=sections,
+                    logo_path=logo_path,
+                    temp_pdf_name=config['pdf_name'],
+                    layout=config['layout'],
+                )
+                attachments.append((config['image_name'], _turni_combined_jpg_bytes(image_paths), 'image/jpeg'))
+            if include_pdf or include_jpg:
+                attachment_labels.append(config['title'])
 
         for config in weekend_configs:
             if normalized_attachment_keys is not None and config['key'] not in normalized_attachment_keys:
@@ -1434,13 +1450,15 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
                 cert_logo_path=ancis_logo_path,
                 anid_logo_path=anid_logo_path,
             )
-            image_paths = export_weekend_images(
-                export_dir / config['image_name'],
-                data=export_data,
-                logo_path=logo_path,
-                cert_logo_path=ancis_logo_path,
-                anid_logo_path=anid_logo_path,
-            )
+            image_paths = []
+            if include_jpg:
+                image_paths = export_weekend_images(
+                    export_dir / config['image_name'],
+                    data=export_data,
+                    logo_path=logo_path,
+                    cert_logo_path=ancis_logo_path,
+                    anid_logo_path=anid_logo_path,
+                )
             if config['key'] == 'scorrimento':
                 exported_path = export_scorrimento_pdf(
                     export_dir / config['pdf_name'],
@@ -1449,22 +1467,31 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
                     cert_logo_path=ancis_logo_path,
                     anid_logo_path=anid_logo_path,
                 )
-                image_paths = export_scorrimento_images(
-                    export_dir / config['image_name'],
-                    data=_turni_scorrimento_export_data(raw_weekend_data),
-                    logo_path=logo_path,
-                    cert_logo_path=ancis_logo_path,
-                    anid_logo_path=anid_logo_path,
-                )
-            attachments.append((config['pdf_name'], exported_path.read_bytes(), 'application/pdf'))
-            attachments.append((config['image_name'], _turni_combined_jpg_bytes(image_paths), 'image/jpeg'))
-            attachment_labels.append(export_data.title or config['title'])
+                if include_jpg:
+                    image_paths = export_scorrimento_images(
+                        export_dir / config['image_name'],
+                        data=_turni_scorrimento_export_data(raw_weekend_data),
+                        logo_path=logo_path,
+                        cert_logo_path=ancis_logo_path,
+                        anid_logo_path=anid_logo_path,
+                    )
+            if include_pdf:
+                attachments.append((config['pdf_name'], exported_path.read_bytes(), 'application/pdf'))
+            if include_jpg:
+                attachments.append((config['image_name'], _turni_combined_jpg_bytes(image_paths), 'image/jpeg'))
+            if include_pdf or include_jpg:
+                attachment_labels.append(export_data.title or config['title'])
 
     recipients = _turni_email_recipients_from_text(recipient_text)
     if not recipients:
         raise ValueError('Inserisci almeno un destinatario email.')
     subject = subject_text.strip() or f'Turni planner {state.week_label}'
     normalized_body = (body_text or '').replace('\r\n', '\n').replace('\r', '\n').strip('\n')
+    format_label = 'PDF e JPG'
+    if include_pdf and not include_jpg:
+        format_label = 'PDF'
+    elif include_jpg and not include_pdf:
+        format_label = 'JPG'
     if normalized_body:
         body_lines = normalized_body.split('\n')
         body_lines.extend([
@@ -1475,7 +1502,7 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
         body_lines = [
             'Buongiorno,',
             '',
-            f'in allegato trovate i PDF e i JPG del planner della settimana {state.week_label}.',
+            f'in allegato trovate i {format_label} del planner della settimana {state.week_label}.',
             '',
             'Allegati inclusi:',
         ]
@@ -4877,6 +4904,7 @@ def turni_planner_home(request):
                         subject_text=(request.POST.get('mail_subject') or '').strip(),
                         body_text=request.POST.get('mail_body') or '',
                         selected_attachment_keys=request.POST.getlist('mail_attachment') or None,
+                        selected_file_types=request.POST.getlist('mail_file_type') or None,
                     )
                 except ValueError as error:
                     return redirect(
