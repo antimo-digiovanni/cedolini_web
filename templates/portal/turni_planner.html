@@ -333,11 +333,35 @@
     }
 
     .turni-week-mail-fields {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.78fr) minmax(300px, 1.22fr);
+        gap: 0.75rem;
+        margin-top: 0;
+        padding: 0 0.9rem 0.9rem;
+        align-items: start;
+    }
+
+    .turni-week-mail-text-fields {
         display: flex;
         flex-direction: column;
         gap: 0.45rem;
-        margin-top: 0;
-        padding: 0 0.9rem 0.9rem;
+        min-width: 0;
+    }
+
+    .turni-week-mail-selection-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        min-width: 0;
+    }
+
+    .turni-week-mail-subject {
+        max-width: 100%;
+    }
+
+    .turni-week-mail-body {
+        min-height: 116px;
+        resize: vertical;
     }
 
     .turni-week-mail-format-options {
@@ -1137,6 +1161,10 @@
             min-width: 0;
             width: 100%;
         }
+
+        .turni-week-mail-fields {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 <div class="container">
@@ -1223,30 +1251,34 @@
                                                 <span class="turni-week-mail-summary-icon"><i class="bi bi-sliders"></i></span>
                                             </summary>
                                             <div class="turni-week-mail-fields">
-                                                <input type="text" name="mail_subject" class="form-control form-control-sm" placeholder="Oggetto mail" aria-label="Oggetto mail per {{ week.week_label }}" data-turni-mail-subject>
-                                                <textarea name="mail_body" class="form-control form-control-sm" rows="3" placeholder="Testo mail" aria-label="Testo mail per {{ week.week_label }}" data-turni-mail-body></textarea>
-                                                <div>
-                                                    <div class="turni-week-mail-attachments-label">Formato allegati</div>
-                                                    <div class="turni-week-mail-format-options">
-                                                        <label class="turni-week-mail-attachment-option">
-                                                            <input type="checkbox" name="mail_file_type" value="pdf" checked data-turni-mail-file-type>
-                                                            <span>PDF</span>
-                                                        </label>
-                                                        <label class="turni-week-mail-attachment-option">
-                                                            <input type="checkbox" name="mail_file_type" value="jpg" checked data-turni-mail-file-type>
-                                                            <span>JPG</span>
-                                                        </label>
+                                                <div class="turni-week-mail-text-fields">
+                                                    <input type="text" name="mail_subject" class="form-control form-control-sm turni-week-mail-subject" placeholder="Oggetto mail" aria-label="Oggetto mail per {{ week.week_label }}" data-turni-mail-subject>
+                                                    <textarea name="mail_body" class="form-control form-control-sm turni-week-mail-body" rows="4" placeholder="Testo mail" aria-label="Testo mail per {{ week.week_label }}" data-turni-mail-body></textarea>
+                                                    <div>
+                                                        <div class="turni-week-mail-attachments-label">Formato allegati</div>
+                                                        <div class="turni-week-mail-format-options">
+                                                            <label class="turni-week-mail-attachment-option">
+                                                                <input type="checkbox" name="mail_file_type" value="pdf" checked data-turni-mail-file-type>
+                                                                <span>PDF</span>
+                                                            </label>
+                                                            <label class="turni-week-mail-attachment-option">
+                                                                <input type="checkbox" name="mail_file_type" value="jpg" checked data-turni-mail-file-type>
+                                                                <span>JPG</span>
+                                                            </label>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <div class="turni-week-mail-attachments-label">Turni da inviare</div>
-                                                    <div class="turni-week-mail-attachments">
-                                                        {% for attachment_option in mail_attachment_options %}
-                                                        <label class="turni-week-mail-attachment-option">
-                                                            <input type="checkbox" name="mail_attachment" value="{{ attachment_option.key }}" checked data-turni-mail-attachment>
-                                                            <span>{{ attachment_option.label }}</span>
-                                                        </label>
-                                                        {% endfor %}
+                                                <div class="turni-week-mail-selection-fields">
+                                                    <div>
+                                                        <div class="turni-week-mail-attachments-label">Turni da inviare</div>
+                                                        <div class="turni-week-mail-attachments">
+                                                            {% for attachment_option in mail_attachment_options %}
+                                                            <label class="turni-week-mail-attachment-option">
+                                                                <input type="checkbox" name="mail_attachment" value="{{ attachment_option.key }}" checked data-turni-mail-attachment>
+                                                                <span>{{ attachment_option.label }}</span>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
