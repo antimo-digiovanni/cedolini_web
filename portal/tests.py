@@ -1065,10 +1065,28 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertIn("Scorrimento.pdf", response["Content-Disposition"])
 		self.assertTrue(response.content.startswith(b"%PDF"))
 
-	def test_turni_planner_generates_weekend_mail_with_jolly_attachment_only_if_compiled(self):
+	def test_turni_planner_generates_mail_with_all_pdf_and_jpg_attachments(self):
 		state = TurniPlannerWeekState.objects.create(
 			week_label="Week 33 da Lunedi 10/08/2026 a Sabato 15/08/2026",
 			planner_data={
+				"weekly": {
+					"headers": [f"Reparto {index}" for index in range(1, 11)],
+					"central_departments": [""] * 10,
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:00"] * 10, "rows": [["Mario"] * 10, ["Luigi"] * 10, ["Anna"] * 10]},
+						{"label": "2 turno", "time_values": ["14:00"] * 10, "rows": [["Paolo"] * 10, ["Gina"] * 10, ["Luca"] * 10]},
+						{"label": "3 turno", "time_values": ["22:00"] * 10, "rows": [["Sara"] * 10, ["Piero"] * 10, ["Marta"] * 10]},
+						{"label": "turno centrale", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+					],
+				},
+				"portineria_weekly": {
+					"headers": ["PORTINERIA CENTRALE", "CENTRALINISTA", "PORTINERIA CELLA"],
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:14", "08:17", "06:14"], "rows": [["A", "B", "C"], ["", "", ""], ["", "", ""]]},
+						{"label": "2 turno", "time_values": ["14:22", "", "14:22"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+						{"label": "3 turno", "time_values": ["22:06", "", "22:06"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+					],
+				},
 				"saturday": {
 					"base_date": "15/08/2026",
 					"rows": [["15/08/2026", "Mattina", "Sabato A", "Capo A", "Presidio", "Reparto A"]],
@@ -1113,45 +1131,30 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertEqual(
 			attachment_names,
 			sorted([
+				"Turno settimanale.pdf",
+				"Turno settimanale.jpg",
+				"Turno settimanale portineria.pdf",
+				"Turno settimanale portineria.jpg",
 				"Comandata sabato.pdf",
+				"Comandata sabato.jpg",
 				"Comandata domenica.pdf",
+				"Comandata domenica.jpg",
 				"Comandata jolly.pdf",
+				"Comandata jolly.jpg",
 				"Scorrimento.pdf",
+				"Scorrimento.jpg",
 				"Comandata Sabato - Domenica e festivi Portineria.pdf",
+				"Comandata Sabato - Domenica e festivi Portineria.jpg",
 			]),
 		)
 		self.assertEqual(email_message.to, ["turni@example.com", "caposervizio@example.com"])
 		self.assertEqual(email_message.subject, "Turni weekend Ferragosto")
 		self.assertIn("Buongiorno team,", email_message.body)
 		self.assertIn("invio i PDF weekend aggiornati.", email_message.body)
+		self.assertIn("Turno settimanale", email_message.body)
+		self.assertIn("Turno settimanale portineria", email_message.body)
 		self.assertIn("Comandata ferragosto", email_message.body)
 		self.assertIn("Scorrimento ferragosto", email_message.body)
-
-		state.planner_data["jolly_weekend"] = {"title": "", "base_date": "", "rows": [["", "", "", "", "", ""]]}
-		state.planner_data["scorrimento"] = {"title": "", "base_date": "", "rows": [["", "", "", "", "", ""]]}
-		state.save(update_fields=["planner_data"])
-		mail.outbox = []
-
-		response_without_jolly = self.client.post(
-			reverse("turni_planner_home"),
-			{
-				"action": "generate_weekend_email",
-				"week_label": state.week_label,
-				"mail_recipients": "turni@example.com",
-			},
-		)
-
-		self.assertRedirects(response_without_jolly, f"{reverse('turni_planner_home')}?week={state.week_label}&mail_status=success&mail_message=Email%20inviata%20a%3A%20turni%40example.com")
-		self.assertEqual(len(mail.outbox), 1)
-		attachment_names_without_jolly = sorted(attachment[0] for attachment in mail.outbox[0].attachments)
-		self.assertEqual(
-			attachment_names_without_jolly,
-			sorted([
-				"Comandata sabato.pdf",
-				"Comandata domenica.pdf",
-				"Comandata Sabato - Domenica e festivi Portineria.pdf",
-			]),
-		)
 
 	def test_turni_planner_exports_weekly_pdf_download(self):
 		state = TurniPlannerWeekState.objects.create(

@@ -1304,36 +1304,57 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
     ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
     anid_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANID_LOGO_PATH)
 
+    weekly_configs = [
+        {
+            'key': 'weekly',
+            'pdf_name': WEEKLY_PDF_NAME,
+            'image_name': WEEKLY_IMAGE_NAME,
+            'title': 'Turno settimanale',
+            'layout': 'default',
+            'builder': lambda: _turni_weekly_sections_for_export(planner_data.get('weekly')),
+            'label_key': 'weekly_export_week_label',
+        },
+        {
+            'key': 'portineria_weekly',
+            'pdf_name': PORTINERIA_WEEKLY_PDF_NAME,
+            'image_name': PORTINERIA_WEEKLY_IMAGE_NAME,
+            'title': 'Turno settimanale portineria',
+            'layout': 'portineria',
+            'builder': lambda: _turni_portineria_weekly_sections_for_export(planner_data.get('portineria_weekly')),
+            'label_key': 'portineria_weekly_export_week_label',
+        },
+    ]
+
     weekend_configs = [
         {
             'key': 'saturday',
             'pdf_name': SATURDAY_PDF_NAME,
+            'image_name': SATURDAY_IMAGE_NAME,
             'title': 'Comandata sabato',
-            'include_if_empty': True,
         },
         {
             'key': 'sunday',
             'pdf_name': SUNDAY_PDF_NAME,
+            'image_name': SUNDAY_IMAGE_NAME,
             'title': 'Comandata domenica',
-            'include_if_empty': True,
         },
         {
             'key': 'jolly_weekend',
             'pdf_name': JOLLY_WEEKEND_PDF_NAME,
+            'image_name': JOLLY_WEEKEND_IMAGE_NAME,
             'title': 'Comandata jolly',
-            'include_if_empty': False,
         },
         {
             'key': 'scorrimento',
             'pdf_name': SCORRIMENTO_PDF_NAME,
+            'image_name': SCORRIMENTO_IMAGE_NAME,
             'title': 'Scorrimento',
-            'include_if_empty': False,
         },
         {
             'key': 'portineria_weekend',
             'pdf_name': PORTINERIA_WEEKEND_PDF_NAME,
+            'image_name': PORTINERIA_WEEKEND_IMAGE_NAME,
             'title': 'Sabato - Domenica e festivi Portineria',
-            'include_if_empty': True,
         },
     ]
 
@@ -1342,11 +1363,41 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
 
     with tempfile.TemporaryDirectory(prefix='turni_planner_weekend_mail_') as temp_dir:
         export_dir = Path(temp_dir)
+        for config in weekly_configs:
+            export_week_label = _resolve_turni_export_week_label(
+                planner_data,
+                state.week_label,
+                key=config['label_key'],
+            )
+            headers, sections = config['builder']()
+            pdf_path = export_weekly_pdf(
+                export_dir / config['pdf_name'],
+                title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                week_label=export_week_label,
+                signature='',
+                headers=headers,
+                sections=sections,
+                logo_path=logo_path,
+                layout=config['layout'],
+            )
+            attachments.append((config['pdf_name'], pdf_path.read_bytes(), 'application/pdf'))
+
+            image_paths = export_weekly_images(
+                export_dir / config['image_name'],
+                title_text=TURNI_DEFAULT_WEEKLY_PDF_TITLE,
+                week_label=export_week_label,
+                signature='',
+                headers=headers,
+                sections=sections,
+                logo_path=logo_path,
+                temp_pdf_name=config['pdf_name'],
+                layout=config['layout'],
+            )
+            attachments.append((config['image_name'], _turni_combined_jpg_bytes(image_paths), 'image/jpeg'))
+            attachment_labels.append(config['title'])
+
         for config in weekend_configs:
             raw_weekend_data = planner_data.get(config['key'])
-            if not config['include_if_empty'] and not _turni_planner_data_has_content(raw_weekend_data):
-                continue
-
             export_data = _turni_weekend_export_data(
                 raw_weekend_data,
                 title=config['title'],
@@ -1354,6 +1405,13 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
             )
             exported_path = export_weekend_pdf(
                 export_dir / config['pdf_name'],
+                data=export_data,
+                logo_path=logo_path,
+                cert_logo_path=ancis_logo_path,
+                anid_logo_path=anid_logo_path,
+            )
+            image_paths = export_weekend_images(
+                export_dir / config['image_name'],
                 data=export_data,
                 logo_path=logo_path,
                 cert_logo_path=ancis_logo_path,
@@ -1367,13 +1425,21 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
                     cert_logo_path=ancis_logo_path,
                     anid_logo_path=anid_logo_path,
                 )
-            attachments.append((config['pdf_name'], exported_path.read_bytes()))
+                image_paths = export_scorrimento_images(
+                    export_dir / config['image_name'],
+                    data=_turni_scorrimento_export_data(raw_weekend_data),
+                    logo_path=logo_path,
+                    cert_logo_path=ancis_logo_path,
+                    anid_logo_path=anid_logo_path,
+                )
+            attachments.append((config['pdf_name'], exported_path.read_bytes(), 'application/pdf'))
+            attachments.append((config['image_name'], _turni_combined_jpg_bytes(image_paths), 'image/jpeg'))
             attachment_labels.append(export_data.title or config['title'])
 
     recipients = _turni_email_recipients_from_text(recipient_text)
     if not recipients:
         raise ValueError('Inserisci almeno un destinatario email.')
-    subject = subject_text.strip() or f'Turni weekend {state.week_label}'
+    subject = subject_text.strip() or f'Turni planner {state.week_label}'
     normalized_body = (body_text or '').replace('\r\n', '\n').replace('\r', '\n').strip('\n')
     if normalized_body:
         body_lines = normalized_body.split('\n')
@@ -1385,7 +1451,7 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
         body_lines = [
             'Buongiorno,',
             '',
-            f'in allegato trovate i PDF weekend della settimana {state.week_label}.',
+            f'in allegato trovate i PDF e i JPG del planner della settimana {state.week_label}.',
             '',
             'Allegati inclusi:',
         ]
@@ -1401,8 +1467,8 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
         from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', '') or 'cedolini@sanvincenzosrl.com',
         to=recipients,
     )
-    for filename, content in attachments:
-        email.attach(filename, content, 'application/pdf')
+    for filename, content, content_type in attachments:
+        email.attach(filename, content, content_type)
     email.send(fail_silently=False)
     return recipients
 
