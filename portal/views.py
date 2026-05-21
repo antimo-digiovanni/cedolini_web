@@ -1524,6 +1524,26 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
     return recipients
 
 
+def _employee_admin_display_name(employee):
+    parts = [part.strip() for part in (employee.first_name, employee.last_name) if part and part.strip()]
+    if parts:
+        return ' '.join(parts)
+    return getattr(getattr(employee, 'user', None), 'username', '') or ''
+
+
+def _employee_name_sort_key(employee):
+    first_name = (employee.first_name or '').strip().casefold()
+    last_name = (employee.last_name or '').strip().casefold()
+    username = (getattr(getattr(employee, 'user', None), 'username', '') or '').strip().casefold()
+    return (first_name, last_name, username, employee.id)
+
+
+def _decorate_employee_display_names(employees):
+    for employee in employees:
+        employee.display_name = _employee_admin_display_name(employee)
+    return employees
+
+
 def _normalize_import_name(value):
     value = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode('ascii')
     value = value.lower().replace("'", ' ')
@@ -3850,7 +3870,9 @@ def admin_timekeeping(request):
         feedback = 'Richiesta di cancellazione non valida.'
         feedback_level = 'danger'
 
-    employees = Employee.objects.order_by('last_name', 'first_name')
+    employees = list(Employee.objects.select_related('user'))
+    _decorate_employee_display_names(employees)
+    employees.sort(key=_employee_name_sort_key)
 
     month_choices = [
         (1, 'Gennaio'),
@@ -3873,7 +3895,7 @@ def admin_timekeeping(request):
     selected_employee = None
     if not all_mode:
         if employee_filter:
-            selected_employee = employees.filter(id=employee_filter).first()
+            selected_employee = next((employee for employee in employees if str(employee.id) == employee_filter), None)
 
     rows = []
     total_minutes = 0
@@ -3895,6 +3917,10 @@ def admin_timekeeping(request):
         .filter(status=VacationRequest.STATUS_PENDING)
         .order_by('-created_at')[:20]
     )
+    for request_obj in pending_mark_requests:
+        request_obj.employee.display_name = _employee_admin_display_name(request_obj.employee)
+    for request_obj in pending_vacation_requests:
+        request_obj.employee.display_name = _employee_admin_display_name(request_obj.employee)
 
     # Backfill in lettura: include nel report mensile eventuali approvazioni storiche.
     if all_mode:
@@ -3935,8 +3961,9 @@ def admin_timekeeping(request):
             matrix_employees = list(
                 Employee.objects
                 .filter(id__in=employee_ids)
-                .order_by('last_name', 'first_name')
             )
+            _decorate_employee_display_names(matrix_employees)
+            matrix_employees.sort(key=_employee_name_sort_key)
         else:
             matrix_employees = []
 
@@ -3969,7 +3996,7 @@ def admin_timekeeping(request):
             writer.writerow(['Dipendente'] + day_headers + ['Totale ore lavorate'])
             for row in matrix_rows:
                 writer.writerow(
-                    [row['employee'].full_name]
+                    [row['employee'].display_name]
                     + [cell['value'] for cell in row['cells']]
                     + [row['month_total']]
                 )
@@ -5441,8 +5468,9 @@ def admin_employees(request):
         Employee.objects
         .select_related('user')
         .annotate(payslip_count=Count('payslips'))
-        .order_by('last_name', 'first_name')
     )
+    _decorate_employee_display_names(employees)
+    employees.sort(key=_employee_name_sort_key)
 
     registered_employees = [employee for employee in employees if employee.privacy_accepted]
     invited_employees = [employee for employee in employees if not employee.privacy_accepted and employee.invito_inviato]

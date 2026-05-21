@@ -332,6 +332,57 @@ class VacationRequestFlowTests(TestCase):
 		self.assertContains(report_response, "Ferie")
 		self.assertContains(report_response, "FERIE")
 
+	def test_admin_views_order_employees_by_first_name_without_changing_data(self):
+		first_user = get_user_model().objects.create_user(
+			username="zeno.alfa",
+			password="Password123!",
+		)
+		second_user = get_user_model().objects.create_user(
+			username="anna.zulu",
+			password="Password123!",
+		)
+		first_employee = Employee.objects.create(
+			user=first_user,
+			first_name="Zeno",
+			last_name="Alfa",
+		)
+		second_employee = Employee.objects.create(
+			user=second_user,
+			first_name="Anna",
+			last_name="Zulu",
+		)
+		WorkSession.objects.create(
+			employee=first_employee,
+			work_date=timezone.localdate(),
+			started_at=timezone.now(),
+		)
+		WorkSession.objects.create(
+			employee=second_employee,
+			work_date=timezone.localdate(),
+			started_at=timezone.now(),
+		)
+
+		self.client.force_login(self.admin_user)
+
+		employees_response = self.client.get(reverse("admin_employees"))
+		self.assertEqual(employees_response.status_code, 200)
+		employees_html = employees_response.content.decode()
+		self.assertLess(employees_html.index("Anna Zulu"), employees_html.index("Zeno Alfa"))
+
+		timekeeping_response = self.client.get(
+			reverse("admin_timekeeping"),
+			{
+				"employee": "all",
+				"month": timezone.localdate().month,
+				"year": timezone.localdate().year,
+			},
+		)
+		self.assertEqual(timekeeping_response.status_code, 200)
+		timekeeping_html = timekeeping_response.content.decode()
+		self.assertLess(timekeeping_html.index("Anna Zulu"), timekeeping_html.index("Zeno Alfa"))
+		self.assertEqual(Employee.objects.get(id=first_employee.id).last_name, "Alfa")
+		self.assertEqual(Employee.objects.get(id=second_employee.id).last_name, "Zulu")
+
 
 class EmployeePublishedTurniDashboardTests(TestCase):
 	def setUp(self):

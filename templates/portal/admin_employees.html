@@ -151,7 +151,7 @@
                         <tbody>
                             {% for emp in section.employees %}
                             <tr data-employee-id="{{ emp.id }}">
-                                <td>{{ emp.full_name }}</td>
+                                <td>{{ emp.display_name }}</td>
                                 <td class="emp-email">{{ emp.email_invio|default:'--' }}</td>
                                 <td>
                                     <button class="btn btn-outline-secondary btn-sm show-payslips-btn" data-emp-id="{{ emp.id }}">
@@ -189,7 +189,7 @@
                     <div class="employee-card" data-employee-id="{{ emp.id }}">
                         <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
                             <div>
-                                <div class="fw-semibold">{{ emp.full_name }}</div>
+                                <div class="fw-semibold">{{ emp.display_name }}</div>
                                 <div class="employee-card-meta emp-email">{{ emp.email_invio|default:'Email non impostata' }}</div>
                             </div>
                             <div>

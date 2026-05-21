@@ -99,7 +99,7 @@
             <tbody>
                 {% for req in pending_mark_requests %}
                 <tr>
-                    <td>{{ req.employee.full_name }}</td>
+                    <td>{{ req.employee.display_name }}</td>
                     <td>{{ req.work_date|date:"d/m/Y" }}</td>
                     <td>
                         {% if req.mark_type == 'start' %}
@@ -118,14 +118,14 @@
                                 <input type="hidden" name="action" value="approve_mark_request">
                                 <input type="hidden" name="request_id" value="{{ req.id }}">
                                 <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Nota (opzionale)">
-                                <button class="btn btn-sm btn-success" type="submit" data-confirm-title="Approva richiesta" data-confirm-message="Stai per approvare la richiesta fuori zona di {{ req.employee.full_name }} del {{ req.work_date|date:'d/m/Y' }}." data-confirm-note="Se presente, la nota verra salvata nella revisione." data-confirm-button="Approva" data-confirm-class="btn-success">Approva</button>
+                                <button class="btn btn-sm btn-success" type="submit" data-confirm-title="Approva richiesta" data-confirm-message="Stai per approvare la richiesta fuori zona di {{ req.employee.display_name }} del {{ req.work_date|date:'d/m/Y' }}." data-confirm-note="Se presente, la nota verra salvata nella revisione." data-confirm-button="Approva" data-confirm-class="btn-success">Approva</button>
                             </form>
                             <form method="post" class="d-flex gap-1">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="reject_mark_request">
                                 <input type="hidden" name="request_id" value="{{ req.id }}">
                                 <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Motivo rifiuto">
-                                <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Rifiuta richiesta" data-confirm-message="Stai per rifiutare la richiesta fuori zona di {{ req.employee.full_name }} del {{ req.work_date|date:'d/m/Y' }}." data-confirm-note="Aggiungi un motivo per mantenere la revisione chiara e tracciabile." data-confirm-button="Rifiuta" data-confirm-class="btn-danger">Rifiuta</button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm-title="Rifiuta richiesta" data-confirm-message="Stai per rifiutare la richiesta fuori zona di {{ req.employee.display_name }} del {{ req.work_date|date:'d/m/Y' }}." data-confirm-note="Aggiungi un motivo per mantenere la revisione chiara e tracciabile." data-confirm-button="Rifiuta" data-confirm-class="btn-danger">Rifiuta</button>
                             </form>
                         </div>
                     </td>
@@ -143,7 +143,7 @@
         <div class="pending-request-card">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div>
-                    <div class="fw-semibold">{{ req.employee.full_name }}</div>
+                    <div class="fw-semibold">{{ req.employee.display_name }}</div>
                     <div class="pending-request-meta">{{ req.work_date|date:"d/m/Y" }}</div>
                 </div>
                 <div>
@@ -162,14 +162,14 @@
                 <input type="hidden" name="action" value="approve_mark_request">
                 <input type="hidden" name="request_id" value="{{ req.id }}">
                 <input type="text" name="review_note" class="form-control" placeholder="Nota approvazione (opzionale)">
-                <button class="btn btn-success" type="submit" data-confirm-title="Approva richiesta" data-confirm-message="Confermi l'approvazione della richiesta di {{ req.employee.full_name }}?" data-confirm-button="Approva" data-confirm-class="btn-success">Approva</button>
+                <button class="btn btn-success" type="submit" data-confirm-title="Approva richiesta" data-confirm-message="Confermi l'approvazione della richiesta di {{ req.employee.display_name }}?" data-confirm-button="Approva" data-confirm-class="btn-success">Approva</button>
             </form>
             <form method="post" class="d-grid gap-2">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="reject_mark_request">
                 <input type="hidden" name="request_id" value="{{ req.id }}">
                 <input type="text" name="review_note" class="form-control" placeholder="Motivo rifiuto">
-                <button class="btn btn-outline-danger" type="submit" data-confirm-title="Rifiuta richiesta" data-confirm-message="Confermi il rifiuto della richiesta di {{ req.employee.full_name }}?" data-confirm-note="Puoi inserire un motivo per dare un feedback piu utile al dipendente." data-confirm-button="Rifiuta" data-confirm-class="btn-danger">Rifiuta</button>
+                <button class="btn btn-outline-danger" type="submit" data-confirm-title="Rifiuta richiesta" data-confirm-message="Confermi il rifiuto della richiesta di {{ req.employee.display_name }}?" data-confirm-note="Puoi inserire un motivo per dare un feedback piu utile al dipendente." data-confirm-button="Rifiuta" data-confirm-class="btn-danger">Rifiuta</button>
             </form>
         </div>
         {% empty %}
@@ -201,7 +201,7 @@
             <tbody>
                 {% for req in pending_vacation_requests %}
                 <tr>
-                    <td>{{ req.employee.full_name }}</td>
+                    <td>{{ req.employee.display_name }}</td>
                     <td>{{ req.start_date|date:"d/m/Y" }}</td>
                     <td>{{ req.end_date|date:"d/m/Y" }}</td>
                     <td>{{ req.day_count }}</td>
@@ -238,7 +238,7 @@
         <div class="pending-request-card">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div>
-                    <div class="fw-semibold">{{ req.employee.full_name }}</div>
+                    <div class="fw-semibold">{{ req.employee.display_name }}</div>
                     <div class="pending-request-meta">{{ req.start_date|date:"d/m/Y" }} - {{ req.end_date|date:"d/m/Y" }}</div>
                 </div>
                 <div>
@@ -274,7 +274,7 @@
             <select name="employee" class="form-select">
                 <option value="all" {% if employee_filter == 'all' %}selected{% endif %}>Tutti i dipendenti (solo con marcature)</option>
                 {% for emp in employees %}
-                    <option value="{{ emp.id }}" {% if employee_filter != 'all' and selected_employee and selected_employee.id == emp.id %}selected{% endif %}>{{ emp.full_name }}</option>
+                    <option value="{{ emp.id }}" {% if employee_filter != 'all' and selected_employee and selected_employee.id == emp.id %}selected{% endif %}>{{ emp.display_name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -318,7 +318,7 @@
     {% for row in matrix_rows %}
     <div class="border rounded-3 p-3 mb-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>{{ row.employee.full_name }}</strong>
+            <strong>{{ row.employee.display_name }}</strong>
             <span class="badge bg-primary">Totale {{ row.month_total }}</span>
         </div>
         <div class="month-grid">
@@ -339,7 +339,7 @@
     <div class="col-md-4">
         <div class="card-modern bg-white text-center">
             <div class="small text-muted">Dipendente</div>
-            <div class="fs-5 fw-semibold">{{ selected_employee.full_name }}</div>
+            <div class="fs-5 fw-semibold">{{ selected_employee.display_name }}</div>
         </div>
     </div>
     <div class="col-md-4">
