@@ -237,6 +237,30 @@
         margin-top: 0.45rem;
     }
 
+    .turni-week-mail-attachments {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.35rem 0.85rem;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .turni-week-mail-attachments-label {
+        font-size: 0.78rem;
+        color: #475569;
+        margin-bottom: 0.15rem;
+    }
+
+    .turni-week-mail-attachment-option {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.82rem;
+        color: #0f172a;
+    }
+
     .turni-section-head {
         display: flex;
         justify-content: space-between;
@@ -1059,6 +1083,17 @@
                                             <div class="turni-week-mail-fields">
                                                 <input type="text" name="mail_subject" class="form-control form-control-sm" placeholder="Oggetto mail" aria-label="Oggetto mail per {{ week.week_label }}" data-turni-mail-subject>
                                                 <textarea name="mail_body" class="form-control form-control-sm" rows="3" placeholder="Testo mail" aria-label="Testo mail per {{ week.week_label }}" data-turni-mail-body></textarea>
+                                                <div>
+                                                    <div class="turni-week-mail-attachments-label">Allegati da inviare</div>
+                                                    <div class="turni-week-mail-attachments">
+                                                        {% for attachment_option in mail_attachment_options %}
+                                                        <label class="turni-week-mail-attachment-option">
+                                                            <input type="checkbox" name="mail_attachment" value="{{ attachment_option.key }}" checked data-turni-mail-attachment>
+                                                            <span>{{ attachment_option.label }}</span>
+                                                        </label>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </details>
                                     </form>
@@ -3003,6 +3038,7 @@
             const subjectInput = form.querySelector('[data-turni-mail-subject]');
             const bodyInput = form.querySelector('[data-turni-mail-body]');
             const fillLastButton = form.querySelector('[data-turni-mail-fill-last]');
+            const attachmentInputs = Array.from(form.querySelectorAll('[data-turni-mail-attachment]'));
 
             if (fillLastButton) {
                 fillLastButton.addEventListener('click', function () {
@@ -3016,6 +3052,12 @@
                     if (bodyInput && storedDraft.body) {
                         bodyInput.value = storedDraft.body;
                     }
+                    if (Array.isArray(storedDraft.attachments) && attachmentInputs.length) {
+                        const selectedAttachments = new Set(storedDraft.attachments);
+                        attachmentInputs.forEach((input) => {
+                            input.checked = selectedAttachments.has(input.value);
+                        });
+                    }
                 });
             }
 
@@ -3024,6 +3066,7 @@
                     recipients: recipientsInput ? recipientsInput.value : '',
                     subject: subjectInput ? subjectInput.value : '',
                     body: bodyInput ? bodyInput.value : '',
+                    attachments: attachmentInputs.filter((input) => input.checked).map((input) => input.value),
                 });
             });
         });

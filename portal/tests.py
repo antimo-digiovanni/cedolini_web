@@ -1156,6 +1156,83 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertIn("Comandata ferragosto", email_message.body)
 		self.assertIn("Scorrimento ferragosto", email_message.body)
 
+	def test_turni_planner_mail_can_send_selected_attachments_only(self):
+		state = TurniPlannerWeekState.objects.create(
+			week_label="Week 34 da Lunedi 17/08/2026 a Sabato 22/08/2026",
+			planner_data={
+				"weekly": {
+					"headers": [f"Reparto {index}" for index in range(1, 11)],
+					"central_departments": [""] * 10,
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:00"] * 10, "rows": [["Mario"] * 10, ["Luigi"] * 10, ["Anna"] * 10]},
+						{"label": "2 turno", "time_values": ["14:00"] * 10, "rows": [["Paolo"] * 10, ["Gina"] * 10, ["Luca"] * 10]},
+						{"label": "3 turno", "time_values": ["22:00"] * 10, "rows": [["Sara"] * 10, ["Piero"] * 10, ["Marta"] * 10]},
+						{"label": "turno centrale", "time_values": [""] * 10, "rows": [[""] * 10, [""] * 10, [""] * 10]},
+					],
+				},
+				"portineria_weekly": {
+					"headers": ["PORTINERIA CENTRALE", "CENTRALINISTA", "PORTINERIA CELLA"],
+					"sections": [
+						{"label": "1 turno", "time_values": ["06:14", "08:17", "06:14"], "rows": [["A", "B", "C"], ["", "", ""], ["", "", ""]]},
+						{"label": "2 turno", "time_values": ["14:22", "", "14:22"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+						{"label": "3 turno", "time_values": ["22:06", "", "22:06"], "rows": [["", "", ""], ["", "", ""], ["", "", ""]]},
+					],
+				},
+				"saturday": {
+					"base_date": "22/08/2026",
+					"rows": [["22/08/2026", "Mattina", "Sabato A", "Capo A", "Presidio", "Reparto A"]],
+				},
+				"sunday": {
+					"base_date": "23/08/2026",
+					"rows": [["23/08/2026", "Notte", "Domenica A", "Capo B", "Supporto", "Reparto B"]],
+				},
+				"jolly_weekend": {
+					"title": "Comandata estate",
+					"base_date": "22/08/2026",
+					"rows": [["22/08/2026", "Sera", "Jolly A", "Capo J", "Controllo", "Reparto J"]],
+				},
+				"scorrimento": {
+					"title": "Scorrimento estate",
+					"base_date": "22/08/2026",
+					"rows": [["22/08/2026", "Mattina", "Mario Rossi", "Capo S", "Scorrimento", "Reparto S"]],
+				},
+				"portineria_weekend": {
+					"base_date": "22/08/2026",
+					"rows": [["22/08/2026", "Mattina", "Port A", "Resp A", "Vigilanza", "Portineria"]],
+				},
+			},
+		)
+		self.client.force_login(self.allowed_user)
+
+		response = self.client.post(
+			reverse("turni_planner_home"),
+			{
+				"action": "generate_weekend_email",
+				"week_label": state.week_label,
+				"mail_recipients": "turni@example.com",
+				"mail_subject": "Turni selezionati",
+				"mail_body": "Invio solo gli allegati richiesti.",
+				"mail_attachment": ["scorrimento", "portineria_weekend"],
+			},
+		)
+
+		self.assertRedirects(response, f"{reverse('turni_planner_home')}?week={state.week_label}&mail_status=success&mail_message=Email%20inviata%20a%3A%20turni%40example.com")
+		self.assertEqual(len(mail.outbox), 1)
+		email_message = mail.outbox[0]
+		attachment_names = sorted(attachment[0] for attachment in email_message.attachments)
+		self.assertEqual(
+			attachment_names,
+			sorted([
+				"Scorrimento.pdf",
+				"Scorrimento.jpg",
+				"Comandata Sabato - Domenica e festivi Portineria.pdf",
+				"Comandata Sabato - Domenica e festivi Portineria.jpg",
+			]),
+		)
+		self.assertIn("- Scorrimento estate", email_message.body)
+		self.assertIn("- Sabato - Domenica e festivi Portineria", email_message.body)
+		self.assertNotIn("Turno settimanale", email_message.body)
+
 	def test_turni_planner_exports_weekly_pdf_download(self):
 		state = TurniPlannerWeekState.objects.create(
 			week_label="Week 30 da Lunedi 20/07/2026 a Sabato 25/07/2026",

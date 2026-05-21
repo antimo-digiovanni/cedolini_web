@@ -1298,7 +1298,18 @@ def _turni_email_recipients_from_text(raw_value):
     return [item.strip() for item in re.split(r'[;,]+', raw_value or '') if item.strip()]
 
 
-def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_text='', body_text=''):
+TURNI_PLANNER_MAIL_ATTACHMENT_OPTIONS = [
+    {'key': 'weekly', 'label': 'Turno settimanale'},
+    {'key': 'portineria_weekly', 'label': 'Turno settimanale portineria'},
+    {'key': 'saturday', 'label': 'Comandata sabato'},
+    {'key': 'sunday', 'label': 'Comandata domenica'},
+    {'key': 'jolly_weekend', 'label': 'Comandata jolly'},
+    {'key': 'scorrimento', 'label': 'Scorrimento'},
+    {'key': 'portineria_weekend', 'label': 'Sabato - Domenica e festivi Portineria'},
+]
+
+
+def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_text='', body_text='', selected_attachment_keys=None):
     planner_data = dict(state.planner_data or {})
     logo_path = _existing_turni_export_path(TURNI_EXPORT_APP_LOGO_PATH)
     ancis_logo_path = _existing_turni_export_path(TURNI_EXPORT_WEEKEND_ANCIS_LOGO_PATH)
@@ -1360,10 +1371,21 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
 
     attachments = []
     attachment_labels = []
+    normalized_attachment_keys = None
+    if selected_attachment_keys is not None:
+        normalized_attachment_keys = {
+            value.strip()
+            for value in selected_attachment_keys
+            if value and value.strip()
+        }
+        if not normalized_attachment_keys:
+            raise ValueError('Seleziona almeno un allegato da inviare.')
 
     with tempfile.TemporaryDirectory(prefix='turni_planner_weekend_mail_') as temp_dir:
         export_dir = Path(temp_dir)
         for config in weekly_configs:
+            if normalized_attachment_keys is not None and config['key'] not in normalized_attachment_keys:
+                continue
             export_week_label = _resolve_turni_export_week_label(
                 planner_data,
                 state.week_label,
@@ -1397,6 +1419,8 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
             attachment_labels.append(config['title'])
 
         for config in weekend_configs:
+            if normalized_attachment_keys is not None and config['key'] not in normalized_attachment_keys:
+                continue
             raw_weekend_data = planner_data.get(config['key'])
             export_data = _turni_weekend_export_data(
                 raw_weekend_data,
@@ -4852,6 +4876,7 @@ def turni_planner_home(request):
                         recipient_text=(request.POST.get('mail_recipients') or '').strip(),
                         subject_text=(request.POST.get('mail_subject') or '').strip(),
                         body_text=request.POST.get('mail_body') or '',
+                        selected_attachment_keys=request.POST.getlist('mail_attachment') or None,
                     )
                 except ValueError as error:
                     return redirect(
@@ -4944,6 +4969,7 @@ def turni_planner_home(request):
         'visible_to_employees': selected_state.visible_to_employees if selected_state else False,
         'published_turni_section_choices': list(TURNI_MARKINGS_SECTION_META.items()),
         'selected_published_turni_sections': _turni_planner_selected_section_keys(selected_state, include_portineria=True),
+        'mail_attachment_options': TURNI_PLANNER_MAIL_ATTACHMENT_OPTIONS,
         'mail_status': mail_status,
         'mail_message': mail_message,
         'weekly_export_week_label': _resolve_turni_export_week_label(planner_data, selected_state.week_label, key='weekly_export_week_label') if selected_state else '',
