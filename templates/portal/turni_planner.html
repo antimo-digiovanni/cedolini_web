@@ -196,6 +196,72 @@
         gap: 0.45rem;
     }
 
+    .turni-recent-week-item {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+        background: #fff;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .turni-recent-week-item + .turni-recent-week-item {
+        margin-top: 0.85rem;
+    }
+
+    .turni-recent-week-item.is-selected {
+        border-color: rgba(37, 99, 235, 0.22);
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+    }
+
+    .turni-recent-week-layout {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .turni-recent-week-layout.is-compact {
+        align-items: center;
+    }
+
+    .turni-recent-week-main {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .turni-recent-week-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-top: 0.2rem;
+    }
+
+    .turni-recent-week-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #1d4ed8;
+        background: rgba(37, 99, 235, 0.08);
+        border: 1px solid rgba(37, 99, 235, 0.14);
+        border-radius: 999px;
+        padding: 0.25rem 0.55rem;
+    }
+
+    .turni-recent-week-actions {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .turni-recent-week-open {
+        white-space: nowrap;
+    }
+
     .turni-week-mail-form {
         width: 100%;
         display: flex;
@@ -1055,6 +1121,22 @@
         .turni-row-limit-note {
             text-align: left;
         }
+
+        .turni-recent-week-layout,
+        .turni-recent-week-layout.is-compact {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .turni-recent-week-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
+
+        .turni-week-mail-box {
+            min-width: 0;
+            width: 100%;
+        }
     }
 </style>
 <div class="container">
@@ -1104,16 +1186,23 @@
                 {% if recent_weeks %}
                     <div class="list-group list-group-flush">
                         {% for week in recent_weeks %}
-                        <div class="list-group-item px-0 {% if selected_state and selected_state.id == week.id %}active border-0 rounded-3 px-3{% endif %}">
-                            <div class="d-flex justify-content-between align-items-start gap-3">
-                                <a href="{% url 'turni_planner_home' %}?week={{ week.week_label|urlencode }}" class="text-decoration-none flex-grow-1 {% if selected_state and selected_state.id == week.id %}text-white{% else %}text-body{% endif %}">
-                                    <div class="fw-semibold">{{ week.week_label }}</div>
-                                    <div class="small {% if selected_state and selected_state.id == week.id %}text-white-50{% else %}text-muted{% endif %}">
-                                        Ultimo aggiornamento: {{ week.updated_at|date:"d/m/Y H:i" }}
-                                        {% if week.updated_by %} · {{ week.updated_by.username }}{% endif %}
+                        <div class="list-group-item px-0 border-0 bg-transparent">
+                            <div class="turni-recent-week-item {% if selected_state and selected_state.id == week.id %}is-selected{% endif %}">
+                                <div class="turni-recent-week-layout {% if not selected_state or selected_state.id != week.id %}is-compact{% endif %}">
+                                    <div class="turni-recent-week-main">
+                                        <a href="{% url 'turni_planner_home' %}?week={{ week.week_label|urlencode }}" class="text-decoration-none d-block text-body">
+                                            <div class="fw-semibold">{{ week.week_label }}</div>
+                                            <div class="turni-recent-week-meta small text-muted">
+                                                <span>Ultimo aggiornamento: {{ week.updated_at|date:"d/m/Y H:i" }}</span>
+                                                {% if week.updated_by %}<span>· {{ week.updated_by.username }}</span>{% endif %}
+                                                {% if not selected_state or selected_state.id != week.id %}
+                                                <span class="turni-recent-week-hint"><i class="bi bi-arrows-angle-expand"></i> Clicca per aprire</span>
+                                                {% endif %}
+                                            </div>
+                                        </a>
                                     </div>
-                                </a>
-                                <div class="turni-week-mail-box flex-shrink-0">
+                                    {% if selected_state and selected_state.id == week.id %}
+                                    <div class="turni-week-mail-box flex-shrink-0">
                                     <form method="post" class="m-0 turni-week-mail-form" data-turni-mail-form>
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="generate_weekend_email">
@@ -1163,6 +1252,11 @@
                                             </div>
                                         </details>
                                     </form>
+                                    {% endif %}
+                                    <div class="turni-recent-week-actions">
+                                    {% if not selected_state or selected_state.id != week.id %}
+                                        <a href="{% url 'turni_planner_home' %}?week={{ week.week_label|urlencode }}" class="btn btn-outline-primary btn-sm turni-recent-week-open">Apri</a>
+                                    {% endif %}
                                     <form method="post" class="m-0">
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="delete_week">
@@ -1171,6 +1265,7 @@
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
