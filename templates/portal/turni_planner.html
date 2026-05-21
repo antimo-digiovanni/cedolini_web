@@ -1146,25 +1146,6 @@
                     </div>
                 </div>
 
-                <div class="card-modern bg-light border turni-export-label-card">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-12 col-xl-4">
-                            <label for="turni-surname-find" class="form-label fw-semibold mb-1">Cognome attuale</label>
-                            <input type="text" id="turni-surname-find" class="form-control" placeholder="Es. Rossi" data-turni-surname-find>
-                        </div>
-                        <div class="col-12 col-xl-4">
-                            <label for="turni-surname-replace" class="form-label fw-semibold mb-1">Nuovo cognome</label>
-                            <input type="text" id="turni-surname-replace" class="form-control" placeholder="Es. Bianchi" data-turni-surname-replace>
-                        </div>
-                        <div class="col-12 col-xl-4 d-flex flex-column justify-content-end gap-2">
-                            <button type="button" class="btn btn-outline-dark" data-turni-surname-apply>
-                                <i class="bi bi-arrow-repeat"></i> Cambia cognome in tutti i nominativi
-                            </button>
-                            <div class="form-text mt-0" data-turni-surname-status>Lavora solo sui campi nominativi del planner.</div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="turni-shell" data-turni-shell>
                     <div class="turni-sidebar">
                         <div class="card-modern bg-light h-100 turni-sidebar-card">
@@ -2090,10 +2071,6 @@
 
         buildSheetGrids();
         const nameSuggestions = plannerForm ? plannerForm.querySelector('#turni-name-suggestions') : null;
-        const surnameFindInput = plannerForm ? plannerForm.querySelector('[data-turni-surname-find]') : null;
-        const surnameReplaceInput = plannerForm ? plannerForm.querySelector('[data-turni-surname-replace]') : null;
-        const surnameApplyButton = plannerForm ? plannerForm.querySelector('[data-turni-surname-apply]') : null;
-        const surnameStatus = plannerForm ? plannerForm.querySelector('[data-turni-surname-status]') : null;
         const undoButton = plannerForm ? plannerForm.querySelector('[data-turni-undo]') : null;
         const redoButton = plannerForm ? plannerForm.querySelector('[data-turni-redo]') : null;
         const weekendRowSections = Array.from(document.querySelectorAll('[data-weekend-row-prefix]'));
@@ -2139,55 +2116,6 @@
             const uniqueValues = Array.from(new Set(values)).sort((left, right) => left.localeCompare(right, 'it'));
 
             nameSuggestions.innerHTML = uniqueValues.map((value) => '<option value="' + value.replace(/"/g, '&quot;') + '"></option>').join('');
-        }
-
-        function setSurnameStatus(message, tone) {
-            if (!surnameStatus) {
-                return;
-            }
-            surnameStatus.textContent = message;
-            surnameStatus.classList.remove('text-muted', 'text-danger', 'text-success');
-            surnameStatus.classList.add(tone === 'error' ? 'text-danger' : tone === 'success' ? 'text-success' : 'text-muted');
-        }
-
-        function replaceSurnameInValue(value, currentSurname, nextSurname) {
-            const normalizedCurrent = currentSurname.trim();
-            if (!normalizedCurrent) {
-                return value;
-            }
-
-            const matcher = new RegExp(normalizedCurrent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-            return value.replace(matcher, nextSurname.trim());
-        }
-
-        function applySurnameReplacement() {
-            if (!plannerForm || !surnameFindInput || !surnameReplaceInput) {
-                return;
-            }
-
-            const currentSurname = surnameFindInput.value.trim();
-            const nextSurname = surnameReplaceInput.value.trim();
-            if (!currentSurname || !nextSurname) {
-                setSurnameStatus('Compila sia il cognome attuale sia il nuovo cognome.', 'error');
-                return;
-            }
-
-            const changes = Array.from(plannerForm.querySelectorAll('input[type="text"]'))
-                .filter((input) => isNameInput(input))
-                .map((input) => ({
-                    input,
-                    before: input.value,
-                    after: replaceSurnameInValue(input.value, currentSurname, nextSurname),
-                }))
-                .filter((change) => change.before !== change.after);
-
-            if (!changes.length) {
-                setSurnameStatus('Nessuna occorrenza trovata nei nominativi.', 'muted');
-                return;
-            }
-
-            applyChangeBatch(changes);
-            setSurnameStatus('Cognome aggiornato in ' + changes.length + ' celle nominativo.', 'success');
         }
 
         function hasPendingHistoryChange() {
@@ -2614,11 +2542,6 @@
                 return;
             }
             input.dataset.turniInputBound = 'true';
-
-
-        if (surnameApplyButton) {
-            surnameApplyButton.addEventListener('click', applySurnameReplacement);
-        }
             if (isNameInput(input) && nameSuggestions) {
                 input.setAttribute('list', 'turni-name-suggestions');
                 input.setAttribute('autocomplete', 'off');
