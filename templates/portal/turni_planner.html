@@ -1340,7 +1340,7 @@
                         <button type="submit" name="action" value="save_planner" class="btn btn-primary">
                             <i class="bi bi-floppy"></i> Salva planner
                         </button>
-                        <div class="turni-topbar-shortcuts">Frecce, trascina per copiare, Ctrl+Z, Ctrl+Y</div>
+                        <div class="turni-topbar-shortcuts">Frecce, Alt+trascina per selezionare celle, trascina il quadratino per copiare, Ctrl+Z, Ctrl+Y</div>
                     </div>
                 </div>
 
@@ -2521,12 +2521,9 @@
                 return;
             }
 
-            keyboardSelection = {
-                anchorInput: input,
-                focusInput: input,
-            };
             pointerSelectionState = {
                 anchorInput: input,
+                hasMoved: false,
             };
             updateActiveGridHighlights(input);
         }
@@ -2539,6 +2536,12 @@
             if (targetInput.dataset.sheetName !== pointerSelectionState.anchorInput.dataset.sheetName) {
                 return;
             }
+
+            if (targetInput === pointerSelectionState.anchorInput && !pointerSelectionState.hasMoved) {
+                return;
+            }
+
+            pointerSelectionState.hasMoved = true;
 
             keyboardSelection = {
                 anchorInput: pointerSelectionState.anchorInput,
@@ -2554,8 +2557,12 @@
             }
 
             const focusTarget = activeInput || pointerSelectionState.anchorInput;
+            const shouldSelectCell = pointerSelectionState.hasMoved;
             pointerSelectionState = null;
-            focusCell(focusTarget);
+
+            if (shouldSelectCell) {
+                focusCell(focusTarget);
+            }
             updateActiveGridHighlights(focusTarget);
         }
 
@@ -2876,6 +2883,12 @@
 
             input.addEventListener('mousedown', function (event) {
                 if (event.button !== 0 || !input.dataset.sheetName) {
+                    return;
+                }
+
+                if (!event.altKey) {
+                    clearKeyboardSelection();
+                    updateActiveGridHighlights(input);
                     return;
                 }
 
