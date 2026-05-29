@@ -1,16 +1,17 @@
-"""
-WSGI config for config project.
+"""WSGI entrypoint.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
+Render may still boot the project through ``config.wsgi:application`` even when
+the service should really run the ASGI stack. Wrapping the ASGI application here
+keeps ``/riconfezionamento/`` available in both deployment modes.
 """
 
 import os
 
-from django.core.wsgi import get_wsgi_application
+from a2wsgi import ASGIMiddleware
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
-application = get_wsgi_application()
+from config.asgi import application as asgi_application
+
+
+application = ASGIMiddleware(asgi_application)

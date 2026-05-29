@@ -1,6 +1,7 @@
 django
 eval_type_backport
 fastapi
+a2wsgi
 gunicorn
 dj-database-url
 psycopg2-binary
