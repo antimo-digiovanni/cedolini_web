@@ -12,6 +12,30 @@
 <div class="alert alert-{{ feedback_level }} mb-3">{{ feedback }}</div>
 {% endif %}
 
+<div class="card-modern mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <h4 class="mb-1">Accesso riconfezionamento</h4>
+            <p class="text-muted mb-0">Consenti a questo operatore di vedere il pulsante nel portale e aprire l'app operativa.</p>
+        </div>
+        <div class="d-flex flex-column align-items-md-end gap-2">
+            {% if has_riconfezionamento_access %}
+                <span class="badge bg-success">Abilitato</span>
+            {% else %}
+                <span class="badge bg-secondary">Non abilitato</span>
+            {% endif %}
+            <form method="post" action="{% url 'admin_employee_detail' employee.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_riconfezionamento_access">
+                <input type="hidden" name="enable_access" value="{% if has_riconfezionamento_access %}0{% else %}1{% endif %}">
+                <button type="submit" class="btn {% if has_riconfezionamento_access %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                    {% if has_riconfezionamento_access %}Disabilita accesso{% else %}Abilita accesso{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% regroup detailed by payslip.year as year_list %}
 
 {% if not detailed %}

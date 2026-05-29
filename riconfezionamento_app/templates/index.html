@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Riconfezionamento</title>
+    <link rel="stylesheet" href="__APP_BASE_PATH__/static/styles.css?v=20260529-3" />
+    <script>
+      window.APP_BASE_PATH = "__APP_BASE_PATH__";
+    </script>
+  </head>
+  <body>
+    <header class="brand-rail">
+      <div class="brand-rail-inner">
+        <div class="brand-rail-group">
+          <img class="brand-rail-logo brand-rail-logo-san" src="__APP_BASE_PATH__/static/assets/logo-san-vincenzo.png" alt="Logo San Vincenzo" />
+          <div>
+            <p class="brand-rail-title">San Vincenzo S.R.L.</p>
+            <p class="brand-rail-subtitle">Azienda multiservice</p>
+          </div>
+        </div>
+        <div class="brand-rail-divider"></div>
+        <div class="brand-rail-group brand-rail-group-right">
+          <div>
+            <p class="brand-rail-title">The Magnum Ice Cream Company</p>
+            <p class="brand-rail-subtitle">Linea riconfezionamento</p>
+          </div>
+          <img class="brand-rail-logo brand-rail-logo-magnum" src="__APP_BASE_PATH__/static/assets/logo-magnum.jpg" alt="Logo Magnum Ice Cream Company" />
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="hero card">
+        <div class="hero-top">
+          <div class="hero-copy">
+            <p class="eyebrow">Controllo produzione</p>
+            <h1>Riconfezionamento pallet con verifica fiches</h1>
+            <p class="subtitle">
+              Importa il lotto Excel, gestisci ogni pedana e chiudi il lotto con il report Excel riepilogativo delle operazioni.
+            </p>
+          </div>
+
+          <div class="brand-strip">
+            <article class="brand-logo-panel">
+              <img class="brand-logo san-vincenzo" src="__APP_BASE_PATH__/static/assets/logo-san-vincenzo.png" alt="Logo San Vincenzo" />
+              <p class="brand-caption">San Vincenzo S.R.L.</p>
+            </article>
+            <article class="brand-logo-panel brand-logo-panel-light">
+              <img class="brand-logo magnum" src="__APP_BASE_PATH__/static/assets/logo-magnum.jpg" alt="Logo Magnum Ice Cream Company" />
+              <p class="brand-caption">The Magnum Ice Cream Company</p>
+            </article>
+          </div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="batch-bar">
+          <div>
+            <p class="eyebrow">Lotto attivo</p>
+            <p id="batch-name" class="batch-name">Nessun lotto caricato</p>
+            <p id="batch-meta" class="subtitle compact"></p>
+          </div>
+          <div class="batch-tools">
+            <label class="batch-picker-label">
+              <span>Visualizza lotto</span>
+              <select id="batch-selector"></select>
+            </label>
+            <p id="batch-view-note" class="field-note hidden"></p>
+          </div>
+          <div class="actions">
+            <button type="button" class="secondary danger-button" id="delete-batch-button">Cancella lotto</button>
+            <button type="button" class="secondary danger-button" id="wipe-all-button">Cancella tutti i backup e lotti</button>
+            <button type="button" id="finish-batch-button">Chiudi lotto e genera Excel</button>
+          </div>
+        </div>
+        <a id="report-link" class="report-link hidden" target="_blank" rel="noopener noreferrer">Apri report Excel</a>
+      </section>
+
+      <section class="workspace-shell">
+        <div class="workspace-switcher" aria-label="Sezioni operative">
+          <button type="button" class="workspace-tab active" id="workspace-import-tab">1. Import Excel</button>
+          <button type="button" class="workspace-tab" id="workspace-operator-tab">2. Flusso operatore</button>
+        </div>
+
+        <article class="card workspace-panel" id="import-section">
+          <div class="section-head">
+            <h2>1. Import Excel</h2>
+            <span id="import-status" class="badge muted">Nessun file importato</span>
+          </div>
+
+          <form id="preview-form" class="stack">
+            <label>
+              <span>File Excel</span>
+              <input type="file" id="excel-file" accept=".xlsx,.xlsm,.xltx,.xltm" required />
+            </label>
+
+            <div class="inline-fields">
+              <label>
+                <span>Foglio</span>
+                <input type="text" id="sheet-name" placeholder="Lascia vuoto per il primo foglio" />
+              </label>
+              <label>
+                <span>Riga intestazioni</span>
+                <input type="number" id="header-row" min="1" value="1" required />
+              </label>
+            </div>
+
+            <div class="actions">
+              <button type="submit">Anteprima file</button>
+            </div>
+          </form>
+
+          <form id="import-form" class="stack hidden">
+            <div class="inline-fields">
+              <label>
+                <span>Colonna pallet</span>
+                <select id="pallet-column"></select>
+              </label>
+              <label>
+                <span>Colonna fiche entrata</span>
+                <select id="incoming-column" required></select>
+              </label>
+              <label>
+                <span>Colonna fiche uscita</span>
+                <select id="outgoing-column"></select>
+              </label>
+              <label>
+                <span>Colonna prodotto</span>
+                <select id="product-column"></select>
+              </label>
+              <label>
+                <span>Colonna codice prodotto</span>
+                <select id="product-code-column"></select>
+              </label>
+              <label>
+                <span>Colonna motivo riconfezionamento</span>
+                <select id="reason-column" required></select>
+              </label>
+              <label>
+                <span>Colonna ZUN</span>
+                <select id="zun-column"></select>
+              </label>
+            </div>
+
+            <p class="field-note">
+              Se il file non contiene il pallet, il sistema usera' la fiche entrata come riferimento pallet.
+              Se non contiene la fiche uscita, verra' registrata alla scansione finale.
+            </p>
+
+            <div class="actions">
+              <button type="submit">Registra a sistema</button>
+            </div>
+          </form>
+
+          <div id="import-message-box" class="message-box muted">In attesa del file Excel.</div>
+          <div id="import-skipped-rows" class="hidden"></div>
+          <div id="preview-table" class="preview-table"></div>
+        </article>
+
+        <article class="card workspace-panel hidden" id="operator-section">
+          <div class="section-head">
+            <h2>2. Flusso operatore</h2>
+            <span class="badge success">Scanner compatibile keyboard wedge</span>
+          </div>
+
+          <div class="form-block stack">
+            <label>
+              <span>Operatore</span>
+              <input type="text" id="operator-name" placeholder="Nome operatore" autocomplete="off" />
+            </label>
+          </div>
+
+          <form id="incoming-form" class="stack form-block">
+            <label>
+              <span>Scansione entrata</span>
+              <input type="text" id="incoming-scan" placeholder="Spara pallet o fiche entrata" autocomplete="off" />
+            </label>
+            <div class="actions">
+              <button type="submit">Conferma entrata</button>
+            </div>
+          </form>
+
+          <form id="outgoing-form" class="stack form-block">
+            <label>
+              <span>Pallet aperti</span>
+              <select id="active-pallets"></select>
+            </label>
+            <article id="job-card" class="job-card hidden">
+              <div class="job-card-layout">
+                <div class="job-card-copy">
+                  <p class="job-label">Lavorazione attiva</p>
+                  <h3 id="job-product">Nessun pallet selezionato</h3>
+                  <p id="job-pallet" class="job-meta"></p>
+                  <p id="job-reason" class="job-reason"></p>
+                  <p id="job-state" class="job-status muted-text"></p>
+                </div>
+                <div class="job-product-code-panel">
+                  <p class="job-product-code-label">Codice prodotto</p>
+                  <p id="job-product-code" class="job-product-code hidden"></p>
+                  <p class="job-product-code-warning">ATTENZIONE!!!</p>
+                </div>
+              </div>
+            </article>
+
+            <div class="actions split-actions">
+              <button type="button" class="secondary action-button" id="waiting-fiche-button">
+                1. In attesa di fiches
+              </button>
+              <button type="button" class="action-button" id="open-outgoing-button">
+                2. Inserimento nuova fiches
+              </button>
+            </div>
+
+            <div id="outgoing-panel" class="stack hidden">
+              <label>
+                <span>Scansione nuova fiche</span>
+                <input type="text" id="outgoing-scan" placeholder="Spara nuova fiche" autocomplete="off" />
+              </label>
+              <label>
+                <span>Codice prodotto sulla fiche</span>
+                <input type="text" id="outgoing-product-code" placeholder="Inserisci o spara il codice prodotto" autocomplete="off" />
+              </label>
+              <label>
+                <span>Modifica ZUN in uscita</span>
+                <input type="number" id="outgoing-zun" min="1" step="1" placeholder="Inserisci ZUN finale" />
+              </label>
+              <div class="actions">
+                <button type="submit">Chiudi rilavorazione</button>
+              </div>
+            </div>
+            <div id="waiting-hint" class="field-note hidden">
+              Il pallet resta aperto e visibile in elenco finche' non viene inserita la nuova fiche.
+            </div>
+          </form>
+
+          <div id="message-box" class="message-box muted">In attesa di operazioni.</div>
+        </article>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Situazione pallet</h2>
+          <button type="button" class="secondary" id="refresh-dashboard">Aggiorna</button>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Codice prodotto</th>
+                <th>Fiche entrata</th>
+                <th>Fiche uscita</th>
+                <th>Prodotto</th>
+                <th>Postilla cambio codice</th>
+                <th>ZUN</th>
+                <th>Motivo</th>
+                <th>Operatore</th>
+                <th>Stato</th>
+                <th>Entrata</th>
+                <th>Uscita</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="items-body"></tbody>
+          </table>
+        </div>
+
+        <form id="completed-edit-form" class="form-block stack hidden">
+          <div class="section-head compact-head">
+            <h2>Modifica pallet</h2>
+          </div>
+          <input type="hidden" id="completed-edit-pallet" />
+          <input type="hidden" id="completed-edit-product-code" />
+          <div class="inline-fields">
+            <label>
+              <span>Pallet</span>
+              <input type="text" id="completed-edit-pallet-label" placeholder="Inserisci numero pallet" autocomplete="off" />
+            </label>
+            <label>
+              <span>Operatore modifica</span>
+              <input type="text" id="completed-edit-operator" placeholder="Nome operatore facoltativo" autocomplete="off" />
+            </label>
+            <label>
+              <span>Nuova fiche entrata</span>
+              <input type="text" id="completed-edit-incoming" placeholder="Inserisci fiche entrata" autocomplete="off" />
+            </label>
+            <label>
+              <span>Nuova fiche uscita</span>
+              <input type="text" id="completed-edit-outgoing" placeholder="Inserisci fiche uscita oppure lascia vuoto" autocomplete="off" />
+            </label>
+            <label>
+              <span>ZUN finale</span>
+              <input type="number" id="completed-edit-zun" min="1" step="1" placeholder="Inserisci ZUN finale" />
+            </label>
+          </div>
+          <div class="actions">
+            <button type="submit">Salva modifica pallet</button>
+            <button type="button" class="secondary" id="completed-edit-cancel">Annulla</button>
+          </div>
+          <div id="completed-edit-message" class="message-box muted">Seleziona un pallet completato dalla tabella per modificarlo.</div>
+        </form>
+      </section>
+    </main>
+
+    <div id="signature-modal" class="signature-modal hidden" aria-hidden="true">
+      <div class="signature-modal-backdrop"></div>
+      <div class="signature-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title">
+        <p id="signature-modal-title" class="signature-modal-title">Firma cambio codice prodotto</p>
+        <p class="signature-modal-text">Stai autorizzando un cambio codice prodotto.</p>
+        <p id="signature-modal-details" class="signature-modal-details"></p>
+        <label>
+          <span>Firma operatore</span>
+          <input type="text" id="signature-operator-input" placeholder="Inserisci il tuo nome operatore" autocomplete="off" />
+        </label>
+        <div class="actions">
+          <button type="button" class="secondary" id="signature-cancel-button">Annulla</button>
+          <button type="button" id="signature-confirm-button">Conferma firma</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="__APP_BASE_PATH__/static/app.js?v=20260529-6"></script>
+  </body>
+</html>

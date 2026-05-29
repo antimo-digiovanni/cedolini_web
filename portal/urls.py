@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('turni-pubblicati/<str:section_key>.jpg', views.employee_turni_published_image, name='employee_turni_published_image'),
     path('turni-planner/', views.turni_planner_home, name='turni_planner_home'),
+    path('riconfezionamento/', views.riconfezionamento_entry, name='riconfezionamento_entry'),
     path('chi-ha-marcato-oggi/', views.today_markings_dashboard, name='today_markings_dashboard'),
     path('marcatura/', views.timekeeping, name='timekeeping'),
     path('tutorial/', views.portal_tutorial, name='portal_tutorial'),

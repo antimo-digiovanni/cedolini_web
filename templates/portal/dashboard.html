@@ -515,6 +515,13 @@ document.addEventListener('DOMContentLoaded', () => {
             {% else %}
                 <p class="text-muted mb-0">Nessun cedolino disponibile al momento.</p>
             {% endif %}
+            {% if has_riconfezionamento_access %}
+                <hr>
+                <p class="mb-2">Apri l'app operativa di riconfezionamento.</p>
+                <a href="{% url 'riconfezionamento_entry' %}" class="btn btn-outline-dark">
+                    Vai al riconfezionamento
+                </a>
+            {% endif %}
         </div>
     </div>
 

@@ -330,6 +330,11 @@ main {
             <a href="{% url 'portal_tutorial' %}" class="{% if request.resolver_match.url_name == 'portal_tutorial' %}active{% endif %}">
                 <i class="bi bi-journal-text"></i> Tutorial Portale
             </a>
+            {% if has_riconfezionamento_access %}
+            <a href="{% url 'riconfezionamento_entry' %}">
+                <i class="bi bi-box-seam"></i> Riconfezionamento
+            </a>
+            {% endif %}
             <button type="button" id="sidebarInstallAppButton" class="sidebar-install-button" aria-label="Installa app del portale">
                 <i class="bi bi-phone"></i> Installa app
             </button>
@@ -347,6 +352,10 @@ main {
 
             <a href="{% url 'turni_planner_home' %}" class="{% if request.resolver_match.url_name == 'turni_planner_home' %}active{% endif %}">
                 <i class="bi bi-grid-3x3-gap"></i> Turni Planner
+            </a>
+
+            <a href="{% url 'riconfezionamento_entry' %}">
+                <i class="bi bi-box-seam"></i> Riconfezionamento
             </a>
 
             <a href="{% url 'admin_employees' %}">
@@ -381,6 +390,12 @@ main {
             {% if has_turni_planner_access and not has_full_admin_access %}
             <a href="{% url 'turni_planner_home' %}" class="{% if request.resolver_match.url_name == 'turni_planner_home' %}active{% endif %}">
                 <i class="bi bi-grid-3x3-gap"></i> Turni Planner
+            </a>
+            {% endif %}
+
+            {% if has_riconfezionamento_access and not has_full_admin_access %}
+            <a href="{% url 'riconfezionamento_entry' %}">
+                <i class="bi bi-box-seam"></i> Riconfezionamento
             </a>
             {% endif %}
 

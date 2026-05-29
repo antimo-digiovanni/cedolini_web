@@ -1,8 +1,11 @@
+import importlib
+import os
 from tempfile import NamedTemporaryFile
 from django.conf import settings
 from django.core import mail
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, authenticate, get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.sessions.backends.db import SessionStore
 from django.core.files.uploadedfile import SimpleUploadedFile
 import tempfile
 from django.test import Client
@@ -11,8 +14,9 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from datetime import datetime
+from starlette.testclient import TestClient as AsgiTestClient
 
-from .access import TODAY_MARKINGS_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
+from .access import TODAY_MARKINGS_GROUP_NAME, RICONFEZIONAMENTO_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
 from .models import Cud, Employee, ImportJob, Payslip, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession
 
 
@@ -384,6 +388,63 @@ class VacationRequestFlowTests(TestCase):
 		self.assertEqual(Employee.objects.get(id=second_employee.id).last_name, "Zulu")
 
 
+class AdminRiconfezionamentoAccessManagementTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.admin_user = get_user_model().objects.create_user(
+			username="staff.riconf.manage",
+			password="Password123!",
+			is_staff=True,
+		)
+		self.client.force_login(self.admin_user)
+		self.employee_user = get_user_model().objects.create_user(
+			username="operatore.riconf",
+			password="Password123!",
+		)
+		self.employee = Employee.objects.create(
+			user=self.employee_user,
+			first_name="Operatore",
+			last_name="Test",
+		)
+		self.group, _ = Group.objects.get_or_create(name=RICONFEZIONAMENTO_GROUP_NAME)
+
+	def test_admin_employee_detail_shows_enable_button_when_access_is_disabled(self):
+		response = self.client.get(reverse("admin_employee_detail", args=[self.employee.id]))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Accesso riconfezionamento")
+		self.assertContains(response, "Abilita accesso")
+
+	def test_admin_can_enable_riconfezionamento_access(self):
+		response = self.client.post(
+			reverse("admin_employee_detail", args=[self.employee.id]),
+			{
+				"action": "toggle_riconfezionamento_access",
+				"enable_access": "1",
+			},
+		)
+		self.assertRedirects(response, f"{reverse('admin_employee_detail', args=[self.employee.id])}?outcome=riconfezionamento_enabled")
+		self.assertTrue(self.employee_user.groups.filter(name=RICONFEZIONAMENTO_GROUP_NAME).exists())
+
+	def test_admin_can_disable_riconfezionamento_access(self):
+		self.employee_user.groups.add(self.group)
+		response = self.client.post(
+			reverse("admin_employee_detail", args=[self.employee.id]),
+			{
+				"action": "toggle_riconfezionamento_access",
+				"enable_access": "0",
+			},
+		)
+		self.assertRedirects(response, f"{reverse('admin_employee_detail', args=[self.employee.id])}?outcome=riconfezionamento_disabled")
+		self.assertFalse(self.employee_user.groups.filter(name=RICONFEZIONAMENTO_GROUP_NAME).exists())
+
+	def test_admin_employees_lists_riconfezionamento_badge(self):
+		self.employee_user.groups.add(self.group)
+		response = self.client.get(reverse("admin_employees"))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Riconfezionamento")
+		self.assertContains(response, "Abilitato")
+
+
 class EmployeePublishedTurniDashboardTests(TestCase):
 	def setUp(self):
 		self.client = Client()
@@ -588,6 +649,88 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertRedirects(response, reverse("turni_planner_home"))
 		self.assertFalse(TurniPlannerWeekState.objects.filter(week_label=state.week_label).exists())
 		self.assertTrue(TurniPlannerWeekState.objects.filter(week_label="Week 29 da Lunedi 13/07/2026 a Sabato 18/07/2026").exists())
+
+
+class RiconfezionamentoAccessTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls._original_data_dir = os.environ.get('APP_RICONFEZIONAMENTO_DATA_DIR')
+		cls._temp_data_dir = tempfile.TemporaryDirectory()
+		os.environ['APP_RICONFEZIONAMENTO_DATA_DIR'] = cls._temp_data_dir.name
+		asgi_module = importlib.import_module('config.asgi')
+		cls.asgi_application = importlib.reload(asgi_module).application
+
+	@classmethod
+	def tearDownClass(cls):
+		if cls._original_data_dir is None:
+			os.environ.pop('APP_RICONFEZIONAMENTO_DATA_DIR', None)
+		else:
+			os.environ['APP_RICONFEZIONAMENTO_DATA_DIR'] = cls._original_data_dir
+		cls._temp_data_dir.cleanup()
+		super().tearDownClass()
+
+	def setUp(self):
+		self.client = Client()
+		self.group, _ = Group.objects.get_or_create(name=RICONFEZIONAMENTO_GROUP_NAME)
+		self.allowed_user = get_user_model().objects.create_user(
+			username='riconf.user',
+			password='Password123!',
+		)
+		self.allowed_user.groups.add(self.group)
+		self.denied_user = get_user_model().objects.create_user(
+			username='no.riconf',
+			password='Password123!',
+		)
+		Employee.objects.create(
+			user=self.allowed_user,
+			first_name='Operatore',
+			last_name='Riconfezionamento',
+		)
+
+	def _build_asgi_client(self, user=None):
+		client = AsgiTestClient(self.asgi_application)
+		if user is None:
+			return client
+
+		session = SessionStore()
+		session[SESSION_KEY] = str(user.pk)
+		session[BACKEND_SESSION_KEY] = settings.AUTHENTICATION_BACKENDS[0]
+		session[HASH_SESSION_KEY] = user.get_session_auth_hash()
+		session.save()
+		client.cookies.set(settings.SESSION_COOKIE_NAME, session.session_key)
+		return client
+
+	def test_portal_entry_denies_non_authorized_user(self):
+		self.client.force_login(self.denied_user)
+		response = self.client.get(reverse('riconfezionamento_entry'))
+		self.assertEqual(response.status_code, 403)
+
+	def test_portal_entry_redirects_authorized_user_to_mounted_app(self):
+		self.client.force_login(self.allowed_user)
+		response = self.client.get(reverse('riconfezionamento_entry'))
+		self.assertRedirects(response, '/riconfezionamento/')
+
+	def test_dashboard_shows_riconfezionamento_link_for_authorized_user(self):
+		self.client.force_login(self.allowed_user)
+		response = self.client.get(reverse('dashboard'))
+		self.assertContains(response, reverse('riconfezionamento_entry'))
+
+	def test_mounted_app_redirects_unauthenticated_user_to_login(self):
+		with self._build_asgi_client() as client:
+			response = client.get('/riconfezionamento/', follow_redirects=False)
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(response.headers['location'], f"{reverse('login')}?next=%2Friconfezionamento%2F")
+
+	def test_mounted_app_denies_logged_user_without_group(self):
+		with self._build_asgi_client(self.denied_user) as client:
+			response = client.get('/riconfezionamento/')
+		self.assertEqual(response.status_code, 403)
+
+	def test_mounted_app_allows_group_user(self):
+		with self._build_asgi_client(self.allowed_user) as client:
+			response = client.get('/riconfezionamento/')
+		self.assertEqual(response.status_code, 200)
 
 	def test_turni_planner_new_week_clones_latest_planner_data(self):
 		previous_state = TurniPlannerWeekState.objects.create(

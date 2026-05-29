@@ -1,7 +1,10 @@
 django
+eval_type_backport
+fastapi
 gunicorn
 dj-database-url
 psycopg2-binary
+python-multipart
 whitenoise[brotli]
 openpyxl
 pdf2image
@@ -15,6 +18,8 @@ reportlab
 requests
 python-telegram-bot
 python-dotenv
+tzdata
+uvicorn[standard]
 django-storages
 boto3
 python-docx

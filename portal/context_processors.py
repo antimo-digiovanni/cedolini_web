@@ -1,5 +1,6 @@
 from .access import (
     user_has_full_admin_access,
+    user_has_riconfezionamento_access,
     user_has_turni_planner_access,
     user_has_today_markings_access,
     user_has_today_markings_only_access,
@@ -12,6 +13,7 @@ def portal_access(request):
     if user is None or not user.is_authenticated:
         return {
             "has_full_admin_access": False,
+            "has_riconfezionamento_access": False,
             "has_turni_planner_access": False,
             "has_today_markings_access": False,
             "has_today_markings_only_access": False,
@@ -20,6 +22,7 @@ def portal_access(request):
 
     return {
         "has_full_admin_access": user_has_full_admin_access(user),
+        "has_riconfezionamento_access": user_has_riconfezionamento_access(user),
         "has_turni_planner_access": user_has_turni_planner_access(user),
         "has_today_markings_access": user_has_today_markings_access(user),
         "has_today_markings_only_access": user_has_today_markings_only_access(user),
