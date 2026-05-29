@@ -9,13 +9,14 @@ import os
 
 from a2wsgi import ASGIMiddleware
 from django.core.wsgi import get_wsgi_application
-from starlette.applications import Starlette
-from starlette.routing import Mount
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
 from config.asgi import RiconfezionamentoAccessMiddleware
 from riconfezionamento_app.main import app as riconfezionamento_app
+
+
+RICONFEZIONAMENTO_PREFIX = "/riconfezionamento"
 
 
 class PathDispatcher:
@@ -25,18 +26,16 @@ class PathDispatcher:
 
 	def __call__(self, environ, start_response):
 		path = environ.get("PATH_INFO", "") or ""
-		if path.startswith("/riconfezionamento"):
-			return self.riconfezionamento_wsgi_app(environ, start_response)
+		if path.startswith(RICONFEZIONAMENTO_PREFIX):
+			riconfezionamento_environ = environ.copy()
+			stripped_path = path[len(RICONFEZIONAMENTO_PREFIX):] or "/"
+			riconfezionamento_environ["PATH_INFO"] = stripped_path
+			riconfezionamento_environ["SCRIPT_NAME"] = f"{environ.get('SCRIPT_NAME', '')}{RICONFEZIONAMENTO_PREFIX}"
+			return self.riconfezionamento_wsgi_app(riconfezionamento_environ, start_response)
 		return self.django_app(environ, start_response)
 
 
 django_application = get_wsgi_application()
-riconfezionamento_application = ASGIMiddleware(
-	Starlette(
-		routes=[
-			Mount("/riconfezionamento", app=RiconfezionamentoAccessMiddleware(riconfezionamento_app)),
-		]
-	)
-)
+riconfezionamento_application = ASGIMiddleware(RiconfezionamentoAccessMiddleware(riconfezionamento_app))
 
 application = PathDispatcher(django_application, riconfezionamento_application)

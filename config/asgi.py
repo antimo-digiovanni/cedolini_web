@@ -59,7 +59,10 @@ class RiconfezionamentoAccessMiddleware:
 		self.app = app
 
 	async def __call__(self, scope, receive, send):
-		if scope.get('type') != 'http' or not str(scope.get('path') or '').startswith('/riconfezionamento'):
+		root_path = str(scope.get('root_path') or '')
+		path = str(scope.get('path') or '')
+		request_path = path if root_path and path.startswith(root_path) else f"{root_path}{path}"
+		if scope.get('type') != 'http' or not str(request_path).startswith('/riconfezionamento'):
 			return await self.app(scope, receive, send)
 
 		user = await sync_to_async(_riconfezionamento_user_from_scope, thread_sensitive=True)(scope)
@@ -67,7 +70,7 @@ class RiconfezionamentoAccessMiddleware:
 		if user is None or not has_access:
 			if user is None:
 				query_string = (scope.get('query_string') or b'').decode('latin1')
-				next_path = str(scope.get('path') or '/riconfezionamento/')
+				next_path = str(request_path or '/riconfezionamento/')
 				if query_string:
 					next_path = f'{next_path}?{query_string}'
 				login_url = reverse('login')
