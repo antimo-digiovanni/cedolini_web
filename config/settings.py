@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ==============================
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "1" if not os.environ.get("DATABASE_URL") else "0").strip().lower() in {"1", "true", "yes", "on"}
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("DATA_UPLOAD_MAX_NUMBER_FIELDS", "20000"))
 
 BASE_ALLOWED_HOSTS = [
