@@ -232,10 +232,25 @@ def _choose_catalog_column(headers: list[str], keywords: tuple[str, ...]) -> str
     return ""
 
 
-def _load_product_catalog_rows() -> list[dict[str, str]]:
+def _ensure_product_catalog_workbook() -> None:
     catalog_path = PRODUCTS_CATALOG_PATH
-    if not catalog_path.exists():
-        raise HTTPException(status_code=500, detail=f"Anagrafica prodotti non trovata: {catalog_path}")
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    if catalog_path.exists():
+        return
+
+    workbook = Workbook()
+    try:
+        worksheet = workbook.active
+        worksheet.title = "Prodotti"
+        worksheet.append(["Codice prodotto", "Prodotto"])
+        workbook.save(catalog_path)
+    finally:
+        workbook.close()
+
+
+def _load_product_catalog_rows() -> list[dict[str, str]]:
+    _ensure_product_catalog_workbook()
+    catalog_path = PRODUCTS_CATALOG_PATH
 
     workbook = load_workbook(catalog_path, data_only=True, read_only=True)
     try:
@@ -297,15 +312,8 @@ def add_product_to_catalog(product_code: str, product_name: str) -> dict[str, ob
     if not normalized_product_name or normalize_product_name(normalized_product_name) == "prodotto non indicato":
         raise HTTPException(status_code=400, detail="Nome prodotto non valido per l'anagrafica.")
 
+    _ensure_product_catalog_workbook()
     catalog_path = PRODUCTS_CATALOG_PATH
-    catalog_path.parent.mkdir(parents=True, exist_ok=True)
-    if not catalog_path.exists():
-        workbook = Workbook()
-        worksheet = workbook.active
-        worksheet.title = "Prodotti"
-        worksheet.append(["Codice prodotto", "Prodotto"])
-        workbook.save(catalog_path)
-        workbook.close()
 
     workbook = load_workbook(catalog_path)
     result: dict[str, object] | None = None
@@ -418,15 +426,8 @@ def resolve_product_catalog_entry(
         return add_product_to_catalog(normalized_product_code, normalized_product_name)
 
     desired_name = normalize_product_name(normalized_product_name)
+    _ensure_product_catalog_workbook()
     catalog_path = PRODUCTS_CATALOG_PATH
-    catalog_path.parent.mkdir(parents=True, exist_ok=True)
-    if not catalog_path.exists():
-        workbook = Workbook()
-        worksheet = workbook.active
-        worksheet.title = "Prodotti"
-        worksheet.append(["Codice prodotto", "Prodotto"])
-        workbook.save(catalog_path)
-        workbook.close()
 
     workbook = load_workbook(catalog_path)
     try:
@@ -498,15 +499,8 @@ def _append_product_catalog_entries(rows: list[dict[str, str]]) -> int:
     if not rows:
         return 0
 
+    _ensure_product_catalog_workbook()
     catalog_path = PRODUCTS_CATALOG_PATH
-    catalog_path.parent.mkdir(parents=True, exist_ok=True)
-    if not catalog_path.exists():
-        workbook = Workbook()
-        worksheet = workbook.active
-        worksheet.title = "Prodotti"
-        worksheet.append(["Codice prodotto", "Prodotto"])
-        workbook.save(catalog_path)
-        workbook.close()
 
     workbook = load_workbook(catalog_path)
     try:

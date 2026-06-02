@@ -980,6 +980,24 @@ class RiconfezionamentoAccessTests(TestCase):
 		self.assertEqual(context.exception.status_code, 400)
 		self.assertEqual(context.exception.detail, "Il file anagrafica e' vuoto.")
 
+	def test_sync_product_catalog_creates_missing_catalog_file(self):
+		if os.path.exists(self._products_catalog_path):
+			os.remove(self._products_catalog_path)
+
+		with self.assertRaises(HTTPException) as context:
+			self.riconf_main.sync_product_catalog()
+
+		self.assertEqual(context.exception.status_code, 500)
+		self.assertEqual(context.exception.detail, 'Anagrafica prodotti senza righe valide.')
+		self.assertTrue(os.path.exists(self._products_catalog_path))
+
+		catalog_workbook = load_workbook(self._products_catalog_path, read_only=True)
+		try:
+			rows_values = list(catalog_workbook.active.iter_rows(values_only=True, max_row=2))
+		finally:
+			catalog_workbook.close()
+		self.assertEqual(rows_values[0], ('Codice prodotto', 'Prodotto'))
+
 	def test_sync_product_catalog_accepts_mrdr_headers(self):
 		workbook = Workbook()
 		worksheet = workbook.active
