@@ -7,6 +7,13 @@ const state = {
 
 let importCheckToken = 0;
 
+const catalogFileInput = document.getElementById("catalog-file");
+const catalogSheetNameInput = document.getElementById("catalog-sheet-name");
+const catalogHeaderRowInput = document.getElementById("catalog-header-row");
+const catalogForm = document.getElementById("catalog-form");
+const catalogMessageBox = document.getElementById("catalog-message-box");
+const catalogConflicts = document.getElementById("catalog-conflicts");
+const catalogTable = document.getElementById("catalog-table");
 const fileInput = document.getElementById("excel-file");
 const sheetNameInput = document.getElementById("sheet-name");
 const headerRowInput = document.getElementById("header-row");
@@ -21,6 +28,7 @@ const outgoingColumn = document.getElementById("outgoing-column");
 const productColumn = document.getElementById("product-column");
 const productCodeColumn = document.getElementById("product-code-column");
 const reasonColumn = document.getElementById("reason-column");
+const productionLotColumn = document.getElementById("production-lot-column");
 const zunColumn = document.getElementById("zun-column");
 const stats = document.getElementById("stats");
 const itemsBody = document.getElementById("items-body");
@@ -45,6 +53,8 @@ const outgoingProductCode = document.getElementById("outgoing-product-code");
 const outgoingZun = document.getElementById("outgoing-zun");
 const activePallets = document.getElementById("active-pallets");
 const refreshDashboardButton = document.getElementById("refresh-dashboard");
+const catalogItemsTitle = document.getElementById("catalog-items-title");
+const itemsTableShell = document.getElementById("items-table-shell");
 const jobCard = document.getElementById("job-card");
 const jobProduct = document.getElementById("job-product");
 const jobProductCode = document.getElementById("job-product-code");
@@ -63,8 +73,10 @@ const finishBatchButton = document.getElementById("finish-batch-button");
 const deleteBatchButton = document.getElementById("delete-batch-button");
 const wipeAllButton = document.getElementById("wipe-all-button");
 const reportLink = document.getElementById("report-link");
+const catalogSection = document.getElementById("catalog-section");
 const importSection = document.getElementById("import-section");
 const operatorSection = document.getElementById("operator-section");
+const workspaceCatalogTab = document.getElementById("workspace-catalog-tab");
 const workspaceImportTab = document.getElementById("workspace-import-tab");
 const workspaceOperatorTab = document.getElementById("workspace-operator-tab");
 const signatureModal = document.getElementById("signature-modal");
@@ -94,11 +106,18 @@ function setWorkspace(mode) {
   if (mode === "operator" && workspaceOperatorTab.disabled) {
     return;
   }
+  const catalogMode = mode === "catalog";
   const importMode = mode === "import";
+  const operatorMode = mode === "operator";
+  catalogSection.classList.toggle("hidden", !catalogMode);
   importSection.classList.toggle("hidden", !importMode);
-  operatorSection.classList.toggle("hidden", importMode);
+  operatorSection.classList.toggle("hidden", !operatorMode);
+  workspaceCatalogTab.classList.toggle("active", catalogMode);
   workspaceImportTab.classList.toggle("active", importMode);
-  workspaceOperatorTab.classList.toggle("active", !importMode);
+  workspaceOperatorTab.classList.toggle("active", operatorMode);
+  catalogItemsTitle.textContent = catalogMode ? "Anagrafica importata" : "Situazione pallet";
+  catalogTable.classList.toggle("hidden", !catalogMode);
+  itemsTableShell.classList.toggle("hidden", catalogMode);
 }
 
 function showMessage(text, tone = "muted") {
@@ -114,6 +133,126 @@ function showCompletedEditMessage(text, tone = "muted") {
 function showImportMessage(text, tone = "muted") {
   importMessageBox.className = `message-box ${tone}`;
   importMessageBox.textContent = text;
+}
+
+function showCatalogMessage(text, tone = "muted") {
+  catalogMessageBox.className = `message-box ${tone}`;
+  catalogMessageBox.textContent = text;
+}
+
+function clearCatalogConflicts() {
+  catalogConflicts.classList.add("hidden");
+  catalogConflicts.innerHTML = "";
+}
+
+function renderCatalogTable(rows) {
+  catalogTable.classList.remove("hidden");
+  if (!rows?.length) {
+    catalogTable.innerHTML = `
+      <div class="preview-caption">Anagrafica vuota</div>
+      <div class="message-box muted">Nessun codice prodotto presente in anagrafica.</div>
+    `;
+    return;
+  }
+
+  catalogTable.innerHTML = `
+    <div class="preview-caption">Codici presenti in anagrafica: ${rows.length}</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Codice prodotto</th>
+            <th>Prodotto</th>
+            <th>Ultima sincronizzazione</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.product_code)}</td>
+              <td>${escapeHtml(row.product_name)}</td>
+              <td>${escapeHtml(row.synced_at || "-")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function loadCatalogTable() {
+  const response = await fetch(appUrl("/api/product-catalog?limit=500"));
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.detail || "Impossibile caricare l'anagrafica importata.");
+  }
+  renderCatalogTable(payload.rows || []);
+}
+
+function renderCatalogConflicts(conflicts) {
+  if (!conflicts?.length) {
+    clearCatalogConflicts();
+    return;
+  }
+
+  catalogConflicts.classList.remove("hidden");
+  catalogConflicts.innerHTML = `
+    <div class="section-head compact-head">
+      <h3>Conflitti anagrafica da risolvere</h3>
+      <span class="badge warning">${conflicts.length} righe</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table issue-table">
+        <thead>
+          <tr>
+            <th>Codice nuovo</th>
+            <th>Prodotto nuovo</th>
+            <th>Gia' censito</th>
+            <th>Messaggio</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${conflicts.map((row, index) => `
+            <tr class="issue-row" data-index="${index}" data-current-product-code="${escapeHtml(row.current_product_code || "")}" data-current-product-name="${escapeHtml(row.current_product_name || "")}">
+              <td><input type="text" class="catalog-conflict-code" value="${escapeHtml(row.product_code)}" /></td>
+              <td><input type="text" class="catalog-conflict-name" value="${escapeHtml(row.product_name)}" /></td>
+              <td>
+                <div><strong>${escapeHtml(row.current_product_code || "-")}</strong></div>
+                <div>${escapeHtml(row.current_product_name || "-")}</div>
+              </td>
+              <td>${escapeHtml(row.message || "Conflitto anagrafica")}</td>
+              <td>
+                <div class="table-actions">
+                  <button type="button" class="secondary table-action-button catalog-resolve-button">Salva modifica</button>
+                  <button type="button" class="table-action-button catalog-force-button">Forza registrazione</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function resolveCatalogConflict(row, { force }) {
+  const response = await fetch(appUrl("/api/product-catalog/resolve"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      current_product_code: row.current_product_code || "",
+      current_product_name: row.current_product_name || "",
+      product_code: row.product_code,
+      product_name: row.product_name,
+      force,
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.detail || "Impossibile aggiornare il conflitto anagrafica.");
+  }
+  return payload;
 }
 
 function closeSignatureModal(result = null) {
@@ -170,10 +309,12 @@ function renderImportSkippedRows(rows, options = {}) {
           <td>${row.zun_quantity || "-"}</td>
           <td class="cell-reason issue-reason-cell">${editable
             ? `<input type="text" class="issue-reason-input" value="${escapeHtml(row.reason || "")}" placeholder="Inserisci motivo riconfezionamento" autocomplete="off" />`
-            : "-"}</td>
+            : escapeHtml(row.expected_product_name || "-")}</td>
           <td>${editable
             ? `<label class="issue-discard-toggle"><input type="checkbox" class="issue-discard-checkbox" /> <span>Scarta</span></label>`
-            : "-"}</td>
+            : row.catalog_missing && row.product_code && row.product_name && row.product_name !== "prodotto non indicato"
+              ? `<div class="table-actions"><button type="button" class="secondary table-action-button add-catalog-button" data-product-code="${escapeHtml(row.product_code)}" data-product-name="${escapeHtml(row.product_name)}">Aggiungi in anagrafica</button></div>`
+              : "-"}</td>
         </tr>`
     )
     .join("");
@@ -190,7 +331,7 @@ function renderImportSkippedRows(rows, options = {}) {
             <th>Pallet</th>
             <th>Prodotto</th>
             <th>ZUN</th>
-            <th>Motivo da usare</th>
+            <th>${editable ? "Motivo da usare" : "Prodotto anagrafica"}</th>
             <th>Azione</th>
           </tr>
         </thead>
@@ -236,6 +377,19 @@ function collectImportRowActions() {
   return actions;
 }
 
+async function addProductToCatalog(productCode, productName) {
+  const response = await fetch(appUrl("/api/product-catalog"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ product_code: productCode, product_name: productName }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.detail || "Impossibile aggiornare l'anagrafica prodotti.");
+  }
+  return payload;
+}
+
 function getPendingImportRows() {
   return [...importSkippedRows.querySelectorAll("tr[data-row-number]")].filter((rowElement) => {
     const discardCheckbox = rowElement.querySelector(".issue-discard-checkbox");
@@ -250,7 +404,7 @@ function getPendingImportRows() {
 function buildImportFormData(includeRowActions = false) {
   const formData = new FormData();
   formData.append("file", fileInput.files[0]);
-  formData.append("sheet_name", sheetNameInput.value);
+  formData.append("sheet_name", sheetNameInput.value.trim());
   formData.append("header_row", headerRowInput.value || "1");
   formData.append("pallet_column", palletColumn.value);
   formData.append("incoming_column", incomingColumn.value);
@@ -258,11 +412,36 @@ function buildImportFormData(includeRowActions = false) {
   formData.append("product_column", productColumn.value);
   formData.append("product_code_column", productCodeColumn.value);
   formData.append("reason_column", reasonColumn.value);
+  formData.append("production_lot_column", productionLotColumn.value);
   formData.append("zun_column", zunColumn.value);
   if (includeRowActions) {
     formData.append("row_actions", JSON.stringify(collectImportRowActions()));
   }
   return formData;
+}
+
+async function submitCatalogImport(event) {
+  event.preventDefault();
+  if (!catalogFileInput.files.length) {
+    showCatalogMessage("Seleziona un file anagrafica prima di continuare.", "error");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", catalogFileInput.files[0]);
+  formData.append("sheet_name", catalogSheetNameInput.value.trim());
+  formData.append("header_row", catalogHeaderRowInput.value || "1");
+  const response = await fetch(appUrl("/api/product-catalog/import"), { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok) {
+    clearCatalogConflicts();
+    showCatalogMessage(payload.detail || "Errore durante l'aggiornamento anagrafica.", "error");
+    return;
+  }
+
+  renderCatalogConflicts(payload.conflicts || []);
+  await loadCatalogTable();
+  showCatalogMessage(payload.message || "Anagrafica aggiornata.", payload.conflicts?.length ? "warning" : "success");
 }
 
 async function inspectImportRows() {
@@ -279,8 +458,16 @@ async function inspectImportRows() {
   }
 
   if (!response.ok) {
+    if (payload.detail && typeof payload.detail === "object" && payload.detail.mismatch_rows?.length) {
+      renderImportSkippedRows(payload.detail.mismatch_rows, {
+        editable: false,
+        title: "Righe con prodotto non coerente con l'anagrafica",
+      });
+      showImportMessage(payload.detail.message || "Errore durante il controllo righe.", "error");
+      return;
+    }
     clearImportSkippedRows();
-    showImportMessage(payload.detail || "Errore durante il controllo righe.", "error");
+    showImportMessage(payload.detail?.message || payload.detail || "Errore durante il controllo righe.", "error");
     return;
   }
 
@@ -390,6 +577,7 @@ function guessColumns() {
   productColumn.value = choose(["prodotto", "nome"]);
   productCodeColumn.value = choose(["codice prodotto", "cod prodotto", "codice", "code", "sku", "articolo"]);
   reasonColumn.value = chooseReason();
+  productionLotColumn.value = choose(["lotto di produzione", "lotto produzione", "lotto", "batch", "production lot"]);
   zunColumn.value = choose(["q.ta", "qta", "zun", "basi"]);
 }
 
@@ -489,6 +677,7 @@ function renderItems(items) {
           <td>${item.incoming_fiche}</td>
           <td>${item.outgoing_fiche || "-"}</td>
           <td class="cell-product">${item.product_name || "-"}</td>
+          <td>${escapeHtml(item.production_lot || "-")}</td>
           <td class="cell-reason">${productCodeChangeNote === "-" ? "-" : `<span class="table-note warning-note">${productCodeChangeNote}</span>`}</td>
           <td>${item.zun_quantity ?? 0}</td>
           <td class="cell-reason">${item.repackaging_reason || "-"}</td>
@@ -738,7 +927,7 @@ async function fetchDashboard(options = {}) {
   if (revealOperator && payload.summary?.batch_id && payload.can_operate) {
     revealOperatorFlow();
   } else if (!payload.summary?.batch_id) {
-    setWorkspace("import");
+    setWorkspace("catalog");
   }
 }
 
@@ -762,7 +951,7 @@ async function submitPreview(event) {
   clearImportSkippedRows();
   sheetNameInput.value = payload.resolved_sheet_name || sheetNameInput.value;
   headerRowInput.value = payload.resolved_header_row || headerRowInput.value || "1";
-  [palletColumn, incomingColumn, outgoingColumn, productColumn, productCodeColumn, reasonColumn, zunColumn].forEach((select) => {
+  [palletColumn, incomingColumn, outgoingColumn, productColumn, productCodeColumn, reasonColumn, productionLotColumn, zunColumn].forEach((select) => {
     fillSelect(select, payload.headers);
   });
   guessColumns();
@@ -786,6 +975,11 @@ async function submitImport(event) {
     reasonColumn.focus();
     return;
   }
+  if (!productionLotColumn.value) {
+    showImportMessage("Seleziona la colonna del lotto di produzione prima dell'import.", "error");
+    productionLotColumn.focus();
+    return;
+  }
 
   const pendingRows = getPendingImportRows();
   if (pendingRows.length) {
@@ -798,7 +992,14 @@ async function submitImport(event) {
   const payload = await response.json();
   if (!response.ok) {
     if (payload.detail && typeof payload.detail === "object") {
-      renderImportSkippedRows(payload.detail.skipped_rows || [], { editable: true });
+      if (payload.detail.mismatch_rows?.length) {
+        renderImportSkippedRows(payload.detail.mismatch_rows, {
+          editable: false,
+          title: "Righe con prodotto non coerente con l'anagrafica",
+        });
+      } else {
+        renderImportSkippedRows(payload.detail.skipped_rows || [], { editable: true });
+      }
       showImportMessage(payload.detail.message || "Errore durante l'import del lotto.", "error");
     } else {
       clearImportSkippedRows();
@@ -1086,6 +1287,7 @@ async function finishBatch() {
   await fetchDashboard();
 }
 
+catalogForm.addEventListener("submit", submitCatalogImport);
 previewForm.addEventListener("submit", submitPreview);
 importForm.addEventListener("submit", submitImport);
 incomingForm.addEventListener("submit", submitIncoming);
@@ -1104,6 +1306,7 @@ openOutgoingButton.addEventListener("click", async () => {
   setOutgoingMode(true);
 });
 workspaceImportTab.addEventListener("click", () => setWorkspace("import"));
+workspaceCatalogTab.addEventListener("click", () => setWorkspace("catalog"));
 workspaceOperatorTab.addEventListener("click", () => setWorkspace("operator"));
 batchSelector.addEventListener("change", (event) => {
   const selected = event.target.value ? Number(event.target.value) : null;
@@ -1149,12 +1352,80 @@ importSkippedRows.addEventListener("change", (event) => {
   const rowElement = event.target.closest("tr[data-row-number]");
   syncIssueRowState(rowElement);
 });
-[palletColumn, incomingColumn, outgoingColumn, productColumn, productCodeColumn, reasonColumn, zunColumn].forEach((field) => {
+importSkippedRows.addEventListener("click", (event) => {
+  const addCatalogButton = event.target.closest(".add-catalog-button");
+  if (!addCatalogButton) {
+    return;
+  }
+
+  const productCode = addCatalogButton.dataset.productCode || "";
+  const productName = addCatalogButton.dataset.productName || "";
+  addCatalogButton.disabled = true;
+  addProductToCatalog(productCode, productName)
+    .then(async (payload) => {
+      showImportMessage(payload.message || "Anagrafica prodotti aggiornata.", "success");
+      await inspectImportRows();
+    })
+    .catch((error) => {
+      showImportMessage(error.message || "Impossibile aggiornare l'anagrafica prodotti.", "error");
+    })
+    .finally(() => {
+      addCatalogButton.disabled = false;
+    });
+});
+catalogConflicts.addEventListener("click", (event) => {
+  const actionButton = event.target.closest(".catalog-resolve-button, .catalog-force-button");
+  if (!actionButton) {
+    return;
+  }
+
+  const rowElement = actionButton.closest("tr[data-index]");
+  const codeInput = rowElement?.querySelector(".catalog-conflict-code");
+  const nameInput = rowElement?.querySelector(".catalog-conflict-name");
+  if (!rowElement || !codeInput || !nameInput) {
+    return;
+  }
+
+  const force = actionButton.classList.contains("catalog-force-button");
+  const payload = {
+    current_product_code: rowElement.dataset.currentProductCode || "",
+    current_product_name: rowElement.dataset.currentProductName || "",
+    product_code: codeInput.value.trim(),
+    product_name: nameInput.value.trim(),
+  };
+
+  actionButton.disabled = true;
+  resolveCatalogConflict(payload, { force })
+    .then((result) => {
+      rowElement.remove();
+      if (!catalogConflicts.querySelector("tbody tr")) {
+        clearCatalogConflicts();
+      }
+      return loadCatalogTable().then(() => result);
+    })
+    .then((result) => {
+      showCatalogMessage(result.message || "Conflitto anagrafica risolto.", force ? "warning" : "success");
+    })
+    .catch((error) => {
+      showCatalogMessage(error.message || "Impossibile risolvere il conflitto anagrafica.", "error");
+    })
+    .finally(() => {
+      actionButton.disabled = false;
+    });
+});
+fileInput.addEventListener("change", () => {
+  sheetNameInput.value = "";
+  headerRowInput.value = "1";
+  clearImportSkippedRows();
+  showImportMessage("File selezionato. Genera una nuova anteprima per leggere il foglio corretto.", "muted");
+});
+[palletColumn, incomingColumn, outgoingColumn, productColumn, productCodeColumn, reasonColumn, productionLotColumn, zunColumn].forEach((field) => {
   field.addEventListener("change", () => {
     inspectImportRows().catch(() => showImportMessage("Impossibile aggiornare il controllo righe.", "error"));
   });
 });
 
-setWorkspace("import");
+setWorkspace("catalog");
 resetCompletedEditForm();
+loadCatalogTable().catch(() => showCatalogMessage("Impossibile caricare l'anagrafica importata.", "error"));
 fetchDashboard({ revealOperator: true }).catch(() => showMessage("Impossibile caricare lo stato iniziale.", "error"));

@@ -38,3 +38,9 @@ TEMPLATES_DIR = APP_DIR / "templates"
 DATA_DIR = Path(os.getenv("APP_RICONFEZIONAMENTO_DATA_DIR", _default_data_dir())).expanduser()
 REPORTS_DIR = DATA_DIR / "reports"
 DB_PATH = DATA_DIR / "repackaging.db"
+PRODUCTS_CATALOG_PATH = Path(
+    os.getenv(
+        "APP_RICONFEZIONAMENTO_PRODUCTS_XLSX",
+        r"C:\Users\antim\Il mio Drive\Ricofezionamento\Riconfezionamento 2026\Prodotti.xlsx",
+    )
+).expanduser()

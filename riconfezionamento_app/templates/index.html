@@ -77,13 +77,44 @@
 
       <section class="workspace-shell">
         <div class="workspace-switcher" aria-label="Sezioni operative">
-          <button type="button" class="workspace-tab active" id="workspace-import-tab">1. Import Excel</button>
-          <button type="button" class="workspace-tab" id="workspace-operator-tab">2. Flusso operatore</button>
+          <button type="button" class="workspace-tab active" id="workspace-catalog-tab">1. Anagrafica codici-prodotti</button>
+          <button type="button" class="workspace-tab" id="workspace-import-tab">2. Import Excel</button>
+          <button type="button" class="workspace-tab" id="workspace-operator-tab">3. Flusso operatore</button>
         </div>
 
-        <article class="card workspace-panel" id="import-section">
+        <article class="card workspace-panel" id="catalog-section">
           <div class="section-head">
-            <h2>1. Import Excel</h2>
+            <h2>1. Anagrafica codici-prodotti</h2>
+            <span class="badge muted">Catalogo prodotti</span>
+          </div>
+
+          <form id="catalog-form" class="stack form-block">
+            <label>
+              <span>File anagrafica</span>
+              <input type="file" id="catalog-file" accept=".xlsx,.xlsm,.xltx,.xltm" />
+            </label>
+            <div class="inline-fields">
+              <label>
+                <span>Foglio anagrafica</span>
+                <input type="text" id="catalog-sheet-name" placeholder="Lascia vuoto per il primo foglio" />
+              </label>
+              <label>
+                <span>Riga intestazioni</span>
+                <input type="number" id="catalog-header-row" min="1" value="1" required />
+              </label>
+            </div>
+            <div class="actions">
+              <button type="submit">Aggiorna anagrafica</button>
+            </div>
+          </form>
+
+          <div id="catalog-message-box" class="message-box muted">In attesa del file anagrafica.</div>
+          <div id="catalog-conflicts" class="table-block hidden"></div>
+        </article>
+
+        <article class="card workspace-panel hidden" id="import-section">
+          <div class="section-head">
+            <h2>2. Import Excel</h2>
             <span id="import-status" class="badge muted">Nessun file importato</span>
           </div>
 
@@ -136,6 +167,10 @@
                 <select id="reason-column" required></select>
               </label>
               <label>
+                <span>Colonna lotto di produzione</span>
+                <select id="production-lot-column" required></select>
+              </label>
+              <label>
                 <span>Colonna ZUN</span>
                 <select id="zun-column"></select>
               </label>
@@ -158,7 +193,7 @@
 
         <article class="card workspace-panel hidden" id="operator-section">
           <div class="section-head">
-            <h2>2. Flusso operatore</h2>
+            <h2>3. Flusso operatore</h2>
             <span class="badge success">Scanner compatibile keyboard wedge</span>
           </div>
 
@@ -236,12 +271,13 @@
         </article>
       </section>
 
-      <section class="card">
+      <section class="card" id="catalog-items-section">
         <div class="section-head">
-          <h2>Situazione pallet</h2>
+          <h2 id="catalog-items-title">Situazione pallet</h2>
           <button type="button" class="secondary" id="refresh-dashboard">Aggiorna</button>
         </div>
-        <div class="table-shell">
+        <div id="catalog-table" class="table-block hidden"></div>
+        <div class="table-shell" id="items-table-shell">
           <table>
             <thead>
               <tr>
@@ -249,6 +285,7 @@
                 <th>Fiche entrata</th>
                 <th>Fiche uscita</th>
                 <th>Prodotto</th>
+                <th>Lotto produzione</th>
                 <th>Postilla cambio codice</th>
                 <th>ZUN</th>
                 <th>Motivo</th>

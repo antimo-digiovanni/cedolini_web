@@ -1,5 +1,7 @@
 import importlib
+from io import BytesIO
 import os
+import sqlite3
 from tempfile import NamedTemporaryFile
 from django.conf import settings
 from django.core import mail
@@ -14,6 +16,8 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from datetime import datetime
+from fastapi import HTTPException
+from openpyxl import Workbook, load_workbook
 from starlette.testclient import TestClient as AsgiTestClient
 
 from .access import TODAY_MARKINGS_GROUP_NAME, RICONFEZIONAMENTO_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
@@ -656,8 +660,15 @@ class RiconfezionamentoAccessTests(TestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		cls._original_data_dir = os.environ.get('APP_RICONFEZIONAMENTO_DATA_DIR')
+		cls._original_products_xlsx = os.environ.get('APP_RICONFEZIONAMENTO_PRODUCTS_XLSX')
 		cls._temp_data_dir = tempfile.TemporaryDirectory()
+		cls._products_catalog_path = os.path.join(cls._temp_data_dir.name, 'Prodotti.xlsx')
+		cls._write_products_catalog([
+			('ART-001', 'Prodotto corretto'),
+		])
 		os.environ['APP_RICONFEZIONAMENTO_DATA_DIR'] = cls._temp_data_dir.name
+		os.environ['APP_RICONFEZIONAMENTO_PRODUCTS_XLSX'] = cls._products_catalog_path
+		cls.riconf_main = importlib.reload(importlib.import_module('riconfezionamento_app.main'))
 		asgi_module = importlib.import_module('config.asgi')
 		cls.asgi_application = importlib.reload(asgi_module).application
 
@@ -667,8 +678,46 @@ class RiconfezionamentoAccessTests(TestCase):
 			os.environ.pop('APP_RICONFEZIONAMENTO_DATA_DIR', None)
 		else:
 			os.environ['APP_RICONFEZIONAMENTO_DATA_DIR'] = cls._original_data_dir
+		if cls._original_products_xlsx is None:
+			os.environ.pop('APP_RICONFEZIONAMENTO_PRODUCTS_XLSX', None)
+		else:
+			os.environ['APP_RICONFEZIONAMENTO_PRODUCTS_XLSX'] = cls._original_products_xlsx
 		cls._temp_data_dir.cleanup()
 		super().tearDownClass()
+
+	@classmethod
+	def _write_products_catalog(cls, rows):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.title = 'Prodotti'
+		worksheet.append(['Codice prodotto', 'Prodotto'])
+		for product_code, product_name in rows:
+			worksheet.append([product_code, product_name])
+		workbook.save(cls._products_catalog_path)
+
+	def _build_lot_excel(self, rows):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.title = 'Lotto'
+		worksheet.append(['Fiche', 'Prodotto', 'Codice prodotto', 'Motivo riconfezionamento', 'Lotto di produzione', 'ZUN'])
+		for row in rows:
+			worksheet.append(row)
+		buffer = BytesIO()
+		workbook.save(buffer)
+		return buffer.getvalue()
+
+	def _build_lot_excel_with_merged_reason(self):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.title = 'Lotto'
+		worksheet.append(['Fiche', 'Prodotto', 'Codice prodotto', 'Motivo riconfezionamento', 'Lotto di produzione', 'ZUN'])
+		worksheet.append(['FICHE-001', 'Prodotto corretto', 'ART-001', 'Etichetta errata', 'LOT-001', 4])
+		worksheet.append(['FICHE-002', 'Prodotto corretto', 'ART-001', None, 'LOT-001', 5])
+		worksheet.append(['FICHE-003', 'Prodotto corretto', 'ART-001', None, 'LOT-001', 6])
+		worksheet.merge_cells('D2:D4')
+		buffer = BytesIO()
+		workbook.save(buffer)
+		return buffer.getvalue()
 
 	def setUp(self):
 		self.client = Client()
@@ -731,6 +780,289 @@ class RiconfezionamentoAccessTests(TestCase):
 		with self._build_asgi_client(self.allowed_user) as client:
 			response = client.get('/riconfezionamento/')
 		self.assertEqual(response.status_code, 200)
+
+	def test_import_check_blocks_code_product_mismatch_and_syncs_catalog(self):
+		lot_bytes = self._build_lot_excel([
+			['FICHE-001', 'Prodotto errato', 'ART-001', 'Etichetta rovinata', 'LOT-001', 4],
+		])
+		_, _, headers, rows = self.riconf_main.read_excel(lot_bytes, 1, None)
+		self.riconf_main.sync_product_catalog()
+		reason_column = self.riconf_main.validate_import_columns(
+			headers,
+			'Fiche',
+			'',
+			'',
+			'Prodotto',
+			'Codice prodotto',
+			'Motivo riconfezionamento',
+			'Lotto di produzione',
+			'ZUN',
+		)
+		product_catalog, product_catalog_by_name = self.riconf_main.validate_product_catalog_for_rows(rows, 'Codice prodotto', 'Prodotto')
+
+		with self.assertRaises(HTTPException) as exc:
+			self.riconf_main.build_import_rows(
+				rows,
+				'',
+				'Fiche',
+				'',
+				'Prodotto',
+				'Codice prodotto',
+				reason_column,
+				'Lotto di produzione',
+				'ZUN',
+				strict_empty=False,
+				product_catalog_by_code=product_catalog,
+				product_catalog_by_name=product_catalog_by_name,
+			)
+
+		self.assertEqual(exc.exception.status_code, 400)
+		self.assertEqual(exc.exception.detail['error_code'], 'product_catalog_mismatch')
+		self.assertEqual(exc.exception.detail['mismatch_rows'][0]['product_code'], 'ART-001')
+		self.assertEqual(exc.exception.detail['mismatch_rows'][0]['expected_product_name'], 'Prodotto corretto')
+
+		db_path = os.path.join(self._temp_data_dir.name, 'repackaging.db')
+		with sqlite3.connect(db_path) as connection:
+			row = connection.execute(
+				'SELECT product_name FROM product_catalog WHERE product_code = ?',
+				('ART-001',),
+			).fetchone()
+		self.assertEqual(row[0], 'Prodotto corretto')
+
+	def test_add_product_to_catalog_persists_excel_and_allows_recheck(self):
+		lot_bytes = self._build_lot_excel([
+			['FICHE-001', 'Prodotto nuovo', 'ART-999', 'Etichetta rovinata', 'LOT-002', 4],
+		])
+		_, _, headers, rows = self.riconf_main.read_excel(lot_bytes, 1, None)
+		self.riconf_main.sync_product_catalog()
+		reason_column = self.riconf_main.validate_import_columns(
+			headers,
+			'Fiche',
+			'',
+			'',
+			'Prodotto',
+			'Codice prodotto',
+			'Motivo riconfezionamento',
+			'Lotto di produzione',
+			'ZUN',
+		)
+		product_catalog, product_catalog_by_name = self.riconf_main.validate_product_catalog_for_rows(rows, 'Codice prodotto', 'Prodotto')
+
+		with self.assertRaises(HTTPException) as exc:
+			self.riconf_main.build_import_rows(
+				rows,
+				'',
+				'Fiche',
+				'',
+				'Prodotto',
+				'Codice prodotto',
+				reason_column,
+				'Lotto di produzione',
+				'ZUN',
+				strict_empty=False,
+				product_catalog_by_code=product_catalog,
+				product_catalog_by_name=product_catalog_by_name,
+			)
+
+		self.assertTrue(exc.exception.detail['mismatch_rows'][0]['catalog_missing'])
+		result = self.riconf_main.add_product_to_catalog('ART-999', 'Prodotto nuovo')
+		self.assertTrue(result['created'])
+
+		product_catalog, product_catalog_by_name = self.riconf_main.validate_product_catalog_for_rows(rows, 'Codice prodotto', 'Prodotto')
+		imported_rows, skipped_rows = self.riconf_main.build_import_rows(
+			rows,
+			'',
+			'Fiche',
+			'',
+			'Prodotto',
+			'Codice prodotto',
+			reason_column,
+			'Lotto di produzione',
+			'ZUN',
+			strict_empty=False,
+			product_catalog_by_code=product_catalog,
+			product_catalog_by_name=product_catalog_by_name,
+		)
+		self.assertEqual(len(skipped_rows), 0)
+		self.assertEqual(len(imported_rows), 1)
+
+		catalog_workbook = load_workbook(self._products_catalog_path, read_only=True)
+		try:
+			rows_values = list(catalog_workbook.active.iter_rows(values_only=True))
+		finally:
+			catalog_workbook.close()
+		self.assertIn(('ART-999', 'Prodotto nuovo'), rows_values)
+
+	def test_read_excel_repeats_merged_reason_cells(self):
+		lot_bytes = self._build_lot_excel_with_merged_reason()
+		_, _, headers, rows = self.riconf_main.read_excel(lot_bytes, 1, None)
+		self.riconf_main.sync_product_catalog()
+		reason_column = self.riconf_main.validate_import_columns(
+			headers,
+			'Fiche',
+			'',
+			'',
+			'Prodotto',
+			'Codice prodotto',
+			'Motivo riconfezionamento',
+			'Lotto di produzione',
+			'ZUN',
+		)
+		product_catalog, product_catalog_by_name = self.riconf_main.validate_product_catalog_for_rows(rows, 'Codice prodotto', 'Prodotto')
+
+		imported_rows, skipped_rows = self.riconf_main.build_import_rows(
+			rows,
+			'',
+			'Fiche',
+			'',
+			'Prodotto',
+			'Codice prodotto',
+			reason_column,
+			'Lotto di produzione',
+			'ZUN',
+			strict_empty=False,
+			product_catalog_by_code=product_catalog,
+			product_catalog_by_name=product_catalog_by_name,
+		)
+
+		self.assertEqual(len(skipped_rows), 0)
+		self.assertEqual(len(imported_rows), 3)
+		self.assertTrue(all(row['repackaging_reason'] == 'Etichetta errata' for row in imported_rows))
+
+	def test_import_product_catalog_rows_adds_only_new_codes(self):
+		result = self.riconf_main.import_product_catalog_rows([
+			{'product_code': 'ART-001', 'product_name': 'Prodotto corretto'},
+			{'product_code': 'ART-002', 'product_name': 'Secondo prodotto'},
+		])
+		self.assertEqual(result.added, 1)
+		self.assertEqual(result.existing, 1)
+		self.assertEqual(len(result.conflicts), 0)
+
+	def test_import_product_catalog_rows_bulk_adds_multiple_codes(self):
+		result = self.riconf_main.import_product_catalog_rows([
+			{'product_code': 'ART-010', 'product_name': 'Prodotto dieci'},
+			{'product_code': 'ART-011', 'product_name': 'Prodotto undici'},
+		])
+		self.assertEqual(result.added, 2)
+		self.assertEqual(result.existing, 0)
+		self.assertEqual(len(result.conflicts), 0)
+
+		catalog_workbook = load_workbook(self._products_catalog_path, read_only=True)
+		try:
+			rows_values = list(catalog_workbook.active.iter_rows(values_only=True))
+		finally:
+			catalog_workbook.close()
+		self.assertIn(('ART-010', 'Prodotto dieci'), rows_values)
+		self.assertIn(('ART-011', 'Prodotto undici'), rows_values)
+
+	def test_load_catalog_import_rows_accepts_mrdr_headers(self):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.append(['MRDR', 'MRDR Description'])
+		worksheet.append(['ART-777', 'Prodotto De Rosa'])
+		buffer = BytesIO()
+		workbook.save(buffer)
+
+		rows = self.riconf_main._load_catalog_import_rows(buffer.getvalue(), 1, None)
+
+		self.assertEqual(rows, [{'product_code': 'ART-777', 'product_name': 'Prodotto De Rosa'}])
+
+	def test_load_catalog_import_rows_reports_empty_file(self):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.append(['Codice', 'Nome'])
+		buffer = BytesIO()
+		workbook.save(buffer)
+
+		with self.assertRaises(HTTPException) as context:
+			self.riconf_main._load_catalog_import_rows(buffer.getvalue(), 1, None)
+
+		self.assertEqual(context.exception.status_code, 400)
+		self.assertEqual(context.exception.detail, "Il file anagrafica e' vuoto.")
+
+	def test_sync_product_catalog_accepts_mrdr_headers(self):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.append(['MRDR', 'MRDR Description'])
+		worksheet.append(['ART-888', 'Catalogo De Rosa'])
+		workbook.save(self._products_catalog_path)
+
+		self.riconf_main.sync_product_catalog()
+
+		db_path = os.path.join(self._temp_data_dir.name, 'repackaging.db')
+		with sqlite3.connect(db_path) as connection:
+			row = connection.execute(
+				'SELECT product_name FROM product_catalog WHERE product_code = ?',
+				('ART-888',),
+			).fetchone()
+		self.assertEqual(row[0], 'Catalogo De Rosa')
+
+	def test_sync_product_catalog_ignores_conflicting_duplicate_codes(self):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.append(['Codice', 'Nome'])
+		worksheet.append(['ART-999', 'Prodotto Uno'])
+		worksheet.append(['ART-999', 'Prodotto Due'])
+		workbook.save(self._products_catalog_path)
+
+		self.riconf_main.sync_product_catalog()
+
+		db_path = os.path.join(self._temp_data_dir.name, 'repackaging.db')
+		with sqlite3.connect(db_path) as connection:
+			rows = connection.execute(
+				'SELECT product_code, product_name FROM product_catalog WHERE product_code = ?',
+				('ART-999',),
+			).fetchall()
+		self.assertEqual(rows, [('ART-999', 'Prodotto Uno')])
+
+	def test_sync_product_catalog_deduplicates_identical_codes(self):
+		workbook = Workbook()
+		worksheet = workbook.active
+		worksheet.append(['Codice', 'Nome'])
+		worksheet.append(['ART-111', 'Prodotto Uno'])
+		worksheet.append(['ART-111', 'Prodotto Uno'])
+		workbook.save(self._products_catalog_path)
+
+		self.riconf_main.sync_product_catalog()
+
+		db_path = os.path.join(self._temp_data_dir.name, 'repackaging.db')
+		with sqlite3.connect(db_path) as connection:
+			count = connection.execute(
+				'SELECT COUNT(*) FROM product_catalog WHERE product_code = ?',
+				('ART-111',),
+			).fetchone()[0]
+		self.assertEqual(count, 1)
+
+	def test_resolve_product_catalog_entry_without_force_keeps_conflict_blocking(self):
+		with self.assertRaises(HTTPException) as exc:
+			self.riconf_main.resolve_product_catalog_entry(
+				'ART-001',
+				'Prodotto corretto',
+				'ART-777',
+				'Prodotto corretto',
+				force=False,
+			)
+
+		self.assertEqual(exc.exception.status_code, 400)
+		self.assertIn("gia' presente", exc.exception.detail)
+
+	def test_resolve_product_catalog_entry_with_force_replaces_existing_mapping(self):
+		result = self.riconf_main.resolve_product_catalog_entry(
+			'ART-001',
+			'Prodotto corretto',
+			'ART-777',
+			'Prodotto corretto',
+			force=True,
+		)
+
+		self.assertTrue(result['forced'])
+		catalog_workbook = load_workbook(self._products_catalog_path, read_only=True)
+		try:
+			rows_values = list(catalog_workbook.active.iter_rows(values_only=True))
+		finally:
+			catalog_workbook.close()
+		self.assertIn(('ART-777', 'Prodotto corretto'), rows_values)
+		self.assertNotIn(('ART-001', 'Prodotto corretto'), rows_values)
 
 	def test_turni_planner_new_week_clones_latest_planner_data(self):
 		previous_state = TurniPlannerWeekState.objects.create(

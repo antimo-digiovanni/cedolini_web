@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -19,6 +20,11 @@ def normalize_text(value: object) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def normalize_product_name(value: object) -> str:
+    normalized = normalize_text(value).casefold()
+    return re.sub(r"\s+", " ", normalized)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -53,6 +59,8 @@ def init_db() -> None:
                 product_name TEXT NOT NULL DEFAULT '',
                 product_code TEXT NOT NULL DEFAULT '',
                 original_product_code TEXT NOT NULL DEFAULT '',
+                production_lot TEXT NOT NULL DEFAULT '',
+                original_production_lot TEXT NOT NULL DEFAULT '',
                 product_code_changed INTEGER NOT NULL DEFAULT 0,
                 product_code_change_operator TEXT NOT NULL DEFAULT '',
                 repackaging_reason TEXT NOT NULL DEFAULT '',
@@ -72,6 +80,15 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_items_pallet ON items(pallet_code);
             CREATE INDEX IF NOT EXISTS idx_items_incoming ON items(incoming_fiche);
             CREATE INDEX IF NOT EXISTS idx_items_state ON items(state);
+
+            CREATE TABLE IF NOT EXISTS product_catalog (
+                product_code TEXT PRIMARY KEY,
+                product_name TEXT NOT NULL,
+                normalized_product_name TEXT NOT NULL,
+                synced_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_product_catalog_name ON product_catalog(normalized_product_name);
             """
         )
 
@@ -96,6 +113,10 @@ def init_db() -> None:
             connection.execute("ALTER TABLE items ADD COLUMN product_code TEXT NOT NULL DEFAULT ''")
         if "original_product_code" not in item_columns:
             connection.execute("ALTER TABLE items ADD COLUMN original_product_code TEXT NOT NULL DEFAULT ''")
+        if "production_lot" not in item_columns:
+            connection.execute("ALTER TABLE items ADD COLUMN production_lot TEXT NOT NULL DEFAULT ''")
+        if "original_production_lot" not in item_columns:
+            connection.execute("ALTER TABLE items ADD COLUMN original_production_lot TEXT NOT NULL DEFAULT ''")
         if "product_code_changed" not in item_columns:
             connection.execute("ALTER TABLE items ADD COLUMN product_code_changed INTEGER NOT NULL DEFAULT 0")
         if "product_code_change_operator" not in item_columns:
@@ -125,6 +146,9 @@ def init_db() -> None:
         )
         connection.execute(
             "UPDATE items SET original_product_code = product_code WHERE original_product_code = ''"
+        )
+        connection.execute(
+            "UPDATE items SET original_production_lot = production_lot WHERE original_production_lot = ''"
         )
         connection.execute(
             "UPDATE items SET original_zun_quantity = zun_quantity WHERE original_zun_quantity = 0"
@@ -188,13 +212,15 @@ def import_items(filename: str, rows: list[dict[str, str | int]]) -> dict[str, i
                 product_name,
                 product_code,
                 original_product_code,
+                production_lot,
+                original_production_lot,
                 repackaging_reason,
                 manual_reason_override,
                 zun_quantity,
                 original_zun_quantity,
                 state
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered')
             """,
             [
                 (
@@ -208,6 +234,8 @@ def import_items(filename: str, rows: list[dict[str, str | int]]) -> dict[str, i
                     row["product_name"],
                     row.get("product_code", ""),
                     row.get("product_code", ""),
+                    row.get("production_lot", ""),
+                    row.get("production_lot", ""),
                     row["repackaging_reason"],
                     row.get("manual_reason_override", 0),
                     row["zun_quantity"],
@@ -218,6 +246,112 @@ def import_items(filename: str, rows: list[dict[str, str | int]]) -> dict[str, i
         )
         connection.commit()
     return {"batch_id": batch_id, "total_items": len(rows)}
+
+
+def replace_product_catalog(rows: list[dict[str, str]]) -> int:
+    synced_at = now_iso()
+    catalog_rows = [
+        (
+            normalize_text(row.get("product_code", "")),
+            normalize_text(row.get("product_name", "")),
+            normalize_product_name(row.get("product_name", "")),
+            synced_at,
+        )
+        for row in rows
+        if normalize_text(row.get("product_code", "")) and normalize_text(row.get("product_name", ""))
+    ]
+
+    with get_connection() as connection:
+        connection.execute("DELETE FROM product_catalog")
+        if catalog_rows:
+            connection.executemany(
+                """
+                INSERT INTO product_catalog(product_code, product_name, normalized_product_name, synced_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                catalog_rows,
+            )
+        connection.commit()
+    return len(catalog_rows)
+
+
+def get_product_catalog_by_codes(product_codes: list[str]) -> dict[str, dict[str, str]]:
+    normalized_codes = sorted({normalize_text(code) for code in product_codes if normalize_text(code)})
+    if not normalized_codes:
+        return {}
+
+    placeholders = ", ".join("?" for _ in normalized_codes)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT product_code, product_name, normalized_product_name, synced_at
+            FROM product_catalog
+            WHERE product_code IN ({placeholders})
+            """,
+            normalized_codes,
+        ).fetchall()
+    return {
+        str(row["product_code"]): {
+            "product_code": str(row["product_code"]),
+            "product_name": str(row["product_name"]),
+            "normalized_product_name": str(row["normalized_product_name"]),
+            "synced_at": str(row["synced_at"]),
+        }
+        for row in rows
+    }
+
+
+def get_product_catalog_by_names(product_names: list[str]) -> dict[str, list[dict[str, str]]]:
+    normalized_names = sorted({normalize_product_name(name) for name in product_names if normalize_text(name)})
+    if not normalized_names:
+        return {}
+
+    placeholders = ", ".join("?" for _ in normalized_names)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT product_code, product_name, normalized_product_name, synced_at
+            FROM product_catalog
+            WHERE normalized_product_name IN ({placeholders})
+            ORDER BY product_code
+            """,
+            normalized_names,
+        ).fetchall()
+
+    result: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        key = str(row["normalized_product_name"])
+        result.setdefault(key, []).append(
+            {
+                "product_code": str(row["product_code"]),
+                "product_name": str(row["product_name"]),
+                "normalized_product_name": str(row["normalized_product_name"]),
+                "synced_at": str(row["synced_at"]),
+            }
+        )
+    return result
+
+
+def list_product_catalog(limit: int = 500) -> list[dict[str, str]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT product_code, product_name, normalized_product_name, synced_at
+            FROM product_catalog
+            ORDER BY product_code
+            LIMIT ?
+            """,
+            (int(limit),),
+        ).fetchall()
+    return [
+        {
+            "product_code": str(row["product_code"]),
+            "product_name": str(row["product_name"]),
+            "normalized_product_name": str(row["normalized_product_name"]),
+            "synced_at": str(row["synced_at"]),
+        }
+        for row in rows
+    ]
 
 
 def delete_batch(batch_id: int | None = None) -> dict[str, str | int | None] | None:
@@ -312,7 +446,7 @@ def list_items(limit: int = 250, batch_id: int | None = None) -> list[dict[str, 
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT id, batch_id, pallet_code, incoming_fiche, outgoing_fiche, product_name, product_code,
+            SELECT id, batch_id, pallet_code, incoming_fiche, outgoing_fiche, product_name, product_code, production_lot,
                                          original_outgoing_fiche, repackaging_reason, manual_reason_override, zun_quantity,
                                      original_zun_quantity, product_code_changed, product_code_change_operator, incoming_operator, waiting_operator,
                    outgoing_operator, state, scanned_incoming_at, scanned_outgoing_at
