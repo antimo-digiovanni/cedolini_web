@@ -673,19 +673,19 @@ function renderItems(items) {
           : "-";
         return `
         <tr class="${rowClass}">
-          <td>${escapeHtml(item.product_code || "-")}</td>
-          <td>${item.incoming_fiche}</td>
-          <td>${item.outgoing_fiche || "-"}</td>
-          <td class="cell-product">${item.product_name || "-"}</td>
-          <td>${escapeHtml(item.production_lot || "-")}</td>
-          <td class="cell-reason">${productCodeChangeNote === "-" ? "-" : `<span class="table-note warning-note">${productCodeChangeNote}</span>`}</td>
-          <td>${item.zun_quantity ?? 0}</td>
-          <td class="cell-reason">${item.repackaging_reason || "-"}</td>
-          <td>${getOperatorLabel(item)}</td>
-          <td><span class="state ${item.state}">${item.state}</span></td>
-          <td>${formatDateTime(item.scanned_incoming_at)}</td>
-          <td>${formatDateTime(item.scanned_outgoing_at)}</td>
-          <td>
+          <td data-label="Codice prodotto">${escapeHtml(item.product_code || "-")}</td>
+          <td data-label="Fiche entrata">${item.incoming_fiche}</td>
+          <td data-label="Fiche uscita">${item.outgoing_fiche || "-"}</td>
+          <td class="cell-product" data-label="Prodotto">${item.product_name || "-"}</td>
+          <td data-label="Lotto produzione">${escapeHtml(item.production_lot || "-")}</td>
+          <td class="cell-reason" data-label="Postilla cambio codice">${productCodeChangeNote === "-" ? "-" : `<span class="table-note warning-note">${productCodeChangeNote}</span>`}</td>
+          <td data-label="ZUN">${item.zun_quantity ?? 0}</td>
+          <td class="cell-reason" data-label="Motivo">${item.repackaging_reason || "-"}</td>
+          <td data-label="Operatore">${getOperatorLabel(item)}</td>
+          <td data-label="Stato"><span class="state ${item.state}">${item.state}</span></td>
+          <td data-label="Entrata">${formatDateTime(item.scanned_incoming_at)}</td>
+          <td data-label="Uscita">${formatDateTime(item.scanned_outgoing_at)}</td>
+          <td data-label="Azioni">
             <div class="table-actions">
               <button type="button" class="secondary table-action-button edit-completed-button" data-pallet-code="${escapeHtml(item.pallet_code)}">Modifica</button>
               ${state.canOperate
