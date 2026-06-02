@@ -829,7 +829,14 @@ class RiconfezionamentoAccessTests(TestCase):
 			).fetchone()
 		self.assertEqual(row[0], 'Prodotto corretto')
 
-	def test_add_product_to_catalog_persists_excel_and_allows_recheck(self):
+	def test_sync_product_catalog_for_import_allows_empty_catalog(self):
+		self._write_products_catalog([])
+		self.assertEqual(self.riconf_main.sync_product_catalog_for_import(), 0)
+
+	def test_import_rows_auto_enrich_missing_catalog_entry(self):
+		self._write_products_catalog([
+			('ART-001', 'Prodotto corretto'),
+		])
 		lot_bytes = self._build_lot_excel([
 			['FICHE-001', 'Prodotto nuovo', 'ART-999', 'Etichetta rovinata', 'LOT-002', 4],
 		])
@@ -847,29 +854,7 @@ class RiconfezionamentoAccessTests(TestCase):
 			'ZUN',
 		)
 		product_catalog, product_catalog_by_name = self.riconf_main.validate_product_catalog_for_rows(rows, 'Codice prodotto', 'Prodotto')
-
-		with self.assertRaises(HTTPException) as exc:
-			self.riconf_main.build_import_rows(
-				rows,
-				'',
-				'Fiche',
-				'',
-				'Prodotto',
-				'Codice prodotto',
-				reason_column,
-				'Lotto di produzione',
-				'ZUN',
-				strict_empty=False,
-				product_catalog_by_code=product_catalog,
-				product_catalog_by_name=product_catalog_by_name,
-			)
-
-		self.assertTrue(exc.exception.detail['mismatch_rows'][0]['catalog_missing'])
-		result = self.riconf_main.add_product_to_catalog('ART-999', 'Prodotto nuovo')
-		self.assertTrue(result['created'])
-
-		product_catalog, product_catalog_by_name = self.riconf_main.validate_product_catalog_for_rows(rows, 'Codice prodotto', 'Prodotto')
-		imported_rows, skipped_rows = self.riconf_main.build_import_rows(
+		imported_rows, skipped_rows, catalog_rows_to_add = self.riconf_main.build_import_rows(
 			rows,
 			'',
 			'Fiche',
@@ -885,6 +870,10 @@ class RiconfezionamentoAccessTests(TestCase):
 		)
 		self.assertEqual(len(skipped_rows), 0)
 		self.assertEqual(len(imported_rows), 1)
+		self.assertEqual(catalog_rows_to_add, [{'product_code': 'ART-999', 'product_name': 'Prodotto nuovo'}])
+
+		self.riconf_main._append_product_catalog_entries(catalog_rows_to_add)
+		self.riconf_main.sync_product_catalog()
 
 		catalog_workbook = load_workbook(self._products_catalog_path, read_only=True)
 		try:
@@ -910,7 +899,7 @@ class RiconfezionamentoAccessTests(TestCase):
 		)
 		product_catalog, product_catalog_by_name = self.riconf_main.validate_product_catalog_for_rows(rows, 'Codice prodotto', 'Prodotto')
 
-		imported_rows, skipped_rows = self.riconf_main.build_import_rows(
+		imported_rows, skipped_rows, catalog_rows_to_add = self.riconf_main.build_import_rows(
 			rows,
 			'',
 			'Fiche',
@@ -927,6 +916,7 @@ class RiconfezionamentoAccessTests(TestCase):
 
 		self.assertEqual(len(skipped_rows), 0)
 		self.assertEqual(len(imported_rows), 3)
+		self.assertEqual(len(catalog_rows_to_add), 0)
 		self.assertTrue(all(row['repackaging_reason'] == 'Etichetta errata' for row in imported_rows))
 
 	def test_import_product_catalog_rows_adds_only_new_codes(self):

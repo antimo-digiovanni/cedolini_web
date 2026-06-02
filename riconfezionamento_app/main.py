@@ -304,6 +304,15 @@ def sync_product_catalog() -> int:
     return replace_product_catalog(_load_product_catalog_rows())
 
 
+def sync_product_catalog_for_import() -> int:
+    try:
+        return sync_product_catalog()
+    except HTTPException as exc:
+        if exc.detail == "Anagrafica prodotti senza righe valide.":
+            return 0
+        raise
+
+
 def add_product_to_catalog(product_code: str, product_name: str) -> dict[str, object]:
     normalized_product_code = str(product_code or "").strip()
     normalized_product_name = str(product_name or "").strip()
@@ -743,7 +752,7 @@ def build_import_rows(
     product_catalog_by_code: dict[str, dict[str, str]] | None = None,
     product_catalog_by_name: dict[str, list[dict[str, str]]] | None = None,
     strict_empty: bool = True,
-) -> tuple[list[dict[str, str | int]], list[dict[str, str]]]:
+) -> tuple[list[dict[str, str | int]], list[dict[str, str]], list[dict[str, str]]]:
     imported_rows: list[dict[str, str | int]] = []
     last_product_name = ""
     last_product_code = ""
@@ -752,7 +761,10 @@ def build_import_rows(
     missing_product_code_rows: list[dict[str, str]] = []
     missing_production_lot_rows: list[dict[str, str]] = []
     mismatched_product_rows: list[dict[str, str]] = []
+    catalog_rows_to_add: list[dict[str, str]] = []
     actions = row_actions or {}
+    catalog_by_code = dict(product_catalog_by_code or {})
+    catalog_by_name = {key: list(value) for key, value in (product_catalog_by_name or {}).items()}
     for row in rows:
         try:
             row_number = int(row.get("__row_number", "0") or 0)
@@ -821,29 +833,56 @@ def build_import_rows(
             )
             continue
 
-        catalog_entry = (product_catalog_by_code or {}).get(product_code)
+        catalog_entry = catalog_by_code.get(product_code)
         normalized_row_product_name = normalize_product_name(product_name)
         if catalog_entry is None:
-            same_name_entries = (product_catalog_by_name or {}).get(normalized_row_product_name, [])
+            if not normalized_row_product_name or normalized_row_product_name == "prodotto non indicato":
+                mismatched_product_rows.append(
+                    {
+                        "row_number": str(row_number),
+                        "fiche": incoming_fiche or pallet_code,
+                        "pallet": selected_pallet_value or pallet_code,
+                        "product_name": product_name or "prodotto non indicato",
+                        "zun_quantity": str(zun_quantity),
+                        "reason": repackaging_reason or "-",
+                        "expected_product_name": "prodotto non presente in anagrafica",
+                        "product_code": product_code,
+                        "catalog_missing": True,
+                    }
+                )
+                continue
+            same_name_entries = catalog_by_name.get(normalized_row_product_name, [])
             expected_name = "codice non presente in anagrafica"
             catalog_missing = True
             if same_name_entries:
                 expected_name = f"prodotto gia' presente con codice {same_name_entries[0]['product_code']}"
                 catalog_missing = False
-            mismatched_product_rows.append(
-                {
-                    "row_number": str(row_number),
-                    "fiche": incoming_fiche or pallet_code,
-                    "pallet": selected_pallet_value or pallet_code,
-                    "product_name": product_name or "prodotto non indicato",
-                    "zun_quantity": str(zun_quantity),
-                    "reason": repackaging_reason or "-",
-                    "expected_product_name": expected_name,
-                    "product_code": product_code,
-                    "catalog_missing": catalog_missing,
-                }
-            )
-            continue
+            if same_name_entries:
+                mismatched_product_rows.append(
+                    {
+                        "row_number": str(row_number),
+                        "fiche": incoming_fiche or pallet_code,
+                        "pallet": selected_pallet_value or pallet_code,
+                        "product_name": product_name or "prodotto non indicato",
+                        "zun_quantity": str(zun_quantity),
+                        "reason": repackaging_reason or "-",
+                        "expected_product_name": expected_name,
+                        "product_code": product_code,
+                        "catalog_missing": catalog_missing,
+                    }
+                )
+                continue
+
+            new_catalog_entry = {
+                "product_code": product_code,
+                "product_name": product_name,
+                "normalized_product_name": normalized_row_product_name,
+                "synced_at": "",
+            }
+            catalog_by_code[product_code] = new_catalog_entry
+            catalog_by_name.setdefault(normalized_row_product_name, []).append(new_catalog_entry)
+            catalog_rows_to_add.append({"product_code": product_code, "product_name": product_name})
+            catalog_entry = new_catalog_entry
         if not normalized_row_product_name or normalized_row_product_name != catalog_entry["normalized_product_name"]:
             mismatched_product_rows.append(
                 {
@@ -959,7 +998,7 @@ def build_import_rows(
                 "mismatch_rows": mismatched_product_rows,
             },
         )
-    return imported_rows, missing_reason_rows
+    return imported_rows, missing_reason_rows, catalog_rows_to_add
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1004,7 +1043,7 @@ async def check_import_excel(
 ) -> dict[str, object]:
     content = await file.read()
     _, _, headers, rows = read_excel(content, header_row, sheet_name or None)
-    sync_product_catalog()
+    sync_product_catalog_for_import()
     reason_column = validate_import_columns(
         headers,
         incoming_column,
@@ -1018,7 +1057,7 @@ async def check_import_excel(
     )
     product_catalog_by_code, product_catalog_by_name = validate_product_catalog_for_rows(rows, product_code_column, product_column)
 
-    imported_rows, skipped_rows = build_import_rows(
+    imported_rows, skipped_rows, catalog_rows_to_add = build_import_rows(
         rows,
         pallet_column,
         incoming_column,
@@ -1043,7 +1082,12 @@ async def check_import_excel(
         }
 
     return {
-        "message": f"Controllo completato: {len(imported_rows)} righe pronte per l'import.",
+        "message": (
+            f"Controllo completato: {len(imported_rows)} righe pronte per l'import. "
+            f"{len(catalog_rows_to_add)} nuovi codici saranno aggiunti in anagrafica."
+            if catalog_rows_to_add
+            else f"Controllo completato: {len(imported_rows)} righe pronte per l'import."
+        ),
         "issues": [],
         "valid_rows": len(imported_rows),
     }
@@ -1066,7 +1110,7 @@ async def import_excel(
 ) -> dict[str, object]:
     content = await file.read()
     _, _, headers, rows = read_excel(content, header_row, sheet_name or None)
-    sync_product_catalog()
+    sync_product_catalog_for_import()
 
     reason_column = validate_import_columns(
         headers,
@@ -1082,7 +1126,7 @@ async def import_excel(
     parsed_row_actions = parse_row_actions(row_actions)
     product_catalog_by_code, product_catalog_by_name = validate_product_catalog_for_rows(rows, product_code_column, product_column)
 
-    imported_rows, skipped_rows = build_import_rows(
+    imported_rows, skipped_rows, catalog_rows_to_add = build_import_rows(
         rows,
         pallet_column,
         incoming_column,
@@ -1105,11 +1149,17 @@ async def import_excel(
             },
         )
 
+    if catalog_rows_to_add:
+        _append_product_catalog_entries(catalog_rows_to_add)
+        sync_product_catalog()
+
     result = import_items(file.filename or "lotto.xlsx", imported_rows)
     discarded_count = sum(1 for action in parsed_row_actions.values() if bool(action.get("discard", False)))
     message = f"Lotto importato: {result['total_items']} pedane registrate."
     if discarded_count:
         message += f" {discarded_count} righe scartate su richiesta."
+    if catalog_rows_to_add:
+        message += f" Anagrafica arricchita con {len(catalog_rows_to_add)} nuovi codici-prodotto."
     return {
         "message": message,
         "summary": summary(result["batch_id"]),

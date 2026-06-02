@@ -189,6 +189,11 @@ async function loadCatalogTable() {
   renderCatalogTable(payload.rows || []);
 }
 
+async function refreshWorkspaceData(options = {}) {
+  await fetchDashboard(options);
+  await loadCatalogTable();
+}
+
 function renderCatalogConflicts(conflicts) {
   if (!conflicts?.length) {
     clearCatalogConflicts();
@@ -1010,7 +1015,7 @@ async function submitImport(event) {
 
   clearImportSkippedRows();
   showImportMessage(payload.message, "success");
-  await fetchDashboard({ revealOperator: true });
+  await refreshWorkspaceData({ revealOperator: true });
 }
 
 async function deleteBatch() {
@@ -1292,7 +1297,9 @@ previewForm.addEventListener("submit", submitPreview);
 importForm.addEventListener("submit", submitImport);
 incomingForm.addEventListener("submit", submitIncoming);
 outgoingForm.addEventListener("submit", submitOutgoing);
-refreshDashboardButton.addEventListener("click", fetchDashboard);
+refreshDashboardButton.addEventListener("click", () => {
+  refreshWorkspaceData({ batchId: state.selectedBatchId }).catch(() => showMessage("Impossibile aggiornare lo stato iniziale.", "error"));
+});
 waitingFicheButton.addEventListener("click", submitWaitingFiche);
 openOutgoingButton.addEventListener("click", async () => {
   const selectedPallet = activePallets.value;
@@ -1427,5 +1434,7 @@ fileInput.addEventListener("change", () => {
 
 setWorkspace("catalog");
 resetCompletedEditForm();
-loadCatalogTable().catch(() => showCatalogMessage("Impossibile caricare l'anagrafica importata.", "error"));
-fetchDashboard({ revealOperator: true }).catch(() => showMessage("Impossibile caricare lo stato iniziale.", "error"));
+refreshWorkspaceData({ revealOperator: true }).catch(() => {
+  showCatalogMessage("Impossibile caricare l'anagrafica importata.", "error");
+  showMessage("Impossibile caricare lo stato iniziale.", "error");
+});
