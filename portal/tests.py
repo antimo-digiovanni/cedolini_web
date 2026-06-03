@@ -1150,6 +1150,36 @@ class RiconfezionamentoAccessTests(TestCase):
 		self.assertEqual(outgoing_item['batch_id'], batch_eight['batch_id'])
 		self.assertEqual(outgoing_item['state'], 'completed')
 
+	def test_scan_incoming_reports_similar_codes_when_exact_code_is_missing(self):
+		self.riconf_main.import_items('Lotto n° 8.xlsx', [{
+			'pallet_code': '180011905525294048',
+			'incoming_fiche': '180011905525294048',
+			'outgoing_fiche': '',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-008',
+			'repackaging_reason': 'Controllo lotto 8',
+			'zun_quantity': 5,
+		}, {
+			'pallet_code': '180011905525294123',
+			'incoming_fiche': '180011905525294123',
+			'outgoing_fiche': '',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-008',
+			'repackaging_reason': 'Controllo lotto 8',
+			'zun_quantity': 5,
+		}])
+
+		success, message, item = self.riconf_main.register_incoming('180011905525294000', 'Operatore Test')
+
+		self.assertFalse(success)
+		self.assertIsNone(item)
+		self.assertIn("Codice non presente in nessun lotto aperto.", message)
+		self.assertIn("Lotto n° 8.xlsx", message)
+		self.assertIn("180011905525294048", message)
+		self.assertIn("180011905525294123", message)
+
 	def test_wipe_all_data_keeps_product_catalog(self):
 		self._write_products_catalog([
 			('ART-001', 'Prodotto corretto'),
@@ -1182,6 +1212,38 @@ class RiconfezionamentoAccessTests(TestCase):
 			catalog_workbook.close()
 		self.assertIn(('ART-001', 'Prodotto corretto'), rows_values)
 		self.assertIn(('ART-002', 'Prodotto persistente'), rows_values)
+
+	def test_multiple_catalog_conflicts_can_be_forced_in_sequence(self):
+		self._write_products_catalog([
+			('65676623', 'HB Remix 65ml Sandwich 4MPCL1x4x155EB'),
+			('65283476', 'CORN 125ml HQFM CLASC Promo CL1x24X162EB'),
+		])
+		self.riconf_main.sync_product_catalog()
+
+		result = self.riconf_main.import_product_catalog_rows([
+			{'product_code': '99900001', 'product_name': 'HB Remix 65ml Sandwich 4MPCL1x4x155EB'},
+			{'product_code': '99900002', 'product_name': 'CORN 125ml HQFM CLASC Promo CL1x24X162EB'},
+		])
+
+		self.assertEqual(result.added, 0)
+		self.assertEqual(result.existing, 0)
+		self.assertEqual(len(result.conflicts), 2)
+
+		for conflict in result.conflicts:
+			self.riconf_main.resolve_product_catalog_entry(
+				conflict['current_product_code'],
+				conflict['current_product_name'],
+				conflict['product_code'],
+				conflict['product_name'],
+				force=True,
+			)
+
+		catalog_rows = self.riconf_main.list_product_catalog(limit=10)
+		catalog_codes = {row['product_code'] for row in catalog_rows}
+		self.assertIn('99900001', catalog_codes)
+		self.assertIn('99900002', catalog_codes)
+		self.assertNotIn('65676623', catalog_codes)
+		self.assertNotIn('65283476', catalog_codes)
 
 	def test_turni_planner_new_week_clones_latest_planner_data(self):
 		previous_state = TurniPlannerWeekState.objects.create(

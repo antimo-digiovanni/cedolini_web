@@ -533,6 +533,31 @@ def find_item_by_scan(scan_code: str) -> dict[str, str | int | None] | None:
     return dict(row) if row else None
 
 
+def find_similar_open_scans(scan_code: str, limit: int = 5) -> list[dict[str, str | int | None]]:
+    normalized_scan = normalize_text(scan_code)
+    if len(normalized_scan) < 6:
+        return []
+
+    # Use a short suffix tolerance to surface likely scanner or transcription mistakes
+    # without auto-matching an ambiguous pallet.
+    prefix = f"{normalized_scan[:-3]}%"
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT DISTINCT items.batch_id, import_batches.filename AS batch_filename,
+                   items.incoming_fiche, items.pallet_code
+            FROM items
+            JOIN import_batches ON import_batches.id = items.batch_id
+            WHERE import_batches.completed_at IS NULL
+              AND (items.incoming_fiche LIKE ? OR items.pallet_code LIKE ?)
+            ORDER BY items.batch_id DESC, items.incoming_fiche ASC
+            LIMIT ?
+            """,
+            (prefix, prefix, limit),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def _get_item_by_incoming_scan(scan_code: str, batch_id: int | None = None) -> sqlite3.Row | None:
     batch = _resolve_batch(batch_id)
     if batch is None:
@@ -569,6 +594,14 @@ def register_incoming(
     else:
         item = find_item_by_scan(scan_code)
     if item is None:
+        similar_scans = find_similar_open_scans(scan_code)
+        if similar_scans:
+            batch_label = similar_scans[0].get("batch_filename") or f"lotto {similar_scans[0].get('batch_id')}"
+            suggestions = ", ".join(
+                row.get("incoming_fiche") or row.get("pallet_code") or "-"
+                for row in similar_scans
+            )
+            return False, f"Codice non presente in nessun lotto aperto. Nel {batch_label} ci sono codici simili: {suggestions}.", None
         return False, "Codice non presente in nessun lotto aperto.", None
     if item.get("batch_completed_at") is not None:
         return False, f"Il pallet appartiene al lotto {item.get('batch_filename') or item.get('batch_id')}, ma il lotto e' chiuso.", item

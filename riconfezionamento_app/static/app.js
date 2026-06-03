@@ -216,7 +216,10 @@ function renderCatalogConflicts(conflicts) {
   catalogConflicts.innerHTML = `
     <div class="section-head compact-head">
       <h3>Conflitti anagrafica da risolvere</h3>
-      <span class="badge warning">${conflicts.length} righe</span>
+      <div class="table-actions">
+        <span class="badge warning">${conflicts.length} righe</span>
+        <button type="button" class="table-action-button catalog-force-all-button">Forza registrazione tutti</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table class="data-table issue-table">
@@ -270,6 +273,57 @@ async function resolveCatalogConflict(row, { force }) {
     throw new Error(payload.detail || "Impossibile aggiornare il conflitto anagrafica.");
   }
   return payload;
+}
+
+async function forceAllCatalogConflicts() {
+  const rowElements = Array.from(catalogConflicts.querySelectorAll("tbody tr[data-index]"));
+  if (!rowElements.length) {
+    clearCatalogConflicts();
+    return;
+  }
+
+  const actionButtons = Array.from(catalogConflicts.querySelectorAll("button"));
+  actionButtons.forEach((button) => {
+    button.disabled = true;
+  });
+
+  let resolvedCount = 0;
+  let failedCount = 0;
+
+  for (const rowElement of rowElements) {
+    const codeInput = rowElement.querySelector(".catalog-conflict-code");
+    const nameInput = rowElement.querySelector(".catalog-conflict-name");
+    if (!codeInput || !nameInput) {
+      failedCount += 1;
+      continue;
+    }
+
+    const payload = {
+      current_product_code: rowElement.dataset.currentProductCode || "",
+      current_product_name: rowElement.dataset.currentProductName || "",
+      product_code: codeInput.value.trim(),
+      product_name: nameInput.value.trim(),
+    };
+
+    try {
+      await resolveCatalogConflict(payload, { force: true });
+      rowElement.remove();
+      resolvedCount += 1;
+    } catch (error) {
+      failedCount += 1;
+    }
+  }
+
+  if (!catalogConflicts.querySelector("tbody tr")) {
+    clearCatalogConflicts();
+  }
+
+  await loadCatalogTable();
+  if (failedCount) {
+    showCatalogMessage(`Forzate ${resolvedCount} righe. ${failedCount} conflitti sono rimasti da controllare.`, "warning");
+  } else {
+    showCatalogMessage(`Forzate tutte le ${resolvedCount} righe in anagrafica.`, "warning");
+  }
 }
 
 function closeSignatureModal(result = null) {
@@ -1401,6 +1455,14 @@ importSkippedRows.addEventListener("click", (event) => {
     });
 });
 catalogConflicts.addEventListener("click", (event) => {
+  const forceAllButton = event.target.closest(".catalog-force-all-button");
+  if (forceAllButton) {
+    forceAllCatalogConflicts().catch((error) => {
+      showCatalogMessage(error.message || "Impossibile forzare tutti i conflitti anagrafica.", "error");
+    });
+    return;
+  }
+
   const actionButton = event.target.closest(".catalog-resolve-button, .catalog-force-button");
   if (!actionButton) {
     return;
