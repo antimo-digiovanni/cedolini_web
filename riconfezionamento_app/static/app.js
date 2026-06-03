@@ -1402,8 +1402,8 @@ openOutgoingButton.addEventListener("click", async () => {
   if (selectedPallet && state.currentJob?.pallet_code !== selectedPallet) {
     await loadCurrentJob(selectedPallet);
   }
-  if (!state.currentJob || state.currentJob.state === "completed" || state.currentJob.state === "waiting_fiche") {
-    showMessage("Seleziona un pallet in lavorazione prima di inserire la nuova fiche.", "warning");
+  if (!state.currentJob || state.currentJob.state === "completed") {
+    showMessage("Seleziona un pallet aperto prima di inserire la nuova fiche.", "warning");
     return;
   }
   setOutgoingMode(true);

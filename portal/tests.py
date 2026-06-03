@@ -1129,6 +1129,29 @@ class RiconfezionamentoAccessTests(TestCase):
 		self.assertTrue(success_with_selected_batch)
 		self.assertEqual(item_with_selected_batch['batch_id'], batch_eight['batch_id'])
 
+	def test_scan_incoming_uses_selected_open_batch_without_crashing(self):
+		batch_eight = self.riconf_main.import_items('Lotto n° 8.xlsx', [{
+			'pallet_code': 'PALLET-8',
+			'incoming_fiche': 'PALLET-8',
+			'outgoing_fiche': '',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-008',
+			'repackaging_reason': 'Controllo lotto 8',
+			'zun_quantity': 5,
+		}])
+
+		success, message, item = self.riconf_main.register_incoming(
+			'PALLET-8',
+			'Operatore Test',
+			batch_id=batch_eight['batch_id'],
+		)
+
+		self.assertTrue(success)
+		self.assertEqual(message, 'OK entrata: pallet registrato in lavorazione.')
+		self.assertEqual(item['batch_id'], batch_eight['batch_id'])
+		self.assertEqual(item['state'], 'in_progress')
+
 	def test_scan_outgoing_uses_selected_batch_when_latest_batch_is_different(self):
 		batch_eight = self.riconf_main.import_items('Lotto n° 8.xlsx', [{
 			'pallet_code': 'PALLET-8',

@@ -558,13 +558,13 @@ def find_similar_open_scans(scan_code: str, limit: int = 5) -> list[dict[str, st
     return [dict(row) for row in rows]
 
 
-def _get_item_by_incoming_scan(scan_code: str, batch_id: int | None = None) -> sqlite3.Row | None:
+def _get_item_by_incoming_scan(scan_code: str, batch_id: int | None = None) -> dict[str, str | int | None] | None:
     batch = _resolve_batch(batch_id)
     if batch is None:
         return None
 
     with get_connection() as connection:
-        return connection.execute(
+        row = connection.execute(
             """
             SELECT *
             FROM items
@@ -575,6 +575,7 @@ def _get_item_by_incoming_scan(scan_code: str, batch_id: int | None = None) -> s
             """,
             (batch["id"], scan_code, scan_code, scan_code),
         ).fetchone()
+    return dict(row) if row else None
 
 
 def register_incoming(
