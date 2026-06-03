@@ -1226,6 +1226,18 @@ def get_product_catalog(limit: int = 500) -> dict[str, object]:
     }
 
 
+@app.get("/api/product-catalog/download")
+def download_product_catalog() -> FileResponse:
+    _ensure_product_catalog_workbook()
+    catalog_path = PRODUCTS_CATALOG_PATH.resolve()
+    media_type, _ = mimetypes.guess_type(catalog_path.name)
+    return FileResponse(
+        path=catalog_path,
+        media_type=media_type or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=catalog_path.name,
+    )
+
+
 @app.post("/api/product-catalog/clear")
 def clear_product_catalog_endpoint() -> dict[str, object]:
     clear_product_catalog()

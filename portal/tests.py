@@ -1,6 +1,7 @@
 import importlib
 from io import BytesIO
 import os
+from pathlib import Path
 import sqlite3
 from tempfile import NamedTemporaryFile
 from django.conf import settings
@@ -781,6 +782,13 @@ class RiconfezionamentoAccessTests(TestCase):
 			response = client.get('/riconfezionamento/')
 		self.assertEqual(response.status_code, 200)
 
+	def test_mounted_app_downloads_product_catalog_workbook(self):
+		with self._build_asgi_client(self.allowed_user) as client:
+			response = client.get('/riconfezionamento/api/product-catalog/download')
+		self.assertEqual(response.status_code, 200)
+		self.assertIn('attachment;', response.headers.get('content-disposition', '').lower())
+		self.assertIn('prodotti.xlsx', response.headers.get('content-disposition', '').lower())
+
 	def test_import_check_blocks_code_product_mismatch_and_syncs_catalog(self):
 		lot_bytes = self._build_lot_excel([
 			['FICHE-001', 'Prodotto errato', 'ART-001', 'Etichetta rovinata', 'LOT-001', 4],
@@ -1286,6 +1294,77 @@ class RiconfezionamentoAccessTests(TestCase):
 		self.assertIn('99900002', catalog_codes)
 		self.assertNotIn('65676623', catalog_codes)
 		self.assertNotIn('65283476', catalog_codes)
+
+	def test_batch_report_highlights_manual_changes_and_forced_changes_with_distinct_row_colors(self):
+		reports_dir = Path(self._temp_data_dir.name) / 'reports'
+		report_path = self.riconf_main.generate_batch_report(
+			reports_dir,
+			{
+				'filename': 'Lotto n° 9.xlsx',
+				'imported_at': timezone.now().isoformat(),
+				'completed_at': timezone.now().isoformat(),
+			},
+			[
+				{
+					'pallet_code': 'PALLET-MOD',
+					'product_name': 'Prodotto corretto',
+					'original_product_code': 'ART-001',
+					'product_code': 'ART-001',
+					'zun_quantity': 5,
+					'repackaging_reason': 'Motivo modificato',
+					'incoming_fiche': 'PALLET-MOD',
+					'incoming_operator': 'Operatore Test',
+					'scanned_incoming_at': timezone.now().isoformat(),
+					'state': 'completed',
+					'manual_reason_override': 1,
+					'product_code_changed': 0,
+					'product_code_change_operator': '',
+					'waiting_operator': '',
+					'outgoing_fiche': 'OUT-MOD',
+					'outgoing_operator': 'Operatore Test',
+					'scanned_outgoing_at': timezone.now().isoformat(),
+				},
+				{
+					'pallet_code': 'PALLET-FORCE',
+					'product_name': 'Prodotto corretto',
+					'original_product_code': 'ART-001',
+					'product_code': 'ART-999',
+					'zun_quantity': 6,
+					'repackaging_reason': 'Motivo invariato',
+					'incoming_fiche': 'PALLET-FORCE',
+					'incoming_operator': 'Operatore Test',
+					'scanned_incoming_at': timezone.now().isoformat(),
+					'state': 'completed',
+					'manual_reason_override': 0,
+					'product_code_changed': 1,
+					'product_code_change_operator': 'Operatore Test',
+					'waiting_operator': '',
+					'outgoing_fiche': 'OUT-FORCE',
+					'outgoing_operator': 'Operatore Test',
+					'scanned_outgoing_at': timezone.now().isoformat(),
+				},
+			],
+			{
+				'total_items': 2,
+				'completed': 2,
+				'waiting_fiche': 0,
+				'registered': 0,
+			},
+		)
+
+		workbook = load_workbook(report_path, read_only=False)
+		try:
+			detail_sheet = workbook['Dettaglio pedane']
+			manual_fill = detail_sheet['A6'].fill.fgColor.rgb
+			forced_fill = detail_sheet['A7'].fill.fgColor.rgb
+			note_text = detail_sheet.parent['Riepilogo lotto']['B20'].value
+		finally:
+			workbook.close()
+
+		self.assertTrue(str(manual_fill or '').upper().endswith('DDEBFF'))
+		self.assertTrue(str(forced_fill or '').upper().endswith('FFF59D'))
+		self.assertIn('modifica manuale', note_text)
+		self.assertIn('forzatura', note_text)
 
 	def test_turni_planner_new_week_clones_latest_planner_data(self):
 		previous_state = TurniPlannerWeekState.objects.create(

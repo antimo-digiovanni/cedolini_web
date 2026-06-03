@@ -15,6 +15,7 @@ const catalogForm = document.getElementById("catalog-form");
 const catalogMessageBox = document.getElementById("catalog-message-box");
 const catalogConflicts = document.getElementById("catalog-conflicts");
 const catalogTable = document.getElementById("catalog-table");
+const downloadCatalogButton = document.getElementById("download-catalog-button");
 const clearCatalogButton = document.getElementById("clear-catalog-button");
 const fileInput = document.getElementById("excel-file");
 const sheetNameInput = document.getElementById("sheet-name");
@@ -1415,6 +1416,9 @@ clearCatalogButton.addEventListener("click", () => {
   clearCatalog().catch((error) => {
     showCatalogMessage(error.message || "Impossibile cancellare l'anagrafica prodotti.", "error");
   });
+});
+downloadCatalogButton.addEventListener("click", () => {
+  window.open(appUrl("/api/product-catalog/download"), "_blank", "noopener");
 });
 batchSelector.addEventListener("change", (event) => {
   const selected = event.target.value ? Number(event.target.value) : null;

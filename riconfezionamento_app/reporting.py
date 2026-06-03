@@ -76,9 +76,10 @@ def generate_batch_report(
         "registered": PatternFill(fill_type="solid", fgColor="EEF4FC"),
         "in_progress": PatternFill(fill_type="solid", fgColor="FCE4D6"),
         "waiting_fiche": PatternFill(fill_type="solid", fgColor="FFF2CC"),
-        "completed": PatternFill(fill_type="solid", fgColor="DDEBFF"),
+        "completed": PatternFill(fill_type="solid", fgColor="E2F0D9"),
     }
-    manual_override_fill = PatternFill(fill_type="solid", fgColor="FFF59D")
+    forced_change_fill = PatternFill(fill_type="solid", fgColor="FFF59D")
+    manual_override_fill = PatternFill(fill_type="solid", fgColor="DDEBFF")
 
     summary_sheet.row_dimensions[1].height = 52
     summary_sheet.row_dimensions[4].height = 26
@@ -204,7 +205,11 @@ def generate_batch_report(
             ]
         )
         row_index = sheet.max_row
-        fill = manual_override_fill if int(item.get("manual_reason_override") or 0) else status_fills.get(str(item.get("state") or ""))
+        fill = status_fills.get(str(item.get("state") or ""))
+        if int(item.get("manual_reason_override") or 0):
+            fill = manual_override_fill
+        if int(item.get("product_code_changed") or 0):
+            fill = forced_change_fill
         for cell in sheet[row_index]:
             cell.alignment = wrap_alignment
             if fill is not None:
@@ -224,7 +229,7 @@ def generate_batch_report(
 
     summary_sheet["A20"] = "Note"
     summary_sheet["A20"].fill = section_fill
-    summary_sheet["B20"] = "Colori stato: azzurro registrato, arancio in lavorazione, giallo attesa fiches, blu completato. Le righe corrette manualmente in import sono evidenziate in giallo chiaro."
+    summary_sheet["B20"] = "Colori stato: azzurro registrato, arancio in lavorazione, giallo attesa fiches, verde completato. Le righe con modifica manuale sono evidenziate in blu chiaro; le righe con forzatura sono evidenziate in giallo chiaro."
     summary_sheet["B20"].alignment = wrap_alignment
 
     for sheet in [detail_sheet, completed_sheet, open_sheet]:
