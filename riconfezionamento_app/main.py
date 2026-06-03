@@ -19,6 +19,7 @@ from .store import (
     active_pallets,
     current_batch,
     delete_batch,
+    find_item_by_scan,
     finish_batch,
     get_item_by_pallet,
     get_product_catalog_by_codes,
@@ -49,6 +50,7 @@ init_db()
 class IncomingScan(BaseModel):
     code: str
     operator_name: str
+    batch_id: int | None = None
 
 
 class OutgoingScan(BaseModel):
@@ -58,11 +60,13 @@ class OutgoingScan(BaseModel):
     outgoing_product_code: str
     operator_name: str
     allow_product_code_change: bool = False
+    batch_id: int | None = None
 
 
 class WaitingFicheAction(BaseModel):
     pallet_code: str
     operator_name: str
+    batch_id: int | None = None
 
 
 class CompletedPalletEdit(BaseModel):
@@ -1283,6 +1287,8 @@ def dashboard(batch_id: int | None = None) -> dict[str, object]:
 @app.get("/api/items/{pallet_code}")
 def item_detail(pallet_code: str, batch_id: int | None = None) -> dict[str, object]:
     item = get_item_by_pallet(pallet_code.strip(), batch_id=batch_id)
+    if item is None and batch_id is None:
+        item = find_item_by_scan(pallet_code.strip())
     if item is None:
         raise HTTPException(status_code=404, detail="Pallet non presente.")
     return {"item": item}
@@ -1290,7 +1296,11 @@ def item_detail(pallet_code: str, batch_id: int | None = None) -> dict[str, obje
 
 @app.post("/api/scan/incoming")
 def scan_incoming(payload: IncomingScan) -> dict[str, object]:
-    success, message, item = register_incoming(payload.code.strip(), payload.operator_name.strip())
+    success, message, item = register_incoming(
+        payload.code.strip(),
+        payload.operator_name.strip(),
+        batch_id=payload.batch_id,
+    )
     if not success:
         raise HTTPException(status_code=400, detail={"message": message, "item": item})
     return {"message": message, "item": item, "summary": summary(), "active_pallets": active_pallets()}
@@ -1298,7 +1308,11 @@ def scan_incoming(payload: IncomingScan) -> dict[str, object]:
 
 @app.post("/api/scan/waiting-fiche")
 def set_waiting_fiche(payload: WaitingFicheAction) -> dict[str, object]:
-    success, message, item = mark_waiting_fiche(payload.pallet_code.strip(), payload.operator_name.strip())
+    success, message, item = mark_waiting_fiche(
+        payload.pallet_code.strip(),
+        payload.operator_name.strip(),
+        batch_id=payload.batch_id,
+    )
     if not success:
         raise HTTPException(status_code=400, detail={"message": message, "item": item})
     return {"message": message, "item": item, "summary": summary(), "active_pallets": active_pallets()}
@@ -1313,6 +1327,7 @@ def scan_outgoing(payload: OutgoingScan) -> dict[str, object]:
         payload.outgoing_product_code.strip(),
         payload.operator_name.strip(),
         allow_product_code_change=payload.allow_product_code_change,
+        batch_id=payload.batch_id,
     )
     if not success:
         raise HTTPException(status_code=400, detail={"message": message, "item": item, "error_code": error_code})

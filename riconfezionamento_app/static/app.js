@@ -3,6 +3,7 @@ const state = {
   selectedBatchId: null,
   canOperate: false,
   currentJob: null,
+  currentSummary: null,
 };
 
 let importCheckToken = 0;
@@ -47,6 +48,7 @@ const messageBox = document.getElementById("message-box");
 const incomingForm = document.getElementById("incoming-form");
 const incomingScan = document.getElementById("incoming-scan");
 const operatorName = document.getElementById("operator-name");
+const operatorBatchAlert = document.getElementById("operator-batch-alert");
 const outgoingForm = document.getElementById("outgoing-form");
 const outgoingScan = document.getElementById("outgoing-scan");
 const outgoingProductCode = document.getElementById("outgoing-product-code");
@@ -103,9 +105,6 @@ function escapeHtml(value) {
 }
 
 function setWorkspace(mode) {
-  if (mode === "operator" && workspaceOperatorTab.disabled) {
-    return;
-  }
   const catalogMode = mode === "catalog";
   const importMode = mode === "import";
   const operatorMode = mode === "operator";
@@ -138,6 +137,19 @@ function showImportMessage(text, tone = "muted") {
 function showCatalogMessage(text, tone = "muted") {
   catalogMessageBox.className = `message-box ${tone}`;
   catalogMessageBox.textContent = text;
+}
+
+function renderOperatorBatchAlert(summary, item = state.currentJob) {
+  const batchId = Number(item?.batch_id || summary?.batch_id || 0);
+  const batchLabel = summary?.last_filename || (batchId ? `Lotto ${batchId}` : "");
+  if (!batchId || !batchLabel) {
+    operatorBatchAlert.classList.add("hidden");
+    operatorBatchAlert.textContent = "";
+    return;
+  }
+
+  operatorBatchAlert.className = "message-box error";
+  operatorBatchAlert.textContent = `Stai lavorando il lotto ${batchLabel}.`;
 }
 
 function clearCatalogConflicts() {
@@ -643,16 +655,15 @@ function renderBatchInfo(summary, activeBatchId = summary.batch_id, canOperate =
   const hasBatch = Boolean(summary.batch_id);
   finishBatchButton.disabled = !hasBatch || !canOperate;
   deleteBatchButton.disabled = !hasBatch || !canOperate;
-  workspaceOperatorTab.disabled = !canOperate;
-  batchViewNote.classList.toggle("hidden", canOperate || !hasBatch);
-  batchViewNote.textContent = canOperate
+  workspaceOperatorTab.disabled = false;
+  batchViewNote.classList.toggle("hidden", hasBatch && !summary.completed_at);
+  batchViewNote.textContent = !hasBatch
     ? ""
-    : Number(summary.batch_id) === Number(activeBatchId)
+    : summary.completed_at
       ? "Questo lotto e chiuso: puoi consultarlo ma non lavorarlo."
-      : "Stai consultando un lotto storico. Il flusso operatore resta disponibile solo sul lotto attivo.";
-  if (!canOperate && !operatorSection.classList.contains("hidden")) {
-    setWorkspace("import");
-  }
+      : Number(summary.batch_id) === Number(activeBatchId)
+        ? ""
+        : "Stai consultando un lotto aperto diverso da quello piu' recente. La scansione sposta automaticamente il flusso sul lotto del pallet.";
   if (summary.report_path) {
     const reportName = summary.report_path.split(/[\\/]/).pop();
     reportLink.href = appUrl(`/api/reports/${reportName}`);
@@ -847,6 +858,7 @@ function renderCurrentJob(item) {
     jobCard.classList.add("hidden");
     jobProductCode.textContent = "";
     jobProductCode.classList.add("hidden");
+    renderOperatorBatchAlert(state.currentSummary, null);
     setOutgoingMode(false);
     return;
   }
@@ -869,6 +881,7 @@ function renderCurrentJob(item) {
   const operatorText = getOperatorLabel(item);
   jobState.textContent = `${stateText} | Operatore: ${operatorText} | Entrata: ${incomingAt}${outgoingAt !== "-" ? ` | Uscita: ${outgoingAt}` : ""}`;
   outgoingZun.value = String(item.zun_quantity ?? "");
+  renderOperatorBatchAlert(state.currentSummary, item);
   setOutgoingMode(false);
 }
 
@@ -886,15 +899,15 @@ function revealOperatorFlow() {
   incomingScan.focus();
 }
 
-async function loadCurrentJob(palletCode) {
+async function loadCurrentJob(palletCode, batchIdOverride = state.selectedBatchId) {
   if (!palletCode) {
     renderCurrentJob(null);
     return;
   }
 
   const params = new URLSearchParams();
-  if (state.selectedBatchId) {
-    params.set("batch_id", String(state.selectedBatchId));
+  if (batchIdOverride) {
+    params.set("batch_id", String(batchIdOverride));
   }
   const response = await fetch(appUrl(`/api/items/${encodeURIComponent(palletCode)}${params.toString() ? `?${params.toString()}` : ""}`));
   const payload = await response.json();
@@ -906,7 +919,7 @@ async function loadCurrentJob(palletCode) {
 }
 
 async function fetchDashboard(options = {}) {
-  const { revealOperator = false, batchId = state.selectedBatchId } = options;
+  const { revealOperator = false, batchId = state.selectedBatchId, focusPalletCode = "" } = options;
   const params = new URLSearchParams();
   if (batchId) {
     params.set("batch_id", String(batchId));
@@ -915,6 +928,7 @@ async function fetchDashboard(options = {}) {
   const payload = await response.json();
   state.selectedBatchId = payload.selected_batch_id || null;
   state.canOperate = Boolean(payload.can_operate);
+  state.currentSummary = payload.summary || null;
   renderStats(payload.summary);
   renderBatchSelector(payload.batches || [], payload.selected_batch_id, payload.current_batch?.id || null);
   renderBatchInfo(payload.summary, payload.current_batch?.id || null, payload.can_operate);
@@ -923,13 +937,20 @@ async function fetchDashboard(options = {}) {
     resetCompletedEditForm();
   }
   renderActivePallets(payload.active_pallets);
-  if (payload.active_pallets.length) {
-    await loadCurrentJob(payload.active_pallets[0].pallet_code);
+  if (focusPalletCode) {
+    const matchingActivePallet = payload.active_pallets.find((item) => item.pallet_code === focusPalletCode);
+    if (matchingActivePallet) {
+      activePallets.value = matchingActivePallet.pallet_code;
+    }
+    await loadCurrentJob(focusPalletCode, payload.selected_batch_id || null);
+  } else if (payload.active_pallets.length) {
+    activePallets.value = payload.active_pallets[0].pallet_code;
+    await loadCurrentJob(payload.active_pallets[0].pallet_code, payload.selected_batch_id || null);
   } else {
     renderCurrentJob(null);
   }
 
-  if (revealOperator && payload.summary?.batch_id && payload.can_operate) {
+  if (revealOperator && payload.summary?.batch_id) {
     revealOperatorFlow();
   } else if (!payload.summary?.batch_id) {
     setWorkspace("catalog");
@@ -1015,6 +1036,7 @@ async function submitImport(event) {
 
   clearImportSkippedRows();
   showImportMessage(payload.message, "success");
+  state.selectedBatchId = null;
   await refreshWorkspaceData({ revealOperator: true });
 }
 
@@ -1106,7 +1128,7 @@ async function submitIncoming(event) {
   const response = await fetch(appUrl("/api/scan/incoming"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, operator_name: currentOperator }),
+    body: JSON.stringify({ code, operator_name: currentOperator, batch_id: state.selectedBatchId }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -1116,14 +1138,11 @@ async function submitIncoming(event) {
 
   incomingScan.value = "";
   showMessage(payload.message, "success");
-  renderStats(payload.summary);
-  renderBatchInfo(payload.summary);
-  renderActivePallets(payload.active_pallets);
-  if (payload.item?.incoming_fiche || payload.item?.pallet_code) {
-    activePallets.value = payload.item.incoming_fiche || payload.item.pallet_code;
-  }
-  renderCurrentJob(payload.item);
-  await fetchDashboard();
+  await fetchDashboard({
+    batchId: payload.item?.batch_id || null,
+    revealOperator: true,
+    focusPalletCode: payload.item?.incoming_fiche || payload.item?.pallet_code || "",
+  });
 }
 
 async function submitWaitingFiche() {
@@ -1140,7 +1159,7 @@ async function submitWaitingFiche() {
   const response = await fetch(appUrl("/api/scan/waiting-fiche"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pallet_code: palletCode, operator_name: currentOperator }),
+    body: JSON.stringify({ pallet_code: palletCode, operator_name: currentOperator, batch_id: state.currentJob?.batch_id || state.selectedBatchId }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -1149,11 +1168,11 @@ async function submitWaitingFiche() {
   }
 
   showMessage(payload.message, "success");
-  renderStats(payload.summary);
-  renderBatchInfo(payload.summary);
-  renderActivePallets(payload.active_pallets);
-  renderCurrentJob(payload.item);
-  await fetchDashboard();
+  await fetchDashboard({
+    batchId: payload.item?.batch_id || state.currentJob?.batch_id || state.selectedBatchId,
+    revealOperator: true,
+    focusPalletCode: payload.item?.incoming_fiche || payload.item?.pallet_code || palletCode,
+  });
 }
 
 async function submitOutgoing(event) {
@@ -1244,6 +1263,7 @@ async function submitOutgoing(event) {
       outgoing_product_code: outgoingProductCodeValue,
       operator_name: currentOperator,
       allow_product_code_change: allowProductCodeChange,
+      batch_id: state.currentJob?.batch_id || state.selectedBatchId,
     }),
   });
   const payload = await response.json();
@@ -1266,11 +1286,11 @@ async function submitOutgoing(event) {
   outgoingZun.value = "";
   incomingScan.focus();
   showMessage(payload.message, "success");
-  renderStats(payload.summary);
-  renderBatchInfo(payload.summary);
-  renderActivePallets(payload.active_pallets);
-  renderCurrentJob(payload.item);
-  await fetchDashboard();
+  await fetchDashboard({
+    batchId: payload.item?.batch_id || state.currentJob?.batch_id || state.selectedBatchId,
+    revealOperator: true,
+    focusPalletCode: payload.item?.incoming_fiche || payload.item?.pallet_code || palletCode,
+  });
 }
 
 async function finishBatch() {
@@ -1318,7 +1338,7 @@ workspaceOperatorTab.addEventListener("click", () => setWorkspace("operator"));
 batchSelector.addEventListener("change", (event) => {
   const selected = event.target.value ? Number(event.target.value) : null;
   state.selectedBatchId = Number.isInteger(selected) ? selected : null;
-  fetchDashboard({ batchId: state.selectedBatchId }).catch(() => showMessage("Impossibile caricare il lotto selezionato.", "error"));
+  fetchDashboard({ batchId: state.selectedBatchId, revealOperator: !operatorSection.classList.contains("hidden") }).catch(() => showMessage("Impossibile caricare il lotto selezionato.", "error"));
 });
 activePallets.addEventListener("change", (event) => {
   loadCurrentJob(event.target.value).catch(() => showMessage("Impossibile caricare il dettaglio pedana.", "error"));

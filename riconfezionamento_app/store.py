@@ -510,6 +510,29 @@ def get_item_by_pallet(pallet_code: str, batch_id: int | None = None) -> dict[st
     return dict(row) if row else None
 
 
+def find_item_by_scan(scan_code: str) -> dict[str, str | int | None] | None:
+    normalized_scan = normalize_text(scan_code)
+    if not normalized_scan:
+        return None
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT items.*, import_batches.filename AS batch_filename, import_batches.completed_at AS batch_completed_at
+            FROM items
+            JOIN import_batches ON import_batches.id = items.batch_id
+            WHERE items.incoming_fiche = ? OR items.pallet_code = ?
+            ORDER BY
+                CASE WHEN import_batches.completed_at IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN items.incoming_fiche = ? THEN 0 ELSE 1 END,
+                items.batch_id DESC
+            LIMIT 1
+            """,
+            (normalized_scan, normalized_scan, normalized_scan),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def _get_item_by_incoming_scan(scan_code: str, batch_id: int | None = None) -> sqlite3.Row | None:
     batch = _resolve_batch(batch_id)
     if batch is None:
@@ -534,9 +557,21 @@ def register_incoming(
     operator_name: str,
     batch_id: int | None = None,
 ) -> tuple[bool, str, dict[str, str | int | None] | None]:
-    item = _get_item_by_incoming_scan(scan_code, batch_id=batch_id)
+    if batch_id is not None:
+        batch = _resolve_batch(batch_id)
+        if batch is None:
+            return False, "Lotto selezionato non presente.", None
+        item = None
+        if batch["completed_at"] is None:
+            item = _get_item_by_incoming_scan(scan_code, batch_id=batch_id)
+        if item is None:
+            item = find_item_by_scan(scan_code)
+    else:
+        item = find_item_by_scan(scan_code)
     if item is None:
-        return False, "Codice non presente nel lotto attivo.", None
+        return False, "Codice non presente in nessun lotto aperto.", None
+    if item.get("batch_completed_at") is not None:
+        return False, f"Il pallet appartiene al lotto {item.get('batch_filename') or item.get('batch_id')}, ma il lotto e' chiuso.", item
     if item["state"] == "completed":
         return False, "Pallet gia' completato.", dict(item)
     if item["state"] == "in_progress":
@@ -562,6 +597,8 @@ def mark_waiting_fiche(
     batch = _resolve_batch(batch_id)
     if batch is None:
         return False, "Nessun lotto attivo.", None
+    if batch["completed_at"] is not None:
+        return False, "Il lotto selezionato e' chiuso.", {"batch_id": batch["id"], "batch_filename": batch["filename"]}
 
     with get_connection() as connection:
         item = connection.execute(
@@ -605,6 +642,8 @@ def register_outgoing(
     batch = _resolve_batch(batch_id)
     if batch is None:
         return False, "Nessun lotto attivo.", None, None
+    if batch["completed_at"] is not None:
+        return False, "Il lotto selezionato e' chiuso.", {"batch_id": batch["id"], "batch_filename": batch["filename"]}, None
 
     with get_connection() as connection:
         item = connection.execute(

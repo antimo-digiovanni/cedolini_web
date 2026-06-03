@@ -1072,6 +1072,84 @@ class RiconfezionamentoAccessTests(TestCase):
 		self.assertIn(('ART-777', 'Prodotto corretto'), rows_values)
 		self.assertNotIn(('ART-001', 'Prodotto corretto'), rows_values)
 
+	def test_scan_incoming_recognizes_pallet_in_non_current_open_batch(self):
+		batch_eight = self.riconf_main.import_items('Lotto n° 8.xlsx', [{
+			'pallet_code': 'PALLET-8',
+			'incoming_fiche': 'PALLET-8',
+			'outgoing_fiche': 'OUT-8',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-008',
+			'repackaging_reason': 'Controllo lotto 8',
+			'zun_quantity': 5,
+		}])
+		self.riconf_main.import_items('Lotto n° 9.xlsx', [{
+			'pallet_code': 'PALLET-9',
+			'incoming_fiche': 'PALLET-9',
+			'outgoing_fiche': 'OUT-9',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-009',
+			'repackaging_reason': 'Controllo lotto 9',
+			'zun_quantity': 6,
+		}])
+
+		success, message, item = self.riconf_main.register_incoming('PALLET-8', 'Operatore Test')
+
+		self.assertTrue(success)
+		self.assertEqual(message, "OK entrata: pallet registrato in lavorazione.")
+		self.assertEqual(item['batch_id'], batch_eight['batch_id'])
+		self.assertEqual(item['state'], 'in_progress')
+
+		self.riconf_main.reset_pallet('PALLET-8', batch_id=batch_eight['batch_id'])
+		success_with_selected_batch, _, item_with_selected_batch = self.riconf_main.register_incoming(
+			'PALLET-8',
+			'Operatore Test',
+			batch_id=batch_eight['batch_id'] + 1,
+		)
+		self.assertTrue(success_with_selected_batch)
+		self.assertEqual(item_with_selected_batch['batch_id'], batch_eight['batch_id'])
+
+	def test_scan_outgoing_uses_selected_batch_when_latest_batch_is_different(self):
+		batch_eight = self.riconf_main.import_items('Lotto n° 8.xlsx', [{
+			'pallet_code': 'PALLET-8',
+			'incoming_fiche': 'PALLET-8',
+			'outgoing_fiche': '',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-008',
+			'repackaging_reason': 'Controllo lotto 8',
+			'zun_quantity': 5,
+		}])
+		self.riconf_main.import_items('Lotto n° 9.xlsx', [{
+			'pallet_code': 'PALLET-9',
+			'incoming_fiche': 'PALLET-9',
+			'outgoing_fiche': 'OUT-9',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-009',
+			'repackaging_reason': 'Controllo lotto 9',
+			'zun_quantity': 6,
+		}])
+
+		incoming_success, _, incoming_item = self.riconf_main.register_incoming('PALLET-8', 'Operatore Test')
+		self.assertTrue(incoming_success)
+
+		outgoing_success, _, outgoing_item, error_code = self.riconf_main.register_outgoing(
+			'PALLET-8',
+			'NUOVA-OUT-8',
+			4,
+			'ART-001',
+			'Operatore Test',
+			batch_id=batch_eight['batch_id'],
+		)
+
+		self.assertTrue(outgoing_success)
+		self.assertIsNone(error_code)
+		self.assertEqual(incoming_item['batch_id'], batch_eight['batch_id'])
+		self.assertEqual(outgoing_item['batch_id'], batch_eight['batch_id'])
+		self.assertEqual(outgoing_item['state'], 'completed')
+
 	def test_turni_planner_new_week_clones_latest_planner_data(self):
 		previous_state = TurniPlannerWeekState.objects.create(
 			week_label="Week 17: da Lunedi 20/04/2026 a Venerdi 24/04/2026",
