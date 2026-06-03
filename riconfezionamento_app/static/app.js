@@ -15,6 +15,7 @@ const catalogForm = document.getElementById("catalog-form");
 const catalogMessageBox = document.getElementById("catalog-message-box");
 const catalogConflicts = document.getElementById("catalog-conflicts");
 const catalogTable = document.getElementById("catalog-table");
+const clearCatalogButton = document.getElementById("clear-catalog-button");
 const fileInput = document.getElementById("excel-file");
 const sheetNameInput = document.getElementById("sheet-name");
 const headerRowInput = document.getElementById("header-row");
@@ -513,6 +514,23 @@ async function submitCatalogImport(event) {
   renderCatalogConflicts(payload.conflicts || []);
   await loadCatalogTable();
   showCatalogMessage(payload.message || "Anagrafica aggiornata.", payload.conflicts?.length ? "warning" : "success");
+}
+
+async function clearCatalog() {
+  const confirmed = window.confirm("Vuoi cancellare tutta l'anagrafica prodotti? L'operazione svuota il catalogo salvato.");
+  if (!confirmed) {
+    return;
+  }
+
+  const response = await fetch(appUrl("/api/product-catalog/clear"), { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.detail || "Impossibile cancellare l'anagrafica prodotti.");
+  }
+
+  clearCatalogConflicts();
+  await loadCatalogTable();
+  showCatalogMessage(payload.message || "Anagrafica prodotti cancellata.", "warning");
 }
 
 async function inspectImportRows() {
@@ -1389,6 +1407,11 @@ openOutgoingButton.addEventListener("click", async () => {
 workspaceImportTab.addEventListener("click", () => setWorkspace("import"));
 workspaceCatalogTab.addEventListener("click", () => setWorkspace("catalog"));
 workspaceOperatorTab.addEventListener("click", () => setWorkspace("operator"));
+clearCatalogButton.addEventListener("click", () => {
+  clearCatalog().catch((error) => {
+    showCatalogMessage(error.message || "Impossibile cancellare l'anagrafica prodotti.", "error");
+  });
+});
 batchSelector.addEventListener("change", (event) => {
   const selected = event.target.value ? Number(event.target.value) : null;
   state.selectedBatchId = Number.isInteger(selected) ? selected : null;

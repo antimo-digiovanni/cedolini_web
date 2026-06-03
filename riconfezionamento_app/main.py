@@ -308,6 +308,22 @@ def sync_product_catalog() -> int:
     return replace_product_catalog(_load_product_catalog_rows())
 
 
+def clear_product_catalog() -> int:
+    catalog_path = PRODUCTS_CATALOG_PATH
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+
+    workbook = Workbook()
+    try:
+        worksheet = workbook.active
+        worksheet.title = "Prodotti"
+        worksheet.append(["Codice prodotto", "Prodotto"])
+        workbook.save(catalog_path)
+    finally:
+        workbook.close()
+
+    return replace_product_catalog([])
+
+
 def sync_product_catalog_for_import() -> int:
     try:
         return sync_product_catalog()
@@ -1207,6 +1223,16 @@ def get_product_catalog(limit: int = 500) -> dict[str, object]:
     return {
         "rows": rows,
         "count": len(rows),
+    }
+
+
+@app.post("/api/product-catalog/clear")
+def clear_product_catalog_endpoint() -> dict[str, object]:
+    clear_product_catalog()
+    return {
+        "message": "Anagrafica prodotti cancellata.",
+        "rows": [],
+        "count": 0,
     }
 
 

@@ -1041,6 +1041,25 @@ class RiconfezionamentoAccessTests(TestCase):
 			).fetchone()[0]
 		self.assertEqual(count, 1)
 
+	def test_clear_product_catalog_empties_workbook_and_database(self):
+		self._write_products_catalog([
+			('ART-001', 'Prodotto corretto'),
+			('ART-002', 'Prodotto persistente'),
+		])
+		self.riconf_main.sync_product_catalog()
+
+		cleared = self.riconf_main.clear_product_catalog()
+
+		self.assertEqual(cleared, 0)
+		self.assertEqual(self.riconf_main.list_product_catalog(limit=10), [])
+
+		catalog_workbook = load_workbook(self._products_catalog_path, read_only=True)
+		try:
+			rows_values = list(catalog_workbook.active.iter_rows(values_only=True))
+		finally:
+			catalog_workbook.close()
+		self.assertEqual(rows_values, [('Codice prodotto', 'Prodotto')])
+
 	def test_resolve_product_catalog_entry_without_force_keeps_conflict_blocking(self):
 		with self.assertRaises(HTTPException) as exc:
 			self.riconf_main.resolve_product_catalog_entry(
