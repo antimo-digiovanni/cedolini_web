@@ -1256,6 +1256,7 @@ def admin_wipe_all(payload: AdminWipeRequest) -> dict[str, object]:
     return {
         "message": (
             "Tutti i lotti importati e i backup disponibili sono stati cancellati. "
+            "L'anagrafica prodotti e' stata mantenuta. "
             f"Report eliminati: {deleted['reports_deleted']}. Backup eliminati: {deleted['backups_deleted']}."
         ),
         "summary": summary(),

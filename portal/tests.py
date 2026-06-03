@@ -1150,6 +1150,39 @@ class RiconfezionamentoAccessTests(TestCase):
 		self.assertEqual(outgoing_item['batch_id'], batch_eight['batch_id'])
 		self.assertEqual(outgoing_item['state'], 'completed')
 
+	def test_wipe_all_data_keeps_product_catalog(self):
+		self._write_products_catalog([
+			('ART-001', 'Prodotto corretto'),
+			('ART-002', 'Prodotto persistente'),
+		])
+		self.riconf_main.sync_product_catalog()
+		self.riconf_main.import_items('Lotto n° 8.xlsx', [{
+			'pallet_code': 'PALLET-8',
+			'incoming_fiche': 'PALLET-8',
+			'outgoing_fiche': 'OUT-8',
+			'product_name': 'Prodotto corretto',
+			'product_code': 'ART-001',
+			'production_lot': 'LOT-008',
+			'repackaging_reason': 'Controllo lotto 8',
+			'zun_quantity': 5,
+		}])
+
+		deleted = self.riconf_main.wipe_all_data()
+
+		self.assertEqual(self.riconf_main.list_items(), [])
+		catalog_rows = self.riconf_main.list_product_catalog(limit=10)
+		self.assertEqual(len(catalog_rows), 2)
+		self.assertEqual({row['product_code'] for row in catalog_rows}, {'ART-001', 'ART-002'})
+		self.assertEqual(deleted['backups_deleted'], 0)
+
+		catalog_workbook = load_workbook(self._products_catalog_path, read_only=True)
+		try:
+			rows_values = list(catalog_workbook.active.iter_rows(values_only=True))
+		finally:
+			catalog_workbook.close()
+		self.assertIn(('ART-001', 'Prodotto corretto'), rows_values)
+		self.assertIn(('ART-002', 'Prodotto persistente'), rows_values)
+
 	def test_turni_planner_new_week_clones_latest_planner_data(self):
 		previous_state = TurniPlannerWeekState.objects.create(
 			week_label="Week 17: da Lunedi 20/04/2026 a Venerdi 24/04/2026",
