@@ -1197,24 +1197,28 @@ async function submitIncoming(event) {
     return;
   }
 
-  const response = await fetch(appUrl("/api/scan/incoming"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, operator_name: currentOperator, batch_id: state.selectedBatchId }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    showMessage(payload.detail?.message || "Entrata non valida.", "error");
-    return;
-  }
+  try {
+    const response = await fetch(appUrl("/api/scan/incoming"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, operator_name: currentOperator, batch_id: state.selectedBatchId }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      showMessage(payload?.detail?.message || payload?.message || "Entrata non valida.", "error");
+      return;
+    }
 
-  incomingScan.value = "";
-  showMessage(payload.message, "success");
-  await fetchDashboard({
-    batchId: payload.item?.batch_id || null,
-    revealOperator: true,
-    focusPalletCode: payload.item?.incoming_fiche || payload.item?.pallet_code || "",
-  });
+    incomingScan.value = "";
+    showMessage(payload?.message || "Entrata registrata.", "success");
+    await fetchDashboard({
+      batchId: payload?.item?.batch_id || null,
+      revealOperator: true,
+      focusPalletCode: payload?.item?.incoming_fiche || payload?.item?.pallet_code || code,
+    });
+  } catch (error) {
+    showMessage(error?.message || "Impossibile registrare l'entrata del pallet.", "error");
+  }
 }
 
 async function submitWaitingFiche() {
