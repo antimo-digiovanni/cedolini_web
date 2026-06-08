@@ -1,5 +1,6 @@
 {% extends "portal/base.html" %}
 {% load tz %}
+{% load l10n %}
 {% block title %}Report Marcature{% endblock %}
 
 {% block extra_css %}
@@ -365,6 +366,8 @@
                     <th>Ingresso</th>
                     <th>Uscita</th>
                     <th>Totale</th>
+                    <th>Coordinate ingresso</th>
+                    <th>Coordinate uscita</th>
                     <th>Zona ingresso</th>
                     <th>Zona uscita</th>
                     <th>Stato</th>
@@ -378,6 +381,20 @@
                     <td>{% if row.entry %}{{ row.entry|localtime|date:"H:i" }}{% else %}--:--{% endif %}</td>
                     <td>{% if row.exit %}{{ row.exit|localtime|date:"H:i" }}{% else %}--:--{% endif %}</td>
                     <td>{{ row.total }}</td>
+                    <td>
+                        {% if row.start_latitude is not None and row.start_longitude is not None %}
+                            {{ row.start_latitude|unlocalize }}, {{ row.start_longitude|unlocalize }}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.end_latitude is not None and row.end_longitude is not None %}
+                            {{ row.end_latitude|unlocalize }}, {{ row.end_longitude|unlocalize }}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
                     <td>
                         {% if row.start_zone %}
                             {{ row.start_zone.name }}

@@ -4177,6 +4177,10 @@ def admin_timekeeping(request):
                     'status': 'missing',
                     'start_zone': None,
                     'end_zone': None,
+                    'start_latitude': None,
+                    'start_longitude': None,
+                    'end_latitude': None,
+                    'end_longitude': None,
                 })
                 continue
 
@@ -4198,6 +4202,10 @@ def admin_timekeeping(request):
                 'status': row_status,
                 'start_zone': session.start_zone,
                 'end_zone': session.end_zone,
+                'start_latitude': session.start_latitude,
+                'start_longitude': session.start_longitude,
+                'end_latitude': session.end_latitude,
+                'end_longitude': session.end_longitude,
                 'start_within_zone': session.start_within_zone,
                 'end_within_zone': session.end_within_zone,
                 'corrected': bool(session.corrected_at),
@@ -5111,6 +5119,7 @@ def today_markings_dashboard(request):
         'selected_date': selected_date,
         'today_marked_sessions': today_marked_sessions,
         'selected_marked_sessions': selected_marked_sessions,
+        'show_mark_coordinates': user_has_full_admin_access(request.user),
         'previous_date': previous_date,
         'next_date': next_date,
         'published_turni_state': published_turni_state,

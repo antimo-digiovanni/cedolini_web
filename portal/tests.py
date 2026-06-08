@@ -155,6 +155,19 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertContains(response, "Chi ha marcato oggi")
 		self.assertContains(response, "Luca Verdi")
 
+	def test_limited_user_does_not_see_mark_coordinates(self):
+		session = WorkSession.objects.filter(employee=self.employee, work_date=timezone.localdate()).first()
+		session.start_latitude = "40.123456"
+		session.start_longitude = "14.654321"
+		session.save(update_fields=["start_latitude", "start_longitude"])
+
+		self.client.force_login(self.owner_user)
+		response = self.client.get(reverse("today_markings_dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, "Coordinate ingresso")
+		self.assertNotContains(response, "40.123456, 14.654321")
+
 	def test_limited_user_sees_published_turni_on_today_markings_by_default(self):
 		self.client.force_login(self.owner_user)
 		response = self.client.get(reverse("today_markings_dashboard"))
@@ -340,6 +353,41 @@ class VacationRequestFlowTests(TestCase):
 		self.assertEqual(report_response.status_code, 200)
 		self.assertContains(report_response, "Ferie")
 		self.assertContains(report_response, "FERIE")
+
+	def test_admin_can_see_mark_coordinates_in_reports(self):
+		work_date = timezone.localdate()
+		tz = timezone.get_current_timezone()
+		WorkSession.objects.create(
+			employee=self.employee,
+			work_date=work_date,
+			started_at=timezone.make_aware(datetime.combine(work_date, datetime.strptime("08:00", "%H:%M").time()), tz),
+			ended_at=timezone.make_aware(datetime.combine(work_date, datetime.strptime("17:00", "%H:%M").time()), tz),
+			start_latitude="40.123456",
+			start_longitude="14.654321",
+			end_latitude="40.123400",
+			end_longitude="14.654300",
+		)
+
+		self.client.force_login(self.admin_user)
+
+		report_response = self.client.get(
+			reverse("admin_timekeeping"),
+			{
+				"employee": str(self.employee.id),
+				"month": work_date.month,
+				"year": work_date.year,
+			},
+		)
+		self.assertEqual(report_response.status_code, 200)
+		self.assertContains(report_response, "Coordinate ingresso")
+		self.assertContains(report_response, "40.123456, 14.654321")
+		self.assertContains(report_response, "40.123400, 14.654300")
+
+		today_response = self.client.get(reverse("today_markings_dashboard"))
+		self.assertEqual(today_response.status_code, 200)
+		self.assertContains(today_response, "Coordinate ingresso")
+		self.assertContains(today_response, "40.123456, 14.654321")
+		self.assertContains(today_response, "40.123400, 14.654300")
 
 	def test_admin_views_order_employees_by_first_name_without_changing_data(self):
 		first_user = get_user_model().objects.create_user(

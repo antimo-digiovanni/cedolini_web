@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load l10n %}
 {% block title %}Chi Ha Marcato Oggi{% endblock %}
 
 {% block extra_css %}
@@ -160,6 +161,10 @@
                                 <th>Dipendente</th>
                                 <th>Ingresso</th>
                                 <th>Uscita</th>
+                                {% if show_mark_coordinates %}
+                                <th>Coordinate ingresso</th>
+                                <th>Coordinate uscita</th>
+                                {% endif %}
                                 <th>Totale</th>
                             </tr>
                         </thead>
@@ -169,11 +174,27 @@
                                 <td>{{ s.employee.full_name }}</td>
                                 <td>{% if s.display_started_at %}{{ s.display_started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
                                 <td>{% if s.display_ended_at %}{{ s.display_ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                {% if show_mark_coordinates %}
+                                <td>
+                                    {% if s.display_started_at and s.start_latitude is not None and s.start_longitude is not None %}
+                                        {{ s.start_latitude|unlocalize }}, {{ s.start_longitude|unlocalize }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if s.display_ended_at and s.end_latitude is not None and s.end_longitude is not None %}
+                                        {{ s.end_latitude|unlocalize }}, {{ s.end_longitude|unlocalize }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                {% endif %}
                                 <td>{{ s.display_worked_hours }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted">Nessun dipendente ha marcato oggi.</td>
+                                <td colspan="{% if show_mark_coordinates %}6{% else %}4{% endif %}" class="text-center text-muted">Nessun dipendente ha marcato oggi.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -239,6 +260,10 @@
                                 <th>Dipendente</th>
                                 <th>Ingresso</th>
                                 <th>Uscita</th>
+                                {% if show_mark_coordinates %}
+                                <th>Coordinate ingresso</th>
+                                <th>Coordinate uscita</th>
+                                {% endif %}
                                 <th>Totale</th>
                             </tr>
                         </thead>
@@ -248,11 +273,27 @@
                                 <td>{{ s.employee.full_name }}</td>
                                 <td>{% if s.display_started_at %}{{ s.display_started_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
                                 <td>{% if s.display_ended_at %}{{ s.display_ended_at|date:"H:i" }}{% else %}--:--{% endif %}</td>
+                                {% if show_mark_coordinates %}
+                                <td>
+                                    {% if s.display_started_at and s.start_latitude is not None and s.start_longitude is not None %}
+                                        {{ s.start_latitude|unlocalize }}, {{ s.start_longitude|unlocalize }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if s.display_ended_at and s.end_latitude is not None and s.end_longitude is not None %}
+                                        {{ s.end_latitude|unlocalize }}, {{ s.end_longitude|unlocalize }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                {% endif %}
                                 <td>{{ s.display_worked_hours }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted">Nessun dipendente ha marcato in questa data.</td>
+                                <td colspan="{% if show_mark_coordinates %}6{% else %}4{% endif %}" class="text-center text-muted">Nessun dipendente ha marcato in questa data.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
