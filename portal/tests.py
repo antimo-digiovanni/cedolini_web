@@ -647,7 +647,8 @@ class EmployeePublishedTurniDashboardTests(TestCase):
 		response = self.client.get(reverse("dashboard"))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Turni della settimana")
+		self.assertContains(response, "<h2 class=\"mb-3\">Turni della settimana</h2>", html=True)
+		self.assertContains(response, "Clicca per vedere i turni (7)")
 		self.assertContains(response, self.state.week_label)
 		self.assertContains(response, reverse("employee_turni_published_image", args=["weekly"]))
 		self.assertContains(response, reverse("employee_turni_published_image", args=["portineria_weekly"]))
