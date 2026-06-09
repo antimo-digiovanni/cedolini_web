@@ -78,6 +78,7 @@
     display: block;
     text-decoration: none;
     color: inherit;
+    width: min(180px, 100%);
     aspect-ratio: 210 / 297;
     border-radius: 12px;
     border: 1px solid #dbe4f0;
@@ -95,6 +96,14 @@
     display: block;
     background: transparent;
     object-fit: contain;
+}
+
+#turni-collapse-published td:nth-child(2) {
+    width: 220px;
+}
+
+#turni-collapse-published td:nth-child(2) .employee-turni-link {
+    margin: 0;
 }
 
 @media (max-width: 767.98px) {
