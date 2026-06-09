@@ -22,7 +22,7 @@ from openpyxl import Workbook, load_workbook
 from starlette.testclient import TestClient as AsgiTestClient
 
 from .access import TODAY_MARKINGS_GROUP_NAME, RICONFEZIONAMENTO_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
-from .models import Cud, Employee, ImportJob, Payslip, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession
+from .models import Cud, Employee, EmployeeWorkZone, ImportJob, Payslip, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -496,6 +496,82 @@ class AdminRiconfezionamentoAccessManagementTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Riconfezionamento")
 		self.assertContains(response, "Abilitato")
+
+
+class TimekeepingAjaxGeolocationTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.user = get_user_model().objects.create_user(
+			username="operaio.geo",
+			password="Password123!",
+		)
+		self.employee = Employee.objects.create(
+			user=self.user,
+			first_name="Luciano",
+			last_name="Minichini",
+		)
+		self.zone = WorkZone.objects.create(
+			name="Stabilimento Magnum",
+			latitude="40.983778",
+			longitude="14.297982",
+			radius_meters=550,
+			is_active=True,
+		)
+
+	def test_non_strict_mark_without_geolocation_returns_json_success(self):
+		EmployeeWorkZone.objects.create(
+			employee=self.employee,
+			zone=self.zone,
+			is_active=True,
+			strict_geofence=False,
+		)
+		self.client.force_login(self.user)
+
+		response = self.client.post(
+			reverse("timekeeping"),
+			{"action": "start"},
+			HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "application/json")
+		self.assertJSONEqual(
+			response.content,
+			{
+				"ok": True,
+				"action": "start",
+				"started_at": WorkSession.objects.get(employee=self.employee, work_date=timezone.localdate()).started_at.strftime("%H:%M"),
+				"ended_at": None,
+				"zone": self.zone.name,
+				"within_zone": False,
+				"distance_meters": None,
+			},
+		)
+
+	def test_strict_mark_without_geolocation_returns_json_error(self):
+		EmployeeWorkZone.objects.create(
+			employee=self.employee,
+			zone=self.zone,
+			is_active=True,
+			strict_geofence=True,
+		)
+		self.client.force_login(self.user)
+
+		response = self.client.post(
+			reverse("timekeeping"),
+			{"action": "start"},
+			HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response["Content-Type"], "application/json")
+		self.assertJSONEqual(
+			response.content,
+			{
+				"ok": False,
+				"error": "Geolocalizzazione obbligatoria: attiva il GPS per marcare.",
+			},
+		)
 
 
 class EmployeePublishedTurniDashboardTests(TestCase):

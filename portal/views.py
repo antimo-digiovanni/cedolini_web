@@ -3070,6 +3070,13 @@ def _active_zones_for_employee(employee, on_date):
 
 def _evaluate_location_for_employee_zone(employee, lat, lon, on_date):
     assignments = _active_assignments_for_employee(employee, on_date)
+    if lat is None or lon is None:
+        return {
+            'assignment': assignments[0] if assignments else None,
+            'zone': assignments[0].zone if assignments and assignments[0].zone_id else None,
+            'distance_meters': None,
+            'within': False,
+        }
     plat = float(lat)
     plon = float(lon)
 
