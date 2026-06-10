@@ -1,3 +1,5 @@
+from django.conf import settings
+
 from .access import (
     user_has_full_admin_access,
     user_has_riconfezionamento_access,
