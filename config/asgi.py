@@ -65,6 +65,10 @@ class RiconfezionamentoAccessMiddleware:
 		if scope.get('type') != 'http' or not str(request_path).startswith('/riconfezionamento'):
 			return await self.app(scope, receive, send)
 
+		if not settings.RICONFEZIONAMENTO_ONLINE_ENABLED:
+			response = PlainTextResponse('Riconfezionamento online non disponibile.', status_code=404)
+			return await response(scope, receive, send)
+
 		user = await sync_to_async(_riconfezionamento_user_from_scope, thread_sensitive=True)(scope)
 		has_access = bool(user) and await sync_to_async(user_has_riconfezionamento_access, thread_sensitive=True)(user)
 		if user is None or not has_access:

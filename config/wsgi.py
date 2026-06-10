@@ -27,6 +27,9 @@ class PathDispatcher:
 	def __call__(self, environ, start_response):
 		path = environ.get("PATH_INFO", "") or ""
 		if path.startswith(RICONFEZIONAMENTO_PREFIX):
+			if not os.environ.get("RICONFEZIONAMENTO_ONLINE_ENABLED", "0").strip().lower() in {"1", "true", "yes", "on"}:
+				start_response("404 Not Found", [("Content-Type", "text/plain; charset=utf-8")])
+				return [b"Riconfezionamento online non disponibile."]
 			riconfezionamento_environ = environ.copy()
 			stripped_path = path[len(RICONFEZIONAMENTO_PREFIX):] or "/"
 			riconfezionamento_environ["PATH_INFO"] = stripped_path

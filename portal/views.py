@@ -118,6 +118,8 @@ def _turni_planner_allowed_or_403(request):
 
 
 def _riconfezionamento_allowed_or_403(request):
+    if not settings.RICONFEZIONAMENTO_ONLINE_ENABLED:
+        return HttpResponse('Riconfezionamento online non disponibile.', status=404)
     if not user_has_riconfezionamento_access(request.user):
         return HttpResponse('Riconfezionamento non disponibile per questo account.', status=403)
     return None

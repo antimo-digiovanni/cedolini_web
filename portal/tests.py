@@ -781,6 +781,7 @@ class TurniPlannerAccessTests(TestCase):
 		self.assertTrue(TurniPlannerWeekState.objects.filter(week_label="Week 29 da Lunedi 13/07/2026 a Sabato 18/07/2026").exists())
 
 
+@override_settings(RICONFEZIONAMENTO_ONLINE_ENABLED=True)
 class RiconfezionamentoAccessTests(TestCase):
 	@classmethod
 	def setUpClass(cls):
@@ -906,6 +907,29 @@ class RiconfezionamentoAccessTests(TestCase):
 		with self._build_asgi_client(self.allowed_user) as client:
 			response = client.get('/riconfezionamento/')
 		self.assertEqual(response.status_code, 200)
+
+
+class RiconfezionamentoFeatureDisabledTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.group, _ = Group.objects.get_or_create(name=RICONFEZIONAMENTO_GROUP_NAME)
+		self.allowed_user = get_user_model().objects.create_user(
+			username='riconf.disabled.user',
+			password='Password123!',
+		)
+		self.allowed_user.groups.add(self.group)
+
+	@override_settings(RICONFEZIONAMENTO_ONLINE_ENABLED=False)
+	def test_portal_entry_returns_404_when_feature_disabled(self):
+		self.client.force_login(self.allowed_user)
+		response = self.client.get(reverse('riconfezionamento_entry'))
+		self.assertEqual(response.status_code, 404)
+
+	@override_settings(RICONFEZIONAMENTO_ONLINE_ENABLED=False)
+	def test_dashboard_hides_riconfezionamento_link_when_feature_disabled(self):
+		self.client.force_login(self.allowed_user)
+		response = self.client.get(reverse('dashboard'))
+		self.assertNotContains(response, reverse('riconfezionamento_entry'))
 
 	def test_mounted_app_downloads_product_catalog_workbook(self):
 		with self._build_asgi_client(self.allowed_user) as client:

@@ -331,9 +331,11 @@ main {
                 <i class="bi bi-journal-text"></i> Tutorial Portale
             </a>
             {% if has_riconfezionamento_access %}
+            {% if riconfezionamento_online_enabled %}
             <a href="{% url 'riconfezionamento_entry' %}">
                 <i class="bi bi-box-seam"></i> Riconfezionamento
             </a>
+            {% endif %}
             {% endif %}
             <button type="button" id="sidebarInstallAppButton" class="sidebar-install-button" aria-label="Installa app del portale">
                 <i class="bi bi-phone"></i> Installa app

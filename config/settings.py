@@ -33,6 +33,7 @@ BASE_CSRF_TRUSTED_ORIGINS = [
 ]
 
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "https://cedolini-web.onrender.com").rstrip("/")
+RICONFEZIONAMENTO_ONLINE_ENABLED = os.environ.get("RICONFEZIONAMENTO_ONLINE_ENABLED", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 extra_csrf_origins = [o.strip() for o in os.environ.get("EXTRA_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 CSRF_TRUSTED_ORIGINS = BASE_CSRF_TRUSTED_ORIGINS + extra_csrf_origins
