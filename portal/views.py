@@ -8,7 +8,7 @@ from copy import deepcopy
 import re
 import tempfile
 import zipfile
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 import uuid
 import unicodedata
 from collections import OrderedDict
@@ -4711,6 +4711,12 @@ def admin_work_zones(request):
 # APERTURA CEDOLINO + EMAIL NOTIFICA LETTURA
 # =========================================================
 
+def _append_cache_buster(url, version_token):
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query['v'] = str(version_token)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
 @login_required
 def open_payslip(request, payslip_id):
     payslip = get_object_or_404(Payslip, id=payslip_id)
@@ -4736,7 +4742,8 @@ def open_payslip(request, payslip_id):
 
     # Reindirizza sempre all'URL pubblico del PDF (R2 gestisce la visualizzazione/download)
     try:
-        url = payslip.pdf.url
+        version_token = f"{payslip.id}-{int(payslip.uploaded_at.timestamp())}"
+        url = _append_cache_buster(payslip.pdf.url, version_token)
         return HttpResponseRedirect(url)
     except Exception:
         logger.exception('open_payslip: failed to build payslip URL id=%s', payslip_id)
@@ -4766,7 +4773,8 @@ def open_cud(request, cud_id):
         )
 
     try:
-        url = cud.pdf.url
+        version_token = f"{cud.id}-{int(cud.uploaded_at.timestamp())}"
+        url = _append_cache_buster(cud.pdf.url, version_token)
         return HttpResponseRedirect(url)
     except Exception:
         logger.exception('open_cud: failed to build CUD URL id=%s', cud_id)

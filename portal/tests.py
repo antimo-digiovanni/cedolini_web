@@ -2620,6 +2620,16 @@ class PayslipBulkDeleteTests(TestCase):
 		self.assertFalse(Payslip.objects.filter(id=may_two.id).exists())
 		self.assertEqual(Payslip.objects.filter(year=2026, month=6).count(), 1)
 
+	def test_open_payslip_redirect_adds_cache_buster(self):
+		payslip = self._create_payslip(self.employee, 2026, 5, "cache-maggio.pdf")
+		self.client.force_login(self.employee_user)
+
+		response = self.client.get(reverse("open_payslip", args=[payslip.id]))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("/payslips/", response["Location"])
+		self.assertIn(f"v={payslip.id}-", response["Location"])
+
 
 class CudUploadImportTests(TestCase):
 	@classmethod
