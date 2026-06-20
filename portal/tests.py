@@ -1,11 +1,12 @@
 import importlib
-from io import BytesIO
+from io import BytesIO, StringIO
 import os
 from pathlib import Path
 import sqlite3
 from tempfile import NamedTemporaryFile
 from django.conf import settings
 from django.core import mail
+from django.core.management import call_command
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.sessions.backends.db import SessionStore
@@ -2518,6 +2519,106 @@ class PayslipUploadImportTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(Payslip.objects.filter(employee=username_employee, year=2026, month=1).count(), 1)
+
+
+class PayslipBulkDeleteTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls._temp_media = tempfile.TemporaryDirectory()
+		cls._override = override_settings(
+			MEDIA_ROOT=cls._temp_media.name,
+			STORAGES={
+				"default": {
+					"BACKEND": "django.core.files.storage.FileSystemStorage",
+				},
+				"staticfiles": {
+					"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+				},
+			},
+		)
+		cls._override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls._override.disable()
+		cls._temp_media.cleanup()
+		super().tearDownClass()
+
+	def setUp(self):
+		self.client = Client()
+		self.admin_user = get_user_model().objects.create_user(
+			username="staff.delete",
+			password="Password123!",
+			is_staff=True,
+		)
+		self.client.force_login(self.admin_user)
+
+		self.employee_user = get_user_model().objects.create_user(
+			username="maggio.user",
+			password="Password123!",
+		)
+		self.employee = Employee.objects.create(
+			user=self.employee_user,
+			first_name="Mario",
+			last_name="Rossi",
+		)
+		self.other_employee_user = get_user_model().objects.create_user(
+			username="giugno.user",
+			password="Password123!",
+		)
+		self.other_employee = Employee.objects.create(
+			user=self.other_employee_user,
+			first_name="Anna",
+			last_name="Verdi",
+		)
+
+	def _create_payslip(self, employee, year, month, name):
+		return Payslip.objects.create(
+			employee=employee,
+			year=year,
+			month=month,
+			pdf=SimpleUploadedFile(name, b"%PDF-1.4\n%test pdf\n", content_type="application/pdf"),
+		)
+
+	def test_admin_all_payslips_can_delete_filtered_month(self):
+		may_one = self._create_payslip(self.employee, 2026, 5, "maggio-1.pdf")
+		may_two = self._create_payslip(self.other_employee, 2026, 5, "maggio-2.pdf")
+		june_one = self._create_payslip(self.employee, 2026, 6, "giugno-1.pdf")
+
+		response = self.client.post(
+			reverse("admin_all_payslips"),
+			{
+				"action": "bulk_delete_payslips",
+				"year": "2026",
+				"month": "5",
+				"employee": "",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "2 cedolini eliminati definitivamente.")
+		self.assertFalse(Payslip.objects.filter(id=may_one.id).exists())
+		self.assertFalse(Payslip.objects.filter(id=may_two.id).exists())
+		self.assertTrue(Payslip.objects.filter(id=june_one.id).exists())
+
+	def test_delete_payslips_command_supports_dry_run_and_confirmed_delete(self):
+		may_one = self._create_payslip(self.employee, 2026, 5, "cmd-maggio-1.pdf")
+		may_two = self._create_payslip(self.other_employee, 2026, 5, "cmd-maggio-2.pdf")
+		self._create_payslip(self.employee, 2026, 6, "cmd-giugno-1.pdf")
+
+		dry_run_output = StringIO()
+		call_command("delete_payslips", year=2026, month=5, dry_run=True, stdout=dry_run_output)
+		self.assertIn("Cedolini trovati: 2", dry_run_output.getvalue())
+		self.assertTrue(Payslip.objects.filter(id=may_one.id).exists())
+		self.assertTrue(Payslip.objects.filter(id=may_two.id).exists())
+
+		delete_output = StringIO()
+		call_command("delete_payslips", year=2026, month=5, yes=True, stdout=delete_output)
+		self.assertIn("Cancellazione completata.", delete_output.getvalue())
+		self.assertFalse(Payslip.objects.filter(id=may_one.id).exists())
+		self.assertFalse(Payslip.objects.filter(id=may_two.id).exists())
+		self.assertEqual(Payslip.objects.filter(year=2026, month=6).count(), 1)
 
 
 class CudUploadImportTests(TestCase):

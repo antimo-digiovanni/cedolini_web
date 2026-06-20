@@ -9,6 +9,12 @@
 <div class="card-modern">
     <h4 class="mb-3">Archivio Cedolini</h4>
 
+    {% if feedback %}
+    <div class="alert alert-{{ feedback_level }}" role="alert">
+        {{ feedback }}
+    </div>
+    {% endif %}
+
     <form method="get" class="row g-2 align-items-end mb-3">
         <div class="col-md-2">
             <label class="form-label">Anno</label>
@@ -34,6 +40,20 @@
         </div>
         <div class="col-md-2 text-end">
             <a href="?{% if year_selected %}year={{ year_selected }}&amp;{% endif %}{% if month_selected %}month={{ month_selected }}&amp;{% endif %}{% if employee_selected %}employee={{ employee_selected }}&amp;{% endif %}format=csv" class="btn btn-outline-secondary w-100">Esporta CSV</a>
+        </div>
+    </form>
+
+    <form method="post" class="mb-3" onsubmit="return confirm('Vuoi eliminare definitivamente tutti i cedolini filtrati? Questa operazione non si puo annullare.');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="bulk_delete_payslips">
+        <input type="hidden" name="year" value="{{ year_selected }}">
+        <input type="hidden" name="month" value="{{ month_selected }}">
+        <input type="hidden" name="employee" value="{{ employee_selected|default:'' }}">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <button type="submit" class="btn btn-outline-danger" {% if not year_selected or not month_selected %}disabled{% endif %}>
+                Elimina tutti i cedolini filtrati
+            </button>
+            <span class="small text-muted">Richiede almeno anno e mese selezionati. Se imposti anche un dipendente, elimina solo i suoi cedolini.</span>
         </div>
     </form>
 

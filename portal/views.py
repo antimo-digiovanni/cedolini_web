@@ -5360,18 +5360,67 @@ def admin_all_payslips(request):
     if not request.user.is_staff:
         return redirect('dashboard')
 
-    year = request.GET.get('year')
-    month = request.GET.get('month')
-    employee_id = request.GET.get('employee')
+    year = (request.GET.get('year') or '').strip()
+    month = (request.GET.get('month') or '').strip()
+    employee_id = (request.GET.get('employee') or '').strip()
 
-    payslips = Payslip.objects.select_related('employee__user').order_by('-year', '-month')
+    def _apply_payslip_filters(queryset, selected_year, selected_month, selected_employee_id):
+        if selected_year:
+            queryset = queryset.filter(year=selected_year)
+        if selected_month:
+            queryset = queryset.filter(month=selected_month)
+        if selected_employee_id:
+            queryset = queryset.filter(employee_id=selected_employee_id)
+        return queryset
 
-    if year:
-        payslips = payslips.filter(year=year)
-    if month:
-        payslips = payslips.filter(month=month)
-    if employee_id:
-        payslips = payslips.filter(employee_id=employee_id)
+    feedback = ''
+    feedback_level = 'info'
+
+    if request.method == 'POST' and request.POST.get('action') == 'bulk_delete_payslips':
+        year = (request.POST.get('year') or '').strip()
+        month = (request.POST.get('month') or '').strip()
+        employee_id = (request.POST.get('employee') or '').strip()
+
+        if not year or not month:
+            feedback = 'Per la cancellazione massiva devi indicare almeno anno e mese.'
+            feedback_level = 'danger'
+        else:
+            payslips_to_delete = _apply_payslip_filters(
+                Payslip.objects.select_related('employee__user').order_by('-year', '-month'),
+                year,
+                month,
+                employee_id,
+            )
+            deleted_count = payslips_to_delete.count()
+
+            if deleted_count == 0:
+                feedback = 'Nessun cedolino trovato con i filtri selezionati.'
+                feedback_level = 'warning'
+            else:
+                payload = {
+                    'year': year,
+                    'month': month,
+                    'employee_id': employee_id or None,
+                    'deleted_count': deleted_count,
+                    'payslip_ids': list(payslips_to_delete.values_list('id', flat=True)[:500]),
+                }
+                employee = Employee.objects.filter(id=employee_id).first() if employee_id else None
+                payslips_to_delete.delete()
+                _create_audit_event(
+                    request,
+                    'payslip_bulk_deleted',
+                    employee=employee,
+                    metadata=payload,
+                )
+                feedback = f'{deleted_count} cedolini eliminati definitivamente.'
+                feedback_level = 'warning'
+
+    payslips = _apply_payslip_filters(
+        Payslip.objects.select_related('employee__user').order_by('-year', '-month'),
+        year,
+        month,
+        employee_id,
+    )
 
     # CUD: usiamo gli stessi filtri per anno e dipendente (mese non rilevante)
     cuds = Cud.objects.select_related('employee__user').order_by('-year')
@@ -5413,6 +5462,8 @@ def admin_all_payslips(request):
         'payslips': payslips,
         'cuds': cuds_list,
         'employees': employees,
+        'feedback': feedback,
+        'feedback_level': feedback_level,
         'year_selected': year,
         'month_selected': month,
         'employee_selected': int(employee_id) if employee_id else None,
