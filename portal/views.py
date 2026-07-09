@@ -223,17 +223,17 @@ def _build_personal_asset_reimbursement_report_image(user):
             continue
         try:
             logo_image = Image.open(logo_path).convert('RGBA')
-            logo_image.thumbnail((88, 32))
+            logo_image.thumbnail((96, 36))
             break
         except OSError:
             continue
 
-    width = 1400
+    width = 1480
     margin = 24
-    title_row_height = 60
-    header_row_height = 46
-    row_height = 50
-    total_row_height = 50
+    title_row_height = 62
+    header_row_height = 48
+    row_height = 52
+    total_row_height = 52
     calculated_height = margin + title_row_height + header_row_height + (len(entries) * row_height) + total_row_height + margin
     height = max(calculated_height, margin + title_row_height + header_row_height + total_row_height + margin)
 
@@ -244,14 +244,14 @@ def _build_personal_asset_reimbursement_report_image(user):
     total_fill = '#12c25b'
     text_dark = '#111111'
 
-    title_font = load_font(26, bold=False)
-    header_font = load_font(20, bold=True)
-    body_font = load_font(19)
-    total_font = load_font(22, bold=True)
+    title_font = load_font(28, bold=False)
+    header_font = load_font(21, bold=True)
+    body_font = load_font(20)
+    total_font = load_font(23, bold=True)
 
     table_top = margin
-    date_col_width = 175
-    amount_col_width = 220
+    date_col_width = 185
+    amount_col_width = 230
     desc_col_width = width - (margin * 2) - date_col_width - amount_col_width
     x_date = margin
     x_desc = x_date + date_col_width
@@ -264,15 +264,15 @@ def _build_personal_asset_reimbursement_report_image(user):
         image.paste(logo_image, (margin + 10, logo_y), logo_image)
     title_box = draw.textbbox((0, 0), title_text, font=title_font)
     title_width = title_box[2] - title_box[0]
-    draw.text(((width - title_width) / 2, table_top + 11), title_text, fill=text_dark, font=title_font)
+    draw.text(((width - title_width) / 2, table_top + 12), title_text, fill=text_dark, font=title_font)
 
     header_top = table_top + title_row_height
     draw.rectangle((margin, header_top, width - margin, header_top + header_row_height), outline=grid_color, width=2)
     draw.line((x_desc, header_top, x_desc, header_top + header_row_height), fill=grid_color, width=2)
     draw.line((x_amount, header_top, x_amount, header_top + header_row_height), fill=grid_color, width=2)
-    draw.text((x_date + 16, header_top + 10), 'DATA', fill=text_dark, font=header_font)
-    draw.text((x_desc + 16, header_top + 10), 'SPESA', fill=text_dark, font=header_font)
-    draw_right_text(width - margin - 16, header_top + 10, 'IMPORTO', header_font, text_dark)
+    draw.text((x_date + 16, header_top + 11), 'DATA', fill=text_dark, font=header_font)
+    draw.text((x_desc + 16, header_top + 11), 'SPESA', fill=text_dark, font=header_font)
+    draw_right_text(width - margin - 16, header_top + 11, 'IMPORTO', header_font, text_dark)
 
     current_y = header_top + header_row_height
     for index, entry in enumerate(entries):
@@ -281,17 +281,17 @@ def _build_personal_asset_reimbursement_report_image(user):
         draw.rectangle((margin, current_y, width - margin, current_y + row_height), outline=grid_color, width=1)
         draw.line((x_desc, current_y, x_desc, current_y + row_height), fill=grid_color, width=1)
         draw.line((x_amount, current_y, x_amount, current_y + row_height), fill=grid_color, width=1)
-        draw.text((x_date + 10, current_y + 11), format_date(entry.occurred_on), fill=text_dark, font=body_font)
-        draw.text((x_desc + 10, current_y + 11), description, fill=text_dark, font=body_font)
-        draw_right_text(width - margin - 16, current_y + 11, format_amount(report_amount), body_font, text_dark)
+        draw.text((x_date + 10, current_y + 12), format_date(entry.occurred_on), fill=text_dark, font=body_font)
+        draw.text((x_desc + 10, current_y + 12), description, fill=text_dark, font=body_font)
+        draw_right_text(width - margin - 16, current_y + 12, format_amount(report_amount), body_font, text_dark)
         current_y += row_height
 
     total_top = current_y
     draw.rectangle((margin, total_top, width - margin, total_top + total_row_height), fill=total_fill, outline=grid_color, width=2)
     draw.line((x_amount, total_top, x_amount, total_top + total_row_height), fill=grid_color, width=2)
-    draw.text((x_desc + 14, total_top + 10), 'TOTALE RIMBORSO SPESE', fill=text_dark, font=total_font)
+    draw.text((x_desc + 14, total_top + 12), 'TOTALE RIMBORSO SPESE', fill=text_dark, font=total_font)
     total_text = format_amount(total_amount)
-    draw_right_text(width - margin - 16, total_top + 10, total_text, total_font, text_dark)
+    draw_right_text(width - margin - 16, total_top + 12, total_text, total_font, text_dark)
 
     output = io.BytesIO()
     image.save(output, format='JPEG', quality=94)
