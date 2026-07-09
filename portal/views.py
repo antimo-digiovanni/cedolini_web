@@ -172,9 +172,10 @@ def _build_personal_asset_reimbursement_report_image(user):
     entries = list(_personal_asset_reimbursement_entries_queryset(user))
     display_name = _personal_asset_report_display_name(user)
     total_amount = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in entries)
-
-    assets_dir = Path(__file__).resolve().parent.parent / 'riconfezionamento_app' / 'static' / 'assets'
-    logo_path = assets_dir / 'logo-san-vincenzo.png'
+    logo_candidates = [
+        Path(settings.BASE_DIR) / 'riconfezionamento_app' / 'static' / 'assets' / 'logo-san-vincenzo.png',
+        Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png',
+    ]
 
     def load_font(size, bold=False):
         candidates = ['arialbd.ttf', 'Arial Bold.ttf'] if bold else ['arial.ttf', 'Arial.ttf']
@@ -186,7 +187,10 @@ def _build_personal_asset_reimbursement_report_image(user):
         return ImageFont.load_default()
 
     def format_amount(value):
-        return f'{value:.2f}'.replace('.', ',') + ' EUR'
+        return f'{value:.2f}'.replace('.', ',') + ' €'
+
+    def format_date(value):
+        return f'{value.day}/{value.month}/{value.year}'
 
     def text_height(font):
         bbox = font.getbbox('Ag')
@@ -197,94 +201,81 @@ def _build_personal_asset_reimbursement_report_image(user):
         text_width = box[2] - box[0]
         draw.text((x_right - text_width, y), text, fill=fill, font=font)
 
-    width = 1240
-    height = 1754
-    margin = 84
-    top_band_height = 164
-    info_block_height = 118
-    header_row_height = 68
-    row_height = 78
-    total_row_height = 78
+    logo_image = None
+    for logo_path in logo_candidates:
+        if not logo_path.exists():
+            continue
+        try:
+            logo_image = Image.open(logo_path).convert('RGBA')
+            logo_image.thumbnail((88, 32))
+            break
+        except OSError:
+            continue
+
+    width = 1280
+    margin = 24
+    title_row_height = 52
+    header_row_height = 40
+    row_height = 44
+    total_row_height = 42
+    calculated_height = margin + title_row_height + header_row_height + (len(entries) * row_height) + total_row_height + margin
+    height = max(calculated_height, margin + title_row_height + header_row_height + total_row_height + margin)
 
     image = Image.new('RGB', (width, height), '#ffffff')
     draw = ImageDraw.Draw(image)
 
-    brand_blue = '#1666C1'
-    light_blue = '#EDF4FD'
-    title_fill = '#F7FAFE'
-    border_color = '#C9D9EC'
-    text_dark = '#0F172A'
-    text_muted = '#475569'
+    grid_color = '#111111'
+    total_fill = '#12c25b'
+    text_dark = '#111111'
 
-    title_font = load_font(42, bold=True)
-    subtitle_font = load_font(25, bold=True)
-    body_font = load_font(24)
-    body_bold_font = load_font(24, bold=True)
-    small_font = load_font(20)
+    title_font = load_font(24, bold=False)
+    header_font = load_font(18, bold=True)
+    body_font = load_font(18)
+    total_font = load_font(20, bold=True)
 
-    header_top = 24
-    header_bottom = header_top + top_band_height
-    draw.rectangle((margin, header_top, width - margin, header_bottom), fill='#ffffff')
-    draw.line((margin, header_top, width - margin, header_top), fill=brand_blue, width=6)
-    draw.line((margin, header_bottom, width - margin, header_bottom), fill=border_color, width=2)
-    if logo_path.exists():
-        logo = Image.open(logo_path).convert('RGBA')
-        logo_width = 100
-        logo_height = int(logo.height * (logo_width / logo.width)) if logo.width else 60
-        logo = logo.resize((logo_width, logo_height))
-        logo_x = margin + 8
-        logo_y = header_top + max(12, (top_band_height - logo_height) // 2)
-        image.paste(logo, (logo_x, logo_y), logo)
-
-    title_text = 'Rimborso spese'
-    title_box = draw.textbbox((0, 0), title_text, font=title_font)
-    title_width = title_box[2] - title_box[0]
-    title_x = margin + 150 + max(0, ((width - (margin * 2) - 150) - title_width) / 2)
-    title_y = header_top + 40
-    draw.text((title_x, title_y), title_text, fill=text_dark, font=title_font)
-    draw.text((title_x, title_y + text_height(title_font) + 8), 'Prospetto riepilogativo delle spese da rimborsare', fill=text_muted, font=small_font)
-
-    info_top = header_bottom + 18
-    info_bottom = info_top + info_block_height
-    draw.rectangle((margin, info_top, width - margin, info_bottom), fill='#ffffff')
-    draw.line((margin, info_top, width - margin, info_top), fill=border_color, width=2)
-    draw.line((margin, info_bottom, width - margin, info_bottom), fill=border_color, width=2)
-    draw.text((margin + 10, info_top + 22), f'Dipendente: {display_name}', fill=text_dark, font=subtitle_font)
-    draw.text((margin + 10, info_top + 22 + text_height(subtitle_font) + 12), f'Generato il: {timezone.localtime().strftime("%d/%m/%Y %H:%M")}', fill=text_muted, font=small_font)
-
-    table_top = info_bottom + 24
-    date_col_width = 230
-    amount_col_width = 250
+    table_top = margin
+    date_col_width = 165
+    amount_col_width = 210
     desc_col_width = width - (margin * 2) - date_col_width - amount_col_width
     x_date = margin
     x_desc = x_date + date_col_width
     x_amount = x_desc + desc_col_width
 
-    draw.rectangle((margin, table_top, width - margin, table_top + header_row_height), fill=brand_blue)
-    draw.text((x_date + 18, table_top + 18), 'DATA', fill='#ffffff', font=body_bold_font)
-    draw.text((x_desc + 18, table_top + 18), 'SPESA', fill='#ffffff', font=body_bold_font)
-    draw_right_text(width - margin - 22, table_top + 18, 'IMPORTO', body_bold_font, '#ffffff')
+    title_text = f'Rimborso spese {display_name.split()[0] if display_name else ""}'.strip()
+    draw.rectangle((margin, table_top, width - margin, table_top + title_row_height), outline=grid_color, width=2)
+    if logo_image is not None:
+        logo_y = table_top + max(0, (title_row_height - logo_image.height) // 2)
+        image.paste(logo_image, (margin + 10, logo_y), logo_image)
+    title_box = draw.textbbox((0, 0), title_text, font=title_font)
+    title_width = title_box[2] - title_box[0]
+    draw.text(((width - title_width) / 2, table_top + 10), title_text, fill=text_dark, font=title_font)
 
-    current_y = table_top + header_row_height
+    header_top = table_top + title_row_height
+    draw.rectangle((margin, header_top, width - margin, header_top + header_row_height), outline=grid_color, width=2)
+    draw.line((x_desc, header_top, x_desc, header_top + header_row_height), fill=grid_color, width=2)
+    draw.line((x_amount, header_top, x_amount, header_top + header_row_height), fill=grid_color, width=2)
+    draw.text((x_date + 16, header_top + 8), 'DATA', fill=text_dark, font=header_font)
+    draw.text((x_desc + 16, header_top + 8), 'SPESA', fill=text_dark, font=header_font)
+    draw_right_text(width - margin - 16, header_top + 8, 'IMPORTO', header_font, text_dark)
+
+    current_y = header_top + header_row_height
     for index, entry in enumerate(entries):
         description = (entry.description or '').strip() or entry.category
         report_amount = entry.reimbursement_amount or entry.amount or Decimal('0.00')
-        fill = light_blue if index % 2 == 0 else '#ffffff'
-        draw.rectangle((margin, current_y, width - margin, current_y + row_height), fill=fill, outline=border_color, width=1)
-        draw.line((x_desc, current_y, x_desc, current_y + row_height), fill=border_color, width=1)
-        draw.line((x_amount, current_y, x_amount, current_y + row_height), fill=border_color, width=1)
-        draw.text((x_date + 18, current_y + 22), entry.occurred_on.strftime('%d/%m/%Y'), fill=text_dark, font=body_font)
-        max_chars = 42
-        clipped_description = description if len(description) <= max_chars else description[:max_chars - 1].rstrip() + '…'
-        draw.text((x_desc + 18, current_y + 22), clipped_description, fill=text_dark, font=body_font)
-        draw_right_text(width - margin - 22, current_y + 22, format_amount(report_amount), body_font, text_dark)
+        draw.rectangle((margin, current_y, width - margin, current_y + row_height), outline=grid_color, width=1)
+        draw.line((x_desc, current_y, x_desc, current_y + row_height), fill=grid_color, width=1)
+        draw.line((x_amount, current_y, x_amount, current_y + row_height), fill=grid_color, width=1)
+        draw.text((x_date + 10, current_y + 8), format_date(entry.occurred_on), fill=text_dark, font=body_font)
+        draw.text((x_desc + 10, current_y + 8), description, fill=text_dark, font=body_font)
+        draw_right_text(width - margin - 16, current_y + 8, format_amount(report_amount), body_font, text_dark)
         current_y += row_height
 
-    total_top = current_y + 28
-    draw.rectangle((margin, total_top, width - margin, total_top + total_row_height), fill=light_blue, outline=border_color, width=2)
-    draw.text((margin + 18, total_top + 22), 'TOTALE RIMBORSO SPESE', fill=text_dark, font=body_bold_font)
+    total_top = current_y
+    draw.rectangle((margin, total_top, width - margin, total_top + total_row_height), fill=total_fill, outline=grid_color, width=2)
+    draw.line((x_amount, total_top, x_amount, total_top + total_row_height), fill=grid_color, width=2)
+    draw.text((x_desc + 14, total_top + 8), 'TOTALE RIMBORSO SPESE', fill=text_dark, font=total_font)
     total_text = format_amount(total_amount)
-    draw_right_text(width - margin - 22, total_top + 22, total_text, body_bold_font, text_dark)
+    draw_right_text(width - margin - 16, total_top + 8, total_text, total_font, text_dark)
 
     output = io.BytesIO()
     image.save(output, format='JPEG', quality=94)
