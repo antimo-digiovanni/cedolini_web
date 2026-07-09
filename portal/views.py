@@ -371,20 +371,17 @@ def _personal_asset_summary(user, *, reference_date=None):
         account_delta=Coalesce(Sum('account_delta'), decimal_zero),
         piggy_bank_delta=Coalesce(Sum('piggy_bank_delta'), decimal_zero),
         reimbursement_delta=Coalesce(Sum('reimbursement_delta'), decimal_zero),
-        advance_delta=Coalesce(Sum('advance_delta'), decimal_zero),
     )
 
     total_assets = (
         totals['account_balance']
         + totals['piggy_bank_balance']
         + totals['reimbursement_balance']
-        - totals['advance_balance']
     )
     monthly_saving = (
         monthly_totals['account_delta']
         + monthly_totals['piggy_bank_delta']
         + monthly_totals['reimbursement_delta']
-        - monthly_totals['advance_delta']
     )
 
     return {
@@ -3323,37 +3320,27 @@ def personal_asset_dashboard(request):
     feedback_level = 'success'
     if status == 'created':
         feedback = 'Operazione patrimoniale registrata correttamente.'
-    elif status == 'reimbursement_sent':
-        feedback = 'Report rimborso spese inviato correttamente.'
+    elif status == 'deleted':
+        feedback = 'Voce eliminata correttamente.'
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        if action == 'send_reimbursement_report':
-            sent, message = _send_personal_asset_reimbursement_report_email(request.user)
-            feedback = message
-            feedback_level = 'success' if sent else 'danger'
-            if sent:
+        if action == 'delete_entry':
+            entry = PersonalAssetEntry.objects.filter(id=request.POST.get('entry_id'), user=request.user).first()
+            if entry is not None:
                 _create_audit_event(
                     request,
-                    'personal_asset_reimbursement_report_emailed',
+                    'personal_asset_entry_deleted',
                     employee=getattr(request.user, 'employee', None),
-                    metadata={'recipients': _personal_asset_reimbursement_report_email_recipients()},
+                    metadata={
+                        'entry_id': entry.id,
+                        'operation_type': entry.operation_type,
+                        'occurred_on': str(entry.occurred_on),
+                        'amount': str(entry.amount),
+                    },
                 )
-            form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
-            entries = list(_personal_asset_history_queryset(request.user)[:100])
-            summary = _personal_asset_summary(request.user)
-            reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
-            reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
-            return render(request, 'portal/personal_asset_dashboard.html', {
-                'finance_form': form,
-                'finance_entries': entries,
-                'finance_summary': summary,
-                'feedback': feedback,
-                'feedback_level': feedback_level,
-                'reimbursement_report_entries_count': len(reimbursement_entries),
-                'reimbursement_report_total': reimbursement_total,
-                'reimbursement_report_recipients': _personal_asset_reimbursement_report_email_recipients(),
-            })
+                entry.delete()
+            return redirect(f'{request.path}?status=deleted')
 
         form = PersonalAssetEntryForm(request.POST)
         if form.is_valid():

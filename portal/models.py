@@ -397,12 +397,12 @@ class PersonalAssetEntry(models.Model):
     TYPE_ADVANCE_RETURNED = 'advance_returned'
 
     TYPE_CHOICES = [
-        (TYPE_INCOME, 'Entrata'),
+        (TYPE_INCOME, 'Entrata stipendio'),
         (TYPE_EXPENSE, 'Uscita'),
         (TYPE_TRANSFER_TO_PIGGY_BANK, 'Trasferimento conto -> salvadanaio'),
         (TYPE_TRANSFER_TO_ACCOUNT, 'Trasferimento salvadanaio -> conto'),
         (TYPE_REIMBURSABLE_EXPENSE, 'Spesa rimborsabile'),
-        (TYPE_REIMBURSEMENT_RECEIVED, 'Rimborso ricevuto'),
+        (TYPE_REIMBURSEMENT_RECEIVED, 'Rimborso spesa pagato'),
         (TYPE_ADVANCE_RECEIVED, 'Anticipo ricevuto'),
         (TYPE_ADVANCE_RETURNED, 'Anticipo restituito'),
     ]

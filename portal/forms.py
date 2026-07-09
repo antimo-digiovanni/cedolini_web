@@ -25,9 +25,22 @@ class PayslipUploadForm(forms.ModelForm):
 
 
 class PersonalAssetEntryForm(forms.ModelForm):
+    ACTIVE_OPERATION_TYPES = {
+        PersonalAssetEntry.TYPE_INCOME,
+        PersonalAssetEntry.TYPE_EXPENSE,
+        PersonalAssetEntry.TYPE_TRANSFER_TO_PIGGY_BANK,
+        PersonalAssetEntry.TYPE_TRANSFER_TO_ACCOUNT,
+        PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+        PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['operation_type'].choices = [choice for choice in self.fields['operation_type'].choices if choice[0]]
+        self.fields['operation_type'].choices = [
+            choice
+            for choice in self.fields['operation_type'].choices
+            if choice[0] in self.ACTIVE_OPERATION_TYPES
+        ]
         self.fields['amount'].widget.attrs.update({'inputmode': 'decimal', 'autofocus': 'autofocus', 'placeholder': '0,00'})
         self.fields['reimbursement_amount'].widget.attrs.update({'inputmode': 'decimal', 'placeholder': '0,00'})
         self.fields['category'].widget.attrs.update({'list': 'financeCategorySuggestions', 'placeholder': 'Scrivi o tocca una categoria rapida'})

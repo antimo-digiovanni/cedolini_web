@@ -213,15 +213,10 @@
         <div class="finance-kpi-value">{{ finance_summary.reimbursement_balance|floatformat:2 }} €</div>
     </div>
 
-    <div class="finance-kpi-card">
-        <div class="finance-kpi-label">Anticipi da restituire</div>
-        <div class="finance-kpi-value">{{ finance_summary.advance_balance|floatformat:2 }} €</div>
-    </div>
-
     <div class="finance-kpi-card border-primary">
         <div class="finance-kpi-label">Patrimonio reale</div>
         <div class="finance-kpi-value">{{ finance_summary.total_assets|floatformat:2 }} €</div>
-        <div class="finance-note mt-2">Conto + Salvadanaio + Rimborsi da ricevere - Anticipi da restituire</div>
+        <div class="finance-note mt-2">Conto + Salvadanaio + Rimborsi da ricevere</div>
     </div>
 
     <div class="finance-kpi-card finance-month-card">
@@ -243,16 +238,14 @@
                 <div class="finance-quick-type-grid" id="financeTypeGrid">
                     {% for value, label in finance_form.operation_type.field.choices %}
                     <button type="button" class="finance-type-option" data-operation-value="{{ value }}">
-                        <span class="finance-type-option-title">{{ label }}</span>
+                        <span class="finance-type-option-title">{% if value == 'reimbursement_received' %}Rimborso spesa pagato{% else %}{{ label }}{% endif %}</span>
                         <span class="finance-type-option-note">
-                            {% if value == 'income' %}Aggiunge soldi al conto.
+                            {% if value == 'income' %}Aggiunge lo stipendio al conto.
                             {% elif value == 'expense' %}Registra una spesa personale.
                             {% elif value == 'transfer_to_piggy_bank' %}Sposta dal conto al salvadanaio.
                             {% elif value == 'transfer_to_account' %}Riporta dal salvadanaio al conto.
-                            {% elif value == 'reimbursable_expense' %}Spesa pagata da te con rimborso atteso.
-                            {% elif value == 'reimbursement_received' %}Segna un rimborso incassato.
-                            {% elif value == 'advance_received' %}Somme ricevute ma non tue.
-                            {% elif value == 'advance_returned' %}Restituzione di un anticipo.
+                            {% elif value == 'reimbursable_expense' %}Scala il conto e aggiunge il credito rimborso.
+                            {% elif value == 'reimbursement_received' %}Aggiunge il rimborso spesa pagato al conto.
                             {% endif %}
                         </span>
                     </button>
@@ -291,9 +284,10 @@
                     <button type="button" class="finance-chip-button" data-category-value="Spesa salute">Spesa salute</button>
                     <button type="button" class="finance-chip-button" data-category-value="Trasferta">Trasferta</button>
                     <button type="button" class="finance-chip-button" data-category-value="Stipendio">Stipendio</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Rimborso spese">Rimborso spese</button>
                     <button type="button" class="finance-chip-button" data-category-value="Risparmio">Risparmio</button>
                     <button type="button" class="finance-chip-button" data-category-value="Tempo libero">Tempo libero</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Cassa aziendale">Cassa aziendale</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Spese varie">Spese varie</button>
                 </div>
                 <datalist id="financeCategorySuggestions">
                     <option value="Spesa casa"></option>
@@ -301,9 +295,10 @@
                     <option value="Spesa salute"></option>
                     <option value="Trasferta"></option>
                     <option value="Stipendio"></option>
+                    <option value="Rimborso spese"></option>
                     <option value="Risparmio"></option>
                     <option value="Tempo libero"></option>
-                    <option value="Cassa aziendale"></option>
+                    <option value="Spese varie"></option>
                 </datalist>
                 {% for error in finance_form.category.errors %}
                 <div class="text-danger small mt-1">{{ error }}</div>
@@ -364,6 +359,7 @@
                         <th>Descrizione</th>
                         <th class="text-end">Importo</th>
                         <th class="text-end">Da ricevere</th>
+                        <th class="text-end">Azioni</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -380,6 +376,14 @@
                             {% else %}
                                 -
                             {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form method="post" class="d-inline" data-confirm-delete="1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_entry">
+                                <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
@@ -401,6 +405,12 @@
                 {% if entry.reimbursement_amount %}
                 <div class="small text-muted mt-1">Da ricevere: {{ entry.reimbursement_amount|floatformat:2 }} €</div>
                 {% endif %}
+                <form method="post" class="mt-3" data-confirm-delete="1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_entry">
+                    <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                </form>
             </div>
             {% endfor %}
         </div>
@@ -418,6 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reimbursementWrapper = document.getElementById('financeReimbursementWrapper');
     const typeButtons = Array.from(document.querySelectorAll('[data-operation-value]'));
     const categoryButtons = Array.from(document.querySelectorAll('[data-category-value]'));
+    const deleteForms = Array.from(document.querySelectorAll('form[data-confirm-delete="1"]'));
     const optionalToggle = document.getElementById('toggleFinanceOptionalFields');
     const optionalFields = document.getElementById('financeOptionalFields');
     if (!operationSelect || !reimbursementInput) return;
@@ -433,6 +444,12 @@ document.addEventListener('DOMContentLoaded', () => {
         typeButtons.forEach(button => {
             button.classList.toggle('is-active', button.dataset.operationValue === operationSelect.value);
         });
+        if (categoryInput && operationSelect.value === 'income' && !categoryInput.value.trim()) {
+            categoryInput.value = 'Stipendio';
+        }
+        if (categoryInput && operationSelect.value === 'reimbursement_received' && !categoryInput.value.trim()) {
+            categoryInput.value = 'Rimborso spese';
+        }
     };
 
     typeButtons.forEach(button => {
@@ -455,6 +472,14 @@ document.addEventListener('DOMContentLoaded', () => {
             optionalFields.classList.toggle('d-none');
         });
     }
+
+    deleteForms.forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!window.confirm('Vuoi davvero eliminare questa voce?')) {
+                event.preventDefault();
+            }
+        });
+    });
 
     syncVisibility();
     operationSelect.addEventListener('change', syncVisibility);

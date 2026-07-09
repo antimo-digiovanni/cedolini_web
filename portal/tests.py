@@ -303,6 +303,58 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["total_assets"], Decimal("-10.00"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("40.00"))
 
+	def test_creates_reimbursement_paid_and_salary_income(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+			category="Trasferta",
+			amount=Decimal("50.00"),
+			reimbursement_amount=Decimal("40.00"),
+			description="Pranzo e benzina",
+		)
+		self.client.force_login(self.user)
+		reimbursement_response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_entry",
+			"occurred_on": timezone.localdate().isoformat(),
+			"operation_type": PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+			"category": "Rimborso spese",
+			"amount": "40.00",
+			"description": "Rimborso pagato",
+		})
+		self.assertRedirects(reimbursement_response, reverse("personal_asset_dashboard") + "?status=created")
+		salary_response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_entry",
+			"occurred_on": timezone.localdate().isoformat(),
+			"operation_type": PersonalAssetEntry.TYPE_INCOME,
+			"category": "Stipendio",
+			"amount": "1500.00",
+			"description": "Entrata stipendio",
+		})
+		self.assertRedirects(salary_response, reverse("personal_asset_dashboard") + "?status=created")
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("1490.00"))
+		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("0.00"))
+		self.assertEqual(page.context["finance_summary"]["total_assets"], Decimal("1490.00"))
+
+	def test_deletes_entry(self):
+		entry = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_EXPENSE,
+			category="Spesa casa",
+			amount=Decimal("25.00"),
+			description="Pulizia",
+		)
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "delete_entry",
+			"entry_id": str(entry.id),
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=deleted")
+		self.assertFalse(PersonalAssetEntry.objects.filter(id=entry.id).exists())
+
 	@override_settings(EXPENSE_REIMBURSEMENT_EMAILS=["datore@example.com"])
 	def test_exports_reimbursement_report_jpg(self):
 		PersonalAssetEntry.objects.create(
