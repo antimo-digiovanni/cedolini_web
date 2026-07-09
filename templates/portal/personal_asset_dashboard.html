@@ -1,0 +1,463 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Gestione Patrimonio{% endblock %}
+
+{% block extra_css %}
+<style>
+.finance-stack > * + * {
+    margin-top: 1rem;
+}
+
+.finance-kpi-card,
+.finance-report-card,
+.finance-optional-box {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+}
+
+.finance-kpi-card,
+.finance-report-card {
+    padding: 1rem 1.1rem;
+}
+
+.finance-kpi-label {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+}
+
+.finance-kpi-value {
+    font-size: clamp(1.45rem, 3vw, 2rem);
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.1;
+}
+
+.finance-month-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+    color: #ffffff;
+}
+
+.finance-month-card .finance-kpi-value,
+.finance-month-card .finance-kpi-label,
+.finance-month-card .small,
+.finance-month-card .fw-semibold {
+    color: inherit;
+}
+
+.finance-note {
+    color: #64748b;
+    font-size: 0.93rem;
+}
+
+.finance-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.finance-quick-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.finance-type-option {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    padding: 0.85rem 0.95rem;
+    background: #ffffff;
+    text-align: left;
+    transition: 0.2s ease;
+}
+
+.finance-type-option:hover,
+.finance-type-option.is-active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.12);
+}
+
+.finance-type-option-title {
+    display: block;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.2rem;
+}
+
+.finance-type-option-note {
+    display: block;
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.finance-quick-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.finance-inline-help {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.finance-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.7rem;
+}
+
+.finance-chip-button {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    border-radius: 999px;
+    padding: 0.42rem 0.8rem;
+    font-size: 0.88rem;
+    transition: 0.2s ease;
+}
+
+.finance-chip-button:hover {
+    border-color: #2563eb;
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+.finance-optional-box {
+    padding: 0.9rem 1rem;
+}
+
+.finance-history-table thead th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    border-bottom-width: 1px;
+}
+
+.finance-history-table tbody td {
+    vertical-align: middle;
+}
+
+@media (max-width: 767.98px) {
+    .finance-quick-row {
+        grid-template-columns: 1fr;
+    }
+
+    .finance-report-card,
+    .finance-kpi-card {
+        padding: 0.95rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+            <h2 class="h3 mb-2">Gestione Patrimonio</h2>
+            <p class="mb-0">Controlla saldi, rimborsi e movimenti in un unico flusso semplice.</p>
+        </div>
+        <div class="finance-pill">Accesso riservato</div>
+    </div>
+</div>
+
+{% if feedback %}
+<div class="alert alert-{{ feedback_level|default:'info' }} mb-4" role="alert">
+    {{ feedback }}
+</div>
+{% endif %}
+
+<div class="finance-stack mb-4">
+    <div class="finance-report-card">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+            <div>
+                <h4 class="fw-semibold mb-1">Rimborso spese</h4>
+                <p class="finance-note mb-0">Scarica il file nello stile del prospetto rimborso spese e invialo tu quando vuoi.</p>
+            </div>
+            <span class="finance-pill">{{ reimbursement_report_entries_count }} voci</span>
+        </div>
+        <div class="small mb-2">Totale report: <strong>{{ reimbursement_report_total|floatformat:2 }} €</strong></div>
+        <div class="d-grid">
+            <a class="btn btn-outline-success" href="?report=reimbursement_jpg">Scarica file rimborso spese JPG</a>
+        </div>
+    </div>
+
+    <div class="finance-kpi-card">
+        <div class="finance-kpi-label">Saldo conto corrente</div>
+        <div class="finance-kpi-value">{{ finance_summary.account_balance|floatformat:2 }} €</div>
+    </div>
+
+    <div class="finance-kpi-card">
+        <div class="finance-kpi-label">Salvadanaio</div>
+        <div class="finance-kpi-value">{{ finance_summary.piggy_bank_balance|floatformat:2 }} €</div>
+    </div>
+
+    <div class="finance-kpi-card">
+        <div class="finance-kpi-label">Rimborsi da ricevere</div>
+        <div class="finance-kpi-value">{{ finance_summary.reimbursement_balance|floatformat:2 }} €</div>
+    </div>
+
+    <div class="finance-kpi-card">
+        <div class="finance-kpi-label">Anticipi da restituire</div>
+        <div class="finance-kpi-value">{{ finance_summary.advance_balance|floatformat:2 }} €</div>
+    </div>
+
+    <div class="finance-kpi-card border-primary">
+        <div class="finance-kpi-label">Patrimonio reale</div>
+        <div class="finance-kpi-value">{{ finance_summary.total_assets|floatformat:2 }} €</div>
+        <div class="finance-note mt-2">Conto + Salvadanaio + Rimborsi da ricevere - Anticipi da restituire</div>
+    </div>
+
+    <div class="finance-kpi-card finance-month-card">
+        <div class="finance-kpi-label text-white-50">Riepilogo mese</div>
+        <div class="fw-semibold mb-2">{{ finance_summary.month_label }}</div>
+        <div class="small">Entrate: {{ finance_summary.monthly_income|floatformat:2 }} €</div>
+        <div class="small">Uscite: {{ finance_summary.monthly_expense|floatformat:2 }} €</div>
+        <div class="small">Risparmio: {{ finance_summary.monthly_saving|floatformat:2 }} €</div>
+    </div>
+
+    <div class="card-modern bg-white">
+        <h4 class="fw-semibold mb-3">Nuova operazione</h4>
+        <p class="finance-note mb-3">Compila prima importo e tipo operazione. Descrizione e dettagli extra restano opzionali.</p>
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_entry">
+            <div class="mb-3">
+                <label class="form-label">Tipo operazione</label>
+                <div class="finance-quick-type-grid" id="financeTypeGrid">
+                    {% for value, label in finance_form.operation_type.field.choices %}
+                    <button type="button" class="finance-type-option" data-operation-value="{{ value }}">
+                        <span class="finance-type-option-title">{{ label }}</span>
+                        <span class="finance-type-option-note">
+                            {% if value == 'income' %}Aggiunge soldi al conto.
+                            {% elif value == 'expense' %}Registra una spesa personale.
+                            {% elif value == 'transfer_to_piggy_bank' %}Sposta dal conto al salvadanaio.
+                            {% elif value == 'transfer_to_account' %}Riporta dal salvadanaio al conto.
+                            {% elif value == 'reimbursable_expense' %}Spesa pagata da te con rimborso atteso.
+                            {% elif value == 'reimbursement_received' %}Segna un rimborso incassato.
+                            {% elif value == 'advance_received' %}Somme ricevute ma non tue.
+                            {% elif value == 'advance_returned' %}Restituzione di un anticipo.
+                            {% endif %}
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <div class="d-none">{{ finance_form.operation_type }}</div>
+                {% for error in finance_form.operation_type.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="finance-quick-row mb-3">
+                <div>
+                    <label class="form-label" for="{{ finance_form.amount.id_for_label }}">{{ finance_form.amount.label }}</label>
+                    {{ finance_form.amount }}
+                    {% for error in finance_form.amount.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div>
+                    <label class="form-label" for="{{ finance_form.occurred_on.id_for_label }}">{{ finance_form.occurred_on.label }}</label>
+                    {{ finance_form.occurred_on }}
+                    <div class="finance-inline-help mt-1">Di default usa la data di oggi.</div>
+                    {% for error in finance_form.occurred_on.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="{{ finance_form.category.id_for_label }}">{{ finance_form.category.label }}</label>
+                {{ finance_form.category }}
+                <div class="finance-chip-row" id="financeCategoryChips">
+                    <button type="button" class="finance-chip-button" data-category-value="Spesa casa">Spesa casa</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Spesa auto">Spesa auto</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Spesa salute">Spesa salute</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Trasferta">Trasferta</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Stipendio">Stipendio</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Risparmio">Risparmio</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Tempo libero">Tempo libero</button>
+                    <button type="button" class="finance-chip-button" data-category-value="Cassa aziendale">Cassa aziendale</button>
+                </div>
+                <datalist id="financeCategorySuggestions">
+                    <option value="Spesa casa"></option>
+                    <option value="Spesa auto"></option>
+                    <option value="Spesa salute"></option>
+                    <option value="Trasferta"></option>
+                    <option value="Stipendio"></option>
+                    <option value="Risparmio"></option>
+                    <option value="Tempo libero"></option>
+                    <option value="Cassa aziendale"></option>
+                </datalist>
+                {% for error in finance_form.category.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="finance-optional-box mb-3">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <strong class="small text-uppercase text-muted">Dettagli opzionali</strong>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleFinanceOptionalFields">Mostra/Nascondi</button>
+                </div>
+                <div id="financeOptionalFields" class="d-none">
+                    <div class="mb-3" id="financeReimbursementWrapper">
+                        <label class="form-label" for="{{ finance_form.reimbursement_amount.id_for_label }}">{{ finance_form.reimbursement_amount.label }}</label>
+                        {{ finance_form.reimbursement_amount }}
+                        {% if finance_form.reimbursement_amount.help_text %}
+                        <div class="form-text">{{ finance_form.reimbursement_amount.help_text }}</div>
+                        {% endif %}
+                        {% for error in finance_form.reimbursement_amount.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="{{ finance_form.description.id_for_label }}">{{ finance_form.description.label }}</label>
+                        {{ finance_form.description }}
+                        {% for error in finance_form.description.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            {% for error in finance_form.non_field_errors %}
+            <div class="text-danger small mb-2">{{ error }}</div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary w-100">Salva operazione</button>
+        </form>
+    </div>
+
+    <div class="card-modern bg-white">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <h4 class="fw-semibold mb-1">Storico operazioni</h4>
+                <p class="finance-note mb-0">Le statistiche si aggiornano automaticamente a ogni movimento.</p>
+            </div>
+            <span class="finance-pill">{{ finance_entries|length }} operazioni recenti</span>
+        </div>
+
+        {% if finance_entries %}
+        <div class="table-responsive d-none d-md-block">
+            <table class="table finance-history-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Operazione</th>
+                        <th>Categoria</th>
+                        <th>Descrizione</th>
+                        <th class="text-end">Importo</th>
+                        <th class="text-end">Da ricevere</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in finance_entries %}
+                    <tr>
+                        <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
+                        <td>{{ entry.get_operation_type_display }}</td>
+                        <td>{{ entry.category }}</td>
+                        <td>{{ entry.description|default:"-" }}</td>
+                        <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
+                        <td class="text-end">
+                            {% if entry.reimbursement_amount %}
+                                {{ entry.reimbursement_amount|floatformat:2 }} €
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-md-none">
+            {% for entry in finance_entries %}
+            <div class="border rounded-4 p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <div class="fw-semibold">{{ entry.get_operation_type_display }}</div>
+                        <div class="finance-note">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div>
+                    </div>
+                    <div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div>
+                </div>
+                <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
+                {% if entry.reimbursement_amount %}
+                <div class="small text-muted mt-1">Da ricevere: {{ entry.reimbursement_amount|floatformat:2 }} €</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-light border mb-0">Nessuna operazione registrata. Inserisci il primo movimento per iniziare a costruire lo storico patrimoniale.</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const operationSelect = document.getElementById('id_operation_type');
+    const reimbursementInput = document.getElementById('id_reimbursement_amount');
+    const categoryInput = document.getElementById('id_category');
+    const reimbursementWrapper = document.getElementById('financeReimbursementWrapper');
+    const typeButtons = Array.from(document.querySelectorAll('[data-operation-value]'));
+    const categoryButtons = Array.from(document.querySelectorAll('[data-category-value]'));
+    const optionalToggle = document.getElementById('toggleFinanceOptionalFields');
+    const optionalFields = document.getElementById('financeOptionalFields');
+    if (!operationSelect || !reimbursementInput) return;
+
+    const syncVisibility = () => {
+        const visible = operationSelect.value === 'reimbursable_expense';
+        if (reimbursementWrapper) {
+            reimbursementWrapper.style.display = visible ? '' : 'none';
+        }
+        if (!visible) {
+            reimbursementInput.value = '';
+        }
+        typeButtons.forEach(button => {
+            button.classList.toggle('is-active', button.dataset.operationValue === operationSelect.value);
+        });
+    };
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            operationSelect.value = button.dataset.operationValue;
+            syncVisibility();
+        });
+    });
+
+    categoryButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            if (!categoryInput) return;
+            categoryInput.value = button.dataset.categoryValue;
+            categoryInput.focus();
+        });
+    });
+
+    if (optionalToggle && optionalFields) {
+        optionalToggle.addEventListener('click', () => {
+            optionalFields.classList.toggle('d-none');
+        });
+    }
+
+    syncVisibility();
+    operationSelect.addEventListener('change', syncVisibility);
+});
+</script>
+{% endblock %}

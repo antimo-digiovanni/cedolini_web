@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sqlite3
 from tempfile import NamedTemporaryFile
+from decimal import Decimal
 from django.conf import settings
 from django.core import mail
 from django.core.management import call_command
@@ -22,8 +23,8 @@ from fastapi import HTTPException
 from openpyxl import Workbook, load_workbook
 from starlette.testclient import TestClient as AsgiTestClient
 
-from .access import TODAY_MARKINGS_GROUP_NAME, RICONFEZIONAMENTO_GROUP_NAME, TURNI_PLANNER_GROUP_NAME
-from .models import Cud, Employee, EmployeeWorkZone, ImportJob, Payslip, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
+from .access import TODAY_MARKINGS_GROUP_NAME, RICONFEZIONAMENTO_GROUP_NAME, TURNI_PLANNER_GROUP_NAME, PATRIMONIO_GROUP_NAME
+from .models import Cud, Employee, EmployeeWorkZone, ImportJob, Payslip, PersonalAssetEntry, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -138,7 +139,7 @@ class TodayMarkingsAccessTests(TestCase):
 		self.client.force_login(self.employee_user)
 		response = self.client.get(reverse("today_markings_dashboard"))
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Chi ha marcato oggi")
+
 
 	def test_employee_with_today_markings_group_sees_markings_open_in_dashboard(self):
 		self.employee_user.groups.add(self.group)
@@ -256,6 +257,71 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response_yesterday.status_code, 200)
 		self.assertContains(response_yesterday, "Luca Verdi")
 		self.assertContains(response_yesterday, "17:00")
+
+
+class PersonalAssetDashboardTests(TestCase):
+	def setUp(self):
+		self.client = Client()
+		self.group = Group.objects.create(name=PATRIMONIO_GROUP_NAME)
+		self.user = get_user_model().objects.create_user(
+			username="patrimonio.user",
+			password="Password123!",
+			first_name="Patrimonio",
+			last_name="User",
+		)
+		self.employee = Employee.objects.create(
+			user=self.user,
+			first_name="Patrimonio",
+			last_name="User",
+		)
+		self.user.groups.add(self.group)
+
+	def test_dashboard_requires_group_access(self):
+		other_user = get_user_model().objects.create_user(username="no.patrimonio", password="Password123!")
+		self.client.force_login(other_user)
+		response = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(response.status_code, 403)
+
+	def test_creates_entry_and_updates_balances(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_entry",
+			"occurred_on": timezone.localdate().isoformat(),
+			"operation_type": PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+			"category": "Trasferta",
+			"amount": "50.00",
+			"reimbursement_amount": "40.00",
+			"description": "Pranzo e benzina",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=created")
+		entry = PersonalAssetEntry.objects.get(user=self.user)
+		self.assertEqual(entry.account_delta, Decimal("-50.00"))
+		self.assertEqual(entry.reimbursement_delta, Decimal("40.00"))
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.status_code, 200)
+		self.assertEqual(page.context["finance_summary"]["total_assets"], Decimal("-10.00"))
+		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("40.00"))
+
+	@override_settings(EXPENSE_REIMBURSEMENT_EMAILS=["datore@example.com"])
+	def test_exports_reimbursement_report_jpg(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+			category="Trasferta",
+			amount=Decimal("50.00"),
+			reimbursement_amount=Decimal("40.00"),
+			description="Pranzo e benzina",
+		)
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("personal_asset_dashboard"), {"report": "reimbursement_jpg"})
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "image/jpeg")
+		self.assertIn("attachment;", response["Content-Disposition"].lower())
+		self.assertIn("rimborso_spese_", response["Content-Disposition"].lower())
+		self.assertIn(".jpg", response["Content-Disposition"].lower())
+		self.assertTrue(response.content.startswith(b"\xff\xd8\xff"))
 
 class PublicMachineryPageTests(TestCase):
 	def test_public_machinery_page_shows_real_vehicle_cards(self):

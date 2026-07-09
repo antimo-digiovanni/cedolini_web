@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal
 import secrets
 
 
@@ -381,3 +382,101 @@ class VacationRequest(models.Model):
 
     def __str__(self):
         return f"{self.employee.full_name} {self.start_date} - {self.end_date} [{self.status}]"
+
+
+class PersonalAssetEntry(models.Model):
+    """Movimento patrimoniale personale con saldi derivati automaticamente."""
+
+    TYPE_INCOME = 'income'
+    TYPE_EXPENSE = 'expense'
+    TYPE_TRANSFER_TO_PIGGY_BANK = 'transfer_to_piggy_bank'
+    TYPE_TRANSFER_TO_ACCOUNT = 'transfer_to_account'
+    TYPE_REIMBURSABLE_EXPENSE = 'reimbursable_expense'
+    TYPE_REIMBURSEMENT_RECEIVED = 'reimbursement_received'
+    TYPE_ADVANCE_RECEIVED = 'advance_received'
+    TYPE_ADVANCE_RETURNED = 'advance_returned'
+
+    TYPE_CHOICES = [
+        (TYPE_INCOME, 'Entrata'),
+        (TYPE_EXPENSE, 'Uscita'),
+        (TYPE_TRANSFER_TO_PIGGY_BANK, 'Trasferimento conto -> salvadanaio'),
+        (TYPE_TRANSFER_TO_ACCOUNT, 'Trasferimento salvadanaio -> conto'),
+        (TYPE_REIMBURSABLE_EXPENSE, 'Spesa rimborsabile'),
+        (TYPE_REIMBURSEMENT_RECEIVED, 'Rimborso ricevuto'),
+        (TYPE_ADVANCE_RECEIVED, 'Anticipo ricevuto'),
+        (TYPE_ADVANCE_RETURNED, 'Anticipo restituito'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='personal_asset_entries')
+    occurred_on = models.DateField(default=timezone.localdate, db_index=True)
+    operation_type = models.CharField(max_length=40, choices=TYPE_CHOICES, db_index=True)
+    category = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reimbursement_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    account_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    piggy_bank_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    reimbursement_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    advance_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-occurred_on', '-created_at', '-id']
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({'amount': 'Inserisci un importo maggiore di zero.'})
+
+        if self.operation_type == self.TYPE_REIMBURSABLE_EXPENSE:
+            if self.reimbursement_amount is None or self.reimbursement_amount <= 0:
+                raise ValidationError({'reimbursement_amount': 'Inserisci l\'importo da ricevere.'})
+        elif self.reimbursement_amount not in (None, Decimal('0.00')):
+            raise ValidationError({'reimbursement_amount': 'Questo campo si usa solo per le spese rimborsabili.'})
+
+    def save(self, *args, **kwargs):
+        self._apply_deltas()
+        super().save(*args, **kwargs)
+
+    def _apply_deltas(self):
+        zero = Decimal('0.00')
+        amount = self.amount or zero
+        reimbursement_amount = self.reimbursement_amount or zero
+
+        self.account_delta = zero
+        self.piggy_bank_delta = zero
+        self.reimbursement_delta = zero
+        self.advance_delta = zero
+
+        if self.operation_type == self.TYPE_INCOME:
+            self.account_delta = amount
+        elif self.operation_type == self.TYPE_EXPENSE:
+            self.account_delta = -amount
+        elif self.operation_type == self.TYPE_TRANSFER_TO_PIGGY_BANK:
+            self.account_delta = -amount
+            self.piggy_bank_delta = amount
+        elif self.operation_type == self.TYPE_TRANSFER_TO_ACCOUNT:
+            self.account_delta = amount
+            self.piggy_bank_delta = -amount
+        elif self.operation_type == self.TYPE_REIMBURSABLE_EXPENSE:
+            self.account_delta = -amount
+            self.reimbursement_delta = reimbursement_amount
+        elif self.operation_type == self.TYPE_REIMBURSEMENT_RECEIVED:
+            self.account_delta = amount
+            self.reimbursement_delta = -amount
+        elif self.operation_type == self.TYPE_ADVANCE_RECEIVED:
+            self.account_delta = amount
+            self.advance_delta = amount
+        elif self.operation_type == self.TYPE_ADVANCE_RETURNED:
+            self.account_delta = -amount
+            self.advance_delta = -amount
+
+    @property
+    def net_worth_delta(self):
+        return self.account_delta + self.piggy_bank_delta + self.reimbursement_delta - self.advance_delta
+
+    def __str__(self):
+        return f"{self.user.get_username()} {self.operation_type} {self.occurred_on}"

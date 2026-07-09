@@ -145,6 +145,7 @@
                                 <th>Email</th>
                                 <th>Cedolini</th>
                                 <th>Riconfezionamento</th>
+                                <th>Patrimonio</th>
                                 <th>Stato</th>
                                 <th>Azioni</th>
                             </tr>
@@ -162,6 +163,13 @@
                                 <td>
                                     {% if emp.has_riconfezionamento_access %}
                                         <span class="badge bg-dark">Abilitato</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border">No</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if emp.has_patrimonio_access %}
+                                        <span class="badge bg-success">Abilitato</span>
                                     {% else %}
                                         <span class="badge bg-light text-dark border">No</span>
                                     {% endif %}
@@ -185,7 +193,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">{{ section.empty_message }}</td>
+                                <td colspan="7" class="text-center text-muted py-4">{{ section.empty_message }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -215,6 +223,14 @@
                             Riconfezionamento:
                             {% if emp.has_riconfezionamento_access %}
                                 <span class="badge bg-dark">Abilitato</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">No</span>
+                            {% endif %}
+                        </div>
+                        <div class="employee-card-meta mb-3">
+                            Patrimonio:
+                            {% if emp.has_patrimonio_access %}
+                                <span class="badge bg-success">Abilitato</span>
                             {% else %}
                                 <span class="badge bg-light text-dark border">No</span>
                             {% endif %}

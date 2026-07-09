@@ -15,13 +15,15 @@ from collections import OrderedDict
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.db import transaction, IntegrityError
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.conf import settings
 from django.core.files.base import File
 from django.core.files.storage import default_storage
@@ -45,9 +47,11 @@ from .models import (
     WorkMarkRequest,
     VacationRequest,
     TurniPlannerWeekState,
+    PersonalAssetEntry,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
+from .forms import PersonalAssetEntryForm
 
 import logging
 import secrets
@@ -81,8 +85,10 @@ from turni_app.workbook import WeeklySectionData
 
 from .utils_import import parse_payslip_filename
 from .access import (
+    PATRIMONIO_GROUP_NAME,
     RICONFEZIONAMENTO_GROUP_NAME,
     user_has_full_admin_access,
+    user_has_patrimonio_access,
     user_has_riconfezionamento_access,
     user_has_turni_planner_access,
     user_has_today_markings_access,
@@ -123,6 +129,275 @@ def _riconfezionamento_allowed_or_403(request):
     if not user_has_riconfezionamento_access(request.user):
         return HttpResponse('Riconfezionamento non disponibile per questo account.', status=403)
     return None
+
+
+def _patrimonio_allowed_or_403(request):
+    if not user_has_patrimonio_access(request.user):
+        return HttpResponse('Gestione patrimonio non disponibile per questo account.', status=403)
+    return None
+
+
+def _personal_asset_history_queryset(user):
+    return PersonalAssetEntry.objects.filter(user=user).order_by('-occurred_on', '-created_at', '-id')
+
+
+def _personal_asset_reimbursement_entries_queryset(user):
+    return (
+        PersonalAssetEntry.objects
+        .filter(user=user, operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE)
+        .order_by('-occurred_on', '-created_at', '-id')
+    )
+
+
+def _personal_asset_report_display_name(user):
+    employee = getattr(user, 'employee', None)
+    if employee and employee.full_name:
+        return employee.full_name
+    full_name = user.get_full_name().strip()
+    if full_name:
+        return full_name
+    return user.get_username()
+
+
+def _personal_asset_reimbursement_report_email_recipients():
+    recipients = getattr(settings, 'EXPENSE_REIMBURSEMENT_EMAILS', None)
+    if recipients:
+        return [email for email in recipients if email]
+    return list(getattr(settings, 'ADMIN_NOTIFICATION_EMAILS', []))
+
+
+def _build_personal_asset_reimbursement_report_image(user):
+    from PIL import ImageDraw, ImageFont
+
+    entries = list(_personal_asset_reimbursement_entries_queryset(user))
+    display_name = _personal_asset_report_display_name(user)
+    total_amount = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in entries)
+
+    assets_dir = Path(__file__).resolve().parent.parent / 'riconfezionamento_app' / 'static' / 'assets'
+    logo_path = assets_dir / 'logo-san-vincenzo.png'
+
+    def load_font(size, bold=False):
+        candidates = ['arialbd.ttf', 'Arial Bold.ttf'] if bold else ['arial.ttf', 'Arial.ttf']
+        for candidate in candidates:
+            try:
+                return ImageFont.truetype(candidate, size)
+            except OSError:
+                continue
+        return ImageFont.load_default()
+
+    def format_amount(value):
+        return f'{value:.2f}'.replace('.', ',') + ' EUR'
+
+    def text_height(font):
+        bbox = font.getbbox('Ag')
+        return bbox[3] - bbox[1]
+
+    def draw_right_text(x_right, y, text, font, fill):
+        box = draw.textbbox((0, 0), text, font=font)
+        text_width = box[2] - box[0]
+        draw.text((x_right - text_width, y), text, fill=fill, font=font)
+
+    width = 1240
+    height = 1754
+    margin = 84
+    top_band_height = 164
+    info_block_height = 118
+    header_row_height = 68
+    row_height = 78
+    total_row_height = 78
+
+    image = Image.new('RGB', (width, height), '#ffffff')
+    draw = ImageDraw.Draw(image)
+
+    brand_blue = '#1666C1'
+    light_blue = '#EDF4FD'
+    title_fill = '#F7FAFE'
+    border_color = '#C9D9EC'
+    text_dark = '#0F172A'
+    text_muted = '#475569'
+
+    title_font = load_font(42, bold=True)
+    subtitle_font = load_font(25, bold=True)
+    body_font = load_font(24)
+    body_bold_font = load_font(24, bold=True)
+    small_font = load_font(20)
+
+    header_top = 24
+    header_bottom = header_top + top_band_height
+    draw.rectangle((margin, header_top, width - margin, header_bottom), fill='#ffffff')
+    draw.line((margin, header_top, width - margin, header_top), fill=brand_blue, width=6)
+    draw.line((margin, header_bottom, width - margin, header_bottom), fill=border_color, width=2)
+    if logo_path.exists():
+        logo = Image.open(logo_path).convert('RGBA')
+        logo_width = 100
+        logo_height = int(logo.height * (logo_width / logo.width)) if logo.width else 60
+        logo = logo.resize((logo_width, logo_height))
+        logo_x = margin + 8
+        logo_y = header_top + max(12, (top_band_height - logo_height) // 2)
+        image.paste(logo, (logo_x, logo_y), logo)
+
+    title_text = 'Rimborso spese'
+    title_box = draw.textbbox((0, 0), title_text, font=title_font)
+    title_width = title_box[2] - title_box[0]
+    title_x = margin + 150 + max(0, ((width - (margin * 2) - 150) - title_width) / 2)
+    title_y = header_top + 40
+    draw.text((title_x, title_y), title_text, fill=text_dark, font=title_font)
+    draw.text((title_x, title_y + text_height(title_font) + 8), 'Prospetto riepilogativo delle spese da rimborsare', fill=text_muted, font=small_font)
+
+    info_top = header_bottom + 18
+    info_bottom = info_top + info_block_height
+    draw.rectangle((margin, info_top, width - margin, info_bottom), fill='#ffffff')
+    draw.line((margin, info_top, width - margin, info_top), fill=border_color, width=2)
+    draw.line((margin, info_bottom, width - margin, info_bottom), fill=border_color, width=2)
+    draw.text((margin + 10, info_top + 22), f'Dipendente: {display_name}', fill=text_dark, font=subtitle_font)
+    draw.text((margin + 10, info_top + 22 + text_height(subtitle_font) + 12), f'Generato il: {timezone.localtime().strftime("%d/%m/%Y %H:%M")}', fill=text_muted, font=small_font)
+
+    table_top = info_bottom + 24
+    date_col_width = 230
+    amount_col_width = 250
+    desc_col_width = width - (margin * 2) - date_col_width - amount_col_width
+    x_date = margin
+    x_desc = x_date + date_col_width
+    x_amount = x_desc + desc_col_width
+
+    draw.rectangle((margin, table_top, width - margin, table_top + header_row_height), fill=brand_blue)
+    draw.text((x_date + 18, table_top + 18), 'DATA', fill='#ffffff', font=body_bold_font)
+    draw.text((x_desc + 18, table_top + 18), 'SPESA', fill='#ffffff', font=body_bold_font)
+    draw_right_text(width - margin - 22, table_top + 18, 'IMPORTO', body_bold_font, '#ffffff')
+
+    current_y = table_top + header_row_height
+    for index, entry in enumerate(entries):
+        description = (entry.description or '').strip() or entry.category
+        report_amount = entry.reimbursement_amount or entry.amount or Decimal('0.00')
+        fill = light_blue if index % 2 == 0 else '#ffffff'
+        draw.rectangle((margin, current_y, width - margin, current_y + row_height), fill=fill, outline=border_color, width=1)
+        draw.line((x_desc, current_y, x_desc, current_y + row_height), fill=border_color, width=1)
+        draw.line((x_amount, current_y, x_amount, current_y + row_height), fill=border_color, width=1)
+        draw.text((x_date + 18, current_y + 22), entry.occurred_on.strftime('%d/%m/%Y'), fill=text_dark, font=body_font)
+        max_chars = 42
+        clipped_description = description if len(description) <= max_chars else description[:max_chars - 1].rstrip() + '…'
+        draw.text((x_desc + 18, current_y + 22), clipped_description, fill=text_dark, font=body_font)
+        draw_right_text(width - margin - 22, current_y + 22, format_amount(report_amount), body_font, text_dark)
+        current_y += row_height
+
+    total_top = current_y + 28
+    draw.rectangle((margin, total_top, width - margin, total_top + total_row_height), fill=light_blue, outline=border_color, width=2)
+    draw.text((margin + 18, total_top + 22), 'TOTALE RIMBORSO SPESE', fill=text_dark, font=body_bold_font)
+    total_text = format_amount(total_amount)
+    draw_right_text(width - margin - 22, total_top + 22, total_text, body_bold_font, text_dark)
+
+    output = io.BytesIO()
+    image.save(output, format='JPEG', quality=94)
+    output.seek(0)
+    return output.getvalue(), entries, total_amount
+
+
+def _build_personal_asset_reimbursement_report_response(user):
+    image_bytes, _, _ = _build_personal_asset_reimbursement_report_image(user)
+    safe_username = re.sub(r'[^a-zA-Z0-9_-]+', '_', user.get_username())
+    filename = f'rimborso_spese_{safe_username}.jpg'
+    response = HttpResponse(content_type='image/jpeg')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write(image_bytes)
+    return response, filename
+
+
+def _send_personal_asset_reimbursement_report_email(user):
+    image_bytes, entries, total_amount = _build_personal_asset_reimbursement_report_image(user)
+    recipients = _personal_asset_reimbursement_report_email_recipients()
+    if not recipients:
+        return False, 'Nessun destinatario configurato per l\'invio del rimborso spese.'
+
+    safe_username = re.sub(r'[^a-zA-Z0-9_-]+', '_', user.get_username())
+    filename = f'rimborso_spese_{safe_username}.jpg'
+
+    display_name = _personal_asset_report_display_name(user)
+    subject = f'Rimborso spese {display_name}'
+    text_content = (
+        f'In allegato trovi il report rimborso spese di {display_name}.\n\n'
+        f'Voci incluse: {len(entries)}\n'
+        f'Totale da rimborsare: {total_amount:.2f} EUR\n'
+    )
+
+    email = EmailMultiAlternatives(
+        subject,
+        text_content,
+        settings.DEFAULT_FROM_EMAIL,
+        recipients,
+    )
+    email.attach(filename, image_bytes, 'image/jpeg')
+    email.send(fail_silently=False)
+    return True, f'Report rimborso spese inviato a: {", ".join(recipients)}.'
+
+
+def _personal_asset_summary(user, *, reference_date=None):
+    reference_date = reference_date or timezone.localdate()
+    zero = Decimal('0.00')
+    decimal_zero = Value(zero, output_field=DecimalField(max_digits=12, decimal_places=2))
+    history_qs = _personal_asset_history_queryset(user)
+
+    totals = history_qs.aggregate(
+        account_balance=Coalesce(Sum('account_delta'), decimal_zero),
+        piggy_bank_balance=Coalesce(Sum('piggy_bank_delta'), decimal_zero),
+        reimbursement_balance=Coalesce(Sum('reimbursement_delta'), decimal_zero),
+        advance_balance=Coalesce(Sum('advance_delta'), decimal_zero),
+    )
+
+    monthly_qs = history_qs.filter(
+        occurred_on__year=reference_date.year,
+        occurred_on__month=reference_date.month,
+    )
+    monthly_totals = monthly_qs.aggregate(
+        income=Coalesce(
+            Sum(
+                'amount',
+                filter=Q(operation_type__in=[
+                    PersonalAssetEntry.TYPE_INCOME,
+                    PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+                ]),
+            ),
+            decimal_zero,
+        ),
+        expense=Coalesce(
+            Sum(
+                'amount',
+                filter=Q(operation_type__in=[
+                    PersonalAssetEntry.TYPE_EXPENSE,
+                    PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+                ]),
+            ),
+            decimal_zero,
+        ),
+        account_delta=Coalesce(Sum('account_delta'), decimal_zero),
+        piggy_bank_delta=Coalesce(Sum('piggy_bank_delta'), decimal_zero),
+        reimbursement_delta=Coalesce(Sum('reimbursement_delta'), decimal_zero),
+        advance_delta=Coalesce(Sum('advance_delta'), decimal_zero),
+    )
+
+    total_assets = (
+        totals['account_balance']
+        + totals['piggy_bank_balance']
+        + totals['reimbursement_balance']
+        - totals['advance_balance']
+    )
+    monthly_saving = (
+        monthly_totals['account_delta']
+        + monthly_totals['piggy_bank_delta']
+        + monthly_totals['reimbursement_delta']
+        - monthly_totals['advance_delta']
+    )
+
+    return {
+        'account_balance': totals['account_balance'],
+        'piggy_bank_balance': totals['piggy_bank_balance'],
+        'reimbursement_balance': totals['reimbursement_balance'],
+        'advance_balance': totals['advance_balance'],
+        'total_assets': total_assets,
+        'monthly_income': monthly_totals['income'],
+        'monthly_expense': monthly_totals['expense'],
+        'monthly_saving': monthly_saving,
+        'month_label': f"{MONTH_LABELS_IT[reference_date.month]} {reference_date.year}",
+    }
 
 
 def _turni_planner_data_has_content(value):
@@ -3027,6 +3302,101 @@ def dashboard(request):
     return _disable_response_cache(response)
 
 
+@login_required
+def personal_asset_dashboard(request):
+    denied_response = _patrimonio_allowed_or_403(request)
+    if denied_response is not None:
+        return denied_response
+
+    if request.method == 'GET' and request.GET.get('report') == 'reimbursement_jpg':
+        response, filename = _build_personal_asset_reimbursement_report_response(request.user)
+        _create_audit_event(
+            request,
+            'personal_asset_reimbursement_report_downloaded',
+            employee=getattr(request.user, 'employee', None),
+            metadata={'filename': filename},
+        )
+        return response
+
+    status = (request.GET.get('status') or '').strip()
+    feedback = None
+    feedback_level = 'success'
+    if status == 'created':
+        feedback = 'Operazione patrimoniale registrata correttamente.'
+    elif status == 'reimbursement_sent':
+        feedback = 'Report rimborso spese inviato correttamente.'
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action == 'send_reimbursement_report':
+            sent, message = _send_personal_asset_reimbursement_report_email(request.user)
+            feedback = message
+            feedback_level = 'success' if sent else 'danger'
+            if sent:
+                _create_audit_event(
+                    request,
+                    'personal_asset_reimbursement_report_emailed',
+                    employee=getattr(request.user, 'employee', None),
+                    metadata={'recipients': _personal_asset_reimbursement_report_email_recipients()},
+                )
+            form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
+            entries = list(_personal_asset_history_queryset(request.user)[:100])
+            summary = _personal_asset_summary(request.user)
+            reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
+            reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
+            return render(request, 'portal/personal_asset_dashboard.html', {
+                'finance_form': form,
+                'finance_entries': entries,
+                'finance_summary': summary,
+                'feedback': feedback,
+                'feedback_level': feedback_level,
+                'reimbursement_report_entries_count': len(reimbursement_entries),
+                'reimbursement_report_total': reimbursement_total,
+                'reimbursement_report_recipients': _personal_asset_reimbursement_report_email_recipients(),
+            })
+
+        form = PersonalAssetEntryForm(request.POST)
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.user = request.user
+            entry.save()
+
+            _create_audit_event(
+                request,
+                'personal_asset_entry_created',
+                employee=getattr(request.user, 'employee', None),
+                metadata={
+                    'operation_type': entry.operation_type,
+                    'occurred_on': str(entry.occurred_on),
+                    'category': entry.category,
+                    'amount': str(entry.amount),
+                    'reimbursement_amount': str(entry.reimbursement_amount or ''),
+                },
+            )
+            return redirect(f'{request.path}?status=created')
+
+        feedback = 'Correggi i campi evidenziati e riprova.'
+        feedback_level = 'danger'
+    else:
+        form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
+
+    entries = list(_personal_asset_history_queryset(request.user)[:100])
+    summary = _personal_asset_summary(request.user)
+    reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
+    reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
+
+    return render(request, 'portal/personal_asset_dashboard.html', {
+        'finance_form': form,
+        'finance_entries': entries,
+        'finance_summary': summary,
+        'feedback': feedback,
+        'feedback_level': feedback_level,
+        'reimbursement_report_entries_count': len(reimbursement_entries),
+        'reimbursement_report_total': reimbursement_total,
+        'reimbursement_report_recipients': _personal_asset_reimbursement_report_email_recipients(),
+    })
+
+
 def _haversine_meters(lat1, lon1, lat2, lon2):
     """Distanza geodetica approssimata in metri tra due coordinate."""
     earth_radius = 6371000
@@ -5565,8 +5935,12 @@ def admin_employees(request):
     riconfezionamento_user_ids = set(
         Group.objects.filter(name=RICONFEZIONAMENTO_GROUP_NAME).values_list('user__id', flat=True)
     )
+    patrimonio_user_ids = set(
+        Group.objects.filter(name=PATRIMONIO_GROUP_NAME).values_list('user__id', flat=True)
+    )
     for employee in employees:
         employee.has_riconfezionamento_access = employee.user_id in riconfezionamento_user_ids
+        employee.has_patrimonio_access = employee.user_id in patrimonio_user_ids
 
     _decorate_employee_display_names(employees)
     employees.sort(key=_employee_name_sort_key)
@@ -5625,7 +5999,9 @@ def admin_employee_detail(request, emp_id):
     feedback = None
     feedback_level = 'success'
     riconfezionamento_group, _ = Group.objects.get_or_create(name=RICONFEZIONAMENTO_GROUP_NAME)
+    patrimonio_group, _ = Group.objects.get_or_create(name=PATRIMONIO_GROUP_NAME)
     has_riconfezionamento_access = employee.user.groups.filter(id=riconfezionamento_group.id).exists()
+    has_patrimonio_access = employee.user.groups.filter(id=patrimonio_group.id).exists()
 
     if request.method == 'POST' and request.POST.get('action') == 'toggle_riconfezionamento_access':
         enable_access = request.POST.get('enable_access') == '1'
@@ -5639,6 +6015,27 @@ def admin_employee_detail(request, emp_id):
         _create_audit_event(
             request,
             'employee_riconfezionamento_access_updated',
+            employee=employee,
+            metadata={
+                'enabled': enable_access,
+                'username': employee.user.username,
+            },
+        )
+
+        return redirect(f'{request.path}?outcome={outcome}')
+
+    if request.method == 'POST' and request.POST.get('action') == 'toggle_patrimonio_access':
+        enable_access = request.POST.get('enable_access') == '1'
+        if enable_access:
+            employee.user.groups.add(patrimonio_group)
+            outcome = 'patrimonio_enabled'
+        else:
+            employee.user.groups.remove(patrimonio_group)
+            outcome = 'patrimonio_disabled'
+
+        _create_audit_event(
+            request,
+            'employee_patrimonio_access_updated',
             employee=employee,
             metadata={
                 'enabled': enable_access,
@@ -5692,6 +6089,12 @@ def admin_employee_detail(request, emp_id):
     elif outcome == 'riconfezionamento_disabled':
         feedback = 'Accesso al riconfezionamento disattivato per questo dipendente.'
         feedback_level = 'warning'
+    elif outcome == 'patrimonio_enabled':
+        feedback = 'Accesso alla gestione patrimonio abilitato per questo dipendente.'
+        feedback_level = 'success'
+    elif outcome == 'patrimonio_disabled':
+        feedback = 'Accesso alla gestione patrimonio disattivato per questo dipendente.'
+        feedback_level = 'warning'
 
     payslips = Payslip.objects.filter(employee=employee).order_by('-year', '-month')
 
@@ -5721,6 +6124,7 @@ def admin_employee_detail(request, emp_id):
         'feedback': feedback,
         'feedback_level': feedback_level,
         'has_riconfezionamento_access': employee.user.groups.filter(id=riconfezionamento_group.id).exists(),
+        'has_patrimonio_access': employee.user.groups.filter(id=patrimonio_group.id).exists(),
     })
 
 

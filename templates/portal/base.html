@@ -327,6 +327,11 @@ main {
             <a href="{% url 'timekeeping' %}" class="{% if request.resolver_match.url_name == 'timekeeping' %}active{% endif %}">
                 <i class="bi bi-stopwatch"></i> Marcatura
             </a>
+            {% if has_patrimonio_access %}
+            <a href="{% url 'personal_asset_dashboard' %}" class="{% if request.resolver_match.url_name == 'personal_asset_dashboard' %}active{% endif %}">
+                <i class="bi bi-piggy-bank"></i> Gestione Patrimonio
+            </a>
+            {% endif %}
             <a href="{% url 'portal_tutorial' %}" class="{% if request.resolver_match.url_name == 'portal_tutorial' %}active{% endif %}">
                 <i class="bi bi-journal-text"></i> Tutorial Portale
             </a>
@@ -351,6 +356,12 @@ main {
             <a href="{% url 'admin:index' %}">
                 <i class="bi bi-gear"></i> Admin Django
             </a>
+
+            {% if has_patrimonio_access %}
+            <a href="{% url 'personal_asset_dashboard' %}" class="{% if request.resolver_match.url_name == 'personal_asset_dashboard' %}active{% endif %}">
+                <i class="bi bi-piggy-bank"></i> Gestione Patrimonio
+            </a>
+            {% endif %}
 
             <a href="{% url 'turni_planner_home' %}" class="{% if request.resolver_match.url_name == 'turni_planner_home' %}active{% endif %}">
                 <i class="bi bi-grid-3x3-gap"></i> Turni Planner

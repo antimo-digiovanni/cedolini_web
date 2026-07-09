@@ -2,6 +2,7 @@ from django.conf import settings
 
 from .access import (
     user_has_full_admin_access,
+    user_has_patrimonio_access,
     user_has_riconfezionamento_access,
     user_has_turni_planner_access,
     user_has_today_markings_access,
@@ -16,6 +17,7 @@ def portal_access(request):
     if user is None or not user.is_authenticated:
         return {
             "has_full_admin_access": False,
+            "has_patrimonio_access": False,
             "has_riconfezionamento_access": False,
             "riconfezionamento_online_enabled": riconfezionamento_online_enabled,
             "has_turni_planner_access": False,
@@ -26,6 +28,7 @@ def portal_access(request):
 
     return {
         "has_full_admin_access": user_has_full_admin_access(user),
+        "has_patrimonio_access": user_has_patrimonio_access(user),
         "has_riconfezionamento_access": riconfezionamento_online_enabled and user_has_riconfezionamento_access(user),
         "riconfezionamento_online_enabled": riconfezionamento_online_enabled,
         "has_turni_planner_access": user_has_turni_planner_access(user),

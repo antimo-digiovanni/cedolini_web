@@ -8,6 +8,7 @@ from datetime import timedelta
 from .models import (
     Employee,
     PortalUserSetting,
+    PersonalAssetEntry,
     Payslip,
     Cud,
     AuditEvent,
@@ -160,8 +161,6 @@ San Vincenzo Srl
 
             obj.invito_inviato = True
             obj.save()
-
-
 @admin.register(Payslip)
 class PayslipAdmin(admin.ModelAdmin):
     list_display = ('employee', 'year', 'month', 'uploaded_at')
@@ -231,3 +230,10 @@ class VacationRequestAdmin(admin.ModelAdmin):
     list_display = ('employee', 'start_date', 'end_date', 'status', 'reviewed_by', 'reviewed_at', 'created_at')
     list_filter = ('status', 'start_date', 'end_date')
     search_fields = ('employee__first_name', 'employee__last_name', 'reason', 'review_note')
+
+
+@admin.register(PersonalAssetEntry)
+class PersonalAssetEntryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'occurred_on', 'operation_type', 'category', 'amount', 'reimbursement_amount', 'created_at')
+    list_filter = ('operation_type', 'occurred_on')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'category', 'description')

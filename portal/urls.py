@@ -9,6 +9,7 @@ urlpatterns = [
     path('riconfezionamento/', views.riconfezionamento_entry, name='riconfezionamento_entry'),
     path('chi-ha-marcato-oggi/', views.today_markings_dashboard, name='today_markings_dashboard'),
     path('marcatura/', views.timekeeping, name='timekeeping'),
+    path('patrimonio/', views.personal_asset_dashboard, name='personal_asset_dashboard'),
     path('tutorial/', views.portal_tutorial, name='portal_tutorial'),
 
     path('register/<str:token>/', views.register_with_token, name='register_with_token'),

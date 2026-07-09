@@ -36,6 +36,30 @@
     </div>
 </div>
 
+<div class="card-modern mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <h4 class="mb-1">Accesso gestione patrimonio</h4>
+            <p class="text-muted mb-0">Consenti a questo account di aprire la sezione personale con saldo conto, salvadanaio, rimborsi e anticipi.</p>
+        </div>
+        <div class="d-flex flex-column align-items-md-end gap-2">
+            {% if has_patrimonio_access %}
+                <span class="badge bg-success">Abilitato</span>
+            {% else %}
+                <span class="badge bg-secondary">Non abilitato</span>
+            {% endif %}
+            <form method="post" action="{% url 'admin_employee_detail' employee.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_patrimonio_access">
+                <input type="hidden" name="enable_access" value="{% if has_patrimonio_access %}0{% else %}1{% endif %}">
+                <button type="submit" class="btn {% if has_patrimonio_access %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                    {% if has_patrimonio_access %}Disabilita accesso{% else %}Abilita accesso{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% regroup detailed by payslip.year as year_list %}
 
 {% if not detailed %}
