@@ -178,10 +178,26 @@ def _build_personal_asset_reimbursement_report_image(user):
     ]
 
     def load_font(size, bold=False):
-        candidates = ['arialbd.ttf', 'Arial Bold.ttf'] if bold else ['arial.ttf', 'Arial.ttf']
+        candidates = [
+            Path('C:/Windows/Fonts/arialbd.ttf'),
+            Path('C:/Windows/Fonts/Arialbd.ttf'),
+            Path('C:/Windows/Fonts/segoeuib.ttf'),
+            Path('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'),
+            Path('/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf'),
+            'arialbd.ttf',
+            'Arial Bold.ttf',
+        ] if bold else [
+            Path('C:/Windows/Fonts/arial.ttf'),
+            Path('C:/Windows/Fonts/Arial.ttf'),
+            Path('C:/Windows/Fonts/segoeui.ttf'),
+            Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'),
+            Path('/usr/share/fonts/dejavu/DejaVuSans.ttf'),
+            'arial.ttf',
+            'Arial.ttf',
+        ]
         for candidate in candidates:
             try:
-                return ImageFont.truetype(candidate, size)
+                return ImageFont.truetype(str(candidate), size)
             except OSError:
                 continue
         return ImageFont.load_default()
@@ -212,12 +228,12 @@ def _build_personal_asset_reimbursement_report_image(user):
         except OSError:
             continue
 
-    width = 1280
+    width = 1400
     margin = 24
-    title_row_height = 52
-    header_row_height = 40
-    row_height = 44
-    total_row_height = 42
+    title_row_height = 60
+    header_row_height = 46
+    row_height = 50
+    total_row_height = 50
     calculated_height = margin + title_row_height + header_row_height + (len(entries) * row_height) + total_row_height + margin
     height = max(calculated_height, margin + title_row_height + header_row_height + total_row_height + margin)
 
@@ -228,14 +244,14 @@ def _build_personal_asset_reimbursement_report_image(user):
     total_fill = '#12c25b'
     text_dark = '#111111'
 
-    title_font = load_font(24, bold=False)
-    header_font = load_font(18, bold=True)
-    body_font = load_font(18)
-    total_font = load_font(20, bold=True)
+    title_font = load_font(26, bold=False)
+    header_font = load_font(20, bold=True)
+    body_font = load_font(19)
+    total_font = load_font(22, bold=True)
 
     table_top = margin
-    date_col_width = 165
-    amount_col_width = 210
+    date_col_width = 175
+    amount_col_width = 220
     desc_col_width = width - (margin * 2) - date_col_width - amount_col_width
     x_date = margin
     x_desc = x_date + date_col_width
@@ -248,15 +264,15 @@ def _build_personal_asset_reimbursement_report_image(user):
         image.paste(logo_image, (margin + 10, logo_y), logo_image)
     title_box = draw.textbbox((0, 0), title_text, font=title_font)
     title_width = title_box[2] - title_box[0]
-    draw.text(((width - title_width) / 2, table_top + 10), title_text, fill=text_dark, font=title_font)
+    draw.text(((width - title_width) / 2, table_top + 11), title_text, fill=text_dark, font=title_font)
 
     header_top = table_top + title_row_height
     draw.rectangle((margin, header_top, width - margin, header_top + header_row_height), outline=grid_color, width=2)
     draw.line((x_desc, header_top, x_desc, header_top + header_row_height), fill=grid_color, width=2)
     draw.line((x_amount, header_top, x_amount, header_top + header_row_height), fill=grid_color, width=2)
-    draw.text((x_date + 16, header_top + 8), 'DATA', fill=text_dark, font=header_font)
-    draw.text((x_desc + 16, header_top + 8), 'SPESA', fill=text_dark, font=header_font)
-    draw_right_text(width - margin - 16, header_top + 8, 'IMPORTO', header_font, text_dark)
+    draw.text((x_date + 16, header_top + 10), 'DATA', fill=text_dark, font=header_font)
+    draw.text((x_desc + 16, header_top + 10), 'SPESA', fill=text_dark, font=header_font)
+    draw_right_text(width - margin - 16, header_top + 10, 'IMPORTO', header_font, text_dark)
 
     current_y = header_top + header_row_height
     for index, entry in enumerate(entries):
@@ -265,17 +281,17 @@ def _build_personal_asset_reimbursement_report_image(user):
         draw.rectangle((margin, current_y, width - margin, current_y + row_height), outline=grid_color, width=1)
         draw.line((x_desc, current_y, x_desc, current_y + row_height), fill=grid_color, width=1)
         draw.line((x_amount, current_y, x_amount, current_y + row_height), fill=grid_color, width=1)
-        draw.text((x_date + 10, current_y + 8), format_date(entry.occurred_on), fill=text_dark, font=body_font)
-        draw.text((x_desc + 10, current_y + 8), description, fill=text_dark, font=body_font)
-        draw_right_text(width - margin - 16, current_y + 8, format_amount(report_amount), body_font, text_dark)
+        draw.text((x_date + 10, current_y + 11), format_date(entry.occurred_on), fill=text_dark, font=body_font)
+        draw.text((x_desc + 10, current_y + 11), description, fill=text_dark, font=body_font)
+        draw_right_text(width - margin - 16, current_y + 11, format_amount(report_amount), body_font, text_dark)
         current_y += row_height
 
     total_top = current_y
     draw.rectangle((margin, total_top, width - margin, total_top + total_row_height), fill=total_fill, outline=grid_color, width=2)
     draw.line((x_amount, total_top, x_amount, total_top + total_row_height), fill=grid_color, width=2)
-    draw.text((x_desc + 14, total_top + 8), 'TOTALE RIMBORSO SPESE', fill=text_dark, font=total_font)
+    draw.text((x_desc + 14, total_top + 10), 'TOTALE RIMBORSO SPESE', fill=text_dark, font=total_font)
     total_text = format_amount(total_amount)
-    draw_right_text(width - margin - 16, total_top + 8, total_text, total_font, text_dark)
+    draw_right_text(width - margin - 16, total_top + 10, total_text, total_font, text_dark)
 
     output = io.BytesIO()
     image.save(output, format='JPEG', quality=94)
