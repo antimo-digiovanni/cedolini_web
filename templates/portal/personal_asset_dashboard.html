@@ -345,7 +345,16 @@
                 <h4 class="fw-semibold mb-1">Storico operazioni</h4>
                 <p class="finance-note mb-0">Le statistiche si aggiornano automaticamente a ogni movimento.</p>
             </div>
-            <span class="finance-pill">{{ finance_entries|length }} operazioni recenti</span>
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                <span class="finance-pill">{{ finance_entries|length }} operazioni recenti</span>
+                {% if finance_entries %}
+                <form method="post" class="m-0" data-confirm-reset="1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reset_entries">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Azzera tutto</button>
+                </form>
+                {% endif %}
+            </div>
         </div>
 
         {% if finance_entries %}
@@ -429,6 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const typeButtons = Array.from(document.querySelectorAll('[data-operation-value]'));
     const categoryButtons = Array.from(document.querySelectorAll('[data-category-value]'));
     const deleteForms = Array.from(document.querySelectorAll('form[data-confirm-delete="1"]'));
+    const resetForms = Array.from(document.querySelectorAll('form[data-confirm-reset="1"]'));
     const optionalToggle = document.getElementById('toggleFinanceOptionalFields');
     const optionalFields = document.getElementById('financeOptionalFields');
     if (!operationSelect || !reimbursementInput) return;
@@ -476,6 +486,14 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteForms.forEach(form => {
         form.addEventListener('submit', event => {
             if (!window.confirm('Vuoi davvero eliminare questa voce?')) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    resetForms.forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!window.confirm('Vuoi davvero eliminare tutte le voci?')) {
                 event.preventDefault();
             }
         });

@@ -355,6 +355,30 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=deleted")
 		self.assertFalse(PersonalAssetEntry.objects.filter(id=entry.id).exists())
 
+	def test_resets_all_entries(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_EXPENSE,
+			category="Spesa casa",
+			amount=Decimal("25.00"),
+			description="Pulizia",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_INCOME,
+			category="Stipendio",
+			amount=Decimal("1200.00"),
+			description="Entrata stipendio",
+		)
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "reset_entries",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=reset")
+		self.assertEqual(PersonalAssetEntry.objects.filter(user=self.user).count(), 0)
+
 	@override_settings(EXPENSE_REIMBURSEMENT_EMAILS=["datore@example.com"])
 	def test_exports_reimbursement_report_jpg(self):
 		PersonalAssetEntry.objects.create(

@@ -3329,6 +3329,8 @@ def personal_asset_dashboard(request):
         feedback = 'Operazione patrimoniale registrata correttamente.'
     elif status == 'deleted':
         feedback = 'Voce eliminata correttamente.'
+    elif status == 'reset':
+        feedback = 'Tutte le voci sono state eliminate correttamente.'
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
@@ -3348,6 +3350,20 @@ def personal_asset_dashboard(request):
                 )
                 entry.delete()
             return redirect(f'{request.path}?status=deleted')
+
+        if action == 'reset_entries':
+            entries_to_delete = list(PersonalAssetEntry.objects.filter(user=request.user))
+            if entries_to_delete:
+                _create_audit_event(
+                    request,
+                    'personal_asset_entries_reset',
+                    employee=getattr(request.user, 'employee', None),
+                    metadata={
+                        'deleted_entries_count': len(entries_to_delete),
+                    },
+                )
+                PersonalAssetEntry.objects.filter(user=request.user).delete()
+            return redirect(f'{request.path}?status=reset')
 
         form = PersonalAssetEntryForm(request.POST)
         if form.is_valid():
