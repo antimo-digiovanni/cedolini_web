@@ -158,7 +158,13 @@ PERSONAL_ASSET_DEFAULT_CATEGORIES = [
 def _personal_asset_reimbursement_entries_queryset(user):
     return (
         PersonalAssetEntry.objects
-        .filter(user=user, operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE)
+        .filter(
+            user=user,
+            operation_type__in=[
+                PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+                PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+            ],
+        )
         .order_by('-occurred_on', '-created_at', '-id')
     )
 

@@ -289,6 +289,7 @@
                             {% elif value == 'transfer_to_piggy_bank' %}Sposta dal conto al salvadanaio.
                             {% elif value == 'transfer_to_account' %}Riporta dal salvadanaio al conto.
                             {% elif value == 'reimbursable_expense' %}Scala il conto e aggiunge il credito rimborso.
+                            {% elif value == 'reimbursable_expense_pending' %}La segna nel rimborso ma non scala ancora il conto.
                             {% elif value == 'reimbursement_received' %}Aggiunge il rimborso spesa pagato al conto.
                             {% endif %}
                         </span>
@@ -497,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!operationSelect || !reimbursementInput) return;
 
     const syncVisibility = () => {
-        const visible = operationSelect.value === 'reimbursable_expense';
+        const visible = operationSelect.value === 'reimbursable_expense' || operationSelect.value === 'reimbursable_expense_pending';
         if (reimbursementWrapper) {
             reimbursementWrapper.style.display = visible ? '' : 'none';
         }

@@ -303,6 +303,27 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["total_assets"], Decimal("-10.00"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("40.00"))
 
+	def test_creates_pending_reimbursable_expense_without_reducing_account(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_entry",
+			"occurred_on": timezone.localdate().isoformat(),
+			"operation_type": PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+			"category": "Trasferta",
+			"amount": "120.00",
+			"reimbursement_amount": "120.00",
+			"description": "Spesa che pago solo dopo il rimborso",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=created")
+		entry = PersonalAssetEntry.objects.get(user=self.user)
+		self.assertEqual(entry.account_delta, Decimal("0.00"))
+		self.assertEqual(entry.reimbursement_delta, Decimal("120.00"))
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("0.00"))
+		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("120.00"))
+		self.assertEqual(page.context["reimbursement_report_entries_count"], 1)
+
 	def test_quick_adjusts_account_balance_without_creating_entry(self):
 		self.client.force_login(self.user)
 		response = self.client.post(reverse("personal_asset_dashboard"), {

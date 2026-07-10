@@ -393,6 +393,7 @@ class PersonalAssetEntry(models.Model):
     TYPE_TRANSFER_TO_PIGGY_BANK = 'transfer_to_piggy_bank'
     TYPE_TRANSFER_TO_ACCOUNT = 'transfer_to_account'
     TYPE_REIMBURSABLE_EXPENSE = 'reimbursable_expense'
+    TYPE_REIMBURSABLE_EXPENSE_PENDING = 'reimbursable_expense_pending'
     TYPE_REIMBURSEMENT_RECEIVED = 'reimbursement_received'
     TYPE_ADVANCE_RECEIVED = 'advance_received'
     TYPE_ADVANCE_RETURNED = 'advance_returned'
@@ -403,6 +404,7 @@ class PersonalAssetEntry(models.Model):
         (TYPE_TRANSFER_TO_PIGGY_BANK, 'Trasferimento conto -> salvadanaio'),
         (TYPE_TRANSFER_TO_ACCOUNT, 'Trasferimento salvadanaio -> conto'),
         (TYPE_REIMBURSABLE_EXPENSE, 'Spesa rimborsabile'),
+        (TYPE_REIMBURSABLE_EXPENSE_PENDING, 'Spesa rimborsabile futura'),
         (TYPE_REIMBURSEMENT_RECEIVED, 'Rimborso spesa pagato'),
         (TYPE_ADVANCE_RECEIVED, 'Anticipo ricevuto'),
         (TYPE_ADVANCE_RETURNED, 'Anticipo restituito'),
@@ -432,7 +434,7 @@ class PersonalAssetEntry(models.Model):
         if self.amount is None or self.amount <= 0:
             raise ValidationError({'amount': 'Inserisci un importo maggiore di zero.'})
 
-        if self.operation_type == self.TYPE_REIMBURSABLE_EXPENSE:
+        if self.operation_type in [self.TYPE_REIMBURSABLE_EXPENSE, self.TYPE_REIMBURSABLE_EXPENSE_PENDING]:
             if self.reimbursement_amount is None or self.reimbursement_amount <= 0:
                 raise ValidationError({'reimbursement_amount': 'Inserisci l\'importo da ricevere.'})
         elif self.reimbursement_amount not in (None, Decimal('0.00')):
@@ -464,6 +466,8 @@ class PersonalAssetEntry(models.Model):
             self.piggy_bank_delta = -amount
         elif self.operation_type == self.TYPE_REIMBURSABLE_EXPENSE:
             self.account_delta = -amount
+            self.reimbursement_delta = reimbursement_amount
+        elif self.operation_type == self.TYPE_REIMBURSABLE_EXPENSE_PENDING:
             self.reimbursement_delta = reimbursement_amount
         elif self.operation_type == self.TYPE_REIMBURSEMENT_RECEIVED:
             self.account_delta = amount
