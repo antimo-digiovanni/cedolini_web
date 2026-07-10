@@ -303,6 +303,22 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["total_assets"], Decimal("-10.00"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("40.00"))
 
+	def test_can_hide_reimbursements_from_total_assets(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+			category="Trasferta",
+			amount=Decimal("120.00"),
+			reimbursement_amount=Decimal("120.00"),
+			description="Spesa futura",
+		)
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("personal_asset_dashboard"), {"show_reimbursement_in_assets": "0"})
+		self.assertEqual(response.context["finance_summary"]["reimbursement_balance"], Decimal("120.00"))
+		self.assertEqual(response.context["finance_summary"]["total_assets"], Decimal("0.00"))
+		self.assertFalse(response.context["show_reimbursement_in_assets"])
+
 	def test_creates_pending_reimbursable_expense_without_reducing_account(self):
 		self.client.force_login(self.user)
 		response = self.client.post(reverse("personal_asset_dashboard"), {
@@ -323,6 +339,40 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("0.00"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("120.00"))
 		self.assertEqual(page.context["reimbursement_report_entries_count"], 1)
+
+	def test_reimbursement_report_entries_are_sorted_by_oldest_date_first(self):
+		from .views import _build_personal_asset_reimbursement_report_image
+
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 12).date(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+			category="Trasferta",
+			amount=Decimal("30.00"),
+			reimbursement_amount=Decimal("30.00"),
+			description="Terza",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 10).date(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+			category="Trasferta",
+			amount=Decimal("10.00"),
+			reimbursement_amount=Decimal("10.00"),
+			description="Prima",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 11).date(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+			category="Trasferta",
+			amount=Decimal("20.00"),
+			reimbursement_amount=Decimal("20.00"),
+			description="Seconda",
+		)
+
+		_, reimbursement_entries, _ = _build_personal_asset_reimbursement_report_image(self.user)
+		self.assertEqual([entry.description for entry in reimbursement_entries], ["Prima", "Seconda", "Terza"])
 
 	def test_quick_adjusts_account_balance_without_creating_entry(self):
 		self.client.force_login(self.user)

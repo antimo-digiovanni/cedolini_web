@@ -258,9 +258,16 @@
     </div>
 
     <div class="finance-kpi-card border-primary">
-        <div class="finance-kpi-label">Patrimonio reale</div>
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="finance-kpi-label mb-0">Patrimonio reale</div>
+            <a class="finance-pill text-decoration-none" href="?show_reimbursement_in_assets={{ reimbursement_toggle_query }}">
+                Rimborso {% if show_reimbursement_in_assets %}ON{% else %}OFF{% endif %}
+            </a>
+        </div>
         <div class="finance-kpi-value">{{ finance_summary.total_assets|floatformat:2 }} €</div>
-        <div class="finance-note mt-2">Conto + Salvadanaio + Rimborsi da ricevere</div>
+        <div class="finance-note mt-2">
+            Conto + Salvadanaio{% if show_reimbursement_in_assets %} + Rimborsi da ricevere{% endif %}
+        </div>
     </div>
 
     <div class="finance-kpi-card finance-month-card">

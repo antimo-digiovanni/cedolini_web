@@ -165,7 +165,7 @@ def _personal_asset_reimbursement_entries_queryset(user):
                 PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
             ],
         )
-        .order_by('-occurred_on', '-created_at', '-id')
+        .order_by('occurred_on', 'created_at', 'id')
     )
 
 
@@ -389,7 +389,7 @@ def _send_personal_asset_reimbursement_report_email(user):
     return True, f'Report rimborso spese inviato a: {", ".join(recipients)}.'
 
 
-def _personal_asset_summary(user, *, reference_date=None):
+def _personal_asset_summary(user, *, reference_date=None, include_reimbursement_in_total_assets=True):
     reference_date = reference_date or timezone.localdate()
     zero = Decimal('0.00')
     decimal_zero = Value(zero, output_field=DecimalField(max_digits=12, decimal_places=2))
@@ -435,11 +435,9 @@ def _personal_asset_summary(user, *, reference_date=None):
 
     account_balance = totals['account_balance'] + (setting.personal_asset_account_adjustment or zero)
 
-    total_assets = (
-        account_balance
-        + totals['piggy_bank_balance']
-        + totals['reimbursement_balance']
-    )
+    total_assets = account_balance + totals['piggy_bank_balance']
+    if include_reimbursement_in_total_assets:
+        total_assets += totals['reimbursement_balance']
     monthly_saving = (
         monthly_totals['account_delta']
         + monthly_totals['piggy_bank_delta']
@@ -451,6 +449,7 @@ def _personal_asset_summary(user, *, reference_date=None):
         'account_adjustment': setting.personal_asset_account_adjustment or zero,
         'piggy_bank_balance': totals['piggy_bank_balance'],
         'reimbursement_balance': totals['reimbursement_balance'],
+        'include_reimbursement_in_total_assets': include_reimbursement_in_total_assets,
         'advance_balance': totals['advance_balance'],
         'total_assets': total_assets,
         'monthly_income': monthly_totals['income'],
@@ -3368,6 +3367,11 @@ def personal_asset_dashboard(request):
     if denied_response is not None:
         return denied_response
 
+    toggle_param = request.GET.get('show_reimbursement_in_assets')
+    if toggle_param is not None:
+        request.session['personal_asset_show_reimbursement_in_assets'] = toggle_param == '1'
+    show_reimbursement_in_assets = request.session.get('personal_asset_show_reimbursement_in_assets', True)
+
     if request.method == 'GET' and request.GET.get('report') == 'reimbursement_jpg':
         response, filename = _build_personal_asset_reimbursement_report_response(request.user)
         _create_audit_event(
@@ -3476,10 +3480,14 @@ def personal_asset_dashboard(request):
 
     entries = list(_personal_asset_history_queryset(request.user)[:100])
     month_groups = _personal_asset_month_groups(entries)
-    summary = _personal_asset_summary(request.user)
+    summary = _personal_asset_summary(
+        request.user,
+        include_reimbursement_in_total_assets=show_reimbursement_in_assets,
+    )
     reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
     reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
     category_suggestions = _personal_asset_category_suggestions(request.user)
+    reimbursement_toggle_query = '0' if show_reimbursement_in_assets else '1'
 
     return render(request, 'portal/personal_asset_dashboard.html', {
         'finance_form': form,
@@ -3490,6 +3498,8 @@ def personal_asset_dashboard(request):
         'feedback': feedback,
         'feedback_level': feedback_level,
         'category_suggestions': category_suggestions,
+        'show_reimbursement_in_assets': show_reimbursement_in_assets,
+        'reimbursement_toggle_query': reimbursement_toggle_query,
         'reimbursement_report_entries_count': len(reimbursement_entries),
         'reimbursement_report_total': reimbursement_total,
         'reimbursement_report_recipients': _personal_asset_reimbursement_report_email_recipients(),
