@@ -303,6 +303,36 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["total_assets"], Decimal("-10.00"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("40.00"))
 
+	def test_quick_adjusts_account_balance_without_creating_entry(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "adjust_account_balance",
+			"direction": "increase",
+			"amount": "75.00",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=account_adjusted")
+		self.assertEqual(PersonalAssetEntry.objects.filter(user=self.user).count(), 0)
+		self.user.refresh_from_db()
+		self.assertEqual(self.user.portal_setting.personal_asset_account_adjustment, Decimal("75.00"))
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("75.00"))
+		self.assertEqual(page.context["finance_summary"]["account_adjustment"], Decimal("75.00"))
+
+	def test_quick_decreases_account_balance_without_creating_entry(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "adjust_account_balance",
+			"direction": "decrease",
+			"amount": "20.00",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=account_adjusted")
+		self.assertEqual(PersonalAssetEntry.objects.filter(user=self.user).count(), 0)
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("-20.00"))
+		self.assertEqual(page.context["finance_summary"]["account_adjustment"], Decimal("-20.00"))
+
 	def test_creates_reimbursement_paid_and_salary_income(self):
 		PersonalAssetEntry.objects.create(
 			user=self.user,
@@ -354,6 +384,42 @@ class PersonalAssetDashboardTests(TestCase):
 		})
 		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=deleted")
 		self.assertFalse(PersonalAssetEntry.objects.filter(id=entry.id).exists())
+
+	def test_custom_categories_are_suggested_automatically(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_EXPENSE,
+			category="Farmacia bimbo",
+			amount=Decimal("15.00"),
+			description="Sciroppo",
+		)
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertContains(response, 'data-category-value="Farmacia bimbo"')
+
+	def test_history_is_grouped_by_month(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 10).date(),
+			operation_type=PersonalAssetEntry.TYPE_EXPENSE,
+			category="Spesa casa",
+			amount=Decimal("25.00"),
+			description="Pulizia",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 6, 10).date(),
+			operation_type=PersonalAssetEntry.TYPE_EXPENSE,
+			category="Spesa auto",
+			amount=Decimal("30.00"),
+			description="Benzina",
+		)
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(len(response.context["finance_month_groups"]), 2)
+		self.assertContains(response, "Luglio 2026")
+		self.assertContains(response, "Giugno 2026")
 
 	def test_resets_all_entries(self):
 		PersonalAssetEntry.objects.create(

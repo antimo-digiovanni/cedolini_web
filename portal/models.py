@@ -36,6 +36,7 @@ class Employee(models.Model):
 class PortalUserSetting(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='portal_setting')
     show_published_turni = models.BooleanField(default=True)
+    personal_asset_account_adjustment = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
 
     def __str__(self):
         return self.user.get_username()

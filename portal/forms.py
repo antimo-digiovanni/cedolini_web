@@ -1,4 +1,5 @@
 from django import forms
+from decimal import Decimal
 from .models import Employee, Payslip, PersonalAssetEntry
 
 
@@ -81,3 +82,13 @@ class PersonalAssetEntryForm(forms.ModelForm):
             cleaned_data['reimbursement_amount'] = None
             self.instance.reimbursement_amount = None
         return cleaned_data
+
+
+class PersonalAssetQuickAccountAdjustmentForm(forms.Form):
+    amount = forms.DecimalField(
+        min_value=Decimal('0.01'),
+        decimal_places=2,
+        max_digits=12,
+        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
+        label='Cifra rapida',
+    )

@@ -141,6 +141,37 @@
     padding: 0.9rem 1rem;
 }
 
+.finance-balance-inline-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+}
+
+.finance-month-toggle {
+    border: 1px solid #dbe4f0;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 0.9rem 1rem;
+}
+
+.finance-month-toggle + .finance-month-toggle {
+    margin-top: 0.85rem;
+}
+
+.finance-month-toggle-btn {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+}
+
+.finance-month-meta {
+    color: #64748b;
+    font-size: 0.88rem;
+}
+
 .finance-history-table thead th {
     font-size: 0.8rem;
     text-transform: uppercase;
@@ -201,6 +232,19 @@
     <div class="finance-kpi-card">
         <div class="finance-kpi-label">Saldo conto corrente</div>
         <div class="finance-kpi-value">{{ finance_summary.account_balance|floatformat:2 }} €</div>
+        <div class="finance-note mt-2">Aggiunta rapida salvata fuori dallo storico: {{ finance_summary.account_adjustment|floatformat:2 }} €</div>
+        <form method="post" class="finance-balance-inline-form mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="adjust_account_balance">
+            <div>
+                {{ adjustment_form.amount }}
+                {% for error in adjustment_form.amount.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <button type="submit" name="direction" value="increase" class="btn btn-sm btn-outline-primary">Aggiungi</button>
+            <button type="submit" name="direction" value="decrease" class="btn btn-sm btn-outline-secondary">Togli</button>
+        </form>
     </div>
 
     <div class="finance-kpi-card">
@@ -279,26 +323,14 @@
                 <label class="form-label" for="{{ finance_form.category.id_for_label }}">{{ finance_form.category.label }}</label>
                 {{ finance_form.category }}
                 <div class="finance-chip-row" id="financeCategoryChips">
-                    <button type="button" class="finance-chip-button" data-category-value="Spesa casa">Spesa casa</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Spesa auto">Spesa auto</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Spesa salute">Spesa salute</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Trasferta">Trasferta</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Stipendio">Stipendio</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Rimborso spese">Rimborso spese</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Risparmio">Risparmio</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Tempo libero">Tempo libero</button>
-                    <button type="button" class="finance-chip-button" data-category-value="Spese varie">Spese varie</button>
+                    {% for category in category_suggestions %}
+                    <button type="button" class="finance-chip-button" data-category-value="{{ category }}">{{ category }}</button>
+                    {% endfor %}
                 </div>
                 <datalist id="financeCategorySuggestions">
-                    <option value="Spesa casa"></option>
-                    <option value="Spesa auto"></option>
-                    <option value="Spesa salute"></option>
-                    <option value="Trasferta"></option>
-                    <option value="Stipendio"></option>
-                    <option value="Rimborso spese"></option>
-                    <option value="Risparmio"></option>
-                    <option value="Tempo libero"></option>
-                    <option value="Spese varie"></option>
+                    {% for category in category_suggestions %}
+                    <option value="{{ category }}"></option>
+                    {% endfor %}
                 </datalist>
                 {% for error in finance_form.category.errors %}
                 <div class="text-danger small mt-1">{{ error }}</div>
@@ -357,69 +389,90 @@
             </div>
         </div>
 
-        {% if finance_entries %}
-        <div class="table-responsive d-none d-md-block">
-            <table class="table finance-history-table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Operazione</th>
-                        <th>Categoria</th>
-                        <th>Descrizione</th>
-                        <th class="text-end">Importo</th>
-                        <th class="text-end">Da ricevere</th>
-                        <th class="text-end">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in finance_entries %}
-                    <tr>
-                        <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
-                        <td>{{ entry.get_operation_type_display }}</td>
-                        <td>{{ entry.category }}</td>
-                        <td>{{ entry.description|default:"-" }}</td>
-                        <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
-                        <td class="text-end">
+        {% if finance_month_groups %}
+        <div class="accordion" id="financeMonthAccordion">
+            {% for month_group in finance_month_groups %}
+            <div class="finance-month-toggle">
+                <button class="finance-month-toggle-btn d-flex justify-content-between align-items-center gap-3 {% if not month_group.expanded %}collapsed{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#finance-month-{{ month_group.key }}"
+                        aria-expanded="{% if month_group.expanded %}true{% else %}false{% endif %}"
+                        aria-controls="finance-month-{{ month_group.key }}">
+                    <div>
+                        <div class="fw-semibold">{{ month_group.label }}</div>
+                        <div class="finance-month-meta">{{ month_group.count }} operazioni · {{ month_group.total_amount|floatformat:2 }} €</div>
+                    </div>
+                    <span class="finance-pill">Apri mese</span>
+                </button>
+
+                <div id="finance-month-{{ month_group.key }}" class="collapse {% if month_group.expanded %}show{% endif %} mt-3">
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table finance-history-table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Operazione</th>
+                                    <th>Categoria</th>
+                                    <th>Descrizione</th>
+                                    <th class="text-end">Importo</th>
+                                    <th class="text-end">Da ricevere</th>
+                                    <th class="text-end">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in month_group.entries %}
+                                <tr>
+                                    <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
+                                    <td>{{ entry.get_operation_type_display }}</td>
+                                    <td>{{ entry.category }}</td>
+                                    <td>{{ entry.description|default:"-" }}</td>
+                                    <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
+                                    <td class="text-end">
+                                        {% if entry.reimbursement_amount %}
+                                            {{ entry.reimbursement_amount|floatformat:2 }} €
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <form method="post" class="d-inline" data-confirm-delete="1">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_entry">
+                                            <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-md-none">
+                        {% for entry in month_group.entries %}
+                        <div class="border rounded-4 p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div>
+                                    <div class="fw-semibold">{{ entry.get_operation_type_display }}</div>
+                                    <div class="finance-note">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div>
+                                </div>
+                                <div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div>
+                            </div>
+                            <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
                             {% if entry.reimbursement_amount %}
-                                {{ entry.reimbursement_amount|floatformat:2 }} €
-                            {% else %}
-                                -
+                            <div class="small text-muted mt-1">Da ricevere: {{ entry.reimbursement_amount|floatformat:2 }} €</div>
                             {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <form method="post" class="d-inline" data-confirm-delete="1">
+                            <form method="post" class="mt-3" data-confirm-delete="1">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="delete_entry">
                                 <input type="hidden" name="entry_id" value="{{ entry.id }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
                             </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="d-md-none">
-            {% for entry in finance_entries %}
-            <div class="border rounded-4 p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <div class="fw-semibold">{{ entry.get_operation_type_display }}</div>
-                        <div class="finance-note">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    <div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div>
                 </div>
-                <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
-                {% if entry.reimbursement_amount %}
-                <div class="small text-muted mt-1">Da ricevere: {{ entry.reimbursement_amount|floatformat:2 }} €</div>
-                {% endif %}
-                <form method="post" class="mt-3" data-confirm-delete="1">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="delete_entry">
-                    <input type="hidden" name="entry_id" value="{{ entry.id }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                </form>
             </div>
             {% endfor %}
         </div>

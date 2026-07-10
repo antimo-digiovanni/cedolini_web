@@ -48,10 +48,11 @@ from .models import (
     VacationRequest,
     TurniPlannerWeekState,
     PersonalAssetEntry,
+    PortalUserSetting,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
-from .forms import PersonalAssetEntryForm
+from .forms import PersonalAssetEntryForm, PersonalAssetQuickAccountAdjustmentForm
 
 import logging
 import secrets
@@ -141,12 +142,57 @@ def _personal_asset_history_queryset(user):
     return PersonalAssetEntry.objects.filter(user=user).order_by('-occurred_on', '-created_at', '-id')
 
 
+PERSONAL_ASSET_DEFAULT_CATEGORIES = [
+    'Spesa casa',
+    'Spesa auto',
+    'Spesa salute',
+    'Trasferta',
+    'Stipendio',
+    'Rimborso spese',
+    'Risparmio',
+    'Tempo libero',
+    'Spese varie',
+]
+
+
 def _personal_asset_reimbursement_entries_queryset(user):
     return (
         PersonalAssetEntry.objects
         .filter(user=user, operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE)
         .order_by('-occurred_on', '-created_at', '-id')
     )
+
+
+def _personal_asset_category_suggestions(user):
+    suggestions = list(PERSONAL_ASSET_DEFAULT_CATEGORIES)
+    seen = {item.casefold() for item in suggestions}
+    for category in _personal_asset_history_queryset(user).exclude(category='').values_list('category', flat=True):
+        cleaned = (category or '').strip()
+        if cleaned and cleaned.casefold() not in seen:
+            suggestions.append(cleaned)
+            seen.add(cleaned.casefold())
+    return suggestions
+
+
+def _personal_asset_month_groups(entries):
+    grouped = OrderedDict()
+    for entry in entries:
+        key = (entry.occurred_on.year, entry.occurred_on.month)
+        if key not in grouped:
+            grouped[key] = {
+                'key': f'{entry.occurred_on.year}-{entry.occurred_on.month:02d}',
+                'label': f"{MONTH_LABELS_IT[entry.occurred_on.month]} {entry.occurred_on.year}",
+                'entries': [],
+                'total_amount': Decimal('0.00'),
+            }
+        grouped[key]['entries'].append(entry)
+        grouped[key]['total_amount'] += entry.amount or Decimal('0.00')
+
+    month_groups = list(grouped.values())
+    for index, group in enumerate(month_groups):
+        group['count'] = len(group['entries'])
+        group['expanded'] = index == 0
+    return month_groups
 
 
 def _personal_asset_report_display_name(user):
@@ -342,6 +388,7 @@ def _personal_asset_summary(user, *, reference_date=None):
     zero = Decimal('0.00')
     decimal_zero = Value(zero, output_field=DecimalField(max_digits=12, decimal_places=2))
     history_qs = _personal_asset_history_queryset(user)
+    setting, _ = PortalUserSetting.objects.get_or_create(user=user)
 
     totals = history_qs.aggregate(
         account_balance=Coalesce(Sum('account_delta'), decimal_zero),
@@ -380,8 +427,10 @@ def _personal_asset_summary(user, *, reference_date=None):
         reimbursement_delta=Coalesce(Sum('reimbursement_delta'), decimal_zero),
     )
 
+    account_balance = totals['account_balance'] + (setting.personal_asset_account_adjustment or zero)
+
     total_assets = (
-        totals['account_balance']
+        account_balance
         + totals['piggy_bank_balance']
         + totals['reimbursement_balance']
     )
@@ -392,7 +441,8 @@ def _personal_asset_summary(user, *, reference_date=None):
     )
 
     return {
-        'account_balance': totals['account_balance'],
+        'account_balance': account_balance,
+        'account_adjustment': setting.personal_asset_account_adjustment or zero,
         'piggy_bank_balance': totals['piggy_bank_balance'],
         'reimbursement_balance': totals['reimbursement_balance'],
         'advance_balance': totals['advance_balance'],
@@ -3331,6 +3381,11 @@ def personal_asset_dashboard(request):
         feedback = 'Voce eliminata correttamente.'
     elif status == 'reset':
         feedback = 'Tutte le voci sono state eliminate correttamente.'
+    elif status == 'account_adjusted':
+        feedback = 'Saldo conto corrente aggiornato correttamente.'
+
+    form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
+    adjustment_form = PersonalAssetQuickAccountAdjustmentForm()
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
@@ -3365,42 +3420,70 @@ def personal_asset_dashboard(request):
                 PersonalAssetEntry.objects.filter(user=request.user).delete()
             return redirect(f'{request.path}?status=reset')
 
-        form = PersonalAssetEntryForm(request.POST)
-        if form.is_valid():
-            entry = form.save(commit=False)
-            entry.user = request.user
-            entry.save()
+        if action == 'adjust_account_balance':
+            adjustment_form = PersonalAssetQuickAccountAdjustmentForm(request.POST)
+            if adjustment_form.is_valid():
+                setting, _ = PortalUserSetting.objects.get_or_create(user=request.user)
+                direction = (request.POST.get('direction') or 'increase').strip()
+                delta = adjustment_form.cleaned_data['amount']
+                if direction == 'decrease':
+                    delta = -delta
+                setting.personal_asset_account_adjustment += delta
+                setting.save(update_fields=['personal_asset_account_adjustment'])
+                _create_audit_event(
+                    request,
+                    'personal_asset_account_adjusted',
+                    employee=getattr(request.user, 'employee', None),
+                    metadata={
+                        'amount_delta': str(delta),
+                        'direction': direction,
+                        'new_adjustment_total': str(setting.personal_asset_account_adjustment),
+                    },
+                )
+                return redirect(f'{request.path}?status=account_adjusted')
+            feedback = 'Inserisci una cifra valida maggiore di zero.'
+            feedback_level = 'danger'
 
-            _create_audit_event(
-                request,
-                'personal_asset_entry_created',
-                employee=getattr(request.user, 'employee', None),
-                metadata={
-                    'operation_type': entry.operation_type,
-                    'occurred_on': str(entry.occurred_on),
-                    'category': entry.category,
-                    'amount': str(entry.amount),
-                    'reimbursement_amount': str(entry.reimbursement_amount or ''),
-                },
-            )
-            return redirect(f'{request.path}?status=created')
+        elif action == 'create_entry':
+            form = PersonalAssetEntryForm(request.POST)
+            if form.is_valid():
+                entry = form.save(commit=False)
+                entry.user = request.user
+                entry.save()
 
-        feedback = 'Correggi i campi evidenziati e riprova.'
-        feedback_level = 'danger'
-    else:
-        form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
+                _create_audit_event(
+                    request,
+                    'personal_asset_entry_created',
+                    employee=getattr(request.user, 'employee', None),
+                    metadata={
+                        'operation_type': entry.operation_type,
+                        'occurred_on': str(entry.occurred_on),
+                        'category': entry.category,
+                        'amount': str(entry.amount),
+                        'reimbursement_amount': str(entry.reimbursement_amount or ''),
+                    },
+                )
+                return redirect(f'{request.path}?status=created')
+
+            feedback = 'Correggi i campi evidenziati e riprova.'
+            feedback_level = 'danger'
 
     entries = list(_personal_asset_history_queryset(request.user)[:100])
+    month_groups = _personal_asset_month_groups(entries)
     summary = _personal_asset_summary(request.user)
     reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
     reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
+    category_suggestions = _personal_asset_category_suggestions(request.user)
 
     return render(request, 'portal/personal_asset_dashboard.html', {
         'finance_form': form,
+        'adjustment_form': adjustment_form,
         'finance_entries': entries,
+        'finance_month_groups': month_groups,
         'finance_summary': summary,
         'feedback': feedback,
         'feedback_level': feedback_level,
+        'category_suggestions': category_suggestions,
         'reimbursement_report_entries_count': len(reimbursement_entries),
         'reimbursement_report_total': reimbursement_total,
         'reimbursement_report_recipients': _personal_asset_reimbursement_report_email_recipients(),
