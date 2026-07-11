@@ -441,7 +441,6 @@ def _personal_asset_summary(user, *, reference_date=None, include_reimbursement_
     monthly_saving = (
         monthly_totals['account_delta']
         + monthly_totals['piggy_bank_delta']
-        + monthly_totals['reimbursement_delta']
     )
 
     return {
@@ -497,6 +496,7 @@ def _personal_asset_monthly_summaries(user):
     summaries = []
     for row in rows:
         saving = row['account_delta'] + row['piggy_bank_delta'] + row['reimbursement_delta']
+        saving = row['account_delta'] + row['piggy_bank_delta']
         summaries.append({
             'year': row['summary_year'],
             'month': row['summary_month'],

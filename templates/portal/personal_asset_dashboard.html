@@ -298,6 +298,7 @@
         <div class="small">Entrate: {{ finance_summary.monthly_income|floatformat:2 }} €</div>
         <div class="small">Uscite: {{ finance_summary.monthly_expense|floatformat:2 }} €</div>
         <div class="small">Risparmio: {{ finance_summary.monthly_saving|floatformat:2 }} €</div>
+        <div class="small text-white-50 mt-2">Il risparmio mese esclude i rimborsi da ricevere.</div>
         {% if finance_monthly_summaries %}
         <div class="finance-month-summary-list">
             {% for month_summary in finance_monthly_summaries %}

@@ -525,6 +525,39 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(monthly_summaries[1]["label"], "Giugno 2026")
 		self.assertEqual(monthly_summaries[1]["saving"], Decimal("900.00"))
 
+	def test_monthly_saving_excludes_reimbursements(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_INCOME,
+			category="Stipendio",
+			amount=Decimal("2000.00"),
+			description="Stipendio",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+			category="Trasferta",
+			amount=Decimal("500.00"),
+			reimbursement_amount=Decimal("500.00"),
+			description="Rimborso futuro",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_EXPENSE,
+			category="Spesa casa",
+			amount=Decimal("500.00"),
+			description="Spesa personale",
+		)
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(response.context["finance_summary"]["monthly_income"], Decimal("2000.00"))
+		self.assertEqual(response.context["finance_summary"]["monthly_expense"], Decimal("500.00"))
+		self.assertEqual(response.context["finance_summary"]["monthly_saving"], Decimal("1500.00"))
+		self.assertEqual(response.context["finance_monthly_summaries"][0]["saving"], Decimal("1500.00"))
+
 	def test_resets_all_entries(self):
 		PersonalAssetEntry.objects.create(
 			user=self.user,
