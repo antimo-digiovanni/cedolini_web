@@ -492,6 +492,39 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertContains(response, "Luglio 2026")
 		self.assertContains(response, "Giugno 2026")
 
+	def test_monthly_summaries_show_savings_for_each_month(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 10).date(),
+			operation_type=PersonalAssetEntry.TYPE_INCOME,
+			category="Stipendio",
+			amount=Decimal("1000.00"),
+			description="Luglio stipendio",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 11).date(),
+			operation_type=PersonalAssetEntry.TYPE_EXPENSE,
+			category="Spesa casa",
+			amount=Decimal("200.00"),
+			description="Luglio spesa",
+		)
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 6, 10).date(),
+			operation_type=PersonalAssetEntry.TYPE_INCOME,
+			category="Stipendio",
+			amount=Decimal("900.00"),
+			description="Giugno stipendio",
+		)
+		self.client.force_login(self.user)
+		response = self.client.get(reverse("personal_asset_dashboard"))
+		monthly_summaries = response.context["finance_monthly_summaries"]
+		self.assertEqual(monthly_summaries[0]["label"], "Luglio 2026")
+		self.assertEqual(monthly_summaries[0]["saving"], Decimal("800.00"))
+		self.assertEqual(monthly_summaries[1]["label"], "Giugno 2026")
+		self.assertEqual(monthly_summaries[1]["saving"], Decimal("900.00"))
+
 	def test_resets_all_entries(self):
 		PersonalAssetEntry.objects.create(
 			user=self.user,

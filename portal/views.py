@@ -23,7 +23,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.db import transaction, IntegrityError
 from django.db.models import Count, Q, Sum, Value, DecimalField
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, ExtractMonth, ExtractYear
 from django.conf import settings
 from django.core.files.base import File
 from django.core.files.storage import default_storage
@@ -457,6 +457,55 @@ def _personal_asset_summary(user, *, reference_date=None, include_reimbursement_
         'monthly_saving': monthly_saving,
         'month_label': f"{MONTH_LABELS_IT[reference_date.month]} {reference_date.year}",
     }
+
+
+def _personal_asset_monthly_summaries(user):
+    zero = Decimal('0.00')
+    decimal_zero = Value(zero, output_field=DecimalField(max_digits=12, decimal_places=2))
+    rows = (
+        _personal_asset_history_queryset(user)
+        .annotate(summary_year=ExtractYear('occurred_on'), summary_month=ExtractMonth('occurred_on'))
+        .values('summary_year', 'summary_month')
+        .annotate(
+            income=Coalesce(
+                Sum(
+                    'amount',
+                    filter=Q(operation_type__in=[
+                        PersonalAssetEntry.TYPE_INCOME,
+                        PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+                    ]),
+                ),
+                decimal_zero,
+            ),
+            expense=Coalesce(
+                Sum(
+                    'amount',
+                    filter=Q(operation_type__in=[
+                        PersonalAssetEntry.TYPE_EXPENSE,
+                        PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+                    ]),
+                ),
+                decimal_zero,
+            ),
+            account_delta=Coalesce(Sum('account_delta'), decimal_zero),
+            piggy_bank_delta=Coalesce(Sum('piggy_bank_delta'), decimal_zero),
+            reimbursement_delta=Coalesce(Sum('reimbursement_delta'), decimal_zero),
+        )
+        .order_by('-summary_year', '-summary_month')
+    )
+
+    summaries = []
+    for row in rows:
+        saving = row['account_delta'] + row['piggy_bank_delta'] + row['reimbursement_delta']
+        summaries.append({
+            'year': row['summary_year'],
+            'month': row['summary_month'],
+            'label': f"{MONTH_LABELS_IT[row['summary_month']]} {row['summary_year']}",
+            'income': row['income'],
+            'expense': row['expense'],
+            'saving': saving,
+        })
+    return summaries
 
 
 def _turni_planner_data_has_content(value):
@@ -3484,6 +3533,7 @@ def personal_asset_dashboard(request):
         request.user,
         include_reimbursement_in_total_assets=show_reimbursement_in_assets,
     )
+    monthly_summaries = _personal_asset_monthly_summaries(request.user)
     reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
     reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
     category_suggestions = _personal_asset_category_suggestions(request.user)
@@ -3494,6 +3544,7 @@ def personal_asset_dashboard(request):
         'adjustment_form': adjustment_form,
         'finance_entries': entries,
         'finance_month_groups': month_groups,
+        'finance_monthly_summaries': monthly_summaries,
         'finance_summary': summary,
         'feedback': feedback,
         'feedback_level': feedback_level,

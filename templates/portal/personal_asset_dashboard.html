@@ -172,6 +172,28 @@
     font-size: 0.88rem;
 }
 
+.finance-month-summary-list {
+    margin-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 0.9rem;
+}
+
+.finance-month-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.finance-month-summary-row + .finance-month-summary-row {
+    margin-top: 0.8rem;
+}
+
+.finance-month-summary-amount {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .finance-history-table thead th {
     font-size: 0.8rem;
     text-transform: uppercase;
@@ -271,11 +293,24 @@
     </div>
 
     <div class="finance-kpi-card finance-month-card">
-        <div class="finance-kpi-label text-white-50">Riepilogo mese</div>
+        <div class="finance-kpi-label text-white-50">Risparmio per mese</div>
         <div class="fw-semibold mb-2">{{ finance_summary.month_label }}</div>
         <div class="small">Entrate: {{ finance_summary.monthly_income|floatformat:2 }} €</div>
         <div class="small">Uscite: {{ finance_summary.monthly_expense|floatformat:2 }} €</div>
         <div class="small">Risparmio: {{ finance_summary.monthly_saving|floatformat:2 }} €</div>
+        {% if finance_monthly_summaries %}
+        <div class="finance-month-summary-list">
+            {% for month_summary in finance_monthly_summaries %}
+            <div class="finance-month-summary-row">
+                <div>
+                    <div class="fw-semibold">{{ month_summary.label }}</div>
+                    <div class="small">Entrate: {{ month_summary.income|floatformat:2 }} € · Uscite: {{ month_summary.expense|floatformat:2 }} €</div>
+                </div>
+                <div class="finance-month-summary-amount">{{ month_summary.saving|floatformat:2 }} €</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
     <div class="card-modern bg-white">
