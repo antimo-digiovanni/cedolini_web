@@ -143,7 +143,7 @@
 
 .finance-balance-inline-form {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     gap: 0.5rem;
     margin-top: 0.9rem;
 }
@@ -254,19 +254,27 @@
     <div class="finance-kpi-card">
         <div class="finance-kpi-label">Saldo conto corrente</div>
         <div class="finance-kpi-value">{{ finance_summary.account_balance|floatformat:2 }} €</div>
-        <div class="finance-note mt-2">Aggiunta rapida salvata fuori dallo storico: {{ finance_summary.account_adjustment|floatformat:2 }} €</div>
+        <div class="finance-note mt-2">Correzione manuale fuori dallo storico: {{ finance_summary.account_adjustment|floatformat:2 }} €</div>
+        <div class="finance-note mt-1">Saldo stimato dopo rimborsi e addebiti carta gia registrati: {{ finance_summary.projected_account_balance|floatformat:2 }} €</div>
         <form method="post" class="finance-balance-inline-form mt-2">
             {% csrf_token %}
-            <input type="hidden" name="action" value="adjust_account_balance">
             <div>
                 {{ adjustment_form.amount }}
                 {% for error in adjustment_form.amount.errors %}
                 <div class="text-danger small mt-1">{{ error }}</div>
                 {% endfor %}
             </div>
-            <button type="submit" name="direction" value="increase" class="btn btn-sm btn-outline-primary">Aggiungi</button>
-            <button type="submit" name="direction" value="decrease" class="btn btn-sm btn-outline-secondary">Togli</button>
+            <button type="submit" name="action" value="set_account_balance" class="btn btn-sm btn-primary">Imposta saldo</button>
+            <button type="submit" name="action" value="adjust_account_balance" data-direction-target="increase" class="btn btn-sm btn-outline-primary">Aggiungi</button>
+            <button type="submit" name="action" value="adjust_account_balance" data-direction-target="decrease" class="btn btn-sm btn-outline-secondary">Togli</button>
+            <input type="hidden" name="direction" id="financeAdjustmentDirection" value="increase">
         </form>
+    </div>
+
+    <div class="finance-kpi-card">
+        <div class="finance-kpi-label">Carta di credito in attesa</div>
+        <div class="finance-kpi-value">{{ finance_summary.pending_credit_card_balance|floatformat:2 }} €</div>
+        <div class="finance-note mt-2">Sono spese gia registrate che verranno addebitate il 15 del mese successivo.</div>
     </div>
 
     <div class="finance-kpi-card">
@@ -288,7 +296,7 @@
         </div>
         <div class="finance-kpi-value">{{ finance_summary.total_assets|floatformat:2 }} €</div>
         <div class="finance-note mt-2">
-            Conto + Salvadanaio{% if show_reimbursement_in_assets %} + Rimborsi da ricevere{% endif %}
+            Conto + Salvadanaio - Carta da addebitare{% if show_reimbursement_in_assets %} + Rimborsi da ricevere{% endif %}
         </div>
     </div>
 
@@ -296,16 +304,17 @@
         <div class="finance-kpi-label text-white-50">Risparmio per mese</div>
         <div class="fw-semibold mb-2">{{ finance_summary.month_label }}</div>
         <div class="small">Entrate: {{ finance_summary.monthly_income|floatformat:2 }} €</div>
-        <div class="small">Uscite: {{ finance_summary.monthly_expense|floatformat:2 }} €</div>
+        <div class="small">Uscite registrate: {{ finance_summary.monthly_expense|floatformat:2 }} €</div>
         <div class="small">Risparmio: {{ finance_summary.monthly_saving|floatformat:2 }} €</div>
-        <div class="small text-white-50 mt-2">Il risparmio mese esclude i rimborsi da ricevere.</div>
+        <div class="small">Effetto cassa: {{ finance_summary.monthly_cash_flow|floatformat:2 }} €</div>
+        <div class="small text-white-50 mt-2">Le spese con carta entrano nel mese in cui le fai, anche se l'addebito arriva il 15 del mese dopo.</div>
         {% if finance_monthly_summaries %}
         <div class="finance-month-summary-list">
             {% for month_summary in finance_monthly_summaries %}
             <div class="finance-month-summary-row">
                 <div>
                     <div class="fw-semibold">{{ month_summary.label }}</div>
-                    <div class="small">Entrate: {{ month_summary.income|floatformat:2 }} € · Uscite: {{ month_summary.expense|floatformat:2 }} €</div>
+                    <div class="small">Entrate: {{ month_summary.income|floatformat:2 }} € · Uscite: {{ month_summary.expense|floatformat:2 }} € · Cassa: {{ month_summary.cash_flow|floatformat:2 }} €</div>
                 </div>
                 <div class="finance-month-summary-amount">{{ month_summary.saving|floatformat:2 }} €</div>
             </div>
@@ -329,6 +338,8 @@
                         <span class="finance-type-option-note">
                             {% if value == 'income' %}Aggiunge lo stipendio al conto.
                             {% elif value == 'expense' %}Registra una spesa personale.
+                            {% elif value == 'credit_card_expense' %}La spesa pesa subito sul patrimonio e verra addebitata il 15 del mese successivo.
+                            {% elif value == 'credit_card_reimbursable_expense' %}Il rimborso entra il 10 del mese successivo e l'addebito carta arriva il 15.
                             {% elif value == 'transfer_to_piggy_bank' %}Sposta dal conto al salvadanaio.
                             {% elif value == 'transfer_to_account' %}Riporta dal salvadanaio al conto.
                             {% elif value == 'reimbursable_expense' %}Scala il conto e aggiunge il credito rimborso.
@@ -470,7 +481,15 @@
                                     <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
                                     <td>{{ entry.get_operation_type_display }}</td>
                                     <td>{{ entry.category }}</td>
-                                    <td>{{ entry.description|default:"-" }}</td>
+                                    <td>
+                                        {{ entry.description|default:"-" }}
+                                        {% if entry.scheduled_reimbursement_date %}
+                                        <div class="small text-muted">Rimborso previsto il {{ entry.scheduled_reimbursement_date|date:"d/m/Y" }}</div>
+                                        {% endif %}
+                                        {% if entry.scheduled_charge_date %}
+                                        <div class="small text-muted">Addebito carta il {{ entry.scheduled_charge_date|date:"d/m/Y" }}</div>
+                                        {% endif %}
+                                    </td>
                                     <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
                                     <td class="text-end">
                                         {% if entry.reimbursement_amount %}
@@ -504,6 +523,12 @@
                                 <div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div>
                             </div>
                             <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
+                            {% if entry.scheduled_reimbursement_date %}
+                            <div class="small text-muted mt-1">Rimborso previsto il {{ entry.scheduled_reimbursement_date|date:"d/m/Y" }}</div>
+                            {% endif %}
+                            {% if entry.scheduled_charge_date %}
+                            <div class="small text-muted mt-1">Addebito carta il {{ entry.scheduled_charge_date|date:"d/m/Y" }}</div>
+                            {% endif %}
                             {% if entry.reimbursement_amount %}
                             <div class="small text-muted mt-1">Da ricevere: {{ entry.reimbursement_amount|floatformat:2 }} €</div>
                             {% endif %}
@@ -538,10 +563,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetForms = Array.from(document.querySelectorAll('form[data-confirm-reset="1"]'));
     const optionalToggle = document.getElementById('toggleFinanceOptionalFields');
     const optionalFields = document.getElementById('financeOptionalFields');
+    const adjustmentDirection = document.getElementById('financeAdjustmentDirection');
+    const adjustmentButtons = Array.from(document.querySelectorAll('[data-direction-target]'));
     if (!operationSelect || !reimbursementInput) return;
 
     const syncVisibility = () => {
-        const visible = operationSelect.value === 'reimbursable_expense' || operationSelect.value === 'reimbursable_expense_pending';
+        const visible = operationSelect.value === 'reimbursable_expense' || operationSelect.value === 'reimbursable_expense_pending' || operationSelect.value === 'credit_card_reimbursable_expense';
         if (reimbursementWrapper) {
             reimbursementWrapper.style.display = visible ? '' : 'none';
         }
@@ -579,6 +606,13 @@ document.addEventListener('DOMContentLoaded', () => {
             optionalFields.classList.toggle('d-none');
         });
     }
+
+    adjustmentButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            if (!adjustmentDirection) return;
+            adjustmentDirection.value = button.dataset.directionTarget;
+        });
+    });
 
     deleteForms.forEach(form => {
         form.addEventListener('submit', event => {

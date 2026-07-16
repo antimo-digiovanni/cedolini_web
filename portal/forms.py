@@ -29,6 +29,8 @@ class PersonalAssetEntryForm(forms.ModelForm):
     ACTIVE_OPERATION_TYPES = {
         PersonalAssetEntry.TYPE_INCOME,
         PersonalAssetEntry.TYPE_EXPENSE,
+        PersonalAssetEntry.TYPE_CREDIT_CARD_EXPENSE,
+        PersonalAssetEntry.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
         PersonalAssetEntry.TYPE_TRANSFER_TO_PIGGY_BANK,
         PersonalAssetEntry.TYPE_TRANSFER_TO_ACCOUNT,
         PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
@@ -82,6 +84,7 @@ class PersonalAssetEntryForm(forms.ModelForm):
         if cleaned_data.get('operation_type') not in [
             PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
             PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+            PersonalAssetEntry.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
         ]:
             cleaned_data['reimbursement_amount'] = None
             self.instance.reimbursement_amount = None

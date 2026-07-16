@@ -145,6 +145,8 @@ def _personal_asset_history_queryset(user):
 PERSONAL_ASSET_DEFAULT_CATEGORIES = [
     'Spesa casa',
     'Spesa auto',
+    'Carta di credito',
+    'Carta di credito aziendale',
     'Spesa salute',
     'Trasferta',
     'Stipendio',
@@ -163,6 +165,7 @@ def _personal_asset_reimbursement_entries_queryset(user):
             operation_type__in=[
                 PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
                 PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+                PersonalAssetEntry.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
             ],
         )
         .order_by('occurred_on', 'created_at', 'id')
@@ -178,6 +181,110 @@ def _personal_asset_category_suggestions(user):
             suggestions.append(cleaned)
             seen.add(cleaned.casefold())
     return suggestions
+
+
+def _personal_asset_income_types():
+    return {
+        PersonalAssetEntry.TYPE_INCOME,
+        PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+    }
+
+
+def _personal_asset_expense_types():
+    return {
+        PersonalAssetEntry.TYPE_EXPENSE,
+        PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+        PersonalAssetEntry.TYPE_CREDIT_CARD_EXPENSE,
+        PersonalAssetEntry.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
+    }
+
+
+def _personal_asset_empty_month_bucket():
+    return {
+        'income': Decimal('0.00'),
+        'expense': Decimal('0.00'),
+        'cash_flow': Decimal('0.00'),
+    }
+
+
+def _personal_asset_add_month_value(monthly_buckets, target_date, *, income=None, expense=None, cash_flow=None):
+    if target_date is None:
+        return
+
+    key = (target_date.year, target_date.month)
+    bucket = monthly_buckets.setdefault(key, _personal_asset_empty_month_bucket())
+    if income is not None:
+        bucket['income'] += income
+    if expense is not None:
+        bucket['expense'] += expense
+    if cash_flow is not None:
+        bucket['cash_flow'] += cash_flow
+
+
+def _personal_asset_collect_metrics(user, *, reference_date=None):
+    reference_date = reference_date or timezone.localdate()
+    zero = Decimal('0.00')
+    monthly_buckets = OrderedDict()
+    income_types = _personal_asset_income_types()
+    expense_types = _personal_asset_expense_types()
+
+    account_balance = zero
+    piggy_bank_balance = zero
+    reimbursement_balance = zero
+    advance_balance = zero
+    pending_credit_card_balance = zero
+
+    for entry in PersonalAssetEntry.objects.filter(user=user).order_by('occurred_on', 'created_at', 'id'):
+        amount = entry.amount or zero
+        reimbursement_amount = entry.reimbursement_amount or zero
+
+        if entry.operation_type == PersonalAssetEntry.TYPE_CREDIT_CARD_EXPENSE:
+            _personal_asset_add_month_value(monthly_buckets, entry.occurred_on, expense=amount)
+            _personal_asset_add_month_value(monthly_buckets, entry.scheduled_charge_date, cash_flow=-amount)
+            if reference_date >= entry.scheduled_charge_date:
+                account_balance -= amount
+            else:
+                pending_credit_card_balance += amount
+            continue
+
+        if entry.operation_type == PersonalAssetEntry.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE:
+            _personal_asset_add_month_value(monthly_buckets, entry.occurred_on, expense=amount)
+            _personal_asset_add_month_value(monthly_buckets, entry.scheduled_reimbursement_date, income=reimbursement_amount, cash_flow=reimbursement_amount)
+            _personal_asset_add_month_value(monthly_buckets, entry.scheduled_charge_date, cash_flow=-amount)
+
+            if reference_date >= entry.scheduled_reimbursement_date:
+                account_balance += reimbursement_amount
+            else:
+                reimbursement_balance += reimbursement_amount
+
+            if reference_date >= entry.scheduled_charge_date:
+                account_balance -= amount
+            else:
+                pending_credit_card_balance += amount
+            continue
+
+        account_balance += entry.account_delta or zero
+        piggy_bank_balance += entry.piggy_bank_delta or zero
+        reimbursement_balance += entry.reimbursement_delta or zero
+        advance_balance += entry.advance_delta or zero
+
+        if entry.operation_type in income_types:
+            _personal_asset_add_month_value(monthly_buckets, entry.occurred_on, income=amount)
+        if entry.operation_type in expense_types:
+            _personal_asset_add_month_value(monthly_buckets, entry.occurred_on, expense=amount)
+
+        cash_flow_delta = (entry.account_delta or zero) + (entry.piggy_bank_delta or zero)
+        if cash_flow_delta != zero:
+            _personal_asset_add_month_value(monthly_buckets, entry.occurred_on, cash_flow=cash_flow_delta)
+
+    return {
+        'account_balance': account_balance,
+        'piggy_bank_balance': piggy_bank_balance,
+        'reimbursement_balance': reimbursement_balance,
+        'advance_balance': advance_balance,
+        'pending_credit_card_balance': pending_credit_card_balance,
+        'monthly_buckets': monthly_buckets,
+    }
 
 
 def _personal_asset_month_groups(entries):
@@ -392,118 +499,53 @@ def _send_personal_asset_reimbursement_report_email(user):
 def _personal_asset_summary(user, *, reference_date=None, include_reimbursement_in_total_assets=True):
     reference_date = reference_date or timezone.localdate()
     zero = Decimal('0.00')
-    decimal_zero = Value(zero, output_field=DecimalField(max_digits=12, decimal_places=2))
-    history_qs = _personal_asset_history_queryset(user)
     setting, _ = PortalUserSetting.objects.get_or_create(user=user)
 
-    totals = history_qs.aggregate(
-        account_balance=Coalesce(Sum('account_delta'), decimal_zero),
-        piggy_bank_balance=Coalesce(Sum('piggy_bank_delta'), decimal_zero),
-        reimbursement_balance=Coalesce(Sum('reimbursement_delta'), decimal_zero),
-        advance_balance=Coalesce(Sum('advance_delta'), decimal_zero),
+    metrics = _personal_asset_collect_metrics(user, reference_date=reference_date)
+    monthly_totals = metrics['monthly_buckets'].get(
+        (reference_date.year, reference_date.month),
+        _personal_asset_empty_month_bucket(),
     )
+    account_balance = metrics['account_balance'] + (setting.personal_asset_account_adjustment or zero)
+    projected_account_balance = account_balance + metrics['reimbursement_balance'] - metrics['pending_credit_card_balance']
 
-    monthly_qs = history_qs.filter(
-        occurred_on__year=reference_date.year,
-        occurred_on__month=reference_date.month,
-    )
-    monthly_totals = monthly_qs.aggregate(
-        income=Coalesce(
-            Sum(
-                'amount',
-                filter=Q(operation_type__in=[
-                    PersonalAssetEntry.TYPE_INCOME,
-                    PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
-                ]),
-            ),
-            decimal_zero,
-        ),
-        expense=Coalesce(
-            Sum(
-                'amount',
-                filter=Q(operation_type__in=[
-                    PersonalAssetEntry.TYPE_EXPENSE,
-                    PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
-                ]),
-            ),
-            decimal_zero,
-        ),
-        account_delta=Coalesce(Sum('account_delta'), decimal_zero),
-        piggy_bank_delta=Coalesce(Sum('piggy_bank_delta'), decimal_zero),
-        reimbursement_delta=Coalesce(Sum('reimbursement_delta'), decimal_zero),
-    )
-
-    account_balance = totals['account_balance'] + (setting.personal_asset_account_adjustment or zero)
-
-    total_assets = account_balance + totals['piggy_bank_balance']
+    total_assets = account_balance + metrics['piggy_bank_balance'] - metrics['pending_credit_card_balance']
     if include_reimbursement_in_total_assets:
-        total_assets += totals['reimbursement_balance']
-    monthly_saving = (
-        monthly_totals['account_delta']
-        + monthly_totals['piggy_bank_delta']
-    )
+        total_assets += metrics['reimbursement_balance']
+    monthly_saving = monthly_totals['income'] - monthly_totals['expense']
 
     return {
         'account_balance': account_balance,
         'account_adjustment': setting.personal_asset_account_adjustment or zero,
-        'piggy_bank_balance': totals['piggy_bank_balance'],
-        'reimbursement_balance': totals['reimbursement_balance'],
+        'projected_account_balance': projected_account_balance,
+        'piggy_bank_balance': metrics['piggy_bank_balance'],
+        'reimbursement_balance': metrics['reimbursement_balance'],
+        'pending_credit_card_balance': metrics['pending_credit_card_balance'],
         'include_reimbursement_in_total_assets': include_reimbursement_in_total_assets,
-        'advance_balance': totals['advance_balance'],
+        'advance_balance': metrics['advance_balance'],
         'total_assets': total_assets,
         'monthly_income': monthly_totals['income'],
         'monthly_expense': monthly_totals['expense'],
         'monthly_saving': monthly_saving,
+        'monthly_cash_flow': monthly_totals['cash_flow'],
         'month_label': f"{MONTH_LABELS_IT[reference_date.month]} {reference_date.year}",
     }
 
 
 def _personal_asset_monthly_summaries(user):
-    zero = Decimal('0.00')
-    decimal_zero = Value(zero, output_field=DecimalField(max_digits=12, decimal_places=2))
-    rows = (
-        _personal_asset_history_queryset(user)
-        .annotate(summary_year=ExtractYear('occurred_on'), summary_month=ExtractMonth('occurred_on'))
-        .values('summary_year', 'summary_month')
-        .annotate(
-            income=Coalesce(
-                Sum(
-                    'amount',
-                    filter=Q(operation_type__in=[
-                        PersonalAssetEntry.TYPE_INCOME,
-                        PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
-                    ]),
-                ),
-                decimal_zero,
-            ),
-            expense=Coalesce(
-                Sum(
-                    'amount',
-                    filter=Q(operation_type__in=[
-                        PersonalAssetEntry.TYPE_EXPENSE,
-                        PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
-                    ]),
-                ),
-                decimal_zero,
-            ),
-            account_delta=Coalesce(Sum('account_delta'), decimal_zero),
-            piggy_bank_delta=Coalesce(Sum('piggy_bank_delta'), decimal_zero),
-            reimbursement_delta=Coalesce(Sum('reimbursement_delta'), decimal_zero),
-        )
-        .order_by('-summary_year', '-summary_month')
-    )
-
     summaries = []
-    for row in rows:
-        saving = row['account_delta'] + row['piggy_bank_delta'] + row['reimbursement_delta']
-        saving = row['account_delta'] + row['piggy_bank_delta']
+    metrics = _personal_asset_collect_metrics(user)
+    for year, month in sorted(metrics['monthly_buckets'].keys(), reverse=True):
+        row = metrics['monthly_buckets'][(year, month)]
+        saving = row['income'] - row['expense']
         summaries.append({
-            'year': row['summary_year'],
-            'month': row['summary_month'],
-            'label': f"{MONTH_LABELS_IT[row['summary_month']]} {row['summary_year']}",
+            'year': year,
+            'month': month,
+            'label': f"{MONTH_LABELS_IT[month]} {year}",
             'income': row['income'],
             'expense': row['expense'],
             'saving': saving,
+            'cash_flow': row['cash_flow'],
         })
     return summaries
 
@@ -3479,25 +3521,37 @@ def personal_asset_dashboard(request):
                 PersonalAssetEntry.objects.filter(user=request.user).delete()
             return redirect(f'{request.path}?status=reset')
 
-        if action == 'adjust_account_balance':
+        if action in ['adjust_account_balance', 'set_account_balance']:
             adjustment_form = PersonalAssetQuickAccountAdjustmentForm(request.POST)
             if adjustment_form.is_valid():
                 setting, _ = PortalUserSetting.objects.get_or_create(user=request.user)
-                direction = (request.POST.get('direction') or 'increase').strip()
-                delta = adjustment_form.cleaned_data['amount']
-                if direction == 'decrease':
-                    delta = -delta
-                setting.personal_asset_account_adjustment += delta
+                if action == 'set_account_balance':
+                    metrics = _personal_asset_collect_metrics(request.user)
+                    target_balance = adjustment_form.cleaned_data['amount']
+                    setting.personal_asset_account_adjustment = target_balance - metrics['account_balance']
+                    metadata = {
+                        'target_balance': str(target_balance),
+                        'new_adjustment_total': str(setting.personal_asset_account_adjustment),
+                        'mode': 'absolute',
+                    }
+                else:
+                    direction = (request.POST.get('direction') or 'increase').strip()
+                    delta = adjustment_form.cleaned_data['amount']
+                    if direction == 'decrease':
+                        delta = -delta
+                    setting.personal_asset_account_adjustment += delta
+                    metadata = {
+                        'amount_delta': str(delta),
+                        'direction': direction,
+                        'new_adjustment_total': str(setting.personal_asset_account_adjustment),
+                        'mode': 'delta',
+                    }
                 setting.save(update_fields=['personal_asset_account_adjustment'])
                 _create_audit_event(
                     request,
                     'personal_asset_account_adjusted',
                     employee=getattr(request.user, 'employee', None),
-                    metadata={
-                        'amount_delta': str(delta),
-                        'direction': direction,
-                        'new_adjustment_total': str(setting.personal_asset_account_adjustment),
-                    },
+                    metadata=metadata,
                 )
                 return redirect(f'{request.path}?status=account_adjusted')
             feedback = 'Inserisci una cifra valida maggiore di zero.'

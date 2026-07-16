@@ -404,6 +404,88 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("-20.00"))
 		self.assertEqual(page.context["finance_summary"]["account_adjustment"], Decimal("-20.00"))
 
+	def test_can_set_exact_account_balance_without_creating_entry(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_INCOME,
+			category="Stipendio",
+			amount=Decimal("10.00"),
+		)
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "set_account_balance",
+			"amount": "250.00",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=account_adjusted")
+		self.user.refresh_from_db()
+		self.assertEqual(self.user.portal_setting.personal_asset_account_adjustment, Decimal("240.00"))
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("250.00"))
+
+	def test_credit_card_personal_expense_is_pending_until_next_month_charge(self):
+		from .views import _personal_asset_summary
+
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 20).date(),
+			operation_type=PersonalAssetEntry.TYPE_CREDIT_CARD_EXPENSE,
+			category="Carta di credito",
+			amount=Decimal("100.00"),
+			description="Acquisto personale",
+		)
+
+		july_summary = _personal_asset_summary(self.user, reference_date=datetime(2026, 7, 31).date())
+		self.assertEqual(july_summary["account_balance"], Decimal("0.00"))
+		self.assertEqual(july_summary["pending_credit_card_balance"], Decimal("100.00"))
+		self.assertEqual(july_summary["total_assets"], Decimal("-100.00"))
+		self.assertEqual(july_summary["monthly_expense"], Decimal("100.00"))
+		self.assertEqual(july_summary["monthly_saving"], Decimal("-100.00"))
+		self.assertEqual(july_summary["monthly_cash_flow"], Decimal("0.00"))
+
+		august_summary = _personal_asset_summary(self.user, reference_date=datetime(2026, 8, 15).date())
+		self.assertEqual(august_summary["account_balance"], Decimal("-100.00"))
+		self.assertEqual(august_summary["pending_credit_card_balance"], Decimal("0.00"))
+		self.assertEqual(august_summary["monthly_cash_flow"], Decimal("-100.00"))
+
+	def test_credit_card_reimbursable_expense_tracks_reimbursement_and_charge(self):
+		from .views import _personal_asset_monthly_summaries, _personal_asset_summary
+
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 20).date(),
+			operation_type=PersonalAssetEntry.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
+			category="Trasferta",
+			amount=Decimal("80.00"),
+			reimbursement_amount=Decimal("80.00"),
+			description="Taxi e pranzo",
+		)
+
+		july_summary = _personal_asset_summary(self.user, reference_date=datetime(2026, 7, 31).date())
+		self.assertEqual(july_summary["account_balance"], Decimal("0.00"))
+		self.assertEqual(july_summary["reimbursement_balance"], Decimal("80.00"))
+		self.assertEqual(july_summary["pending_credit_card_balance"], Decimal("80.00"))
+		self.assertEqual(july_summary["projected_account_balance"], Decimal("0.00"))
+
+		august_12_summary = _personal_asset_summary(self.user, reference_date=datetime(2026, 8, 12).date())
+		self.assertEqual(august_12_summary["account_balance"], Decimal("80.00"))
+		self.assertEqual(august_12_summary["reimbursement_balance"], Decimal("0.00"))
+		self.assertEqual(august_12_summary["pending_credit_card_balance"], Decimal("80.00"))
+
+		august_16_summary = _personal_asset_summary(self.user, reference_date=datetime(2026, 8, 16).date())
+		self.assertEqual(august_16_summary["account_balance"], Decimal("0.00"))
+		self.assertEqual(august_16_summary["reimbursement_balance"], Decimal("0.00"))
+		self.assertEqual(august_16_summary["pending_credit_card_balance"], Decimal("0.00"))
+
+		monthly_summaries = _personal_asset_monthly_summaries(self.user)
+		self.assertEqual(monthly_summaries[0]["label"], "Agosto 2026")
+		self.assertEqual(monthly_summaries[0]["income"], Decimal("80.00"))
+		self.assertEqual(monthly_summaries[0]["expense"], Decimal("0.00"))
+		self.assertEqual(monthly_summaries[0]["cash_flow"], Decimal("0.00"))
+		self.assertEqual(monthly_summaries[1]["label"], "Luglio 2026")
+		self.assertEqual(monthly_summaries[1]["expense"], Decimal("80.00"))
+
 	def test_creates_reimbursement_paid_and_salary_income(self):
 		PersonalAssetEntry.objects.create(
 			user=self.user,

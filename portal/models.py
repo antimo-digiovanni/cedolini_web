@@ -1,9 +1,16 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 import secrets
+
+
+def _add_months_with_day(source_date, months, day):
+    month_index = source_date.month - 1 + months
+    year = source_date.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, day)
 
 
 class Employee(models.Model):
@@ -390,6 +397,8 @@ class PersonalAssetEntry(models.Model):
 
     TYPE_INCOME = 'income'
     TYPE_EXPENSE = 'expense'
+    TYPE_CREDIT_CARD_EXPENSE = 'credit_card_expense'
+    TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE = 'credit_card_reimbursable_expense'
     TYPE_TRANSFER_TO_PIGGY_BANK = 'transfer_to_piggy_bank'
     TYPE_TRANSFER_TO_ACCOUNT = 'transfer_to_account'
     TYPE_REIMBURSABLE_EXPENSE = 'reimbursable_expense'
@@ -401,6 +410,8 @@ class PersonalAssetEntry(models.Model):
     TYPE_CHOICES = [
         (TYPE_INCOME, 'Entrata stipendio'),
         (TYPE_EXPENSE, 'Uscita'),
+        (TYPE_CREDIT_CARD_EXPENSE, 'Spesa carta di credito personale'),
+        (TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE, 'Spesa carta di credito rimborsabile'),
         (TYPE_TRANSFER_TO_PIGGY_BANK, 'Trasferimento conto -> salvadanaio'),
         (TYPE_TRANSFER_TO_ACCOUNT, 'Trasferimento salvadanaio -> conto'),
         (TYPE_REIMBURSABLE_EXPENSE, 'Spesa rimborsabile'),
@@ -434,7 +445,11 @@ class PersonalAssetEntry(models.Model):
         if self.amount is None or self.amount <= 0:
             raise ValidationError({'amount': 'Inserisci un importo maggiore di zero.'})
 
-        if self.operation_type in [self.TYPE_REIMBURSABLE_EXPENSE, self.TYPE_REIMBURSABLE_EXPENSE_PENDING]:
+        if self.operation_type in [
+            self.TYPE_REIMBURSABLE_EXPENSE,
+            self.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+            self.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
+        ]:
             if self.reimbursement_amount is None or self.reimbursement_amount <= 0:
                 raise ValidationError({'reimbursement_amount': 'Inserisci l\'importo da ricevere.'})
         elif self.reimbursement_amount not in (None, Decimal('0.00')):
@@ -458,6 +473,10 @@ class PersonalAssetEntry(models.Model):
             self.account_delta = amount
         elif self.operation_type == self.TYPE_EXPENSE:
             self.account_delta = -amount
+        elif self.operation_type == self.TYPE_CREDIT_CARD_EXPENSE:
+            pass
+        elif self.operation_type == self.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE:
+            pass
         elif self.operation_type == self.TYPE_TRANSFER_TO_PIGGY_BANK:
             self.account_delta = -amount
             self.piggy_bank_delta = amount
@@ -482,6 +501,25 @@ class PersonalAssetEntry(models.Model):
     @property
     def net_worth_delta(self):
         return self.account_delta + self.piggy_bank_delta + self.reimbursement_delta - self.advance_delta
+
+    @property
+    def is_credit_card_operation(self):
+        return self.operation_type in [
+            self.TYPE_CREDIT_CARD_EXPENSE,
+            self.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
+        ]
+
+    @property
+    def scheduled_charge_date(self):
+        if not self.is_credit_card_operation or not self.occurred_on:
+            return None
+        return _add_months_with_day(self.occurred_on, 1, 15)
+
+    @property
+    def scheduled_reimbursement_date(self):
+        if self.operation_type != self.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE or not self.occurred_on:
+            return None
+        return _add_months_with_day(self.occurred_on, 1, 10)
 
     def __str__(self):
         return f"{self.user.get_username()} {self.operation_type} {self.occurred_on}"
