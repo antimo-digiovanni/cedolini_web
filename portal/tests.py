@@ -520,6 +520,53 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["account_balance"], Decimal("1490.00"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("0.00"))
 		self.assertEqual(page.context["finance_summary"]["total_assets"], Decimal("1490.00"))
+		self.assertEqual(page.context["reimbursement_report_entries_count"], 0)
+		self.assertEqual(page.context["reimbursement_report_total"], Decimal("0.00"))
+
+		reimbursement_paid_entry = PersonalAssetEntry.objects.get(
+			user=self.user,
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+		)
+		archived_entry = PersonalAssetEntry.objects.get(
+			user=self.user,
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+		)
+		self.assertEqual(archived_entry.reimbursement_settlement_id, reimbursement_paid_entry.id)
+
+	def test_deleting_reimbursement_paid_reopens_reimbursement_report_entries(self):
+		open_entry = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+			category="Trasferta",
+			amount=Decimal("120.00"),
+			reimbursement_amount=Decimal("120.00"),
+			description="Hotel",
+		)
+		reimbursement_paid_entry = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+			category="Rimborso spese",
+			amount=Decimal("120.00"),
+			description="Rimborso hotel",
+		)
+		open_entry.reimbursement_settlement = reimbursement_paid_entry
+		open_entry.save(update_fields=["reimbursement_settlement"])
+
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "delete_entry",
+			"entry_id": str(reimbursement_paid_entry.id),
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=deleted")
+
+		open_entry.refresh_from_db()
+		self.assertIsNone(open_entry.reimbursement_settlement_id)
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["reimbursement_report_entries_count"], 1)
+		self.assertEqual(page.context["reimbursement_report_total"], Decimal("120.00"))
 
 	def test_deletes_entry(self):
 		entry = PersonalAssetEntry.objects.create(

@@ -428,6 +428,13 @@ class PersonalAssetEntry(models.Model):
     description = models.CharField(max_length=255, blank=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     reimbursement_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    reimbursement_settlement = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='settled_reimbursement_entries',
+    )
     account_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     piggy_bank_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     reimbursement_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
@@ -520,6 +527,10 @@ class PersonalAssetEntry(models.Model):
         if self.operation_type != self.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE or not self.occurred_on:
             return None
         return _add_months_with_day(self.occurred_on, 1, 10)
+
+    @property
+    def is_reimbursement_report_archived(self):
+        return self.reimbursement_settlement_id is not None
 
     def __str__(self):
         return f"{self.user.get_username()} {self.operation_type} {self.occurred_on}"

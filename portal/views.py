@@ -162,6 +162,7 @@ def _personal_asset_reimbursement_entries_queryset(user):
         PersonalAssetEntry.objects
         .filter(
             user=user,
+            reimbursement_settlement__isnull=True,
             operation_type__in=[
                 PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
                 PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
@@ -181,6 +182,23 @@ def _personal_asset_category_suggestions(user):
             suggestions.append(cleaned)
             seen.add(cleaned.casefold())
     return suggestions
+
+
+def _archive_open_reimbursement_report_entries(user, settlement_entry):
+    open_entries = list(_personal_asset_reimbursement_entries_queryset(user))
+    if not open_entries:
+        return []
+
+    PersonalAssetEntry.objects.filter(id__in=[entry.id for entry in open_entries]).update(
+        reimbursement_settlement=settlement_entry,
+    )
+    return open_entries
+
+
+def _reopen_reimbursement_report_entries(settlement_entry):
+    PersonalAssetEntry.objects.filter(reimbursement_settlement=settlement_entry).update(
+        reimbursement_settlement=None,
+    )
 
 
 def _personal_asset_income_types():
@@ -3493,6 +3511,11 @@ def personal_asset_dashboard(request):
         if action == 'delete_entry':
             entry = PersonalAssetEntry.objects.filter(id=request.POST.get('entry_id'), user=request.user).first()
             if entry is not None:
+                if entry.operation_type == PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED:
+                    reopened_count = entry.settled_reimbursement_entries.count()
+                    _reopen_reimbursement_report_entries(entry)
+                else:
+                    reopened_count = 0
                 _create_audit_event(
                     request,
                     'personal_asset_entry_deleted',
@@ -3502,6 +3525,7 @@ def personal_asset_dashboard(request):
                         'operation_type': entry.operation_type,
                         'occurred_on': str(entry.occurred_on),
                         'amount': str(entry.amount),
+                        'reopened_reimbursement_entries_count': reopened_count,
                     },
                 )
                 entry.delete()
@@ -3563,6 +3587,9 @@ def personal_asset_dashboard(request):
                 entry = form.save(commit=False)
                 entry.user = request.user
                 entry.save()
+                archived_reimbursement_entries = []
+                if entry.operation_type == PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED:
+                    archived_reimbursement_entries = _archive_open_reimbursement_report_entries(request.user, entry)
 
                 _create_audit_event(
                     request,
@@ -3574,6 +3601,7 @@ def personal_asset_dashboard(request):
                         'category': entry.category,
                         'amount': str(entry.amount),
                         'reimbursement_amount': str(entry.reimbursement_amount or ''),
+                        'archived_reimbursement_entries_count': len(archived_reimbursement_entries),
                     },
                 )
                 return redirect(f'{request.path}?status=created')
