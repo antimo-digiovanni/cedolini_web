@@ -380,9 +380,9 @@ def _personal_asset_month_groups(entries):
         grouped[key]['total_amount'] += entry.amount or Decimal('0.00')
 
     month_groups = list(grouped.values())
-    for index, group in enumerate(month_groups):
+    for group in month_groups:
         group['count'] = len(group['entries'])
-        group['expanded'] = index == 0
+        group['expanded'] = False
     return month_groups
 
 
