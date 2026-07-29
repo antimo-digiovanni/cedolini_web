@@ -568,6 +568,57 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["reimbursement_report_entries_count"], 1)
 		self.assertEqual(page.context["reimbursement_report_total"], Decimal("120.00"))
 
+	def test_archived_reimbursements_are_grouped_by_settlement_month(self):
+		july_settlement = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 10).date(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+			category="Rimborso spese",
+			amount=Decimal("75.00"),
+			description="Rimborso luglio",
+		)
+		july_entry = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 5).date(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+			category="Trasferta",
+			amount=Decimal("80.00"),
+			reimbursement_amount=Decimal("75.00"),
+			description="Pranzo cliente",
+			reimbursement_settlement=july_settlement,
+		)
+		august_settlement = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 8, 3).date(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+			category="Rimborso spese",
+			amount=Decimal("120.00"),
+			description="Rimborso agosto",
+		)
+		august_entry = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=datetime(2026, 7, 28).date(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+			category="Hotel",
+			amount=Decimal("120.00"),
+			reimbursement_amount=Decimal("120.00"),
+			description="Pernottamento",
+			reimbursement_settlement=august_settlement,
+		)
+
+		self.client.force_login(self.user)
+		page = self.client.get(reverse("personal_asset_dashboard"))
+
+		groups = page.context["archived_reimbursement_groups"]
+		self.assertEqual(len(groups), 2)
+		self.assertEqual(groups[0]["label"], "Agosto 2026")
+		self.assertEqual(groups[0]["total_amount"], Decimal("120.00"))
+		self.assertEqual(groups[0]["entry_count"], 1)
+		self.assertEqual(groups[0]["settlements"][0]["entries"][0].id, august_entry.id)
+		self.assertEqual(groups[1]["label"], "Luglio 2026")
+		self.assertEqual(groups[1]["total_amount"], Decimal("75.00"))
+		self.assertEqual(groups[1]["settlements"][0]["entries"][0].id, july_entry.id)
+
 	def test_deletes_entry(self):
 		entry = PersonalAssetEntry.objects.create(
 			user=self.user,

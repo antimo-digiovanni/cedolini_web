@@ -201,6 +201,66 @@ def _reopen_reimbursement_report_entries(settlement_entry):
     )
 
 
+def _personal_asset_archived_reimbursement_groups(user):
+    archived_entries = list(
+        PersonalAssetEntry.objects
+        .filter(
+            user=user,
+            reimbursement_settlement__isnull=False,
+            operation_type__in=[
+                PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+                PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+                PersonalAssetEntry.TYPE_CREDIT_CARD_REIMBURSABLE_EXPENSE,
+            ],
+        )
+        .select_related('reimbursement_settlement')
+        .order_by(
+            '-reimbursement_settlement__occurred_on',
+            '-reimbursement_settlement__created_at',
+            '-reimbursement_settlement__id',
+            'occurred_on',
+            'created_at',
+            'id',
+        )
+    )
+
+    month_groups = OrderedDict()
+    for entry in archived_entries:
+        settlement = entry.reimbursement_settlement
+        if settlement is None:
+            continue
+
+        month_key = (settlement.occurred_on.year, settlement.occurred_on.month)
+        month_group = month_groups.setdefault(month_key, {
+            'key': f'{settlement.occurred_on.year}-{settlement.occurred_on.month:02d}',
+            'label': f"{MONTH_LABELS_IT[settlement.occurred_on.month]} {settlement.occurred_on.year}",
+            'total_amount': Decimal('0.00'),
+            'entry_count': 0,
+            'settlements': OrderedDict(),
+        })
+
+        settlement_group = month_group['settlements'].setdefault(settlement.id, {
+            'id': settlement.id,
+            'occurred_on': settlement.occurred_on,
+            'description': settlement.description,
+            'amount': settlement.amount,
+            'entry_count': 0,
+            'entries': [],
+        })
+
+        reimb_value = entry.reimbursement_amount or entry.amount or Decimal('0.00')
+        month_group['total_amount'] += reimb_value
+        month_group['entry_count'] += 1
+        settlement_group['entry_count'] += 1
+        settlement_group['entries'].append(entry)
+
+    groups = []
+    for month_group in month_groups.values():
+        month_group['settlements'] = list(month_group['settlements'].values())
+        groups.append(month_group)
+    return groups
+
+
 def _personal_asset_income_types():
     return {
         PersonalAssetEntry.TYPE_INCOME,
@@ -3618,6 +3678,7 @@ def personal_asset_dashboard(request):
     monthly_summaries = _personal_asset_monthly_summaries(request.user)
     reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
     reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
+    archived_reimbursement_groups = _personal_asset_archived_reimbursement_groups(request.user)
     category_suggestions = _personal_asset_category_suggestions(request.user)
     reimbursement_toggle_query = '0' if show_reimbursement_in_assets else '1'
 
@@ -3635,6 +3696,7 @@ def personal_asset_dashboard(request):
         'reimbursement_toggle_query': reimbursement_toggle_query,
         'reimbursement_report_entries_count': len(reimbursement_entries),
         'reimbursement_report_total': reimbursement_total,
+        'archived_reimbursement_groups': archived_reimbursement_groups,
         'reimbursement_report_recipients': _personal_asset_reimbursement_report_email_recipients(),
     })
 

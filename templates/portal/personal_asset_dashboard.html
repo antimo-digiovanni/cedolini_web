@@ -251,6 +251,98 @@
         </div>
     </div>
 
+    <div class="card-modern bg-white">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <h4 class="fw-semibold mb-1">Archivio rimborsi</h4>
+                <p class="finance-note mb-0">Qui trovi i rimborsi gia chiusi, organizzati per mese di pagamento.</p>
+            </div>
+            <span class="finance-pill">{{ archived_reimbursement_groups|length }} mesi</span>
+        </div>
+
+        {% if archived_reimbursement_groups %}
+        <div class="accordion" id="archivedReimbursementAccordion">
+            {% for month_group in archived_reimbursement_groups %}
+            <div class="finance-month-toggle">
+                <button class="finance-month-toggle-btn d-flex justify-content-between align-items-center gap-3 {% if not forloop.first %}collapsed{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#archived-reimbursement-{{ month_group.key }}"
+                        aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                        aria-controls="archived-reimbursement-{{ month_group.key }}">
+                    <div>
+                        <div class="fw-semibold">{{ month_group.label }}</div>
+                        <div class="finance-month-meta">{{ month_group.entry_count }} voci archiviate · {{ month_group.total_amount|floatformat:2 }} €</div>
+                    </div>
+                    <span class="finance-pill">Apri mese</span>
+                </button>
+
+                <div id="archived-reimbursement-{{ month_group.key }}" class="collapse {% if forloop.first %}show{% endif %} mt-3">
+                    {% for settlement in month_group.settlements %}
+                    <div class="border rounded-4 p-3 {% if not forloop.last %}mb-3{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-2 flex-wrap">
+                            <div>
+                                <div class="fw-semibold">Liquidazione del {{ settlement.occurred_on|date:"d/m/Y" }}</div>
+                                <div class="finance-note">{{ settlement.description|default:"Rimborso spese pagato" }}</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-semibold">{{ settlement.amount|floatformat:2 }} €</div>
+                                <div class="small text-muted">{{ settlement.entry_count }} voci</div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive d-none d-md-block">
+                            <table class="table finance-history-table align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Data spesa</th>
+                                        <th>Tipo</th>
+                                        <th>Categoria</th>
+                                        <th>Descrizione</th>
+                                        <th class="text-end">Importo</th>
+                                        <th class="text-end">Rimborso</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in settlement.entries %}
+                                    <tr>
+                                        <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
+                                        <td>{{ entry.get_operation_type_display }}</td>
+                                        <td>{{ entry.category }}</td>
+                                        <td>{{ entry.description|default:"-" }}</td>
+                                        <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
+                                        <td class="text-end">{{ entry.reimbursement_amount|default:entry.amount|floatformat:2 }} €</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-md-none">
+                            {% for entry in settlement.entries %}
+                            <div class="border rounded-4 p-3 {% if not forloop.last %}mb-2{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <div class="fw-semibold">{{ entry.category }}</div>
+                                        <div class="finance-note">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.get_operation_type_display }}</div>
+                                    </div>
+                                    <div class="text-end fw-semibold">{{ entry.reimbursement_amount|default:entry.amount|floatformat:2 }} €</div>
+                                </div>
+                                <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-light border mb-0">Nessun rimborso archiviato per ora. Quando registri un Rimborso spesa pagato, il mese comparira qui.</div>
+        {% endif %}
+    </div>
+
     <div class="finance-kpi-card">
         <div class="finance-kpi-label">Saldo conto corrente</div>
         <div class="finance-kpi-value">{{ finance_summary.account_balance|floatformat:2 }} €</div>
