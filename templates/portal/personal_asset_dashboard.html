@@ -246,8 +246,15 @@
             <span class="finance-pill">{{ reimbursement_report_entries_count }} voci</span>
         </div>
         <div class="small mb-2">Totale report: <strong>{{ reimbursement_report_total|floatformat:2 }} €</strong></div>
-        <div class="d-grid">
+        <div class="d-grid gap-2">
             <a class="btn btn-outline-success" href="?report=reimbursement_jpg">Scarica file rimborso spese JPG</a>
+            {% if reimbursement_report_entries_count %}
+            <form method="post" class="m-0" data-confirm-reimbursement-reset="1">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reset_reimbursement_entries">
+                <button type="submit" class="btn btn-outline-danger">Reset rimborso spese</button>
+            </form>
+            {% endif %}
         </div>
     </div>
 
@@ -653,6 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoryButtons = Array.from(document.querySelectorAll('[data-category-value]'));
     const deleteForms = Array.from(document.querySelectorAll('form[data-confirm-delete="1"]'));
     const resetForms = Array.from(document.querySelectorAll('form[data-confirm-reset="1"]'));
+    const reimbursementResetForms = Array.from(document.querySelectorAll('form[data-confirm-reimbursement-reset="1"]'));
     const optionalToggle = document.getElementById('toggleFinanceOptionalFields');
     const optionalFields = document.getElementById('financeOptionalFields');
     const adjustmentDirection = document.getElementById('financeAdjustmentDirection');
@@ -717,6 +725,14 @@ document.addEventListener('DOMContentLoaded', () => {
     resetForms.forEach(form => {
         form.addEventListener('submit', event => {
             if (!window.confirm('Vuoi davvero eliminare tutte le voci?')) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    reimbursementResetForms.forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!window.confirm('Vuoi davvero eliminare tutte le voci attualmente aperte del rimborso spese?')) {
                 event.preventDefault();
             }
         });

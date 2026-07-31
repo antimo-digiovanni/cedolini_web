@@ -374,6 +374,47 @@ class PersonalAssetDashboardTests(TestCase):
 		_, reimbursement_entries, _ = _build_personal_asset_reimbursement_report_image(self.user)
 		self.assertEqual([entry.description for entry in reimbursement_entries], ["Prima", "Seconda", "Terza"])
 
+	def test_can_reset_only_open_reimbursement_report_entries(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE_PENDING,
+			category="Trasferta",
+			amount=Decimal("120.00"),
+			reimbursement_amount=Decimal("120.00"),
+			description="Spesa aperta",
+		)
+		settlement = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+			category="Rimborso spese",
+			amount=Decimal("50.00"),
+			description="Liquidazione precedente",
+		)
+		archived_entry = PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSABLE_EXPENSE,
+			category="Hotel",
+			amount=Decimal("50.00"),
+			reimbursement_amount=Decimal("50.00"),
+			description="Spesa archiviata",
+			reimbursement_settlement=settlement,
+		)
+
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "reset_reimbursement_entries",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=reimbursement_reset")
+		self.assertFalse(PersonalAssetEntry.objects.filter(description="Spesa aperta").exists())
+		self.assertTrue(PersonalAssetEntry.objects.filter(id=archived_entry.id).exists())
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["reimbursement_report_entries_count"], 0)
+		self.assertEqual(page.context["archived_reimbursement_groups"][0]["entry_count"], 1)
+
 	def test_quick_adjusts_account_balance_without_creating_entry(self):
 		self.client.force_login(self.user)
 		response = self.client.post(reverse("personal_asset_dashboard"), {

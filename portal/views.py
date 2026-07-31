@@ -3560,6 +3560,8 @@ def personal_asset_dashboard(request):
         feedback = 'Voce eliminata correttamente.'
     elif status == 'reset':
         feedback = 'Tutte le voci sono state eliminate correttamente.'
+    elif status == 'reimbursement_reset':
+        feedback = 'Le voci del report rimborso spese aperto sono state eliminate correttamente.'
     elif status == 'account_adjusted':
         feedback = 'Saldo conto corrente aggiornato correttamente.'
 
@@ -3604,6 +3606,22 @@ def personal_asset_dashboard(request):
                 )
                 PersonalAssetEntry.objects.filter(user=request.user).delete()
             return redirect(f'{request.path}?status=reset')
+
+        if action == 'reset_reimbursement_entries':
+            reimbursement_entries_to_delete = list(_personal_asset_reimbursement_entries_queryset(request.user))
+            if reimbursement_entries_to_delete:
+                _create_audit_event(
+                    request,
+                    'personal_asset_reimbursement_entries_reset',
+                    employee=getattr(request.user, 'employee', None),
+                    metadata={
+                        'deleted_entries_count': len(reimbursement_entries_to_delete),
+                    },
+                )
+                PersonalAssetEntry.objects.filter(
+                    id__in=[entry.id for entry in reimbursement_entries_to_delete],
+                ).delete()
+            return redirect(f'{request.path}?status=reimbursement_reset')
 
         if action in ['adjust_account_balance', 'set_account_balance']:
             adjustment_form = PersonalAssetQuickAccountAdjustmentForm(request.POST)
