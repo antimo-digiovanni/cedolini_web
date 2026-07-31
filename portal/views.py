@@ -584,12 +584,13 @@ def _personal_asset_summary(user, *, reference_date=None, include_reimbursement_
         (reference_date.year, reference_date.month),
         _personal_asset_empty_month_bucket(),
     )
+    reimbursement_balance = metrics['reimbursement_balance'] + (setting.personal_asset_reimbursement_adjustment or zero)
     account_balance = metrics['account_balance'] + (setting.personal_asset_account_adjustment or zero)
-    projected_account_balance = account_balance + metrics['reimbursement_balance'] - metrics['pending_credit_card_balance']
+    projected_account_balance = account_balance + reimbursement_balance - metrics['pending_credit_card_balance']
 
     total_assets = account_balance + metrics['piggy_bank_balance'] - metrics['pending_credit_card_balance']
     if include_reimbursement_in_total_assets:
-        total_assets += metrics['reimbursement_balance']
+        total_assets += reimbursement_balance
     monthly_saving = monthly_totals['income'] - monthly_totals['expense']
 
     return {
@@ -597,7 +598,8 @@ def _personal_asset_summary(user, *, reference_date=None, include_reimbursement_
         'account_adjustment': setting.personal_asset_account_adjustment or zero,
         'projected_account_balance': projected_account_balance,
         'piggy_bank_balance': metrics['piggy_bank_balance'],
-        'reimbursement_balance': metrics['reimbursement_balance'],
+        'reimbursement_balance': reimbursement_balance,
+        'reimbursement_adjustment': setting.personal_asset_reimbursement_adjustment or zero,
         'pending_credit_card_balance': metrics['pending_credit_card_balance'],
         'include_reimbursement_in_total_assets': include_reimbursement_in_total_assets,
         'advance_balance': metrics['advance_balance'],
@@ -3564,6 +3566,8 @@ def personal_asset_dashboard(request):
         feedback = 'Le voci del report rimborso spese aperto sono state eliminate correttamente.'
     elif status == 'account_adjusted':
         feedback = 'Saldo conto corrente aggiornato correttamente.'
+    elif status == 'reimbursement_adjusted':
+        feedback = 'Saldo rimborsi da ricevere aggiornato correttamente.'
 
     form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
     adjustment_form = PersonalAssetQuickAccountAdjustmentForm()
@@ -3622,6 +3626,22 @@ def personal_asset_dashboard(request):
                     id__in=[entry.id for entry in reimbursement_entries_to_delete],
                 ).delete()
             return redirect(f'{request.path}?status=reimbursement_reset')
+
+        if action == 'reset_reimbursement_balance':
+            setting, _ = PortalUserSetting.objects.get_or_create(user=request.user)
+            metrics = _personal_asset_collect_metrics(request.user)
+            setting.personal_asset_reimbursement_adjustment = -(metrics['reimbursement_balance'])
+            setting.save(update_fields=['personal_asset_reimbursement_adjustment'])
+            _create_audit_event(
+                request,
+                'personal_asset_reimbursement_adjusted',
+                employee=getattr(request.user, 'employee', None),
+                metadata={
+                    'new_adjustment_total': str(setting.personal_asset_reimbursement_adjustment),
+                    'mode': 'reset_to_zero',
+                },
+            )
+            return redirect(f'{request.path}?status=reimbursement_adjusted')
 
         if action in ['adjust_account_balance', 'set_account_balance']:
             adjustment_form = PersonalAssetQuickAccountAdjustmentForm(request.POST)

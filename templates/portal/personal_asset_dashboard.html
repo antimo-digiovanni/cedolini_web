@@ -384,6 +384,14 @@
     <div class="finance-kpi-card">
         <div class="finance-kpi-label">Rimborsi da ricevere</div>
         <div class="finance-kpi-value">{{ finance_summary.reimbursement_balance|floatformat:2 }} €</div>
+        <div class="finance-note mt-2">Correzione manuale fuori dallo storico: {{ finance_summary.reimbursement_adjustment|floatformat:2 }} €</div>
+        {% if finance_summary.reimbursement_balance != 0 %}
+        <form method="post" class="mt-2" data-confirm-reimbursement-balance-reset="1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset_reimbursement_balance">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Porta a zero</button>
+        </form>
+        {% endif %}
     </div>
 
     <div class="finance-kpi-card border-primary">
@@ -661,6 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteForms = Array.from(document.querySelectorAll('form[data-confirm-delete="1"]'));
     const resetForms = Array.from(document.querySelectorAll('form[data-confirm-reset="1"]'));
     const reimbursementResetForms = Array.from(document.querySelectorAll('form[data-confirm-reimbursement-reset="1"]'));
+    const reimbursementBalanceResetForms = Array.from(document.querySelectorAll('form[data-confirm-reimbursement-balance-reset="1"]'));
     const optionalToggle = document.getElementById('toggleFinanceOptionalFields');
     const optionalFields = document.getElementById('financeOptionalFields');
     const adjustmentDirection = document.getElementById('financeAdjustmentDirection');
@@ -733,6 +742,14 @@ document.addEventListener('DOMContentLoaded', () => {
     reimbursementResetForms.forEach(form => {
         form.addEventListener('submit', event => {
             if (!window.confirm('Vuoi davvero eliminare tutte le voci attualmente aperte del rimborso spese?')) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    reimbursementBalanceResetForms.forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!window.confirm('Vuoi davvero portare a zero il saldo rimborsi da ricevere?')) {
                 event.preventDefault();
             }
         });

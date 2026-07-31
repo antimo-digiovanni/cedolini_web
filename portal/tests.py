@@ -340,6 +340,25 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("120.00"))
 		self.assertEqual(page.context["reimbursement_report_entries_count"], 1)
 
+	def test_can_reset_reimbursement_balance_to_zero(self):
+		PersonalAssetEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=PersonalAssetEntry.TYPE_REIMBURSEMENT_RECEIVED,
+			category="Rimborso spese",
+			amount=Decimal("530.01"),
+			description="Rimborso registrato in eccesso",
+		)
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "reset_reimbursement_balance",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=reimbursement_adjusted")
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("0.00"))
+		self.assertEqual(page.context["finance_summary"]["reimbursement_adjustment"], Decimal("530.01"))
+
 	def test_reimbursement_report_entries_are_sorted_by_oldest_date_first(self):
 		from .views import _build_personal_asset_reimbursement_report_image
 
