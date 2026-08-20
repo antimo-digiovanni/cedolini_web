@@ -146,7 +146,7 @@
                 <div class="col-md-3">
                     <label class="form-label" for="{{ corporate_card_form.receipt_image.id_for_label }}">{{ corporate_card_form.receipt_image.label }}</label>
                     {{ corporate_card_form.receipt_image }}
-                    <div class="form-text">Puoi scegliere una foto o scattarla dal telefono.</div>
+                    <div class="form-text">Scegli una foto oppure un PDF dal telefono.</div>
                     {% for error in corporate_card_form.receipt_image.errors %}
                     <div class="text-danger small mt-1">{{ error }}</div>
                     {% endfor %}

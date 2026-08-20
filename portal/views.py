@@ -365,13 +365,24 @@ def _corporate_card_pdf_response(request):
             entry.receipt_image.open('rb')
             image_bytes = entry.receipt_image.read()
             entry.receipt_image.close()
+            attachment_name = (entry.receipt_image.name or '').lower()
+            if attachment_name.endswith('.pdf'):
+                import fitz
+
+                pdf_document = fitz.open(stream=image_bytes, filetype='pdf')
+                if pdf_document.page_count == 0:
+                    pdf_document.close()
+                    continue
+                pdf_page = pdf_document.load_page(0)
+                image_bytes = pdf_page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False).tobytes('png')
+                pdf_document.close()
             image_reader = ImageReader(io.BytesIO(image_bytes))
             image_width, image_height = image_reader.getSize()
             max_width = 75 * mm
             max_height = 95 * mm
             scale = min(max_width / image_width, max_height / image_height, 1)
             receipt_blocks.append(KeepTogether([
-                Paragraph(f"Scontrino: {entry.occurred_on.strftime('%d/%m/%Y')} - {entry.category}", styles['CorporateReceiptTitle']),
+                Paragraph(f"Allegato: {entry.occurred_on.strftime('%d/%m/%Y')} - {entry.category}", styles['CorporateReceiptTitle']),
                 ReportImage(io.BytesIO(image_bytes), width=image_width * scale, height=image_height * scale),
                 Spacer(1, 4 * mm),
             ]))

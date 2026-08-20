@@ -127,7 +127,7 @@ class CorporateCardEntryForm(forms.ModelForm):
             'category': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Es: Carburante, pranzo, materiale'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Descrizione opzionale'}),
-            'receipt_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*', 'capture': 'environment'}),
+            'receipt_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*,.pdf,application/pdf'}),
         }
         labels = {
             'occurred_on': 'Data',

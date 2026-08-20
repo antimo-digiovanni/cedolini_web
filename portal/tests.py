@@ -465,6 +465,46 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertIn(b'%PDF', pdf_response.content[:20])
 		self.assertTrue(CorporateCardEntry.objects.get(category="Pranzo").receipt_image.name)
 
+	@override_settings(STORAGES={
+		'default': {
+			'BACKEND': 'django.core.files.storage.FileSystemStorage',
+			'OPTIONS': {'location': tempfile.gettempdir()},
+		},
+		'staticfiles': {
+			'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+		},
+	})
+	def test_corporate_card_pdf_accepts_pdf_receipt_attachment(self):
+		from reportlab.pdfgen import canvas
+
+		pdf_buffer = BytesIO()
+		pdf_canvas = canvas.Canvas(pdf_buffer)
+		pdf_canvas.drawString(40, 760, 'Documento scontrino PDF')
+		pdf_canvas.save()
+		pdf_buffer.seek(0)
+		self.client.force_login(self.user)
+		self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"amount": "100.00",
+		})
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_EXPENSE,
+			"amount": "20.00",
+			"category": "Documento",
+			"receipt_image": SimpleUploadedFile('documento.pdf', pdf_buffer.getvalue(), content_type='application/pdf'),
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+		pdf_response = self.client.get(reverse("personal_asset_dashboard"), {
+			"report": "corporate_card_pdf",
+			"year": "2026",
+			"month": "8",
+		})
+		self.assertEqual(pdf_response.status_code, 200)
+		self.assertEqual(pdf_response['Content-Type'], 'application/pdf')
+		self.assertTrue(CorporateCardEntry.objects.get(category="Documento").receipt_image.name.endswith('.pdf'))
+
 	def test_reimbursement_report_entries_are_sorted_by_oldest_date_first(self):
 		from .views import _build_personal_asset_reimbursement_report_image
 
