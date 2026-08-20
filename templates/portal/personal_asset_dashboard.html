@@ -37,8 +37,36 @@
     text-transform: uppercase;
     color: #64748b;
 }
+.corporate-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.corporate-card-mobile-entry {
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    padding: 0.9rem;
+    background: #ffffff;
+}
+.corporate-card-mobile-entry + .corporate-card-mobile-entry {
+    margin-top: 0.75rem;
+}
+.corporate-card-mobile-meta {
+    color: #64748b;
+    font-size: 0.85rem;
+}
 @media (max-width: 767.98px) {
-    .corporate-card-panel { padding: 0.95rem; }
+    .corporate-card-page { width: 100%; }
+    .corporate-card-panel { padding: 0.85rem; }
+    .corporate-card-balance-value { font-size: 2rem; }
+    .corporate-card-actions { display: grid; grid-template-columns: 1fr; }
+    .corporate-card-actions > *, .corporate-card-actions form, .corporate-card-actions a,
+    .corporate-card-actions button { width: 100%; }
+    .corporate-card-panel .form-control,
+    .corporate-card-panel .form-select { min-height: 46px; font-size: 1rem; }
+    .corporate-card-panel button,
+    .corporate-card-panel .btn { min-height: 46px; }
+    .corporate-card-panel .form-label { margin-top: 0.25rem; font-weight: 600; }
 }
 </style>
 {% endblock %}
@@ -71,7 +99,7 @@
                 </div>
             </div>
             <div class="col-lg-7">
-                <div class="d-flex flex-wrap gap-2 h-100 align-items-center">
+                <div class="corporate-card-actions h-100 align-items-center">
                     <a class="btn btn-success" href="?report=corporate_card_pdf">Scarica riepilogo PDF</a>
                     {% for card_month in corporate_card_months %}
                     <a class="btn btn-outline-success" href="?report=corporate_card_pdf&year={{ card_month.year }}&month={{ card_month.month }}">PDF {{ card_month.label }}</a>
@@ -141,7 +169,7 @@
         </div>
 
         {% if corporate_card_entries %}
-        <div class="table-responsive">
+        <div class="table-responsive d-none d-md-block">
             <table class="table corporate-card-table align-middle mb-0">
                 <thead>
                     <tr>
@@ -175,6 +203,29 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        <div class="d-md-none">
+            {% for entry in corporate_card_entries %}
+            <div class="corporate-card-mobile-entry">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <div class="fw-semibold">{{ entry.get_operation_type_display }}</div>
+                        <div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div>
+                    </div>
+                    <div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div>
+                </div>
+                <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
+                <div class="d-flex justify-content-between align-items-center gap-2 mt-3">
+                    <span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span>
+                    <form method="post" class="m-0" data-confirm-delete="1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_corporate_card_entry">
+                        <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         {% else %}
         <div class="alert alert-light border mb-0">Nessun movimento della carta aziendale. Inserisci la prima ricarica del datore per iniziare.</div>
