@@ -1,762 +1,204 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Gestione Patrimonio{% endblock %}
+{% block title %}Gestione carta aziendale{% endblock %}
 
 {% block extra_css %}
 <style>
-.finance-stack > * + * {
-    margin-top: 1rem;
+.corporate-card-page {
+    max-width: 1080px;
+    margin: 0 auto;
 }
-
-.finance-kpi-card,
-.finance-report-card,
-.finance-optional-box {
-    border: 1px solid rgba(148, 163, 184, 0.18);
+.corporate-card-panel {
+    border: 1px solid #198754;
     border-radius: 18px;
     background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+    padding: 1.25rem;
 }
-
-.finance-kpi-card,
-.finance-report-card {
+.corporate-card-balance {
+    border-radius: 14px;
+    background: #198754;
+    color: #ffffff;
     padding: 1rem 1.1rem;
 }
-
-.finance-kpi-label {
-    font-size: 0.82rem;
+.corporate-card-balance-label {
+    font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #64748b;
-    margin-bottom: 0.35rem;
+    opacity: 0.8;
 }
-
-.finance-kpi-value {
-    font-size: clamp(1.45rem, 3vw, 2rem);
+.corporate-card-balance-value {
+    font-size: 2.2rem;
     font-weight: 700;
-    color: #0f172a;
     line-height: 1.1;
 }
-
-.finance-month-card {
-    background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
-    color: #ffffff;
-}
-
-.finance-month-card .finance-kpi-value,
-.finance-month-card .finance-kpi-label,
-.finance-month-card .small,
-.finance-month-card .fw-semibold {
-    color: inherit;
-}
-
-.finance-note {
-    color: #64748b;
-    font-size: 0.93rem;
-}
-
-.finance-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.35rem 0.7rem;
-    border-radius: 999px;
-    background: #dbeafe;
-    color: #1d4ed8;
-    font-size: 0.8rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.finance-quick-type-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.75rem;
-}
-
-.finance-type-option {
-    width: 100%;
-    border: 1px solid #cbd5e1;
-    border-radius: 16px;
-    padding: 0.85rem 0.95rem;
-    background: #ffffff;
-    text-align: left;
-    transition: 0.2s ease;
-}
-
-.finance-type-option:hover,
-.finance-type-option.is-active {
-    border-color: #2563eb;
-    background: #eff6ff;
-    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.12);
-}
-
-.finance-type-option-title {
-    display: block;
-    font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 0.2rem;
-}
-
-.finance-type-option-note {
-    display: block;
-    font-size: 0.85rem;
-    color: #64748b;
-    line-height: 1.35;
-}
-
-.finance-quick-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.9rem;
-}
-
-.finance-inline-help {
-    font-size: 0.8rem;
-    color: #64748b;
-}
-
-.finance-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.55rem;
-    margin-top: 0.7rem;
-}
-
-.finance-chip-button {
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    color: #334155;
-    border-radius: 999px;
-    padding: 0.42rem 0.8rem;
-    font-size: 0.88rem;
-    transition: 0.2s ease;
-}
-
-.finance-chip-button:hover {
-    border-color: #2563eb;
-    color: #1d4ed8;
-    background: #eff6ff;
-}
-
-.finance-optional-box {
-    padding: 0.9rem 1rem;
-}
-
-.finance-balance-inline-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
-    gap: 0.5rem;
-    margin-top: 0.9rem;
-}
-
-.finance-month-toggle {
-    border: 1px solid #dbe4f0;
-    border-radius: 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-    padding: 0.9rem 1rem;
-}
-
-.finance-month-toggle + .finance-month-toggle {
-    margin-top: 0.85rem;
-}
-
-.finance-month-toggle-btn {
-    width: 100%;
-    border: 0;
-    background: transparent;
-    padding: 0;
-    text-align: left;
-}
-
-.finance-month-meta {
-    color: #64748b;
-    font-size: 0.88rem;
-}
-
-.finance-month-summary-list {
-    margin-top: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    padding-top: 0.9rem;
-}
-
-.finance-month-summary-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-}
-
-.finance-month-summary-row + .finance-month-summary-row {
-    margin-top: 0.8rem;
-}
-
-.finance-month-summary-amount {
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.finance-history-table thead th {
-    font-size: 0.8rem;
+.corporate-card-table thead th {
+    font-size: 0.78rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
     color: #64748b;
-    border-bottom-width: 1px;
 }
-
-.finance-history-table tbody td {
-    vertical-align: middle;
-}
-
 @media (max-width: 767.98px) {
-    .finance-quick-row {
-        grid-template-columns: 1fr;
-    }
-
-    .finance-report-card,
-    .finance-kpi-card {
-        padding: 0.95rem;
-    }
+    .corporate-card-panel { padding: 0.95rem; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-hero mb-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-        <div>
-            <h2 class="h3 mb-2">Gestione Patrimonio</h2>
-            <p class="mb-0">Controlla saldi, rimborsi e movimenti in un unico flusso semplice.</p>
-        </div>
-        <div class="finance-pill">Accesso riservato</div>
-    </div>
-</div>
-
-{% if feedback %}
-<div class="alert alert-{{ feedback_level|default:'info' }} mb-4" role="alert">
-    {{ feedback }}
-</div>
-{% endif %}
-
-<div class="finance-stack mb-4">
-    <div class="finance-report-card">
-        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+<div class="corporate-card-page">
+    <div class="page-hero mb-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
             <div>
-                <h4 class="fw-semibold mb-1">Rimborso spese</h4>
-                <p class="finance-note mb-0">Scarica il file nello stile del prospetto rimborso spese e invialo tu quando vuoi.</p>
+                <h2 class="h3 mb-2">Gestione carta di credito aziendale</h2>
+                <p class="mb-0">Registra le ricariche del datore, controlla le spese e stampa il riepilogo da consegnare.</p>
             </div>
-            <span class="finance-pill">{{ reimbursement_report_entries_count }} voci</span>
+            <div class="finance-pill">Carta aziendale</div>
         </div>
-        <div class="small mb-2">Totale report: <strong>{{ reimbursement_report_total|floatformat:2 }} €</strong></div>
-        <div class="d-grid gap-2">
-            <a class="btn btn-outline-success" href="?report=reimbursement_jpg">Scarica file rimborso spese JPG</a>
-            {% if reimbursement_report_entries_count %}
-            <form method="post" class="m-0" data-confirm-reimbursement-reset="1">
+    </div>
+
+    {% if feedback %}
+    <div class="alert alert-{{ feedback_level|default:'info' }} mb-4" role="alert">
+        {{ feedback }}
+    </div>
+    {% endif %}
+
+    <div class="corporate-card-panel">
+        <div class="row g-3 align-items-stretch mb-4">
+            <div class="col-lg-5">
+                <div class="corporate-card-balance h-100">
+                    <div class="corporate-card-balance-label">Saldo disponibile</div>
+                    <div class="corporate-card-balance-value mt-2">{{ corporate_card_balance|floatformat:2 }} €</div>
+                    <div class="small mt-2">Ricariche del datore meno spese registrate.</div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="d-flex flex-wrap gap-2 h-100 align-items-center">
+                    <a class="btn btn-success" href="?report=corporate_card_pdf">Scarica riepilogo PDF</a>
+                    {% for card_month in corporate_card_months %}
+                    <a class="btn btn-outline-success" href="?report=corporate_card_pdf&year={{ card_month.year }}&month={{ card_month.month }}">PDF {{ card_month.label }}</a>
+                    {% endfor %}
+                    {% if corporate_card_entries %}
+                    <form method="post" class="m-0" data-confirm-corporate-card-reset="1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reset_corporate_card">
+                        <button type="submit" class="btn btn-outline-danger">Azzera carta aziendale</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="border rounded-3 p-3 mb-4">
+            <h4 class="h6 fw-semibold mb-3">Nuovo movimento</h4>
+            <form method="post" class="row g-3" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
-                <input type="hidden" name="action" value="reset_reimbursement_entries">
-                <button type="submit" class="btn btn-outline-danger">Reset rimborso spese</button>
+                <input type="hidden" name="action" value="create_corporate_card_entry">
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ corporate_card_form.operation_type.id_for_label }}">{{ corporate_card_form.operation_type.label }}</label>
+                    {{ corporate_card_form.operation_type }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="{{ corporate_card_form.amount.id_for_label }}">{{ corporate_card_form.amount.label }}</label>
+                    {{ corporate_card_form.amount }}
+                    {% for error in corporate_card_form.amount.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="{{ corporate_card_form.occurred_on.id_for_label }}">{{ corporate_card_form.occurred_on.label }}</label>
+                    {{ corporate_card_form.occurred_on }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="{{ corporate_card_form.category.id_for_label }}">{{ corporate_card_form.category.label }}</label>
+                    {{ corporate_card_form.category }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ corporate_card_form.description.id_for_label }}">{{ corporate_card_form.description.label }}</label>
+                    {{ corporate_card_form.description }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ corporate_card_form.receipt_image.id_for_label }}">{{ corporate_card_form.receipt_image.label }}</label>
+                    {{ corporate_card_form.receipt_image }}
+                    <div class="form-text">Puoi scegliere una foto o scattarla dal telefono.</div>
+                    {% for error in corporate_card_form.receipt_image.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-12">
+                    {% for error in corporate_card_form.non_field_errors %}
+                    <div class="text-danger small mb-2">{{ error }}</div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-success">Salva movimento carta</button>
+                </div>
             </form>
-            {% endif %}
         </div>
-    </div>
 
-    <div class="card-modern bg-white">
         <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
             <div>
-                <h4 class="fw-semibold mb-1">Archivio rimborsi</h4>
-                <p class="finance-note mb-0">Qui trovi i rimborsi gia chiusi, organizzati per mese di pagamento.</p>
+                <h4 class="h5 fw-semibold mb-1">Movimenti carta</h4>
+                <p class="text-muted small mb-0">Le ricariche aumentano il saldo, le spese lo riducono.</p>
             </div>
-            <span class="finance-pill">{{ archived_reimbursement_groups|length }} mesi</span>
+            <span class="finance-pill">{{ corporate_card_entries|length }} movimenti recenti</span>
         </div>
 
-        {% if archived_reimbursement_groups %}
-        <div class="accordion" id="archivedReimbursementAccordion">
-            {% for month_group in archived_reimbursement_groups %}
-            <div class="finance-month-toggle">
-                <button class="finance-month-toggle-btn d-flex justify-content-between align-items-center gap-3 collapsed"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#archived-reimbursement-{{ month_group.key }}"
-                    aria-expanded="false"
-                        aria-controls="archived-reimbursement-{{ month_group.key }}">
-                    <div>
-                        <div class="fw-semibold">{{ month_group.label }}</div>
-                        <div class="finance-month-meta">{{ month_group.entry_count }} voci archiviate · {{ month_group.total_amount|floatformat:2 }} €</div>
-                    </div>
-                    <span class="finance-pill">Apri mese</span>
-                </button>
-
-                <div id="archived-reimbursement-{{ month_group.key }}" class="collapse mt-3">
-                    {% for settlement in month_group.settlements %}
-                    <div class="border rounded-4 p-3 {% if not forloop.last %}mb-3{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start gap-3 mb-2 flex-wrap">
-                            <div>
-                                <div class="fw-semibold">Liquidazione del {{ settlement.occurred_on|date:"d/m/Y" }}</div>
-                                <div class="finance-note">{{ settlement.description|default:"Rimborso spese pagato" }}</div>
-                            </div>
-                            <div class="text-end">
-                                <div class="fw-semibold">{{ settlement.amount|floatformat:2 }} €</div>
-                                <div class="small text-muted">{{ settlement.entry_count }} voci</div>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive d-none d-md-block">
-                            <table class="table finance-history-table align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Data spesa</th>
-                                        <th>Tipo</th>
-                                        <th>Categoria</th>
-                                        <th>Descrizione</th>
-                                        <th class="text-end">Importo</th>
-                                        <th class="text-end">Rimborso</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for entry in settlement.entries %}
-                                    <tr>
-                                        <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
-                                        <td>{{ entry.get_operation_type_display }}</td>
-                                        <td>{{ entry.category }}</td>
-                                        <td>{{ entry.description|default:"-" }}</td>
-                                        <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
-                                        <td class="text-end">{{ entry.reimbursement_amount|default:entry.amount|floatformat:2 }} €</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="d-md-none">
-                            {% for entry in settlement.entries %}
-                            <div class="border rounded-4 p-3 {% if not forloop.last %}mb-2{% endif %}">
-                                <div class="d-flex justify-content-between align-items-start gap-3">
-                                    <div>
-                                        <div class="fw-semibold">{{ entry.category }}</div>
-                                        <div class="finance-note">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.get_operation_type_display }}</div>
-                                    </div>
-                                    <div class="text-end fw-semibold">{{ entry.reimbursement_amount|default:entry.amount|floatformat:2 }} €</div>
-                                </div>
-                                <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="alert alert-light border mb-0">Nessun rimborso archiviato per ora. Quando registri un Rimborso spesa pagato, il mese comparira qui.</div>
-        {% endif %}
-    </div>
-
-    <div class="finance-kpi-card">
-        <div class="finance-kpi-label">Saldo conto corrente</div>
-        <div class="finance-kpi-value">{{ finance_summary.account_balance|floatformat:2 }} €</div>
-        <div class="finance-note mt-2">Correzione manuale fuori dallo storico: {{ finance_summary.account_adjustment|floatformat:2 }} €</div>
-        <div class="finance-note mt-1">Saldo stimato dopo rimborsi e addebiti carta gia registrati: {{ finance_summary.projected_account_balance|floatformat:2 }} €</div>
-        <form method="post" class="finance-balance-inline-form mt-2">
-            {% csrf_token %}
-            <div>
-                {{ adjustment_form.amount }}
-                {% for error in adjustment_form.amount.errors %}
-                <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-            </div>
-            <button type="submit" name="action" value="set_account_balance" class="btn btn-sm btn-primary">Imposta saldo</button>
-            <button type="submit" name="action" value="adjust_account_balance" data-direction-target="increase" class="btn btn-sm btn-outline-primary">Aggiungi</button>
-            <button type="submit" name="action" value="adjust_account_balance" data-direction-target="decrease" class="btn btn-sm btn-outline-secondary">Togli</button>
-            <input type="hidden" name="direction" id="financeAdjustmentDirection" value="increase">
-        </form>
-    </div>
-
-    <div class="finance-kpi-card">
-        <div class="finance-kpi-label">Carta di credito in attesa</div>
-        <div class="finance-kpi-value">{{ finance_summary.pending_credit_card_balance|floatformat:2 }} €</div>
-        <div class="finance-note mt-2">Sono spese gia registrate che verranno addebitate il 15 del mese successivo.</div>
-    </div>
-
-    <div class="finance-kpi-card">
-        <div class="finance-kpi-label">Salvadanaio</div>
-        <div class="finance-kpi-value">{{ finance_summary.piggy_bank_balance|floatformat:2 }} €</div>
-    </div>
-
-    <div class="finance-kpi-card">
-        <div class="finance-kpi-label">Rimborsi da ricevere</div>
-        <div class="finance-kpi-value">{{ finance_summary.reimbursement_balance|floatformat:2 }} €</div>
-        <div class="finance-note mt-2">Correzione manuale fuori dallo storico: {{ finance_summary.reimbursement_adjustment|floatformat:2 }} €</div>
-        {% if finance_summary.reimbursement_balance != 0 %}
-        <form method="post" class="mt-2" data-confirm-reimbursement-balance-reset="1">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="reset_reimbursement_balance">
-            <button type="submit" class="btn btn-sm btn-outline-secondary">Porta a zero</button>
-        </form>
-        {% endif %}
-    </div>
-
-    <div class="finance-kpi-card border-primary">
-        <div class="d-flex justify-content-between align-items-center gap-2">
-            <div class="finance-kpi-label mb-0">Patrimonio reale</div>
-            <a class="finance-pill text-decoration-none" href="?show_reimbursement_in_assets={{ reimbursement_toggle_query }}">
-                Rimborso {% if show_reimbursement_in_assets %}ON{% else %}OFF{% endif %}
-            </a>
-        </div>
-        <div class="finance-kpi-value">{{ finance_summary.total_assets|floatformat:2 }} €</div>
-        <div class="finance-note mt-2">
-            Conto + Salvadanaio - Carta da addebitare{% if show_reimbursement_in_assets %} + Rimborsi da ricevere{% endif %}
-        </div>
-    </div>
-
-    <div class="finance-kpi-card finance-month-card">
-        <div class="finance-kpi-label text-white-50">Risparmio per mese</div>
-        <div class="fw-semibold mb-2">{{ finance_summary.month_label }}</div>
-        <div class="small">Entrate: {{ finance_summary.monthly_income|floatformat:2 }} €</div>
-        <div class="small">Uscite registrate: {{ finance_summary.monthly_expense|floatformat:2 }} €</div>
-        <div class="small">Risparmio: {{ finance_summary.monthly_saving|floatformat:2 }} €</div>
-        <div class="small">Effetto cassa: {{ finance_summary.monthly_cash_flow|floatformat:2 }} €</div>
-        <div class="small text-white-50 mt-2">Le spese con carta entrano nel mese in cui le fai, anche se l'addebito arriva il 15 del mese dopo.</div>
-        {% if finance_monthly_summaries %}
-        <div class="finance-month-summary-list">
-            {% for month_summary in finance_monthly_summaries %}
-            <div class="finance-month-summary-row">
-                <div>
-                    <div class="fw-semibold">{{ month_summary.label }}</div>
-                    <div class="small">Entrate: {{ month_summary.income|floatformat:2 }} € · Uscite: {{ month_summary.expense|floatformat:2 }} € · Cassa: {{ month_summary.cash_flow|floatformat:2 }} €</div>
-                </div>
-                <div class="finance-month-summary-amount">{{ month_summary.saving|floatformat:2 }} €</div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-
-    <div class="card-modern bg-white">
-        <h4 class="fw-semibold mb-3">Nuova operazione</h4>
-        <p class="finance-note mb-3">Compila prima importo e tipo operazione. Descrizione e dettagli extra restano opzionali.</p>
-        <form method="post" novalidate>
-            {% csrf_token %}
-            <input type="hidden" name="action" value="create_entry">
-            <div class="mb-3">
-                <label class="form-label">Tipo operazione</label>
-                <div class="finance-quick-type-grid" id="financeTypeGrid">
-                    {% for value, label in finance_form.operation_type.field.choices %}
-                    <button type="button" class="finance-type-option" data-operation-value="{{ value }}">
-                        <span class="finance-type-option-title">{% if value == 'reimbursement_received' %}Rimborso spesa pagato{% else %}{{ label }}{% endif %}</span>
-                        <span class="finance-type-option-note">
-                            {% if value == 'income' %}Aggiunge lo stipendio al conto.
-                            {% elif value == 'expense' %}Registra una spesa personale.
-                            {% elif value == 'credit_card_expense' %}La spesa pesa subito sul patrimonio e verra addebitata il 15 del mese successivo.
-                            {% elif value == 'credit_card_reimbursable_expense' %}Il rimborso entra il 10 del mese successivo e l'addebito carta arriva il 15.
-                            {% elif value == 'transfer_to_piggy_bank' %}Sposta dal conto al salvadanaio.
-                            {% elif value == 'transfer_to_account' %}Riporta dal salvadanaio al conto.
-                            {% elif value == 'reimbursable_expense' %}Scala il conto e aggiunge il credito rimborso.
-                            {% elif value == 'reimbursable_expense_pending' %}La segna nel rimborso ma non scala ancora il conto.
-                            {% elif value == 'reimbursement_received' %}Aggiunge il rimborso spesa pagato al conto.
-                            {% endif %}
-                        </span>
-                    </button>
-                    {% endfor %}
-                </div>
-                <div class="d-none">{{ finance_form.operation_type }}</div>
-                {% for error in finance_form.operation_type.errors %}
-                <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <div class="finance-quick-row mb-3">
-                <div>
-                    <label class="form-label" for="{{ finance_form.amount.id_for_label }}">{{ finance_form.amount.label }}</label>
-                    {{ finance_form.amount }}
-                    {% for error in finance_form.amount.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <div>
-                    <label class="form-label" for="{{ finance_form.occurred_on.id_for_label }}">{{ finance_form.occurred_on.label }}</label>
-                    {{ finance_form.occurred_on }}
-                    <div class="finance-inline-help mt-1">Di default usa la data di oggi.</div>
-                    {% for error in finance_form.occurred_on.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label" for="{{ finance_form.category.id_for_label }}">{{ finance_form.category.label }}</label>
-                {{ finance_form.category }}
-                <div class="finance-chip-row" id="financeCategoryChips">
-                    {% for category in category_suggestions %}
-                    <button type="button" class="finance-chip-button" data-category-value="{{ category }}">{{ category }}</button>
-                    {% endfor %}
-                </div>
-                <datalist id="financeCategorySuggestions">
-                    {% for category in category_suggestions %}
-                    <option value="{{ category }}"></option>
-                    {% endfor %}
-                </datalist>
-                {% for error in finance_form.category.errors %}
-                <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <div class="finance-optional-box mb-3">
-                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-                    <strong class="small text-uppercase text-muted">Dettagli opzionali</strong>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleFinanceOptionalFields">Mostra/Nascondi</button>
-                </div>
-                <div id="financeOptionalFields" class="d-none">
-                    <div class="mb-3" id="financeReimbursementWrapper">
-                        <label class="form-label" for="{{ finance_form.reimbursement_amount.id_for_label }}">{{ finance_form.reimbursement_amount.label }}</label>
-                        {{ finance_form.reimbursement_amount }}
-                        {% if finance_form.reimbursement_amount.help_text %}
-                        <div class="form-text">{{ finance_form.reimbursement_amount.help_text }}</div>
-                        {% endif %}
-                        {% for error in finance_form.reimbursement_amount.errors %}
-                        <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div>
-                        <label class="form-label" for="{{ finance_form.description.id_for_label }}">{{ finance_form.description.label }}</label>
-                        {{ finance_form.description }}
-                        {% for error in finance_form.description.errors %}
-                        <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            {% for error in finance_form.non_field_errors %}
-            <div class="text-danger small mb-2">{{ error }}</div>
-            {% endfor %}
-            <button type="submit" class="btn btn-primary w-100">Salva operazione</button>
-        </form>
-    </div>
-
-    <div class="card-modern bg-white">
-        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-            <div>
-                <h4 class="fw-semibold mb-1">Storico operazioni</h4>
-                <p class="finance-note mb-0">Le statistiche si aggiornano automaticamente a ogni movimento.</p>
-            </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                <span class="finance-pill">{{ finance_entries|length }} operazioni recenti</span>
-                {% if finance_entries %}
-                <form method="post" class="m-0" data-confirm-reset="1">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="reset_entries">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Azzera tutto</button>
-                </form>
-                {% endif %}
-            </div>
-        </div>
-
-        {% if finance_month_groups %}
-        <div class="accordion" id="financeMonthAccordion">
-            {% for month_group in finance_month_groups %}
-            <div class="finance-month-toggle">
-                <button class="finance-month-toggle-btn d-flex justify-content-between align-items-center gap-3 {% if not month_group.expanded %}collapsed{% endif %}"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#finance-month-{{ month_group.key }}"
-                        aria-expanded="{% if month_group.expanded %}true{% else %}false{% endif %}"
-                        aria-controls="finance-month-{{ month_group.key }}">
-                    <div>
-                        <div class="fw-semibold">{{ month_group.label }}</div>
-                        <div class="finance-month-meta">{{ month_group.count }} operazioni · {{ month_group.total_amount|floatformat:2 }} €</div>
-                    </div>
-                    <span class="finance-pill">Apri mese</span>
-                </button>
-
-                <div id="finance-month-{{ month_group.key }}" class="collapse {% if month_group.expanded %}show{% endif %} mt-3">
-                    <div class="table-responsive d-none d-md-block">
-                        <table class="table finance-history-table align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Data</th>
-                                    <th>Operazione</th>
-                                    <th>Categoria</th>
-                                    <th>Descrizione</th>
-                                    <th class="text-end">Importo</th>
-                                    <th class="text-end">Da ricevere</th>
-                                    <th class="text-end">Azioni</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for entry in month_group.entries %}
-                                <tr>
-                                    <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
-                                    <td>{{ entry.get_operation_type_display }}</td>
-                                    <td>{{ entry.category }}</td>
-                                    <td>
-                                        {{ entry.description|default:"-" }}
-                                        {% if entry.scheduled_reimbursement_date %}
-                                        <div class="small text-muted">Rimborso previsto il {{ entry.scheduled_reimbursement_date|date:"d/m/Y" }}</div>
-                                        {% endif %}
-                                        {% if entry.scheduled_charge_date %}
-                                        <div class="small text-muted">Addebito carta il {{ entry.scheduled_charge_date|date:"d/m/Y" }}</div>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
-                                    <td class="text-end">
-                                        {% if entry.reimbursement_amount %}
-                                            {{ entry.reimbursement_amount|floatformat:2 }} €
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        <form method="post" class="d-inline" data-confirm-delete="1">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="delete_entry">
-                                            <input type="hidden" name="entry_id" value="{{ entry.id }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="d-md-none">
-                        {% for entry in month_group.entries %}
-                        <div class="border rounded-4 p-3 mb-3">
-                            <div class="d-flex justify-content-between align-items-start gap-3">
-                                <div>
-                                    <div class="fw-semibold">{{ entry.get_operation_type_display }}</div>
-                                    <div class="finance-note">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div>
-                                </div>
-                                <div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div>
-                            </div>
-                            <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
-                            {% if entry.scheduled_reimbursement_date %}
-                            <div class="small text-muted mt-1">Rimborso previsto il {{ entry.scheduled_reimbursement_date|date:"d/m/Y" }}</div>
-                            {% endif %}
-                            {% if entry.scheduled_charge_date %}
-                            <div class="small text-muted mt-1">Addebito carta il {{ entry.scheduled_charge_date|date:"d/m/Y" }}</div>
-                            {% endif %}
-                            {% if entry.reimbursement_amount %}
-                            <div class="small text-muted mt-1">Da ricevere: {{ entry.reimbursement_amount|floatformat:2 }} €</div>
-                            {% endif %}
-                            <form method="post" class="mt-3" data-confirm-delete="1">
+        {% if corporate_card_entries %}
+        <div class="table-responsive">
+            <table class="table corporate-card-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Movimento</th>
+                        <th>Categoria</th>
+                        <th>Descrizione</th>
+                        <th class="text-end">Importo</th>
+                        <th class="text-end">Saldo dopo</th>
+                        <th class="text-end">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in corporate_card_entries %}
+                    <tr>
+                        <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
+                        <td>{{ entry.get_operation_type_display }}</td>
+                        <td>{{ entry.category }}</td>
+                        <td>{{ entry.description|default:"-" }}</td>
+                        <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
+                        <td class="text-end">{{ entry.balance_after|floatformat:2 }} €</td>
+                        <td class="text-end">
+                            <form method="post" class="d-inline" data-confirm-delete="1">
                                 {% csrf_token %}
-                                <input type="hidden" name="action" value="delete_entry">
+                                <input type="hidden" name="action" value="delete_corporate_card_entry">
                                 <input type="hidden" name="entry_id" value="{{ entry.id }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
                             </form>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         {% else %}
-        <div class="alert alert-light border mb-0">Nessuna operazione registrata. Inserisci il primo movimento per iniziare a costruire lo storico patrimoniale.</div>
+        <div class="alert alert-light border mb-0">Nessun movimento della carta aziendale. Inserisci la prima ricarica del datore per iniziare.</div>
         {% endif %}
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const operationSelect = document.getElementById('id_operation_type');
-    const reimbursementInput = document.getElementById('id_reimbursement_amount');
-    const categoryInput = document.getElementById('id_category');
-    const reimbursementWrapper = document.getElementById('financeReimbursementWrapper');
-    const typeButtons = Array.from(document.querySelectorAll('[data-operation-value]'));
-    const categoryButtons = Array.from(document.querySelectorAll('[data-category-value]'));
-    const deleteForms = Array.from(document.querySelectorAll('form[data-confirm-delete="1"]'));
-    const resetForms = Array.from(document.querySelectorAll('form[data-confirm-reset="1"]'));
-    const reimbursementResetForms = Array.from(document.querySelectorAll('form[data-confirm-reimbursement-reset="1"]'));
-    const reimbursementBalanceResetForms = Array.from(document.querySelectorAll('form[data-confirm-reimbursement-balance-reset="1"]'));
-    const optionalToggle = document.getElementById('toggleFinanceOptionalFields');
-    const optionalFields = document.getElementById('financeOptionalFields');
-    const adjustmentDirection = document.getElementById('financeAdjustmentDirection');
-    const adjustmentButtons = Array.from(document.querySelectorAll('[data-direction-target]'));
-    if (!operationSelect || !reimbursementInput) return;
-
-    const syncVisibility = () => {
-        const visible = operationSelect.value === 'reimbursable_expense' || operationSelect.value === 'reimbursable_expense_pending' || operationSelect.value === 'credit_card_reimbursable_expense';
-        if (reimbursementWrapper) {
-            reimbursementWrapper.style.display = visible ? '' : 'none';
-        }
-        if (!visible) {
-            reimbursementInput.value = '';
-        }
-        typeButtons.forEach(button => {
-            button.classList.toggle('is-active', button.dataset.operationValue === operationSelect.value);
-        });
-        if (categoryInput && operationSelect.value === 'income' && !categoryInput.value.trim()) {
-            categoryInput.value = 'Stipendio';
-        }
-        if (categoryInput && operationSelect.value === 'reimbursement_received' && !categoryInput.value.trim()) {
-            categoryInput.value = 'Rimborso spese';
-        }
-    };
-
-    typeButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            operationSelect.value = button.dataset.operationValue;
-            syncVisibility();
-        });
-    });
-
-    categoryButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            if (!categoryInput) return;
-            categoryInput.value = button.dataset.categoryValue;
-            categoryInput.focus();
-        });
-    });
-
-    if (optionalToggle && optionalFields) {
-        optionalToggle.addEventListener('click', () => {
-            optionalFields.classList.toggle('d-none');
-        });
-    }
-
-    adjustmentButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            if (!adjustmentDirection) return;
-            adjustmentDirection.value = button.dataset.directionTarget;
-        });
-    });
-
-    deleteForms.forEach(form => {
+    document.querySelectorAll('form[data-confirm-delete="1"]').forEach(form => {
         form.addEventListener('submit', event => {
-            if (!window.confirm('Vuoi davvero eliminare questa voce?')) {
+            if (!window.confirm('Vuoi davvero eliminare questo movimento?')) {
                 event.preventDefault();
             }
         });
     });
 
-    resetForms.forEach(form => {
+    document.querySelectorAll('form[data-confirm-corporate-card-reset="1"]').forEach(form => {
         form.addEventListener('submit', event => {
-            if (!window.confirm('Vuoi davvero eliminare tutte le voci?')) {
+            if (!window.confirm('Vuoi davvero azzerare tutti i movimenti della carta aziendale?')) {
                 event.preventDefault();
             }
         });
     });
-
-    reimbursementResetForms.forEach(form => {
-        form.addEventListener('submit', event => {
-            if (!window.confirm('Vuoi davvero eliminare tutte le voci attualmente aperte del rimborso spese?')) {
-                event.preventDefault();
-            }
-        });
-    });
-
-    reimbursementBalanceResetForms.forEach(form => {
-        form.addEventListener('submit', event => {
-            if (!window.confirm('Vuoi davvero portare a zero il saldo rimborsi da ricevere?')) {
-                event.preventDefault();
-            }
-        });
-    });
-
-    syncVisibility();
-    operationSelect.addEventListener('change', syncVisibility);
 });
 </script>
 {% endblock %}

@@ -49,10 +49,11 @@ from .models import (
     TurniPlannerWeekState,
     PersonalAssetEntry,
     PortalUserSetting,
+    CorporateCardEntry,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
-from .forms import PersonalAssetEntryForm, PersonalAssetQuickAccountAdjustmentForm
+from .forms import PersonalAssetEntryForm, PersonalAssetQuickAccountAdjustmentForm, CorporateCardEntryForm
 
 import logging
 import secrets
@@ -182,6 +183,211 @@ def _personal_asset_category_suggestions(user):
             suggestions.append(cleaned)
             seen.add(cleaned.casefold())
     return suggestions
+
+
+def _corporate_card_entries_queryset(user):
+    return CorporateCardEntry.objects.filter(user=user).order_by('-occurred_on', '-created_at', '-id')
+
+
+def _corporate_card_summary(user, *, year=None, month=None):
+    entries = _corporate_card_entries_queryset(user)
+    if year is not None:
+        entries = entries.filter(occurred_on__year=year)
+    if month is not None:
+        entries = entries.filter(occurred_on__month=month)
+
+    top_up_total = sum(
+        (entry.amount for entry in entries if entry.operation_type == CorporateCardEntry.TYPE_TOP_UP),
+        Decimal('0.00'),
+    )
+    expense_total = sum(
+        (entry.amount for entry in entries if entry.operation_type == CorporateCardEntry.TYPE_EXPENSE),
+        Decimal('0.00'),
+    )
+    return {
+        'entries': list(entries),
+        'top_up_total': top_up_total,
+        'expense_total': expense_total,
+        'net_total': top_up_total - expense_total,
+    }
+
+
+def _corporate_card_balance(user):
+    return sum(
+        (entry.balance_delta for entry in _corporate_card_entries_queryset(user)),
+        Decimal('0.00'),
+    )
+
+
+def _corporate_card_months(user):
+    months = {
+        (entry.occurred_on.year, entry.occurred_on.month)
+        for entry in CorporateCardEntry.objects.filter(user=user).only('occurred_on')
+    }
+    return [
+        {
+            'year': year,
+            'month': month,
+            'label': f"{MONTH_LABELS_IT[month]} {year}",
+        }
+        for year, month in sorted(months, reverse=True)
+    ]
+
+
+def _corporate_card_report_response(request):
+    today = timezone.localdate()
+    try:
+        year = int(request.GET.get('year') or today.year)
+        month = int(request.GET.get('month') or today.month)
+        if month < 1 or month > 12:
+            raise ValueError
+    except (TypeError, ValueError):
+        year, month = today.year, today.month
+
+    summary = _corporate_card_summary(request.user, year=year, month=month)
+    return render(request, 'portal/corporate_card_report.html', {
+        'report_year': year,
+        'report_month': MONTH_LABELS_IT[month],
+        'report_entries': summary['entries'],
+        'report_top_up_total': summary['top_up_total'],
+        'report_expense_total': summary['expense_total'],
+        'report_net_total': summary['net_total'],
+        'report_balance': _corporate_card_balance(request.user),
+        'report_user': request.user,
+    })
+
+
+def _corporate_card_pdf_response(request):
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image as ReportImage
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, KeepTogether
+    from reportlab.lib.utils import ImageReader
+
+    today = timezone.localdate()
+    try:
+        year = int(request.GET.get('year') or today.year)
+        month = int(request.GET.get('month') or today.month)
+        if month < 1 or month > 12:
+            raise ValueError
+    except (TypeError, ValueError):
+        year, month = today.year, today.month
+
+    summary = _corporate_card_summary(request.user, year=year, month=month)
+    report_entries = summary['entries']
+    output = io.BytesIO()
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='CorporateTitle', parent=styles['Title'], alignment=TA_CENTER, fontSize=19, leading=23, textColor=colors.HexColor('#17202a'), spaceAfter=4))
+    styles.add(ParagraphStyle(name='CorporateSmall', parent=styles['BodyText'], fontSize=8.5, leading=11, textColor=colors.HexColor('#34495e')))
+    styles.add(ParagraphStyle(name='CorporateCell', parent=styles['BodyText'], fontSize=8, leading=10))
+    styles.add(ParagraphStyle(name='CorporateCellRight', parent=styles['CorporateCell'], alignment=2))
+    styles.add(ParagraphStyle(name='CorporateReceiptTitle', parent=styles['Heading3'], fontSize=10, leading=12, textColor=colors.HexColor('#198754'), spaceBefore=8, spaceAfter=5))
+
+    logo_path = None
+    for candidate in [
+        Path(settings.BASE_DIR) / 'riconfezionamento_app' / 'static' / 'assets' / 'logo-san-vincenzo.png',
+        Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png',
+    ]:
+        if candidate.exists():
+            logo_path = candidate
+            break
+
+    def draw_header_footer(canvas, doc):
+        canvas.saveState()
+        if logo_path:
+            try:
+                canvas.drawImage(str(logo_path), 18 * mm, A4[1] - 24 * mm, width=32 * mm, height=12 * mm, preserveAspectRatio=True, mask='auto')
+            except OSError:
+                pass
+        canvas.setStrokeColor(colors.HexColor('#198754'))
+        canvas.setLineWidth(1.2)
+        canvas.line(18 * mm, A4[1] - 28 * mm, A4[0] - 18 * mm, A4[1] - 28 * mm)
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.HexColor('#6c757d'))
+        canvas.drawCentredString(A4[0] / 2, 10 * mm, f'Gestione carta aziendale - Pagina {doc.page}')
+        canvas.restoreState()
+
+    story = [Spacer(1, 10 * mm), Paragraph('Gestione carta di credito aziendale', styles['CorporateTitle']), Paragraph(f'Riepilogo {MONTH_LABELS_IT[month]} {year}', styles['CorporateSmall']), Paragraph(f'Dipendente: {request.user.get_full_name() or request.user.get_username()}', styles['CorporateSmall']), Spacer(1, 7 * mm)]
+
+    kpi_table = Table([
+        [Paragraph('<b>RICARICHE DATORE</b>', styles['CorporateSmall']), Paragraph('<b>SPESE DEL MESE</b>', styles['CorporateSmall']), Paragraph('<b>SALDO CARTA ATTUALE</b>', styles['CorporateSmall'])],
+        [Paragraph(f"<b>{summary['top_up_total']:.2f} EUR</b>", styles['CorporateCell']), Paragraph(f"<b>{summary['expense_total']:.2f} EUR</b>", styles['CorporateCell']), Paragraph(f"<b>{_corporate_card_balance(request.user):.2f} EUR</b>", styles['CorporateCell'])],
+    ], colWidths=[57 * mm, 57 * mm, 57 * mm])
+    kpi_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fbff')),
+        ('BOX', (0, 0), (-1, -1), 0.7, colors.HexColor('#dbe4f0')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dbe4f0')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+    ]))
+    story.append(kpi_table)
+    story.append(Spacer(1, 8 * mm))
+
+    rows = [[
+        Paragraph('<b>Data</b>', styles['CorporateCell']),
+        Paragraph('<b>Movimento</b>', styles['CorporateCell']),
+        Paragraph('<b>Categoria / descrizione</b>', styles['CorporateCell']),
+        Paragraph('<b>Importo</b>', styles['CorporateCellRight']),
+        Paragraph('<b>Effetto saldo</b>', styles['CorporateCellRight']),
+    ]]
+    for entry in report_entries:
+        detail = f"{entry.category}<br/><font color='#6c757d'>{entry.description or '-'}" + ('<br/>Foto scontrino allegata' if entry.receipt_image else '') + '</font>'
+        rows.append([
+            Paragraph(entry.occurred_on.strftime('%d/%m/%Y'), styles['CorporateCell']),
+            Paragraph(entry.get_operation_type_display(), styles['CorporateCell']),
+            Paragraph(detail, styles['CorporateCell']),
+            Paragraph(f'{entry.amount:.2f} EUR', styles['CorporateCellRight']),
+            Paragraph(f'{entry.balance_delta:.2f} EUR', styles['CorporateCellRight']),
+        ])
+    rows.append([Paragraph('<b>TOTALE NETTO DEL MESE</b>', styles['CorporateCell']), '', '', Paragraph(f"<b>{summary['net_total']:.2f} EUR</b>", styles['CorporateCellRight']), ''])
+    table = Table(rows, colWidths=[25 * mm, 38 * mm, 70 * mm, 25 * mm, 25 * mm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#eaf6ef')),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#d1e7dd')),
+        ('GRID', (0, 0), (-1, -1), 0.45, colors.HexColor('#b9c6d2')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(table)
+
+    receipt_blocks = []
+    for entry in report_entries:
+        if not entry.receipt_image:
+            continue
+        try:
+            entry.receipt_image.open('rb')
+            image_bytes = entry.receipt_image.read()
+            entry.receipt_image.close()
+            image_reader = ImageReader(io.BytesIO(image_bytes))
+            image_width, image_height = image_reader.getSize()
+            max_width = 75 * mm
+            max_height = 95 * mm
+            scale = min(max_width / image_width, max_height / image_height, 1)
+            receipt_blocks.append(KeepTogether([
+                Paragraph(f"Scontrino: {entry.occurred_on.strftime('%d/%m/%Y')} - {entry.category}", styles['CorporateReceiptTitle']),
+                ReportImage(io.BytesIO(image_bytes), width=image_width * scale, height=image_height * scale),
+                Spacer(1, 4 * mm),
+            ]))
+        except (OSError, ValueError, TypeError):
+            continue
+    if receipt_blocks:
+        story.append(Spacer(1, 8 * mm))
+        story.append(Paragraph('<b>Allegati scontrini</b>', styles['Heading2']))
+        story.extend(receipt_blocks)
+
+    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm, topMargin=34 * mm, bottomMargin=16 * mm, title='Gestione carta di credito aziendale')
+    doc.build(story, onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
+    output.seek(0)
+    response = HttpResponse(output.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="carta_aziendale_{year}_{month:02d}.pdf"'
+    return response
 
 
 def _archive_open_reimbursement_report_entries(user, settlement_entry):
@@ -3538,6 +3744,11 @@ def personal_asset_dashboard(request):
     if denied_response is not None:
         return denied_response
 
+    if request.method == 'GET' and request.GET.get('report') == 'corporate_card':
+        return _corporate_card_report_response(request)
+    if request.method == 'GET' and request.GET.get('report') == 'corporate_card_pdf':
+        return _corporate_card_pdf_response(request)
+
     toggle_param = request.GET.get('show_reimbursement_in_assets')
     if toggle_param is not None:
         request.session['personal_asset_show_reimbursement_in_assets'] = toggle_param == '1'
@@ -3568,12 +3779,62 @@ def personal_asset_dashboard(request):
         feedback = 'Saldo conto corrente aggiornato correttamente.'
     elif status == 'reimbursement_adjusted':
         feedback = 'Saldo rimborsi da ricevere aggiornato correttamente.'
+    elif status == 'corporate_card_created':
+        feedback = 'Movimento carta aziendale registrato correttamente.'
+    elif status == 'corporate_card_deleted':
+        feedback = 'Movimento carta aziendale eliminato correttamente.'
+    elif status == 'corporate_card_reset':
+        feedback = 'Gestione carta aziendale azzerata correttamente.'
 
     form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
     adjustment_form = PersonalAssetQuickAccountAdjustmentForm()
+    corporate_card_form = CorporateCardEntryForm(initial={'occurred_on': timezone.localdate()})
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        if action == 'create_corporate_card_entry':
+            corporate_card_form = CorporateCardEntryForm(request.POST, request.FILES)
+            if corporate_card_form.is_valid():
+                card_entry = corporate_card_form.save(commit=False)
+                card_entry.user = request.user
+                if (
+                    card_entry.operation_type == CorporateCardEntry.TYPE_EXPENSE
+                    and card_entry.amount > _corporate_card_balance(request.user)
+                ):
+                    corporate_card_form.add_error('amount', 'La spesa supera il saldo disponibile della carta aziendale.')
+                else:
+                    card_entry.save()
+                    _create_audit_event(
+                        request,
+                        'corporate_card_entry_created',
+                        employee=getattr(request.user, 'employee', None),
+                        metadata={
+                            'operation_type': card_entry.operation_type,
+                            'occurred_on': str(card_entry.occurred_on),
+                            'category': card_entry.category,
+                            'amount': str(card_entry.amount),
+                        },
+                    )
+                    return redirect(f'{request.path}?status=corporate_card_created')
+            feedback = 'Correggi i campi della carta aziendale e riprova.'
+            feedback_level = 'danger'
+
+        elif action == 'delete_corporate_card_entry':
+            card_entry = CorporateCardEntry.objects.filter(id=request.POST.get('entry_id'), user=request.user).first()
+            if card_entry is not None:
+                card_entry.delete()
+            return redirect(f'{request.path}?status=corporate_card_deleted')
+
+        elif action == 'reset_corporate_card':
+            deleted_count, _ = CorporateCardEntry.objects.filter(user=request.user).delete()
+            _create_audit_event(
+                request,
+                'corporate_card_reset',
+                employee=getattr(request.user, 'employee', None),
+                metadata={'deleted_entries_count': deleted_count},
+            )
+            return redirect(f'{request.path}?status=corporate_card_reset')
+
         if action == 'delete_entry':
             entry = PersonalAssetEntry.objects.filter(id=request.POST.get('entry_id'), user=request.user).first()
             if entry is not None:
@@ -3717,12 +3978,34 @@ def personal_asset_dashboard(request):
     reimbursement_entries = list(_personal_asset_reimbursement_entries_queryset(request.user)[:200])
     reimbursement_total = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in reimbursement_entries)
     archived_reimbursement_groups = _personal_asset_archived_reimbursement_groups(request.user)
+    all_corporate_card_entries = list(_corporate_card_entries_queryset(request.user))
+    running_card_balance = Decimal('0.00')
+    chronological_card_entries = sorted(
+        all_corporate_card_entries,
+        key=lambda item: (item.occurred_on, item.created_at, item.id),
+    )
+    for card_entry in chronological_card_entries:
+        running_card_balance += card_entry.balance_delta
+        card_entry.balance_after = running_card_balance
+    corporate_card_entries = chronological_card_entries[::-1][:100]
+    corporate_card_balance = _corporate_card_balance(request.user)
+    corporate_card_month = _corporate_card_summary(
+        request.user,
+        year=timezone.localdate().year,
+        month=timezone.localdate().month,
+    )
+    corporate_card_months = _corporate_card_months(request.user)
     category_suggestions = _personal_asset_category_suggestions(request.user)
     reimbursement_toggle_query = '0' if show_reimbursement_in_assets else '1'
 
     return render(request, 'portal/personal_asset_dashboard.html', {
         'finance_form': form,
         'adjustment_form': adjustment_form,
+        'corporate_card_form': corporate_card_form,
+        'corporate_card_entries': corporate_card_entries,
+        'corporate_card_balance': corporate_card_balance,
+        'corporate_card_month': corporate_card_month,
+        'corporate_card_months': corporate_card_months,
         'finance_entries': entries,
         'finance_month_groups': month_groups,
         'finance_monthly_summaries': monthly_summaries,

@@ -1,0 +1,116 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Riepilogo carta aziendale{% endblock %}
+
+{% block extra_css %}
+<style>
+.corporate-report {
+    max-width: 980px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 2rem;
+}
+.corporate-report-header {
+    border-bottom: 2px solid #198754;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+.corporate-report-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.corporate-report-kpi {
+    border: 1px solid #dbe4f0;
+    padding: 1rem;
+    border-radius: 10px;
+}
+.corporate-report-label {
+    color: #64748b;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+.corporate-report-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+@media print {
+    .portal-sidebar, .page-header, .corporate-report-actions, .navbar, footer { display: none !important; }
+    .corporate-report { max-width: none; padding: 0; }
+    body { background: #ffffff !important; }
+}
+@media (max-width: 700px) {
+    .corporate-report { padding: 1rem; }
+    .corporate-report-kpis { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="corporate-report">
+    <div class="corporate-report-actions d-flex justify-content-between align-items-center gap-2 mb-4">
+        <a class="btn btn-outline-secondary" href="{% url 'personal_asset_dashboard' %}">Torna alla gestione</a>
+        <button type="button" class="btn btn-success" onclick="window.print()">Stampa</button>
+    </div>
+
+    <div class="corporate-report-header">
+        <h1 class="h3 mb-2">Gestione carta di credito aziendale</h1>
+        <div class="text-muted">Riepilogo {{ report_month }} {{ report_year }}</div>
+        <div class="text-muted">Dipendente: {{ report_user.get_full_name|default:report_user.username }}</div>
+    </div>
+
+    <div class="corporate-report-kpis">
+        <div class="corporate-report-kpi">
+            <div class="corporate-report-label">Ricariche datore</div>
+            <div class="corporate-report-value">{{ report_top_up_total|floatformat:2 }} €</div>
+        </div>
+        <div class="corporate-report-kpi">
+            <div class="corporate-report-label">Spese del mese</div>
+            <div class="corporate-report-value">{{ report_expense_total|floatformat:2 }} €</div>
+        </div>
+        <div class="corporate-report-kpi">
+            <div class="corporate-report-label">Saldo carta attuale</div>
+            <div class="corporate-report-value">{{ report_balance|floatformat:2 }} €</div>
+        </div>
+    </div>
+
+    {% if report_entries %}
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Movimento</th>
+                    <th>Categoria</th>
+                    <th>Descrizione</th>
+                    <th class="text-end">Importo</th>
+                    <th class="text-end">Effetto saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in report_entries %}
+                <tr>
+                    <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
+                    <td>{{ entry.get_operation_type_display }}</td>
+                    <td>{{ entry.category }}</td>
+                    <td>{{ entry.description|default:"-" }}</td>
+                    <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
+                    <td class="text-end">{{ entry.balance_delta|floatformat:2 }} €</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold">
+                    <td colspan="4">Totale netto del mese</td>
+                    <td class="text-end">{{ report_net_total|floatformat:2 }} €</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-light border">Nessun movimento registrato per questo mese.</div>
+    {% endif %}
+</div>
+{% endblock %}

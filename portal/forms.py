@@ -1,6 +1,7 @@
 from django import forms
+from django.utils import timezone
 from decimal import Decimal
-from .models import Employee, Payslip, PersonalAssetEntry
+from .models import Employee, Payslip, PersonalAssetEntry, CorporateCardEntry
 
 
 class PayslipUploadForm(forms.ModelForm):
@@ -99,3 +100,40 @@ class PersonalAssetQuickAccountAdjustmentForm(forms.Form):
         widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
         label='Cifra rapida',
     )
+
+
+class CorporateCardEntryForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['occurred_on'].required = False
+        self.fields['category'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        operation_type = cleaned_data.get('operation_type')
+        cleaned_data['occurred_on'] = cleaned_data.get('occurred_on') or timezone.localdate()
+        if operation_type == CorporateCardEntry.TYPE_TOP_UP:
+            cleaned_data['category'] = cleaned_data.get('category') or 'Ricarica datore'
+        elif operation_type == CorporateCardEntry.TYPE_EXPENSE and not cleaned_data.get('category'):
+            self.add_error('category', 'Inserisci la categoria della spesa.')
+        return cleaned_data
+
+    class Meta:
+        model = CorporateCardEntry
+        fields = ['occurred_on', 'operation_type', 'category', 'amount', 'description', 'receipt_image']
+        widgets = {
+            'occurred_on': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'operation_type': forms.Select(attrs={'class': 'form-select'}),
+            'category': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Es: Carburante, pranzo, materiale'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Descrizione opzionale'}),
+            'receipt_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*', 'capture': 'environment'}),
+        }
+        labels = {
+            'occurred_on': 'Data',
+            'operation_type': 'Movimento',
+            'category': 'Categoria',
+            'amount': 'Importo',
+            'description': 'Descrizione',
+            'receipt_image': 'Foto scontrino',
+        }

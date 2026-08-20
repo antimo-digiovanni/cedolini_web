@@ -21,10 +21,11 @@ from django.utils import timezone
 from datetime import datetime
 from fastapi import HTTPException
 from openpyxl import Workbook, load_workbook
+from PIL import Image
 from starlette.testclient import TestClient as AsgiTestClient
 
 from .access import TODAY_MARKINGS_GROUP_NAME, RICONFEZIONAMENTO_GROUP_NAME, TURNI_PLANNER_GROUP_NAME, PATRIMONIO_GROUP_NAME
-from .models import Cud, Employee, EmployeeWorkZone, ImportJob, Payslip, PersonalAssetEntry, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
+from .models import Cud, CorporateCardEntry, Employee, EmployeeWorkZone, ImportJob, Payslip, PersonalAssetEntry, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -358,6 +359,111 @@ class PersonalAssetDashboardTests(TestCase):
 		page = self.client.get(reverse("personal_asset_dashboard"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_balance"], Decimal("0.00"))
 		self.assertEqual(page.context["finance_summary"]["reimbursement_adjustment"], Decimal("530.01"))
+
+	def test_corporate_card_top_up_and_expense_update_card_balance(self):
+		self.client.force_login(self.user)
+		top_up_response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"occurred_on": "2026-08-01",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"category": "Ricarica datore",
+			"amount": "500.00",
+			"description": "Saldo iniziale agosto",
+		})
+		self.assertRedirects(top_up_response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+
+		expense_response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"occurred_on": "2026-08-03",
+			"operation_type": CorporateCardEntry.TYPE_EXPENSE,
+			"category": "Carburante",
+			"amount": "125.50",
+			"description": "Trasferta",
+		})
+		self.assertRedirects(expense_response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["corporate_card_balance"], Decimal("374.50"))
+		self.assertEqual(page.context["corporate_card_month"]["top_up_total"], Decimal("500.00"))
+		self.assertEqual(page.context["corporate_card_month"]["expense_total"], Decimal("125.50"))
+
+		report = self.client.get(reverse("personal_asset_dashboard"), {
+			"report": "corporate_card",
+			"year": "2026",
+			"month": "8",
+		})
+		self.assertEqual(report.status_code, 200)
+		self.assertEqual(report.context["report_net_total"], Decimal("374.50"))
+		self.assertContains(report, "Gestione carta di credito aziendale")
+
+	def test_corporate_card_top_up_requires_only_amount(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"amount": "300.00",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+		entry = CorporateCardEntry.objects.get(user=self.user)
+		self.assertEqual(entry.amount, Decimal("300.00"))
+		self.assertEqual(entry.category, "Ricarica datore")
+		self.assertEqual(entry.occurred_on, timezone.localdate())
+
+	def test_corporate_card_rejects_expense_above_available_balance(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"occurred_on": "2026-08-03",
+			"operation_type": CorporateCardEntry.TYPE_EXPENSE,
+			"category": "Materiale",
+			"amount": "1.00",
+		})
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(CorporateCardEntry.objects.filter(user=self.user).count(), 0)
+		self.assertContains(response, "La spesa supera il saldo disponibile")
+
+	@override_settings(STORAGES={
+		'default': {
+			'BACKEND': 'django.core.files.storage.FileSystemStorage',
+			'OPTIONS': {'location': tempfile.gettempdir()},
+		},
+		'staticfiles': {
+			'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+		},
+	})
+	def test_corporate_card_pdf_includes_receipt_attachment(self):
+		image_buffer = BytesIO()
+		Image.new('RGB', (40, 60), color='white').save(image_buffer, format='PNG')
+		image_buffer.seek(0)
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"occurred_on": "2026-08-20",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"amount": "500.00",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"occurred_on": "2026-08-20",
+			"operation_type": CorporateCardEntry.TYPE_EXPENSE,
+			"amount": "25.00",
+			"category": "Pranzo",
+			"description": "Scontrino pranzo",
+			"receipt_image": SimpleUploadedFile('scontrino.png', image_buffer.getvalue(), content_type='image/png'),
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+
+		pdf_response = self.client.get(reverse("personal_asset_dashboard"), {
+			"report": "corporate_card_pdf",
+			"year": "2026",
+			"month": "8",
+		})
+		self.assertEqual(pdf_response.status_code, 200)
+		self.assertEqual(pdf_response['Content-Type'], 'application/pdf')
+		self.assertIn(b'%PDF', pdf_response.content[:20])
+		self.assertTrue(CorporateCardEntry.objects.get(category="Pranzo").receipt_image.name)
 
 	def test_reimbursement_report_entries_are_sorted_by_oldest_date_first(self):
 		from .views import _build_personal_asset_reimbursement_report_image
@@ -696,7 +802,7 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=deleted")
 		self.assertFalse(PersonalAssetEntry.objects.filter(id=entry.id).exists())
 
-	def test_custom_categories_are_suggested_automatically(self):
+	def test_dashboard_no_longer_renders_personal_asset_category_suggestions(self):
 		PersonalAssetEntry.objects.create(
 			user=self.user,
 			occurred_on=timezone.localdate(),
@@ -707,9 +813,10 @@ class PersonalAssetDashboardTests(TestCase):
 		)
 		self.client.force_login(self.user)
 		response = self.client.get(reverse("personal_asset_dashboard"))
-		self.assertContains(response, 'data-category-value="Farmacia bimbo"')
+		self.assertContains(response, "Gestione carta di credito aziendale")
+		self.assertNotContains(response, 'data-category-value="Farmacia bimbo"')
 
-	def test_history_is_grouped_by_month(self):
+	def test_dashboard_no_longer_renders_personal_asset_history(self):
 		PersonalAssetEntry.objects.create(
 			user=self.user,
 			occurred_on=datetime(2026, 7, 10).date(),
@@ -728,9 +835,10 @@ class PersonalAssetDashboardTests(TestCase):
 		)
 		self.client.force_login(self.user)
 		response = self.client.get(reverse("personal_asset_dashboard"))
-		self.assertEqual(len(response.context["finance_month_groups"]), 2)
-		self.assertContains(response, "Luglio 2026")
-		self.assertContains(response, "Giugno 2026")
+		self.assertContains(response, "Gestione carta di credito aziendale")
+		self.assertNotContains(response, "Storico operazioni")
+		self.assertNotContains(response, "Luglio 2026")
+		self.assertNotContains(response, "Giugno 2026")
 
 	def test_monthly_summaries_show_savings_for_each_month(self):
 		PersonalAssetEntry.objects.create(

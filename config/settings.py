@@ -156,10 +156,20 @@ elif AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
 else:
     MEDIA_URL = "/media/"
 
+MEDIA_ROOT = BASE_DIR / "media"
+
 # Django 4.2+ STORAGES configuration
+if R2_PUBLIC_BASE_URL and AWS_STORAGE_BUCKET_NAME:
+    default_storage_backend = "portal.storage_backends.R2PublicStorage"
+    default_storage_options = {}
+else:
+    default_storage_backend = "django.core.files.storage.FileSystemStorage"
+    default_storage_options = {"location": MEDIA_ROOT}
+
 STORAGES = {
     "default": {
-        "BACKEND": "portal.storage_backends.R2PublicStorage",
+        "BACKEND": default_storage_backend,
+        "OPTIONS": default_storage_options,
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",

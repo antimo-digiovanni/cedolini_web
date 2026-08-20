@@ -50,6 +50,44 @@ class PortalUserSetting(models.Model):
         return self.user.get_username()
 
 
+class CorporateCardEntry(models.Model):
+    """Ricarica o spesa della carta di credito aziendale."""
+
+    TYPE_TOP_UP = 'top_up'
+    TYPE_EXPENSE = 'expense'
+    TYPE_CHOICES = [
+        (TYPE_TOP_UP, 'Ricarica datore di lavoro'),
+        (TYPE_EXPENSE, 'Spesa carta aziendale'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='corporate_card_entries')
+    occurred_on = models.DateField(default=timezone.localdate, db_index=True)
+    operation_type = models.CharField(max_length=20, choices=TYPE_CHOICES, db_index=True)
+    category = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    receipt_image = models.ImageField(upload_to='corporate_card_receipts/', blank=True, null=True)
+    balance_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-occurred_on', '-created_at', '-id']
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({'amount': 'Inserisci un importo maggiore di zero.'})
+
+    def save(self, *args, **kwargs):
+        self.balance_delta = self.amount if self.operation_type == self.TYPE_TOP_UP else -self.amount
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user.get_username()} {self.operation_type} {self.occurred_on}"
+
+
 class Payslip(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="payslips")
     year = models.PositiveIntegerField()
