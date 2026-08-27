@@ -248,7 +248,9 @@ def _planned_corporate_card_expenses_pdf_response(request):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.lib.utils import ImageReader
+    from reportlab.platypus import Image as ReportImage
+    from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     expenses = list(_planned_corporate_card_expenses_queryset(request.user))
     total_amount = sum((expense.amount for expense in expenses), Decimal('0.00'))
@@ -272,16 +274,18 @@ def _planned_corporate_card_expenses_pdf_response(request):
         canvas.restoreState()
 
     story = [Spacer(1, 10 * mm), Paragraph('Spese da fare - Carta di credito aziendale', styles['PlannedTitle']), Spacer(1, 2 * mm), Paragraph(f'Dipendente: {request.user.get_full_name() or request.user.get_username()}', styles['PlannedCell']), Paragraph(f'Totale da ricaricare: <b>{total_amount:.2f} EUR</b>', styles['PlannedCell']), Spacer(1, 7 * mm)]
-    rows = [[Paragraph('<b>Data prevista</b>', styles['PlannedCell']), Paragraph('<b>Categoria</b>', styles['PlannedCell']), Paragraph('<b>Descrizione</b>', styles['PlannedCell']), Paragraph('<b>Importo</b>', styles['PlannedRight'])]]
+    rows = [[Paragraph('<b>Data prevista</b>', styles['PlannedCell']), Paragraph('<b>Categoria</b>', styles['PlannedCell']), Paragraph('<b>Descrizione</b>', styles['PlannedCell']), Paragraph('<b>Allegato</b>', styles['PlannedCell']), Paragraph('<b>Importo</b>', styles['PlannedRight'])]]
     for expense in expenses:
+        attachment_label = 'Si' if expense.receipt_image else '-'
         rows.append([
             Paragraph(expense.planned_on.strftime('%d/%m/%Y'), styles['PlannedCell']),
             Paragraph(expense.category, styles['PlannedCell']),
             Paragraph(expense.description or '-', styles['PlannedCell']),
+            Paragraph(attachment_label, styles['PlannedCell']),
             Paragraph(f'{expense.amount:.2f} EUR', styles['PlannedRight']),
         ])
-    rows.append([Paragraph('<b>TOTALE DA RICARICARE</b>', styles['PlannedCell']), '', '', Paragraph(f'<b>{total_amount:.2f} EUR</b>', styles['PlannedRight'])])
-    table = Table(rows, colWidths=[30 * mm, 42 * mm, 83 * mm, 25 * mm], repeatRows=1)
+    rows.append([Paragraph('<b>TOTALE DA RICARICARE</b>', styles['PlannedCell']), '', '', '', Paragraph(f'<b>{total_amount:.2f} EUR</b>', styles['PlannedRight'])])
+    table = Table(rows, colWidths=[27 * mm, 37 * mm, 70 * mm, 20 * mm, 26 * mm], repeatRows=1)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#eaf6ef')),
         ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#d1e7dd')),
@@ -291,6 +295,43 @@ def _planned_corporate_card_expenses_pdf_response(request):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
     ]))
     story.append(table)
+
+    attachment_blocks = []
+    for expense in expenses:
+        if not expense.receipt_image:
+            continue
+        try:
+            expense.receipt_image.open('rb')
+            attachment_bytes = expense.receipt_image.read()
+            expense.receipt_image.close()
+            attachment_name = (expense.receipt_image.name or '').lower()
+            if attachment_name.endswith('.pdf'):
+                import fitz
+
+                pdf_document = fitz.open(stream=attachment_bytes, filetype='pdf')
+                if pdf_document.page_count == 0:
+                    pdf_document.close()
+                    continue
+                pdf_page = pdf_document.load_page(0)
+                attachment_bytes = pdf_page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False).tobytes('png')
+                pdf_document.close()
+            image_reader = ImageReader(io.BytesIO(attachment_bytes))
+            image_width, image_height = image_reader.getSize()
+            max_width = 75 * mm
+            max_height = 95 * mm
+            scale = min(max_width / image_width, max_height / image_height, 1)
+            attachment_blocks.append(KeepTogether([
+                Paragraph(f'Allegato: {expense.planned_on.strftime("%d/%m/%Y")} - {expense.category}', styles['PlannedCell']),
+                ReportImage(io.BytesIO(attachment_bytes), width=image_width * scale, height=image_height * scale),
+                Spacer(1, 4 * mm),
+            ]))
+        except (OSError, ValueError, TypeError):
+            continue
+    if attachment_blocks:
+        story.append(Spacer(1, 8 * mm))
+        story.append(Paragraph('<b>Allegati scontrini</b>', styles['Heading2']))
+        story.extend(attachment_blocks)
+
     doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm, topMargin=34 * mm, bottomMargin=16 * mm, title='Spese da fare carta aziendale')
     doc.build(story, onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
     output.seek(0)

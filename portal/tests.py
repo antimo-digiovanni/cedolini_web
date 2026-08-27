@@ -463,6 +463,35 @@ class PersonalAssetDashboardTests(TestCase):
 			'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
 		},
 	})
+	def test_planned_expenses_pdf_includes_receipt_attachment(self):
+		image_buffer = BytesIO()
+		Image.new('RGB', (40, 60), color='white').save(image_buffer, format='PNG')
+		image_buffer.seek(0)
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_planned_corporate_card_expense",
+			"planned_on": "2026-08-21",
+			"category": "Scontrino allegato",
+			"amount": "35.00",
+			"receipt_image": SimpleUploadedFile('scontrino-previsto.png', image_buffer.getvalue(), content_type='image/png'),
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=planned_expense_created")
+
+		pdf_response = self.client.get(reverse("personal_asset_dashboard"), {"report": "planned_corporate_card_pdf"})
+		self.assertEqual(pdf_response.status_code, 200)
+		self.assertEqual(pdf_response['Content-Type'], 'application/pdf')
+		self.assertIn(b'%PDF', pdf_response.content[:20])
+		self.assertTrue(PlannedCorporateCardExpense.objects.get(category="Scontrino allegato").receipt_image.name)
+
+	@override_settings(STORAGES={
+		'default': {
+			'BACKEND': 'django.core.files.storage.FileSystemStorage',
+			'OPTIONS': {'location': tempfile.gettempdir()},
+		},
+		'staticfiles': {
+			'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+		},
+	})
 	def test_corporate_card_pdf_includes_receipt_attachment(self):
 		image_buffer = BytesIO()
 		Image.new('RGB', (40, 60), color='white').save(image_buffer, format='PNG')
