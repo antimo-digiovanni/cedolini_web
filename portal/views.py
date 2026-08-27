@@ -50,10 +50,11 @@ from .models import (
     PersonalAssetEntry,
     PortalUserSetting,
     CorporateCardEntry,
+    PlannedCorporateCardExpense,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
-from .forms import PersonalAssetEntryForm, PersonalAssetQuickAccountAdjustmentForm, CorporateCardEntryForm
+from .forms import PersonalAssetEntryForm, PersonalAssetQuickAccountAdjustmentForm, CorporateCardEntryForm, PlannedCorporateCardExpenseForm
 
 import logging
 import secrets
@@ -232,6 +233,70 @@ def _corporate_card_months(user):
         }
         for year, month in sorted(months, reverse=True)
     ]
+
+
+def _planned_corporate_card_expenses_queryset(user):
+    return PlannedCorporateCardExpense.objects.filter(
+        user=user,
+        paid_entry__isnull=True,
+    ).order_by('planned_on', 'created_at', 'id')
+
+
+def _planned_corporate_card_expenses_pdf_response(request):
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    expenses = list(_planned_corporate_card_expenses_queryset(request.user))
+    total_amount = sum((expense.amount for expense in expenses), Decimal('0.00'))
+    output = io.BytesIO()
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='PlannedTitle', parent=styles['Title'], alignment=TA_CENTER, fontSize=19, leading=23, textColor=colors.HexColor('#17202a')))
+    styles.add(ParagraphStyle(name='PlannedCell', parent=styles['BodyText'], fontSize=9, leading=11))
+    styles.add(ParagraphStyle(name='PlannedRight', parent=styles['PlannedCell'], alignment=2))
+
+    logo_path = Path(settings.BASE_DIR) / 'riconfezionamento_app' / 'static' / 'assets' / 'logo-san-vincenzo.png'
+
+    def draw_header_footer(canvas, doc):
+        canvas.saveState()
+        if logo_path.exists():
+            canvas.drawImage(str(logo_path), 18 * mm, A4[1] - 24 * mm, width=32 * mm, height=12 * mm, preserveAspectRatio=True, mask='auto')
+        canvas.setStrokeColor(colors.HexColor('#198754'))
+        canvas.line(18 * mm, A4[1] - 28 * mm, A4[0] - 18 * mm, A4[1] - 28 * mm)
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.HexColor('#6c757d'))
+        canvas.drawCentredString(A4[0] / 2, 10 * mm, f'Spese da fare - Pagina {doc.page}')
+        canvas.restoreState()
+
+    story = [Spacer(1, 10 * mm), Paragraph('Spese da fare - Carta di credito aziendale', styles['PlannedTitle']), Spacer(1, 2 * mm), Paragraph(f'Dipendente: {request.user.get_full_name() or request.user.get_username()}', styles['PlannedCell']), Paragraph(f'Totale da ricaricare: <b>{total_amount:.2f} EUR</b>', styles['PlannedCell']), Spacer(1, 7 * mm)]
+    rows = [[Paragraph('<b>Data prevista</b>', styles['PlannedCell']), Paragraph('<b>Categoria</b>', styles['PlannedCell']), Paragraph('<b>Descrizione</b>', styles['PlannedCell']), Paragraph('<b>Importo</b>', styles['PlannedRight'])]]
+    for expense in expenses:
+        rows.append([
+            Paragraph(expense.planned_on.strftime('%d/%m/%Y'), styles['PlannedCell']),
+            Paragraph(expense.category, styles['PlannedCell']),
+            Paragraph(expense.description or '-', styles['PlannedCell']),
+            Paragraph(f'{expense.amount:.2f} EUR', styles['PlannedRight']),
+        ])
+    rows.append([Paragraph('<b>TOTALE DA RICARICARE</b>', styles['PlannedCell']), '', '', Paragraph(f'<b>{total_amount:.2f} EUR</b>', styles['PlannedRight'])])
+    table = Table(rows, colWidths=[30 * mm, 42 * mm, 83 * mm, 25 * mm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#eaf6ef')),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#d1e7dd')),
+        ('GRID', (0, 0), (-1, -1), 0.45, colors.HexColor('#b9c6d2')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+    ]))
+    story.append(table)
+    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm, topMargin=34 * mm, bottomMargin=16 * mm, title='Spese da fare carta aziendale')
+    doc.build(story, onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
+    output.seek(0)
+    response = HttpResponse(output.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="spese_da_fare_carta_aziendale.pdf"'
+    return response
 
 
 def _corporate_card_report_response(request):
@@ -3759,6 +3824,8 @@ def personal_asset_dashboard(request):
         return _corporate_card_report_response(request)
     if request.method == 'GET' and request.GET.get('report') == 'corporate_card_pdf':
         return _corporate_card_pdf_response(request)
+    if request.method == 'GET' and request.GET.get('report') == 'planned_corporate_card_pdf':
+        return _planned_corporate_card_expenses_pdf_response(request)
 
     toggle_param = request.GET.get('show_reimbursement_in_assets')
     if toggle_param is not None:
@@ -3796,14 +3863,65 @@ def personal_asset_dashboard(request):
         feedback = 'Movimento carta aziendale eliminato correttamente.'
     elif status == 'corporate_card_reset':
         feedback = 'Gestione carta aziendale azzerata correttamente.'
+    elif status == 'planned_expense_created':
+        feedback = 'Spesa da fare inserita nel riepilogo.'
+    elif status == 'planned_expense_deleted':
+        feedback = 'Spesa da fare eliminata.'
+    elif status == 'planned_expenses_paid':
+        feedback = 'Le spese selezionate sono state spostate nei movimenti carta.'
 
     form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
     adjustment_form = PersonalAssetQuickAccountAdjustmentForm()
     corporate_card_form = CorporateCardEntryForm(initial={'occurred_on': timezone.localdate()})
+    planned_expense_form = PlannedCorporateCardExpenseForm(initial={'planned_on': timezone.localdate()})
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        if action == 'create_corporate_card_entry':
+        if action == 'create_planned_corporate_card_expense':
+            planned_expense_form = PlannedCorporateCardExpenseForm(request.POST, request.FILES)
+            if planned_expense_form.is_valid():
+                planned_expense = planned_expense_form.save(commit=False)
+                planned_expense.user = request.user
+                planned_expense.save()
+                return redirect(f'{request.path}?status=planned_expense_created')
+            feedback = 'Correggi i campi della spesa da fare e riprova.'
+            feedback_level = 'danger'
+
+        elif action == 'mark_planned_expenses_paid':
+            selected_ids = request.POST.getlist('planned_expense_ids')
+            planned_expenses = list(_planned_corporate_card_expenses_queryset(request.user).filter(id__in=selected_ids))
+            total_planned = sum((expense.amount for expense in planned_expenses), Decimal('0.00'))
+            if not planned_expenses:
+                feedback = 'Seleziona almeno una spesa da fare.'
+                feedback_level = 'danger'
+            elif total_planned > _corporate_card_balance(request.user):
+                feedback = 'Il saldo carta non è sufficiente per pagare tutte le spese selezionate.'
+                feedback_level = 'danger'
+            else:
+                with transaction.atomic():
+                    for planned_expense in planned_expenses:
+                        card_entry = CorporateCardEntry.objects.create(
+                            user=request.user,
+                            occurred_on=planned_expense.planned_on,
+                            operation_type=CorporateCardEntry.TYPE_EXPENSE,
+                            category=planned_expense.category,
+                            description=planned_expense.description,
+                            amount=planned_expense.amount,
+                            receipt_image=planned_expense.receipt_image,
+                        )
+                        planned_expense.paid_entry = card_entry
+                        planned_expense.save(update_fields=['paid_entry'])
+                return redirect(f'{request.path}?status=planned_expenses_paid')
+
+        elif action == 'delete_planned_corporate_card_expense':
+            PlannedCorporateCardExpense.objects.filter(
+                id=request.POST.get('planned_expense_id'),
+                user=request.user,
+                paid_entry__isnull=True,
+            ).delete()
+            return redirect(f'{request.path}?status=planned_expense_deleted')
+
+        elif action == 'create_corporate_card_entry':
             corporate_card_form = CorporateCardEntryForm(request.POST, request.FILES)
             if corporate_card_form.is_valid():
                 card_entry = corporate_card_form.save(commit=False)
@@ -4006,6 +4124,8 @@ def personal_asset_dashboard(request):
         month=timezone.localdate().month,
     )
     corporate_card_months = _corporate_card_months(request.user)
+    planned_expenses = list(_planned_corporate_card_expenses_queryset(request.user))
+    planned_expenses_total = sum((expense.amount for expense in planned_expenses), Decimal('0.00'))
     category_suggestions = _personal_asset_category_suggestions(request.user)
     reimbursement_toggle_query = '0' if show_reimbursement_in_assets else '1'
 
@@ -4017,6 +4137,9 @@ def personal_asset_dashboard(request):
         'corporate_card_balance': corporate_card_balance,
         'corporate_card_month': corporate_card_month,
         'corporate_card_months': corporate_card_months,
+        'planned_expense_form': planned_expense_form,
+        'planned_expenses': planned_expenses,
+        'planned_expenses_total': planned_expenses_total,
         'finance_entries': entries,
         'finance_month_groups': month_groups,
         'finance_monthly_summaries': monthly_summaries,

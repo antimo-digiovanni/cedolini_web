@@ -101,6 +101,7 @@
             <div class="col-lg-7">
                 <div class="corporate-card-actions h-100 align-items-center">
                     <a class="btn btn-success" href="?report=corporate_card_pdf">Scarica riepilogo PDF</a>
+                    <a class="btn btn-outline-success" href="?report=planned_corporate_card_pdf">PDF spese da fare</a>
                     {% for card_month in corporate_card_months %}
                     <a class="btn btn-outline-success" href="?report=corporate_card_pdf&year={{ card_month.year }}&month={{ card_month.month }}">PDF {{ card_month.label }}</a>
                     {% endfor %}
@@ -113,6 +114,97 @@
                     {% endif %}
                 </div>
             </div>
+        </div>
+
+        <div class="border rounded-3 p-3 mb-4">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h4 class="h5 fw-semibold mb-1">Spese da fare</h4>
+                    <p class="text-muted small mb-0">Prepara l'elenco da inviare al titolare e chiedi la ricarica necessaria.</p>
+                </div>
+                <div class="text-end">
+                    <div class="small text-muted">Da ricaricare</div>
+                    <div class="h5 mb-0 fw-bold">{{ planned_expenses_total|floatformat:2 }} €</div>
+                </div>
+            </div>
+
+            <form method="post" class="row g-3 mb-3" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_planned_corporate_card_expense">
+                <div class="col-md-2">
+                    <label class="form-label" for="{{ planned_expense_form.planned_on.id_for_label }}">{{ planned_expense_form.planned_on.label }}</label>
+                    {{ planned_expense_form.planned_on }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="{{ planned_expense_form.amount.id_for_label }}">{{ planned_expense_form.amount.label }}</label>
+                    {{ planned_expense_form.amount }}
+                    {% for error in planned_expense_form.amount.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="{{ planned_expense_form.category.id_for_label }}">{{ planned_expense_form.category.label }}</label>
+                    {{ planned_expense_form.category }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ planned_expense_form.description.id_for_label }}">{{ planned_expense_form.description.label }}</label>
+                    {{ planned_expense_form.description }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ planned_expense_form.receipt_image.id_for_label }}">{{ planned_expense_form.receipt_image.label }}</label>
+                    {{ planned_expense_form.receipt_image }}
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-outline-success">Aggiungi spesa da fare</button>
+                </div>
+            </form>
+
+            {% if planned_expenses %}
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="action" id="plannedExpensesAction" value="mark_planned_expenses_paid">
+                <div class="table-responsive d-none d-md-block">
+                    <table class="table align-middle mb-3">
+                        <thead>
+                            <tr>
+                                <th></th><th>Data</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in planned_expenses %}
+                            <tr>
+                                <td><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}" aria-label="Segna pagata"></td>
+                                <td>{{ expense.planned_on|date:"d/m/Y" }}</td>
+                                <td>{{ expense.category }}</td>
+                                <td>{{ expense.description|default:"-" }}</td>
+                                <td class="text-end">{{ expense.amount|floatformat:2 }} €</td>
+                                <td class="text-end">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="preparePlannedExpenseDelete(this, '{{ expense.id }}');">Elimina</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <input type="hidden" name="planned_expense_id" value="">
+                <div class="d-md-none mb-3">
+                    {% for expense in planned_expenses %}
+                    <div class="corporate-card-mobile-entry">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div><div class="fw-semibold">{{ expense.category }}</div><div class="corporate-card-mobile-meta">{{ expense.planned_on|date:"d/m/Y" }}</div></div>
+                            <div class="fw-semibold">{{ expense.amount|floatformat:2 }} €</div>
+                        </div>
+                        <div class="small mt-2">{{ expense.description|default:"Nessuna descrizione" }}</div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}"> <span>Pagata</span></label>
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="preparePlannedExpenseDelete(this, '{{ expense.id }}');">Elimina</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-success">Segna selezionate come pagate</button>
+            </form>
+            {% else %}
+            <div class="alert alert-light border mb-0">Nessuna spesa da fare inserita.</div>
+            {% endif %}
         </div>
 
         <div class="border rounded-3 p-3 mb-4">
@@ -234,6 +326,12 @@
 </div>
 
 <script>
+function preparePlannedExpenseDelete(button, expenseId) {
+    const form = button.form;
+    form.querySelector('#plannedExpensesAction').value = 'delete_planned_corporate_card_expense';
+    form.querySelector('[name=planned_expense_id]').value = expenseId;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('form[data-confirm-delete="1"]').forEach(form => {
         form.addEventListener('submit', event => {

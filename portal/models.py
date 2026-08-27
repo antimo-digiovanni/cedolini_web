@@ -88,6 +88,42 @@ class CorporateCardEntry(models.Model):
         return f"{self.user.get_username()} {self.operation_type} {self.occurred_on}"
 
 
+class PlannedCorporateCardExpense(models.Model):
+    """Spesa prevista da chiedere al titolare prima dell'acquisto."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planned_corporate_card_expenses')
+    planned_on = models.DateField(default=timezone.localdate, db_index=True)
+    category = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    receipt_image = models.FileField(upload_to='corporate_card_receipts/', blank=True, null=True)
+    paid_entry = models.OneToOneField(
+        CorporateCardEntry,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='planned_expense',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['planned_on', 'created_at', 'id']
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({'amount': 'Inserisci un importo maggiore di zero.'})
+
+    @property
+    def is_paid(self):
+        return self.paid_entry_id is not None
+
+    def __str__(self):
+        return f"{self.user.get_username()} planned {self.planned_on} {self.amount}"
+
+
 class Payslip(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="payslips")
     year = models.PositiveIntegerField()

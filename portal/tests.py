@@ -25,7 +25,7 @@ from PIL import Image
 from starlette.testclient import TestClient as AsgiTestClient
 
 from .access import TODAY_MARKINGS_GROUP_NAME, RICONFEZIONAMENTO_GROUP_NAME, TURNI_PLANNER_GROUP_NAME, PATRIMONIO_GROUP_NAME
-from .models import Cud, CorporateCardEntry, Employee, EmployeeWorkZone, ImportJob, Payslip, PersonalAssetEntry, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
+from .models import Cud, CorporateCardEntry, Employee, EmployeeWorkZone, ImportJob, Payslip, PersonalAssetEntry, PlannedCorporateCardExpense, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -421,6 +421,38 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(CorporateCardEntry.objects.filter(user=self.user).count(), 0)
 		self.assertContains(response, "La spesa supera il saldo disponibile")
+
+	def test_planned_expenses_are_printable_and_move_to_card_when_paid(self):
+		self.client.force_login(self.user)
+		for category, amount in (("Materiale", "40.00"), ("Carburante", "60.00")):
+			response = self.client.post(reverse("personal_asset_dashboard"), {
+				"action": "create_planned_corporate_card_expense",
+				"planned_on": "2026-08-21",
+				"category": category,
+				"amount": amount,
+				"description": f"Spesa {category}",
+			})
+			self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=planned_expense_created")
+
+		planned_ids = list(PlannedCorporateCardExpense.objects.values_list('id', flat=True))
+		pdf_response = self.client.get(reverse("personal_asset_dashboard"), {"report": "planned_corporate_card_pdf"})
+		self.assertEqual(pdf_response.status_code, 200)
+		self.assertEqual(pdf_response['Content-Type'], 'application/pdf')
+		self.assertIn(b'%PDF', pdf_response.content[:20])
+
+		self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"amount": "100.00",
+		})
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "mark_planned_expenses_paid",
+			"planned_expense_ids": [str(item_id) for item_id in planned_ids],
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=planned_expenses_paid")
+		self.assertEqual(PlannedCorporateCardExpense.objects.filter(paid_entry__isnull=True).count(), 0)
+		self.assertEqual(CorporateCardEntry.objects.filter(operation_type=CorporateCardEntry.TYPE_EXPENSE).count(), 2)
+		self.assertEqual(CorporateCardEntry.objects.filter(user=self.user).count(), 3)
 
 	@override_settings(STORAGES={
 		'default': {

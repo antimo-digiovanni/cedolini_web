@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 from decimal import Decimal
-from .models import Employee, Payslip, PersonalAssetEntry, CorporateCardEntry
+from .models import Employee, Payslip, PersonalAssetEntry, CorporateCardEntry, PlannedCorporateCardExpense
 
 
 class PayslipUploadForm(forms.ModelForm):
@@ -136,4 +136,24 @@ class CorporateCardEntryForm(forms.ModelForm):
             'amount': 'Importo',
             'description': 'Descrizione',
             'receipt_image': 'Foto scontrino',
+        }
+
+
+class PlannedCorporateCardExpenseForm(forms.ModelForm):
+    class Meta:
+        model = PlannedCorporateCardExpense
+        fields = ['planned_on', 'category', 'amount', 'description', 'receipt_image']
+        widgets = {
+            'planned_on': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'category': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Es: carburante, materiale'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Cosa devo acquistare?'}),
+            'receipt_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*,.pdf,application/pdf'}),
+        }
+        labels = {
+            'planned_on': 'Data prevista',
+            'category': 'Categoria',
+            'amount': 'Importo da chiedere',
+            'description': 'Descrizione',
+            'receipt_image': 'Allegato',
         }
