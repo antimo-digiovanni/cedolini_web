@@ -207,51 +207,6 @@
                 </div>
                 <button type="submit" class="btn btn-success">Segna selezionate come pagate</button>
             </form>
-            {% for expense in planned_expenses %}
-            <div class="modal fade" id="editPlannedExpenseModal{{ expense.id }}" tabindex="-1" aria-labelledby="editPlannedExpenseModalLabel{{ expense.id }}" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <form method="post" enctype="multipart/form-data" novalidate>
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="update_planned_corporate_card_expense">
-                            <input type="hidden" name="planned_expense_id" value="{{ expense.id }}">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editPlannedExpenseModalLabel{{ expense.id }}">Modifica spesa da fare</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-                            </div>
-                            <div class="modal-body row g-3">
-                                <div class="col-6">
-                                    <label class="form-label">Data prevista</label>
-                                    <input type="date" class="form-control" name="planned_on" value="{{ expense.planned_on|date:'Y-m-d' }}" required>
-                                    <div class="form-text">Sposta la spesa nel mese che preferisci.</div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Importo da chiedere</label>
-                                    <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ expense.amount|unlocalize }}" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Categoria</label>
-                                    <input type="text" class="form-control" name="category" value="{{ expense.category }}">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Descrizione</label>
-                                    <textarea class="form-control" name="description" rows="2">{{ expense.description }}</textarea>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Allegato</label>
-                                    <input type="file" class="form-control" name="receipt_image" accept="image/*,.pdf,application/pdf">
-                                    {% if expense.receipt_image %}<div class="form-text">Lascia vuoto per mantenere l'allegato attuale.</div>{% endif %}
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
-                                <button type="submit" class="btn btn-success">Salva modifiche</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
             {% else %}
             <div class="alert alert-light border mb-0">Nessuna spesa da fare inserita.</div>
             {% endif %}
@@ -373,58 +328,6 @@
             </div>
             {% endfor %}
         </div>
-        {% for entry in corporate_card_entries %}
-        <div class="modal fade" id="editCardEntryModal{{ entry.id }}" tabindex="-1" aria-labelledby="editCardEntryModalLabel{{ entry.id }}" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <form method="post" enctype="multipart/form-data" novalidate>
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="update_corporate_card_entry">
-                        <input type="hidden" name="entry_id" value="{{ entry.id }}">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="editCardEntryModalLabel{{ entry.id }}">Modifica movimento carta</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-                        </div>
-                        <div class="modal-body row g-3">
-                            <div class="col-6">
-                                <label class="form-label">Movimento</label>
-                                <select class="form-select" name="operation_type">
-                                    <option value="top_up" {% if entry.operation_type == 'top_up' %}selected{% endif %}>Ricarica datore di lavoro</option>
-                                    <option value="expense" {% if entry.operation_type == 'expense' %}selected{% endif %}>Spesa carta aziendale</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Data</label>
-                                <input type="date" class="form-control" name="occurred_on" value="{{ entry.occurred_on|date:'Y-m-d' }}" required>
-                                <div class="form-text">Sposta il movimento nel mese che preferisci.</div>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Importo</label>
-                                <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ entry.amount|unlocalize }}" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Categoria</label>
-                                <input type="text" class="form-control" name="category" value="{{ entry.category }}">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Descrizione</label>
-                                <textarea class="form-control" name="description" rows="2">{{ entry.description }}</textarea>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Foto scontrino</label>
-                                <input type="file" class="form-control" name="receipt_image" accept="image/*,.pdf,application/pdf">
-                                {% if entry.receipt_image %}<div class="form-text">Lascia vuoto per mantenere l'allegato attuale.</div>{% endif %}
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
-                            <button type="submit" class="btn btn-success">Salva modifiche</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
         {% else %}
         <div class="alert alert-light border mb-0">Nessun movimento della carta aziendale. Inserisci la prima ricarica del datore per iniziare.</div>
         {% endif %}
@@ -456,4 +359,104 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+{% endblock %}
+
+{% block modals %}
+{% for expense in planned_expenses %}
+<div class="modal fade" id="editPlannedExpenseModal{{ expense.id }}" tabindex="-1" aria-labelledby="editPlannedExpenseModalLabel{{ expense.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_planned_corporate_card_expense">
+                <input type="hidden" name="planned_expense_id" value="{{ expense.id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPlannedExpenseModalLabel{{ expense.id }}">Modifica spesa da fare</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <div class="col-6">
+                        <label class="form-label">Data prevista</label>
+                        <input type="date" class="form-control" name="planned_on" value="{{ expense.planned_on|date:'Y-m-d' }}" required>
+                        <div class="form-text">Sposta la spesa nel mese che preferisci.</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Importo da chiedere</label>
+                        <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ expense.amount|unlocalize }}" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Categoria</label>
+                        <input type="text" class="form-control" name="category" value="{{ expense.category }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Descrizione</label>
+                        <textarea class="form-control" name="description" rows="2">{{ expense.description }}</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Allegato</label>
+                        <input type="file" class="form-control" name="receipt_image" accept="image/*,.pdf,application/pdf">
+                        {% if expense.receipt_image %}<div class="form-text">Lascia vuoto per mantenere l'allegato attuale.</div>{% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Salva modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% for entry in corporate_card_entries %}
+<div class="modal fade" id="editCardEntryModal{{ entry.id }}" tabindex="-1" aria-labelledby="editCardEntryModalLabel{{ entry.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_corporate_card_entry">
+                <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCardEntryModalLabel{{ entry.id }}">Modifica movimento carta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <div class="col-6">
+                        <label class="form-label">Movimento</label>
+                        <select class="form-select" name="operation_type">
+                            <option value="top_up" {% if entry.operation_type == 'top_up' %}selected{% endif %}>Ricarica datore di lavoro</option>
+                            <option value="expense" {% if entry.operation_type == 'expense' %}selected{% endif %}>Spesa carta aziendale</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Data</label>
+                        <input type="date" class="form-control" name="occurred_on" value="{{ entry.occurred_on|date:'Y-m-d' }}" required>
+                        <div class="form-text">Sposta il movimento nel mese che preferisci.</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Importo</label>
+                        <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ entry.amount|unlocalize }}" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Categoria</label>
+                        <input type="text" class="form-control" name="category" value="{{ entry.category }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Descrizione</label>
+                        <textarea class="form-control" name="description" rows="2">{{ entry.description }}</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Foto scontrino</label>
+                        <input type="file" class="form-control" name="receipt_image" accept="image/*,.pdf,application/pdf">
+                        {% if entry.receipt_image %}<div class="form-text">Lascia vuoto per mantenere l'allegato attuale.</div>{% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Salva modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
