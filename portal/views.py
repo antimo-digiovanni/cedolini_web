@@ -3908,6 +3908,10 @@ def personal_asset_dashboard(request):
         feedback = 'Spesa da fare inserita nel riepilogo.'
     elif status == 'planned_expense_deleted':
         feedback = 'Spesa da fare eliminata.'
+    elif status == 'planned_expense_updated':
+        feedback = 'Spesa da fare aggiornata correttamente.'
+    elif status == 'corporate_card_updated':
+        feedback = 'Movimento carta aziendale aggiornato correttamente.'
     elif status == 'planned_expenses_paid':
         feedback = 'Le spese selezionate sono state spostate nei movimenti carta.'
 
@@ -3927,6 +3931,23 @@ def personal_asset_dashboard(request):
                 return redirect(f'{request.path}?status=planned_expense_created')
             feedback = 'Correggi i campi della spesa da fare e riprova.'
             feedback_level = 'danger'
+
+        elif action == 'update_planned_corporate_card_expense':
+            planned_expense = PlannedCorporateCardExpense.objects.filter(
+                id=request.POST.get('planned_expense_id'),
+                user=request.user,
+                paid_entry__isnull=True,
+            ).first()
+            if planned_expense is None:
+                feedback = 'Spesa da fare non trovata o già pagata.'
+                feedback_level = 'danger'
+            else:
+                planned_expense_form = PlannedCorporateCardExpenseForm(request.POST, request.FILES, instance=planned_expense)
+                if planned_expense_form.is_valid():
+                    planned_expense_form.save()
+                    return redirect(f'{request.path}?status=planned_expense_updated')
+                feedback = 'Correggi i campi della spesa da fare e riprova.'
+                feedback_level = 'danger'
 
         elif action == 'mark_planned_expenses_paid':
             selected_ids = request.POST.getlist('planned_expense_ids')
@@ -3988,6 +4009,42 @@ def personal_asset_dashboard(request):
                     return redirect(f'{request.path}?status=corporate_card_created')
             feedback = 'Correggi i campi della carta aziendale e riprova.'
             feedback_level = 'danger'
+
+        elif action == 'update_corporate_card_entry':
+            card_entry = CorporateCardEntry.objects.filter(id=request.POST.get('entry_id'), user=request.user).first()
+            if card_entry is None:
+                feedback = 'Movimento non trovato.'
+                feedback_level = 'danger'
+            else:
+                available_without_entry = _corporate_card_balance(request.user) - card_entry.balance_delta
+                corporate_card_form = CorporateCardEntryForm(request.POST, request.FILES, instance=card_entry)
+                if corporate_card_form.is_valid():
+                    updated_entry = corporate_card_form.save(commit=False)
+                    if (
+                        updated_entry.operation_type == CorporateCardEntry.TYPE_EXPENSE
+                        and updated_entry.amount > available_without_entry
+                    ):
+                        corporate_card_form.add_error('amount', 'La spesa supera il saldo disponibile della carta aziendale.')
+                        feedback = 'Correggi i campi del movimento e riprova.'
+                        feedback_level = 'danger'
+                    else:
+                        updated_entry.save()
+                        _create_audit_event(
+                            request,
+                            'corporate_card_entry_updated',
+                            employee=getattr(request.user, 'employee', None),
+                            metadata={
+                                'entry_id': updated_entry.id,
+                                'operation_type': updated_entry.operation_type,
+                                'occurred_on': str(updated_entry.occurred_on),
+                                'category': updated_entry.category,
+                                'amount': str(updated_entry.amount),
+                            },
+                        )
+                        return redirect(f'{request.path}?status=corporate_card_updated')
+                else:
+                    feedback = 'Correggi i campi del movimento e riprova.'
+                    feedback_level = 'danger'
 
         elif action == 'delete_corporate_card_entry':
             card_entry = CorporateCardEntry.objects.filter(id=request.POST.get('entry_id'), user=request.user).first()
