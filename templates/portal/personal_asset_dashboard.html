@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load l10n %}
 
 {% block title %}Gestione carta aziendale{% endblock %}
 
@@ -226,7 +227,7 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label">Importo da chiedere</label>
-                                    <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ expense.amount }}" required>
+                                    <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ expense.amount|unlocalize }}" required>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label">Categoria</label>
@@ -399,7 +400,7 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-label">Importo</label>
-                                <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ entry.amount }}" required>
+                                <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="amount" value="{{ entry.amount|unlocalize }}" required>
                             </div>
                             <div class="col-6">
                                 <label class="form-label">Categoria</label>
