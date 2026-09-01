@@ -5,6 +5,37 @@ from datetime import date, timedelta
 from decimal import Decimal
 import secrets
 
+RECEIPT_IMAGE_MAX_DIMENSION = 1600
+RECEIPT_IMAGE_JPEG_QUALITY = 82
+RECEIPT_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff')
+
+
+def _compress_receipt_image(field_file):
+    """Downscale/recompress a freshly uploaded receipt photo to reduce storage and report memory usage."""
+    if not field_file or field_file._committed:
+        return
+    name = (field_file.name or '').lower()
+    if not name.endswith(RECEIPT_IMAGE_EXTENSIONS):
+        return
+
+    import io
+
+    from django.core.files.base import ContentFile
+    from PIL import Image
+
+    try:
+        field_file.file.seek(0)
+        with Image.open(field_file.file) as image:
+            image = image.convert('RGB')
+            image.thumbnail((RECEIPT_IMAGE_MAX_DIMENSION, RECEIPT_IMAGE_MAX_DIMENSION))
+            buffer = io.BytesIO()
+            image.save(buffer, format='JPEG', quality=RECEIPT_IMAGE_JPEG_QUALITY, optimize=True)
+    except Exception:
+        return
+
+    base_name = field_file.name.rsplit('.', 1)[0]
+    field_file.save(f'{base_name}.jpg', ContentFile(buffer.getvalue()), save=False)
+
 
 def _add_months_with_day(source_date, months, day):
     month_index = source_date.month - 1 + months
@@ -82,6 +113,7 @@ class CorporateCardEntry(models.Model):
 
     def save(self, *args, **kwargs):
         self.balance_delta = self.amount if self.operation_type == self.TYPE_TOP_UP else -self.amount
+        _compress_receipt_image(self.receipt_image)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -115,6 +147,10 @@ class PlannedCorporateCardExpense(models.Model):
         super().clean()
         if self.amount is None or self.amount <= 0:
             raise ValidationError({'amount': 'Inserisci un importo maggiore di zero.'})
+
+    def save(self, *args, **kwargs):
+        _compress_receipt_image(self.receipt_image)
+        super().save(*args, **kwargs)
 
     @property
     def is_paid(self):
