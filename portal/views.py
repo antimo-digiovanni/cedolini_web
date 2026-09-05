@@ -225,6 +225,26 @@ def _corporate_card_months(user):
     ]
 
 
+def _corporate_card_month_groups(entries):
+    grouped = OrderedDict()
+    for entry in entries:
+        key = (entry.occurred_on.year, entry.occurred_on.month)
+        if key not in grouped:
+            grouped[key] = {
+                'key': f'{entry.occurred_on.year}-{entry.occurred_on.month:02d}',
+                'label': f"{MONTH_LABELS_IT[entry.occurred_on.month]} {entry.occurred_on.year}",
+                'entries': [],
+                'total_amount': Decimal('0.00'),
+            }
+        grouped[key]['entries'].append(entry)
+        grouped[key]['total_amount'] += entry.amount
+
+    month_groups = list(grouped.values())
+    for group in month_groups:
+        group['count'] = len(group['entries'])
+    return month_groups
+
+
 def _planned_corporate_card_expenses_queryset(user):
     return PlannedCorporateCardExpense.objects.filter(
         user=user,
@@ -4241,6 +4261,7 @@ def personal_asset_dashboard(request):
         running_card_balance += card_entry.balance_delta
         card_entry.balance_after = running_card_balance
     corporate_card_entries = chronological_card_entries[::-1][:100]
+    corporate_card_month_groups = _corporate_card_month_groups(corporate_card_entries)
     corporate_card_balance = _corporate_card_balance(request.user)
     corporate_card_month = _corporate_card_summary(
         request.user,
@@ -4258,6 +4279,7 @@ def personal_asset_dashboard(request):
         'adjustment_form': adjustment_form,
         'corporate_card_form': corporate_card_form,
         'corporate_card_entries': corporate_card_entries,
+        'corporate_card_month_groups': corporate_card_month_groups,
         'corporate_card_balance': corporate_card_balance,
         'corporate_card_month': corporate_card_month,
         'corporate_card_months': corporate_card_months,

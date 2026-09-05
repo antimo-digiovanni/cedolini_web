@@ -262,66 +262,29 @@
         </div>
 
         {% if corporate_card_entries %}
-        <div class="table-responsive d-none d-md-block">
-            <table class="table corporate-card-table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>PDF</th>
-                        <th>Data</th>
-                        <th>Movimento</th>
-                        <th>Categoria</th>
-                        <th>Descrizione</th>
-                        <th class="text-end">Importo</th>
-                        <th class="text-end">Saldo dopo</th>
-                        <th class="text-end">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in corporate_card_entries %}
-                    <tr>
-                        <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" aria-label="Seleziona movimento per PDF"></td>
-                        <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
-                        <td>{{ entry.get_operation_type_display }}</td>
-                        <td>{{ entry.category }}</td>
-                        <td>{{ entry.description|default:"-" }}</td>
-                        <td class="text-end">{{ entry.amount|floatformat:2 }} €</td>
-                        <td class="text-end">{{ entry.balance_after|floatformat:2 }} €</td>
-                        <td class="text-end">
-                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button>
-                            <form method="post" class="d-inline" data-confirm-delete="1">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete_corporate_card_entry">
-                                <input type="hidden" name="entry_id" value="{{ entry.id }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <div class="d-md-none">
-            {% for entry in corporate_card_entries %}
-            <div class="corporate-card-mobile-entry">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <div class="fw-semibold">{{ entry.get_operation_type_display }}</div>
-                        <div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div>
-                    </div>
-                    <div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div>
-                </div>
-                <div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div>
-                <div class="d-flex justify-content-between align-items-center gap-2 mt-3">
-                    <span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span>
-                    <div>
-                        <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}"> <span>PDF</span></label>
-                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button>
-                        <form method="post" class="m-0 d-inline" data-confirm-delete="1">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete_corporate_card_entry">
-                            <input type="hidden" name="entry_id" value="{{ entry.id }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                        </form>
+        <div class="accordion" id="corporateCardMonths">
+            {% for month_group in corporate_card_month_groups %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="corporateCardMonthHeading{{ month_group.key }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#corporateCardMonth{{ month_group.key }}" aria-expanded="false" aria-controls="corporateCardMonth{{ month_group.key }}">
+                        <span class="fw-semibold">{{ month_group.label }}</span><span class="ms-2 text-muted small">{{ month_group.count }} movimenti · {{ month_group.total_amount|floatformat:2 }} €</span>
+                    </button>
+                </h2>
+                <div id="corporateCardMonth{{ month_group.key }}" class="accordion-collapse collapse" aria-labelledby="corporateCardMonthHeading{{ month_group.key }}" data-bs-parent="#corporateCardMonths">
+                    <div class="accordion-body p-2 p-md-3">
+                        <div class="table-responsive d-none d-md-block">
+                            <table class="table corporate-card-table align-middle mb-0">
+                                <thead><tr><th>PDF</th><th>Data</th><th>Movimento</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Saldo dopo</th><th class="text-end">Azioni</th></tr></thead>
+                                <tbody>{% for entry in month_group.entries %}<tr>
+                                    <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" aria-label="Seleziona movimento per PDF"></td>
+                                    <td>{{ entry.occurred_on|date:"d/m/Y" }}</td><td>{{ entry.get_operation_type_display }}</td><td>{{ entry.category }}</td><td>{{ entry.description|default:"-" }}</td><td class="text-end">{{ entry.amount|floatformat:2 }} €</td><td class="text-end">{{ entry.balance_after|floatformat:2 }} €</td>
+                                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></td>
+                                </tr>{% endfor %}</tbody>
+                            </table>
+                        </div>
+                        <div class="d-md-none">{% for entry in month_group.entries %}
+                            <div class="corporate-card-mobile-entry"><div class="d-flex justify-content-between align-items-start gap-3"><div><div class="fw-semibold">{{ entry.get_operation_type_display }}</div><div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div></div><div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div></div><div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div><div class="d-flex justify-content-between align-items-center gap-2 mt-3"><span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span><div><label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}"> <span>PDF</span></label><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="m-0 d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></div></div></div>
+                        {% endfor %}</div>
                     </div>
                 </div>
             </div>
