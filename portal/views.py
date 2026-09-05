@@ -232,7 +232,7 @@ def _planned_corporate_card_expenses_queryset(user):
     ).order_by('planned_on', 'created_at', 'id')
 
 
-def _planned_corporate_card_expenses_pdf_response(request):
+def _planned_corporate_card_expenses_pdf_response(request, expense_ids=None):
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import A4
@@ -242,7 +242,10 @@ def _planned_corporate_card_expenses_pdf_response(request):
     from reportlab.platypus import Image as ReportImage
     from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-    expenses = list(_planned_corporate_card_expenses_queryset(request.user))
+    expenses_queryset = _planned_corporate_card_expenses_queryset(request.user)
+    if expense_ids is not None:
+        expenses_queryset = expenses_queryset.filter(id__in=expense_ids)
+    expenses = list(expenses_queryset)
     total_amount = sum((expense.amount for expense in expenses), Decimal('0.00'))
     output = io.BytesIO()
     styles = getSampleStyleSheet()
@@ -353,7 +356,7 @@ def _corporate_card_report_response(request):
     })
 
 
-def _corporate_card_pdf_response(request):
+def _corporate_card_pdf_response(request, entry_ids=None):
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import A4
@@ -363,17 +366,33 @@ def _corporate_card_pdf_response(request):
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, KeepTogether
     from reportlab.lib.utils import ImageReader
 
-    today = timezone.localdate()
-    try:
-        year = int(request.GET.get('year') or today.year)
-        month = int(request.GET.get('month') or today.month)
-        if month < 1 or month > 12:
-            raise ValueError
-    except (TypeError, ValueError):
-        year, month = today.year, today.month
-
-    summary = _corporate_card_summary(request.user, year=year, month=month)
-    report_entries = summary['entries']
+    if entry_ids is None:
+        today = timezone.localdate()
+        try:
+            year = int(request.GET.get('year') or today.year)
+            month = int(request.GET.get('month') or today.month)
+            if month < 1 or month > 12:
+                raise ValueError
+        except (TypeError, ValueError):
+            year, month = today.year, today.month
+        summary = _corporate_card_summary(request.user, year=year, month=month)
+        report_entries = summary['entries']
+        report_label = f'Riepilogo {MONTH_LABELS_IT[month]} {year}'
+        total_label = 'TOTALE NETTO DEL MESE'
+    else:
+        report_entries = list(
+            _corporate_card_entries_queryset(request.user).filter(
+                id__in=entry_ids,
+                operation_type=CorporateCardEntry.TYPE_EXPENSE,
+            )
+        )
+        summary = {
+            'top_up_total': Decimal('0.00'),
+            'expense_total': sum((entry.amount for entry in report_entries), Decimal('0.00')),
+            'net_total': sum((entry.balance_delta for entry in report_entries), Decimal('0.00')),
+        }
+        report_label = 'Spese selezionate'
+        total_label = 'TOTALE SPESE SELEZIONATE'
     output = io.BytesIO()
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name='CorporateTitle', parent=styles['Title'], alignment=TA_CENTER, fontSize=19, leading=23, textColor=colors.HexColor('#17202a'), spaceAfter=4))
@@ -403,7 +422,7 @@ def _corporate_card_pdf_response(request):
         canvas.drawCentredString(A4[0] / 2, 10 * mm, f'Gestione carta aziendale - Pagina {doc.page}')
         canvas.restoreState()
 
-    story = [Spacer(1, 10 * mm), Paragraph('Gestione carta di credito aziendale', styles['CorporateTitle']), Paragraph(f'Riepilogo {MONTH_LABELS_IT[month]} {year}', styles['CorporateSmall']), Paragraph(f'Dipendente: {request.user.get_full_name() or request.user.get_username()}', styles['CorporateSmall']), Spacer(1, 7 * mm)]
+    story = [Spacer(1, 10 * mm), Paragraph('Gestione carta di credito aziendale', styles['CorporateTitle']), Paragraph(report_label, styles['CorporateSmall']), Paragraph(f'Dipendente: {request.user.get_full_name() or request.user.get_username()}', styles['CorporateSmall']), Spacer(1, 7 * mm)]
 
     kpi_table = Table([
         [Paragraph('<b>RICARICHE DATORE</b>', styles['CorporateSmall']), Paragraph('<b>SPESE DEL MESE</b>', styles['CorporateSmall']), Paragraph('<b>SALDO CARTA ATTUALE</b>', styles['CorporateSmall'])],
@@ -437,7 +456,7 @@ def _corporate_card_pdf_response(request):
             Paragraph(f'{entry.amount:.2f} EUR', styles['CorporateCellRight']),
             Paragraph(f'{entry.balance_delta:.2f} EUR', styles['CorporateCellRight']),
         ])
-    rows.append([Paragraph('<b>TOTALE NETTO DEL MESE</b>', styles['CorporateCell']), '', '', Paragraph(f"<b>{summary['net_total']:.2f} EUR</b>", styles['CorporateCellRight']), ''])
+    rows.append([Paragraph(f'<b>{total_label}</b>', styles['CorporateCell']), '', '', Paragraph(f"<b>{summary['net_total']:.2f} EUR</b>", styles['CorporateCellRight']), ''])
     table = Table(rows, colWidths=[25 * mm, 38 * mm, 70 * mm, 25 * mm, 25 * mm], repeatRows=1)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#eaf6ef')),
@@ -490,7 +509,8 @@ def _corporate_card_pdf_response(request):
     doc.build(story, onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
     output.seek(0)
     response = HttpResponse(output.read(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="carta_aziendale_{year}_{month:02d}.pdf"'
+    filename = f'carta_aziendale_{year}_{month:02d}.pdf' if entry_ids is None else 'spese_fatte_selezionate.pdf'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
 
@@ -3901,6 +3921,12 @@ def personal_asset_dashboard(request):
         feedback = 'Movimento carta aziendale aggiornato correttamente.'
     elif status == 'planned_expenses_paid':
         feedback = 'Le spese selezionate sono state spostate nei movimenti carta.'
+    elif status == 'planned_expenses_pdf_missing':
+        feedback = 'Seleziona almeno una spesa da fare da inserire nel PDF.'
+        feedback_level = 'danger'
+    elif status == 'corporate_card_expenses_pdf_missing':
+        feedback = 'Seleziona almeno una spesa fatta da inserire nel PDF.'
+        feedback_level = 'danger'
 
     form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
     adjustment_form = PersonalAssetQuickAccountAdjustmentForm()
@@ -3935,6 +3961,12 @@ def personal_asset_dashboard(request):
                     return redirect(f'{request.path}?status=planned_expense_updated')
                 feedback = 'Correggi i campi della spesa da fare e riprova.'
                 feedback_level = 'danger'
+
+        elif action == 'download_selected_planned_expenses_pdf':
+            selected_ids = request.POST.getlist('planned_expense_ids')
+            if not selected_ids:
+                return redirect(f'{request.path}?status=planned_expenses_pdf_missing')
+            return _planned_corporate_card_expenses_pdf_response(request, expense_ids=selected_ids)
 
         elif action == 'mark_planned_expenses_paid':
             selected_ids = request.POST.getlist('planned_expense_ids')
@@ -4032,6 +4064,12 @@ def personal_asset_dashboard(request):
                 else:
                     feedback = 'Correggi i campi del movimento e riprova.'
                     feedback_level = 'danger'
+
+        elif action == 'download_selected_corporate_card_expenses_pdf':
+            selected_ids = request.POST.getlist('corporate_card_entry_ids')
+            if not selected_ids:
+                return redirect(f'{request.path}?status=corporate_card_expenses_pdf_missing')
+            return _corporate_card_pdf_response(request, entry_ids=selected_ids)
 
         elif action == 'delete_corporate_card_entry':
             card_entry = CorporateCardEntry.objects.filter(id=request.POST.get('entry_id'), user=request.user).first()

@@ -446,6 +446,64 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(CorporateCardEntry.objects.filter(operation_type=CorporateCardEntry.TYPE_EXPENSE).count(), 2)
 		self.assertEqual(CorporateCardEntry.objects.filter(user=self.user).count(), 3)
 
+	def test_downloads_pdf_for_selected_planned_expenses_only(self):
+		self.client.force_login(self.user)
+		selected = PlannedCorporateCardExpense.objects.create(
+			user=self.user,
+			planned_on=timezone.localdate(),
+			category='Selezionata',
+			amount='10.00',
+		)
+		PlannedCorporateCardExpense.objects.create(
+			user=self.user,
+			planned_on=timezone.localdate(),
+			category='Non selezionata',
+			amount='20.00',
+		)
+
+		response = self.client.post(reverse('personal_asset_dashboard'), {
+			'action': 'download_selected_planned_expenses_pdf',
+			'planned_expense_ids': [str(selected.id)],
+		})
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response['Content-Type'], 'application/pdf')
+		self.assertIn(b'%PDF', response.content[:20])
+
+		missing_selection = self.client.post(reverse('personal_asset_dashboard'), {
+			'action': 'download_selected_planned_expenses_pdf',
+		})
+		self.assertRedirects(missing_selection, reverse('personal_asset_dashboard') + '?status=planned_expenses_pdf_missing')
+
+	def test_downloads_pdf_for_selected_completed_expenses_only(self):
+		self.client.force_login(self.user)
+		selected = CorporateCardEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=CorporateCardEntry.TYPE_EXPENSE,
+			category='Spesa selezionata',
+			amount=Decimal('10.00'),
+		)
+		CorporateCardEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=CorporateCardEntry.TYPE_TOP_UP,
+			category='Ricarica',
+			amount=Decimal('100.00'),
+		)
+
+		response = self.client.post(reverse('personal_asset_dashboard'), {
+			'action': 'download_selected_corporate_card_expenses_pdf',
+			'corporate_card_entry_ids': [str(selected.id)],
+		})
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response['Content-Type'], 'application/pdf')
+		self.assertIn(b'%PDF', response.content[:20])
+
+		missing_selection = self.client.post(reverse('personal_asset_dashboard'), {
+			'action': 'download_selected_corporate_card_expenses_pdf',
+		})
+		self.assertRedirects(missing_selection, reverse('personal_asset_dashboard') + '?status=corporate_card_expenses_pdf_missing')
+
 	@override_settings(STORAGES={
 		'default': {
 			'BACKEND': 'django.core.files.storage.FileSystemStorage',
