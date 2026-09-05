@@ -89,10 +89,8 @@ from turni_app.workbook import WeeklySectionData
 from .utils_import import parse_payslip_filename
 from .access import (
     PATRIMONIO_GROUP_NAME,
-    RICONFEZIONAMENTO_GROUP_NAME,
     user_has_full_admin_access,
     user_has_patrimonio_access,
-    user_has_riconfezionamento_access,
     user_has_turni_planner_access,
     user_has_today_markings_access,
     user_has_today_markings_only_access,
@@ -123,14 +121,6 @@ MAX_SHIFT_DURATION_HOURS = 18
 def _turni_planner_allowed_or_403(request):
     if not user_has_turni_planner_access(request.user):
         return HttpResponse('Turni Planner non disponibile per questo account.', status=403)
-    return None
-
-
-def _riconfezionamento_allowed_or_403(request):
-    if not settings.RICONFEZIONAMENTO_ONLINE_ENABLED:
-        return HttpResponse('Riconfezionamento online non disponibile.', status=404)
-    if not user_has_riconfezionamento_access(request.user):
-        return HttpResponse('Riconfezionamento non disponibile per questo account.', status=403)
     return None
 
 
@@ -260,7 +250,7 @@ def _planned_corporate_card_expenses_pdf_response(request):
     styles.add(ParagraphStyle(name='PlannedCell', parent=styles['BodyText'], fontSize=9, leading=11))
     styles.add(ParagraphStyle(name='PlannedRight', parent=styles['PlannedCell'], alignment=2))
 
-    logo_path = Path(settings.BASE_DIR) / 'riconfezionamento_app' / 'static' / 'assets' / 'logo-san-vincenzo.png'
+    logo_path = Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png'
 
     def draw_header_footer(canvas, doc):
         canvas.saveState()
@@ -393,10 +383,7 @@ def _corporate_card_pdf_response(request):
     styles.add(ParagraphStyle(name='CorporateReceiptTitle', parent=styles['Heading3'], fontSize=10, leading=12, textColor=colors.HexColor('#198754'), spaceBefore=8, spaceAfter=5))
 
     logo_path = None
-    for candidate in [
-        Path(settings.BASE_DIR) / 'riconfezionamento_app' / 'static' / 'assets' / 'logo-san-vincenzo.png',
-        Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png',
-    ]:
+    for candidate in [Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png']:
         if candidate.exists():
             logo_path = candidate
             break
@@ -733,7 +720,7 @@ def _build_personal_asset_reimbursement_report_image(user):
     display_name = _personal_asset_report_display_name(user)
     total_amount = sum((entry.reimbursement_amount or entry.amount or Decimal('0.00')) for entry in entries)
     logo_candidates = [
-        Path(settings.BASE_DIR) / 'riconfezionamento_app' / 'static' / 'assets' / 'logo-san-vincenzo.png',
+        Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png',
         Path(settings.BASE_DIR) / 'portal' / 'static' / 'portal' / 'logo.png',
     ]
 
@@ -6321,14 +6308,6 @@ def _today_marked_sessions_queryset(target_date):
 
 
 @login_required
-def riconfezionamento_entry(request):
-    denied = _riconfezionamento_allowed_or_403(request)
-    if denied is not None:
-        return denied
-    return redirect('/riconfezionamento/')
-
-
-@login_required
 def today_markings_dashboard(request):
     if not user_has_today_markings_access(request.user) and not user_has_full_admin_access(request.user):
         return redirect('dashboard')
@@ -6789,14 +6768,10 @@ def admin_employees(request):
         .select_related('user')
         .annotate(payslip_count=Count('payslips'))
     )
-    riconfezionamento_user_ids = set(
-        Group.objects.filter(name=RICONFEZIONAMENTO_GROUP_NAME).values_list('user__id', flat=True)
-    )
     patrimonio_user_ids = set(
         Group.objects.filter(name=PATRIMONIO_GROUP_NAME).values_list('user__id', flat=True)
     )
     for employee in employees:
-        employee.has_riconfezionamento_access = employee.user_id in riconfezionamento_user_ids
         employee.has_patrimonio_access = employee.user_id in patrimonio_user_ids
 
     _decorate_employee_display_names(employees)
@@ -6855,31 +6830,8 @@ def admin_employee_detail(request, emp_id):
 
     feedback = None
     feedback_level = 'success'
-    riconfezionamento_group, _ = Group.objects.get_or_create(name=RICONFEZIONAMENTO_GROUP_NAME)
     patrimonio_group, _ = Group.objects.get_or_create(name=PATRIMONIO_GROUP_NAME)
-    has_riconfezionamento_access = employee.user.groups.filter(id=riconfezionamento_group.id).exists()
     has_patrimonio_access = employee.user.groups.filter(id=patrimonio_group.id).exists()
-
-    if request.method == 'POST' and request.POST.get('action') == 'toggle_riconfezionamento_access':
-        enable_access = request.POST.get('enable_access') == '1'
-        if enable_access:
-            employee.user.groups.add(riconfezionamento_group)
-            outcome = 'riconfezionamento_enabled'
-        else:
-            employee.user.groups.remove(riconfezionamento_group)
-            outcome = 'riconfezionamento_disabled'
-
-        _create_audit_event(
-            request,
-            'employee_riconfezionamento_access_updated',
-            employee=employee,
-            metadata={
-                'enabled': enable_access,
-                'username': employee.user.username,
-            },
-        )
-
-        return redirect(f'{request.path}?outcome={outcome}')
 
     if request.method == 'POST' and request.POST.get('action') == 'toggle_patrimonio_access':
         enable_access = request.POST.get('enable_access') == '1'
@@ -6940,12 +6892,6 @@ def admin_employee_detail(request, emp_id):
     elif outcome == 'missing':
         feedback = 'Cedolino non trovato o gia eliminato.'
         feedback_level = 'danger'
-    elif outcome == 'riconfezionamento_enabled':
-        feedback = 'Accesso al riconfezionamento abilitato per questo dipendente.'
-        feedback_level = 'success'
-    elif outcome == 'riconfezionamento_disabled':
-        feedback = 'Accesso al riconfezionamento disattivato per questo dipendente.'
-        feedback_level = 'warning'
     elif outcome == 'patrimonio_enabled':
         feedback = 'Accesso alla gestione patrimonio abilitato per questo dipendente.'
         feedback_level = 'success'
@@ -6980,7 +6926,6 @@ def admin_employee_detail(request, emp_id):
         'cuds_detailed': cuds_detailed,
         'feedback': feedback,
         'feedback_level': feedback_level,
-        'has_riconfezionamento_access': employee.user.groups.filter(id=riconfezionamento_group.id).exists(),
         'has_patrimonio_access': employee.user.groups.filter(id=patrimonio_group.id).exists(),
     })
 

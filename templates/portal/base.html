@@ -398,12 +398,6 @@ main {
             </a>
             {% endif %}
 
-            {% if has_riconfezionamento_access and not has_full_admin_access %}
-            <a href="{% url 'riconfezionamento_entry' %}">
-                <i class="bi bi-box-seam"></i> Riconfezionamento
-            </a>
-            {% endif %}
-
             <a href="{% url 'public_home' %}" target="_blank" rel="noopener">
                 <i class="bi bi-globe2"></i> Sito aziendale
             </a>

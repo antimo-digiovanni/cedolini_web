@@ -3,7 +3,6 @@ from django.contrib.auth.models import Group
 
 TODAY_MARKINGS_GROUP_NAME = "titolare_solo_marcature_oggi"
 TURNI_PLANNER_GROUP_NAME = "turni_planner_users"
-RICONFEZIONAMENTO_GROUP_NAME = "riconfezionamento_users"
 PATRIMONIO_GROUP_NAME = "patrimonio_users"
 
 
@@ -35,17 +34,6 @@ def user_has_turni_planner_access(user):
         return True
     return Group.objects.filter(
         name=TURNI_PLANNER_GROUP_NAME,
-        user=user,
-    ).exists()
-
-
-def user_has_riconfezionamento_access(user):
-    if not getattr(user, "is_authenticated", False):
-        return False
-    if user.is_staff:
-        return True
-    return Group.objects.filter(
-        name=RICONFEZIONAMENTO_GROUP_NAME,
         user=user,
     ).exists()
 

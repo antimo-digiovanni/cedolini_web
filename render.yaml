@@ -4,5 +4,5 @@ services:
     env: python
     buildCommand: pip install -r requirements.txt
     preDeployCommand: python manage.py migrate --noinput
-    startCommand: python -m gunicorn config.asgi:application --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-10000} --workers ${WEB_CONCURRENCY:-1} --threads ${GUNICORN_THREADS:-1} --timeout 120 --max-requests 200 --max-requests-jitter 50 --access-logfile - --error-logfile -
+    startCommand: python -m gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-10000} --workers ${WEB_CONCURRENCY:-1} --threads ${GUNICORN_THREADS:-1} --timeout 120 --max-requests 100 --max-requests-jitter 25 --access-logfile - --error-logfile -
     autoDeploy: true
