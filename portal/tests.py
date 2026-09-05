@@ -483,7 +483,7 @@ class PersonalAssetDashboardTests(TestCase):
 			category='Spesa selezionata',
 			amount=Decimal('10.00'),
 		)
-		CorporateCardEntry.objects.create(
+		top_up = CorporateCardEntry.objects.create(
 			user=self.user,
 			occurred_on=timezone.localdate(),
 			operation_type=CorporateCardEntry.TYPE_TOP_UP,
@@ -493,7 +493,7 @@ class PersonalAssetDashboardTests(TestCase):
 
 		response = self.client.post(reverse('personal_asset_dashboard'), {
 			'action': 'download_selected_corporate_card_expenses_pdf',
-			'corporate_card_entry_ids': [str(selected.id)],
+			'corporate_card_entry_ids': [str(selected.id), str(top_up.id)],
 		})
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(response['Content-Type'], 'application/pdf')

@@ -256,7 +256,7 @@
         <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
             <div>
                 <h4 class="h5 fw-semibold mb-1">Spese fatte e movimenti carta</h4>
-                <p class="text-muted small mb-0">Flagga le spese fatte da inserire nel PDF. Le ricariche non sono selezionabili.</p>
+                <p class="text-muted small mb-0">Flagga le voci da inserire nel PDF, comprese le ricariche del datore.</p>
             </div>
             <span class="finance-pill">{{ corporate_card_entries|length }} movimenti recenti</span>
         </div>
@@ -279,7 +279,7 @@
                 <tbody>
                     {% for entry in corporate_card_entries %}
                     <tr>
-                        <td>{% if entry.operation_type == 'expense' %}<input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" aria-label="Seleziona spesa per PDF">{% endif %}</td>
+                        <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" aria-label="Seleziona movimento per PDF"></td>
                         <td>{{ entry.occurred_on|date:"d/m/Y" }}</td>
                         <td>{{ entry.get_operation_type_display }}</td>
                         <td>{{ entry.category }}</td>
@@ -314,7 +314,7 @@
                 <div class="d-flex justify-content-between align-items-center gap-2 mt-3">
                     <span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span>
                     <div>
-                        {% if entry.operation_type == 'expense' %}<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}"> <span>PDF</span></label>{% endif %}
+                        <label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}"> <span>PDF</span></label>
                         <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button>
                         <form method="post" class="m-0 d-inline" data-confirm-delete="1">
                             {% csrf_token %}
@@ -330,7 +330,7 @@
         <form id="selectedCardExpensesForm" method="post" class="mt-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="download_selected_corporate_card_expenses_pdf">
-            <button type="submit" class="btn btn-outline-success">PDF spese fatte selezionate</button>
+            <button type="submit" class="btn btn-outline-success">PDF movimenti selezionati</button>
         </form>
         {% else %}
         <div class="alert alert-light border mb-0">Nessun movimento della carta aziendale. Inserisci la prima ricarica del datore per iniziare.</div>

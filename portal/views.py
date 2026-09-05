@@ -380,19 +380,20 @@ def _corporate_card_pdf_response(request, entry_ids=None):
         report_label = f'Riepilogo {MONTH_LABELS_IT[month]} {year}'
         total_label = 'TOTALE NETTO DEL MESE'
     else:
-        report_entries = list(
-            _corporate_card_entries_queryset(request.user).filter(
-                id__in=entry_ids,
-                operation_type=CorporateCardEntry.TYPE_EXPENSE,
-            )
-        )
+        report_entries = list(_corporate_card_entries_queryset(request.user).filter(id__in=entry_ids))
         summary = {
-            'top_up_total': Decimal('0.00'),
-            'expense_total': sum((entry.amount for entry in report_entries), Decimal('0.00')),
+            'top_up_total': sum(
+                (entry.amount for entry in report_entries if entry.operation_type == CorporateCardEntry.TYPE_TOP_UP),
+                Decimal('0.00'),
+            ),
+            'expense_total': sum(
+                (entry.amount for entry in report_entries if entry.operation_type == CorporateCardEntry.TYPE_EXPENSE),
+                Decimal('0.00'),
+            ),
             'net_total': sum((entry.balance_delta for entry in report_entries), Decimal('0.00')),
         }
-        report_label = 'Spese selezionate'
-        total_label = 'TOTALE SPESE SELEZIONATE'
+        report_label = 'Movimenti selezionati'
+        total_label = 'TOTALE NETTO SELEZIONATO'
     output = io.BytesIO()
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name='CorporateTitle', parent=styles['Title'], alignment=TA_CENTER, fontSize=19, leading=23, textColor=colors.HexColor('#17202a'), spaceAfter=4))
