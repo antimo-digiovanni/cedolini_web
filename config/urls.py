@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from portal import views
 from portal import group_gateway
+from django.views.generic import TemplateView
 
 urlpatterns = [
 
@@ -15,6 +16,7 @@ urlpatterns = [
     path('gruppo/<str:filename>', group_gateway.group_asset, name='group_asset'),
     path('azienda/san-vincenzo/', group_gateway.select_san_vincenzo, name='select_san_vincenzo'),
     path('sito-web/', views.public_home, name='public_home'),
+    path('disinfestazione-derattizzazione/', TemplateView.as_view(template_name='site/pest_control.html'), name='public_pest_control'),
     path('chi-siamo/', views.public_about, name='public_about'),
     path('servizi/', views.public_services, name='public_services'),
     path('servizi-digitali/', views.public_digital_services, name='public_digital_services'),

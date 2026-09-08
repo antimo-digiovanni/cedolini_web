@@ -3266,6 +3266,7 @@ def sitemap_xml(request):
         'macchinari/',
         'contatti/',
         'gruppo/',
+        'disinfestazione-derattizzazione/',
         'login/',
     ]
     base_url = request.build_absolute_uri('/').rstrip('/')

@@ -1,0 +1,140 @@
+{% extends 'site/base.html' %}
+{% load static %}
+{% block title %}Disinfestazione blatte e derattizzazione | San Vincenzo SRL{% endblock %}
+{% block meta_description %}Disinfestazione blatte, controllo di ratti e topi e Pest Management per aziende. San Vincenzo SRL, Grumo Nevano (NA): chiama 340 051 5648 per valutare il servizio.{% endblock %}
+{% block canonical_url %}https://www.sanvincenzoservice.it/disinfestazione-derattizzazione/{% endblock %}
+{% block og_title %}Disinfestazione e Pest Management | San Vincenzo SRL{% endblock %}
+{% block og_description %}Blatte, roditori e insetti: controllo mirato, prevenzione e monitoraggio per gli ambienti di lavoro.{% endblock %}
+{% block twitter_title %}Pest Control | San Vincenzo SRL{% endblock %}
+{% block twitter_description %}Disinfestazione, derattizzazione e prevenzione per aziende. Sede a Grumo Nevano (NA).{% endblock %}
+{% block extra_head %}
+<style>
+  .site-page .bg-orb { display: none; }
+  .pest-page { --pest-green: #146452; --pest-pale: #edf5f1; --pest-ink: #172d33; }
+  .pest-hero { position: relative; isolation: isolate; background: #172d33; color: #fff; padding: 64px 0 48px; }
+  .pest-hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, #102b2ff5, #102b2feb 48%, #102b2f35); }
+  .pest-hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 45%; z-index: -2; }
+  .pest-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; font-weight: 700; }
+  .pest-brand img { width: 56px; height: 56px; object-fit: contain; background: white; border-radius: 4px; padding: 5px; }
+  .pest-kicker { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--pest-green); margin: 0 0 14px; }
+  .pest-hero .pest-kicker { color: #ade2c9; }
+  .pest-hero h1 { font-family: 'Fraunces', Georgia, serif; font-size: 52px; line-height: 1.12; max-width: 850px; color: white; margin: 0; }
+  .pest-lead { font-size: 18px; line-height: 1.7; max-width: 670px; margin: 24px 0; color: #e0ebe7; }
+  .pest-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .pest-button { display: inline-flex; align-items: center; gap: 10px; padding: 14px 20px; border-radius: 4px; font-weight: 700; background: #fff; color: #153f35; text-decoration: none; border: 1px solid #fff; }
+  .pest-button:hover { background: #d5eadf; color: #153f35; }
+  .pest-button-outline { background: transparent; color: white; border-color: #a2beb6; }
+  .pest-hero-note { margin: 28px 0 0; color: #c3d7cf; font-size: 13px; }
+  .pest-index { background: var(--pest-pale); border-bottom: 1px solid #cedfd7; }
+  .pest-index .container { display: flex; gap: 28px; flex-wrap: wrap; padding-block: 20px; }
+  .pest-index a { color: #214d40; font-weight: 700; font-size: 14px; text-underline-offset: 5px; }
+  .pest-section { padding: 64px 0; background: white; }
+  .pest-section h2 { color: var(--pest-ink); font-family: 'Fraunces', Georgia, serif; font-size: 36px; line-height: 1.2; max-width: 780px; margin: 0 0 20px; }
+  .pest-section p { line-height: 1.8; color: #4b5b5d; }
+  .pest-section-intro { max-width: 750px; margin-bottom: 36px; }
+  .pest-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+  .pest-service { border-top: 3px solid var(--pest-green); padding-top: 22px; }
+  .pest-service > i { font-size: 27px; color: var(--pest-green); }
+  .pest-service h3 { font-size: 23px; color: var(--pest-ink); margin: 18px 0 14px; }
+  .pest-service ul { padding-left: 20px; color: #4b5b5d; line-height: 1.8; }
+  .pest-method { background: var(--pest-pale); border-block: 1px solid #cedfd7; }
+  .pest-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; list-style: none; padding: 0; margin: 34px 0 0; }
+  .pest-steps li { border-top: 1px solid #9fbbb0; padding-top: 20px; }
+  .pest-step-number { display: block; font-size: 13px; font-weight: 800; color: var(--pest-green); margin-bottom: 16px; }
+  .pest-steps h3 { font-size: 21px; color: var(--pest-ink); }
+  .pest-contexts { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+  .pest-contexts ul { list-style: none; padding: 0; margin: 0; }
+  .pest-contexts li { padding: 18px 0; border-bottom: 1px solid #d7e4de; }
+  .pest-contexts li strong { display: block; color: var(--pest-ink); margin-bottom: 6px; }
+  .pest-equipment { margin: 42px 0 0; }
+  .pest-equipment-photo { background: #f0f3f5; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .pest-equipment-photo img { display: block; width: 100%; height: 440px; object-fit: contain; }
+  .pest-equipment figcaption { padding-top: 14px; color: #4b5b5d; font-size: 14px; line-height: 1.7; }
+  @media (max-width: 767px) { .pest-equipment-photo { grid-template-columns: 1fr; } .pest-equipment-photo img { height: 360px; } .pest-hero::before { background: #102b2fd9; } }
+  .pest-faq { max-width: 900px; }
+  .pest-faq details { border-bottom: 1px solid #cddbd5; padding: 20px 0; }
+  .pest-faq summary { font-weight: 700; color: var(--pest-ink); cursor: pointer; font-size: 17px; }
+  .pest-faq details p { margin: 14px 0 0; }
+  .pest-contact { background: #163f35; color: white; }
+  .pest-contact h2, .pest-contact p, .pest-contact .pest-kicker { color: white; }
+  .pest-contact a:not(.pest-button) { color: white; overflow-wrap: anywhere; }
+  .pest-contact address { margin-top: 28px; line-height: 1.9; }
+  .pest-back { display: inline-block; margin-top: 22px; font-size: 14px; }
+  @media (min-width: 992px) and (max-width: 1199px) { .site-header .navbar .nav-link { font-size: 12px; padding-inline: 5px; } .site-header .navbar-brand { font-size: 16px; } }
+  @media (max-width: 767px) { .pest-hero { padding: 40px 0 34px; } .pest-hero h1 { font-size: 36px; overflow-wrap: anywhere; } .pest-lead { font-size: 16px; } .pest-section { padding: 42px 0; } .pest-section h2 { font-size: 29px; } .pest-grid, .pest-contexts { grid-template-columns: 1fr; gap: 28px; } .pest-steps { grid-template-columns: 1fr 1fr; } .pest-index .container { gap: 14px 22px; } }
+  @media (max-width: 380px) { .pest-steps { grid-template-columns: 1fr; } .pest-hero h1 { font-size: 32px; } .pest-button { padding: 12px 14px; } }
+</style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Service","name":"Disinfestazione, derattizzazione e Pest Management","serviceType":["Disinfestazione blatte","Derattizzazione","Pest Control","Pest Management"],"url":"https://www.sanvincenzoservice.it/disinfestazione-derattizzazione/","provider":{"@type":"Organization","name":"San Vincenzo SRL","telephone":"+393400515648","address":{"@type":"PostalAddress","streetAddress":"Via B. Cellini 154","addressLocality":"Grumo Nevano","addressRegion":"NA","postalCode":"80028","addressCountry":"IT"}}}
+</script>
+{% endblock %}
+{% block content %}
+<div class="pest-page">
+  <section class="pest-hero" aria-labelledby="pest-title">
+    <img class="pest-hero-photo" src="{% static 'portal/machinery/atomizzatore-pest-control-2.jpg' %}" alt="" width="1350" height="1800" fetchpriority="high">
+    <div class="container">
+      <div class="pest-brand"><img src="{% static 'portal/logo.png' %}" alt="" width="56" height="56">San Vincenzo SRL</div>
+      <p class="pest-kicker">Pest Control &amp; Pest Management</p>
+      <h1 id="pest-title">Disinfestazione e derattizzazione.</h1>
+      <p class="pest-lead">Blatte, ratti, topi e insetti negli ambienti di lavoro. Interventi mirati e prevenzione per affrontare il problema e ridurre il rischio che si ripresenti.</p>
+      <div class="pest-actions">
+        <a class="pest-button" href="tel:+393400515648"><i class="bi bi-telephone" aria-hidden="true"></i>340 051 5648</a>
+        <a class="pest-button pest-button-outline" href="#richiedi-valutazione">Parliamo del tuo caso <i class="bi bi-arrow-down" aria-hidden="true"></i></a>
+      </div>
+      <p class="pest-hero-note">Sede a Grumo Nevano (NA) &middot; Ambienti industriali, commerciali e logistici</p>
+    </div>
+  </section>
+  <nav class="pest-index" aria-label="In questa pagina"><div class="container"><a href="#infestanti">Gli infestanti</a><a href="#metodo">Il metodo</a><a href="#ambienti">Gli ambienti</a><a href="#domande">Domande frequenti</a></div></nav>
+  <section class="pest-section" id="infestanti">
+    <div class="container">
+      <p class="pest-kicker">Riconoscere. Intervenire. Prevenire.</p>
+      <h2>Ogni infestazione richiede un approccio specifico.</h2>
+      <p class="pest-section-intro">Il tipo di infestante, i punti di accesso e l'utilizzo dei locali orientano la scelta del servizio. Non basta agire sul segnale visibile: occorre considerare anche le condizioni che favoriscono la presenza degli infestanti.</p>
+      <div class="pest-grid">
+        <article class="pest-service"><i class="bi bi-bug" aria-hidden="true"></i><h3>Disinfestazione blatte</h3><p>Le blatte, chiamate anche scarafaggi, possono trovare riparo in fessure, zone umide e aree con residui alimentari. Il controllo parte dall'individuazione dei rifugi e dei punti critici.</p><ul><li>Valutazione dei segnali di presenza</li><li>Intervento mirato al contesto</li><li>Indicazioni su pulizia e prevenzione</li></ul></article>
+        <article class="pest-service"><i class="bi bi-shield-check" aria-hidden="true"></i><h3>Derattizzazione: ratti e topi</h3><p>Tracce, rosicchiamenti e possibili accessi aiutano a valutare la presenza di roditori. Il piano considera locali interni, perimetri e movimentazione delle merci.</p><ul><li>Analisi dei possibili punti di ingresso</li><li>Controllo e monitoraggio dei roditori</li><li>Misure per limitare nuove intrusioni</li></ul></article>
+        <article class="pest-service"><i class="bi bi-search" aria-hidden="true"></i><h3>Insetti e zanzare</h3><p>La gestione degli insetti richiede di distinguere la specie e le condizioni ambientali. Ristagni, rifiuti e aperture possono contribuire al problema.</p><ul><li>Valutazione dell'ambiente interessato</li><li>Definizione delle azioni appropriate</li><li>Monitoraggio periodico da concordare</li></ul></article>
+      </div>
+    </div>
+  </section>
+  <section class="pest-section pest-method" id="metodo">
+    <div class="container">
+      <p class="pest-kicker">Pest Management applicato</p><h2>Non solo l'intervento.<br>Un percorso di controllo.</h2>
+      <p class="pest-section-intro">Il Pest Control affronta gli infestanti presenti. Il Pest Management integra prevenzione, osservazione e verifiche nel tempo. Un approccio integrato, noto come IPM, considera prima di tutto le cause e le condizioni del sito.</p>
+      <ol class="pest-steps">
+        <li><span class="pest-step-number">01 / VALUTAZIONE</span><h3>Capire il contesto</h3><p>Raccogliere le segnalazioni, individuare le aree interessate e valutare le esigenze dell'attività.</p></li>
+        <li><span class="pest-step-number">02 / PREVENZIONE</span><h3>Ridurre le opportunità</h3><p>Considerare accessi, stoccaggio, gestione dei rifiuti e condizioni che favoriscono gli infestanti.</p></li>
+        <li><span class="pest-step-number">03 / CONTROLLO</span><h3>Definire l'intervento</h3><p>Concordare modalità e precauzioni in funzione dell'infestante, dei locali e delle attività presenti.</p></li>
+        <li><span class="pest-step-number">04 / VERIFICA</span><h3>Seguire l'evoluzione</h3><p>Programmare i controlli opportuni e rivedere le misure preventive sulla base delle evidenze raccolte.</p></li>
+      </ol>
+    </div>
+  </section>
+  <section class="pest-section" id="ambienti"><div class="container pest-contexts">
+    <div><p class="pest-kicker">Il servizio nel tuo ambiente</p><h2>Proteggere gli spazi. Rispettare il lavoro.</h2><p>Il piano va adattato all'uso dei locali e alle esigenze operative. Per le attività alimentari, le misure di controllo degli infestanti devono essere coordinate con le procedure di autocontrollo dell'azienda.</p><p>San Vincenzo SRL ha sede a Grumo Nevano, in provincia di Napoli. Comunica il comune e il tipo di struttura per verificare disponibilità e modalità del servizio.</p></div>
+    <ul><li><strong>Industrie e stabilimenti</strong><span>Locali tecnici, aree produttive e spazi esterni.</span></li><li><strong>Magazzini e logistica</strong><span>Zone di carico, stoccaggio, varchi e perimetri.</span></li><li><strong>Attività commerciali e alimentari</strong><span>Locali di lavoro, depositi e gestione dei residui.</span></li></ul>
+  </div>
+  <div class="container"><figure class="pest-equipment">
+    <div class="pest-equipment-photo">
+      <img src="{% static 'portal/machinery/atomizzatore-pest-control-1.jpg' %}" alt="Vista frontale del mezzo con atomizzatore per Pest Control" width="1350" height="1800" loading="lazy">
+      <img src="{% static 'portal/machinery/atomizzatore-pest-control-2.jpg' %}" alt="Vista posteriore dell'atomizzatore montato sul mezzo" width="1350" height="1800" loading="lazy">
+    </div>
+    <figcaption>Atomizzatore per Pest Control, dalla galleria macchinari San Vincenzo. L'attrezzatura e il metodo da impiegare dipendono dall'ambiente e dall'intervento: non tutti i trattamenti richiedono atomizzazione.</figcaption>
+  </figure></div></section>
+  <section class="pest-section pest-method" id="domande"><div class="container pest-faq">
+    <p class="pest-kicker">Prima di intervenire</p><h2>Le domande più frequenti.</h2>
+    <details><summary>Ho visto una blatta: devo richiedere una disinfestazione?</summary><p>Un avvistamento è un segnale da valutare, ma da solo non indica l'estensione del problema. Segnala dove e quando è avvenuto e, se possibile senza toccare l'insetto, fornisci una fotografia utile all'identificazione.</p></details>
+    <details><summary>Quali segnali possono indicare ratti o topi?</summary><p>Rosicchiamenti, tracce e rumori ricorrenti possono richiedere una verifica. Evita di toccare animali o materiali sospetti; comunica al referente le aree interessate per concordare una valutazione.</p></details>
+    <details><summary>Quanto costa un intervento di disinfestazione o derattizzazione?</summary><p>Il costo dipende da infestante, superficie, condizioni dei locali e necessità di controlli successivi. Per una valutazione utile indica indirizzo, tipo di attività, aree interessate e segnali osservati.</p></details>
+    <details><summary>È necessario chiudere l'attività durante il trattamento?</summary><p>Dipende dal metodo e dall'ambiente. Le eventuali limitazioni di accesso, la preparazione dei locali e i tempi di rientro devono essere definiti prima dell'intervento seguendo le indicazioni tecniche specifiche.</p></details>
+    <details><summary>Un solo intervento elimina definitivamente il problema?</summary><p>Non è possibile prometterlo senza una valutazione. La prevenzione e gli eventuali controlli successivi sono importanti per verificare l'esito e ridurre il rischio di nuove presenze.</p></details>
+    <details><summary>Il Pest Management sostituisce il piano HACCP?</summary><p>No. Il controllo degli infestanti è un aspetto da coordinare con il sistema di autocontrollo dell'attività alimentare, non sostituisce il piano HACCP né costituisce da solo una certificazione.</p></details>
+  </div></section>
+  <section class="pest-section pest-contact" id="richiedi-valutazione"><div class="container">
+    <p class="pest-kicker">San Vincenzo SRL</p><h2>Segnala il problema.<br>Definiamo il prossimo passo.</h2>
+    <p>Comune, tipo di ambiente e segnali osservati: partiamo da queste informazioni.</p>
+    <div class="pest-actions"><a class="pest-button" href="tel:+393400515648"><i class="bi bi-telephone" aria-hidden="true"></i>340 051 5648</a><a class="pest-button pest-button-outline" href="mailto:antimo.digiovanni@sanvincenzosrl.com?subject=Richiesta%20Pest%20Control"><i class="bi bi-envelope" aria-hidden="true"></i>Richiedi una valutazione</a></div>
+    <address>Via B. Cellini 154, 80028 Grumo Nevano (NA)<br><a href="tel:+393400515648">340 051 5648</a> &middot; <a href="mailto:antimo.digiovanni@sanvincenzosrl.com">antimo.digiovanni@sanvincenzosrl.com</a></address>
+    <a class="pest-back" href="{% url 'group_home' %}">Le aziende del Gruppo Di Giovanni <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+  </div></section>
+</div>
+{% endblock %}
