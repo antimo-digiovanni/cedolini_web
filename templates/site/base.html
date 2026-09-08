@@ -72,6 +72,7 @@
   <div class="bg-orb bg-orb-right" aria-hidden="true"></div>
 
   <header class="site-header">
+    <div class="container text-end py-2"><a href="{% url 'group_home' %}" class="text-white small">Gruppo Di Giovanni <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
     <nav class="navbar navbar-expand-lg">
       <div class="container">
         <a class="navbar-brand fw-bold" href="{% url 'public_home' %}">
@@ -122,6 +123,7 @@
           <div class="footer-title">Azienda</div>
           <ul class="footer-list">
             <li><a href="{% url 'public_about' %}">Chi siamo</a></li>
+            <li><a href="{% url 'group_home' %}">Gruppo Di Giovanni &middot; Le nostre aziende</a></li>
             <li><a href="{% url 'public_services' %}">Servizi</a></li>
             <li><a href="{% url 'public_digital_services' %}">Servizi digitali</a></li>
             <li><a href="{% url 'public_machinery' %}">Macchinari</a></li>

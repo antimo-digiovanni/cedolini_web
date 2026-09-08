@@ -1,27 +1,4 @@
 (() => {
-  if (window.location.protocol !== 'file:') {
-    const current = new URL(window.location.href);
-    const selected = current.searchParams.get('azienda') === 'timmy-gel';
-    let allowed = selected;
-    try {
-      if (selected) window.sessionStorage.setItem('timmy-gel-selected', '1');
-      allowed = allowed || window.sessionStorage.getItem('timmy-gel-selected') === '1';
-    } catch {
-      if (selected) {
-        document.querySelectorAll('a[href]').forEach((link) => {
-          const destination = new URL(link.href, current);
-          if (destination.origin === current.origin && destination.pathname.endsWith('.html')) {
-            destination.searchParams.set('azienda', 'timmy-gel');
-            link.href = destination.href;
-          }
-        });
-      }
-    }
-    if (!allowed) {
-      window.location.replace('https://www.sanvincenzoservice.it/gruppo/');
-      return;
-    }
-  }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let navigationTimer;
   let recoveryTimer;

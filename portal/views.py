@@ -2993,7 +2993,7 @@ def _attach_payslip_display_period(payslip):
 def home(request):
     if request.user.is_authenticated:
         return redirect(user_home_url_name(request.user))
-    return redirect('group_home')
+    return render(request, 'site/home.html')
 
 
 def public_home(request):
@@ -3258,6 +3258,13 @@ def public_contacts(request):
 
 def sitemap_xml(request):
     pages = [
+        '',
+        'sito-web/',
+        'chi-siamo/',
+        'servizi/',
+        'servizi-digitali/',
+        'macchinari/',
+        'contatti/',
         'gruppo/',
         'login/',
     ]
