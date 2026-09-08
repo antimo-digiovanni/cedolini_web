@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://www.sanvincenzoservice.it/gruppo/">
+  <meta name="description" content="Le aziende della famiglia Di Giovanni: San Vincenzo SRL, Eurofrozen SRL, Antimo Petroli SRL e Timmy Gel SRL.">
+  <meta name="theme-color" content="#1d4ed8">
+  <title>Gruppo Di Giovanni | Le nostre aziende</title>
+  <link rel="icon" type="image/svg+xml" href="logo-gruppo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
+  <style>
+    :root { --ink: #0b1220; --muted: #4b5563; --electric: #1d4ed8; --sky: #dbeafe; --line: #d7e3f7; --paper: #f5f8ff; }
+    * { box-sizing: border-box; letter-spacing: 0; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: linear-gradient(140deg, #eaf2ff, var(--paper) 45%, #fff); font-family: 'Manrope', sans-serif; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { font: inherit; }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid #be790f; outline-offset: 5px; }
+    .wrap { width: min(1240px, calc(100% - 96px)); margin-inline: auto; }
+    .skip { position: absolute; top: -80px; left: 16px; z-index: 10; padding: 12px; background: white; }
+    .skip:focus { top: 12px; }
+    header { color: white; background: linear-gradient(90deg, var(--ink), var(--electric)); box-shadow: 0 10px 28px #0b122022; }
+    .header-inner { min-height: 92px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { display: flex; gap: 12px; align-items: center; text-decoration: none; }
+    .monogram { display: block; width: 64px; height: 64px; flex: 0 0 64px; }
+    .brand-name { font-family: 'Manrope', sans-serif; font-size: 19px; font-weight: 800; line-height: 1.35; }
+    .brand-name small { display: block; font-size: 11px; font-weight: 600; color: var(--sky); margin-bottom: 3px; }
+    .nav-link { text-decoration: none; font-size: 13px; font-weight: 600; padding-block: 8px; border-bottom: 2px solid #ffffffbb; }
+    nav { display: flex; flex-wrap: wrap; gap: 20px; }
+    .intro { padding-block: 55px 36px; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--electric); margin: 0 0 17px; }
+    .eyebrow::before { content: ''; width: 25px; height: 2px; background: currentColor; }
+    h1 { font-family: 'Fraunces', Georgia, serif; font-size: 52px; line-height: 1.15; font-weight: 500; margin: 0; color: #123077; }
+    .intro-copy { color: var(--muted); font-size: 17px; line-height: 1.7; margin: 18px 0 0; max-width: 620px; }
+    .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 0; border-top: 1px solid var(--line); }
+    .section-heading h2 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 500; }
+    .companies { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; padding-bottom: 56px; }
+    .company { position: relative; border: 1px solid var(--line); border-radius: 8px; background: #fff; text-align: left; padding: 24px; color: var(--ink); display: flex; flex-direction: column; min-width: 0; cursor: pointer; text-decoration: none; box-shadow: 0 12px 30px #1d4ed80a; transition: border-color .2s, box-shadow .2s; animation: arrive .5s both; }
+    .company:hover { border-color: var(--electric); box-shadow: 0 12px 30px #1d4ed81a; }
+    .company:nth-child(2) { animation-delay: .06s; }
+    .company:nth-child(3) { animation-delay: .12s; }
+    .company:nth-child(4) { animation-delay: .18s; }
+    .logo-space { display: flex; align-items: center; justify-content: center; height: 172px; width: 100%; margin-bottom: 24px; }
+    .company-name { display: block; font-family: 'Fraunces', Georgia, serif; font-size: 25px; line-height: 1.3; font-weight: 500; overflow-wrap: anywhere; }
+    .legal { font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+    .company-bottom { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; align-items: center; color: var(--electric); font-size: 12px; font-weight: 700; }
+    .status { font-size: 11px; display: flex; align-items: center; gap: 7px; color: var(--muted); }
+    .status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #a6afa9; flex: 0 0 5px; }
+    .arrow { font-size: 23px; line-height: 1; color: var(--electric); }
+    .company-logo { width: 100%; height: 100%; object-fit: contain; }
+    .logo-san-vincenzo { max-width: 150px; max-height: 150px; }
+    .logo-eurofrozen { max-width: 300px; max-height: 168px; }
+    .logo-antimo-petroli { max-width: 172px; max-height: 148px; }
+    .logo-timmy-gel { max-width: 150px; max-height: 150px; }
+    .company-description { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 10px 0 24px; min-height: 39px; }
+    footer { background: var(--ink); border-top: 1px solid var(--line); }
+    .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 24px; min-height: 90px; padding-block: 24px; font-size: 12px; }
+    .footer-inner p { margin: 0; color: #bfcee6; line-height: 1.6; }
+    .footer-inner strong { color: white; font-weight: 600; }
+    dialog { border: 1px solid var(--line); border-radius: 6px; padding: 36px; color: var(--ink); background: white; width: min(440px, calc(100% - 40px)); box-shadow: 0 24px 80px #172a2730; }
+    dialog::backdrop { background: #172a2780; }
+    dialog h2 { font-family: 'Fraunces', Georgia, serif; font-size: 25px; line-height: 1.3; margin: 14px 0; overflow-wrap: anywhere; }
+    dialog p { color: var(--muted); font-size: 15px; line-height: 1.7; }
+    dialog form { margin-top: 24px; }
+    .close-button { background: var(--electric); color: white; border: none; border-radius: 4px; padding: 12px 20px; cursor: pointer; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @media (min-width: 1600px) { .wrap { width: min(1360px, calc(100% - 120px)); } .intro { padding-top: 64px; } }
+    @media (max-width: 1100px) { .wrap { width: calc(100% - 48px); } h1 { font-size: 44px; } .companies { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .wrap { width: calc(100% - 36px); } .header-inner { min-height: 92px; gap: 12px; flex-wrap: wrap; padding-block: 12px; } .brand { gap: 8px; } .brand-name { font-size: 15px; } .brand-name small { font-size: 10px; } .monogram { width: 48px; height: 48px; flex-basis: 48px; } .nav-link { font-size: 11px; } .intro { padding-block: 34px 28px; } h1 { font-size: 36px; max-width: 320px; } .intro-copy { font-size: 15px; } .section-heading h2 { font-size: 22px; } .companies { grid-template-columns: 1fr; gap: 16px; padding-bottom: 30px; } .company { padding: 22px; } .logo-space { height: 150px; } .footer-inner { align-items: flex-start; flex-direction: column; gap: 8px; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#aziende">Vai alle aziende</a>
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="#" aria-label="Gruppo Di Giovanni, pagina iniziale">
+        <img class="monogram" src="logo-gruppo.svg" alt="" width="64" height="64">
+        <span class="brand-name"><small>GRUPPO</small>DI GIOVANNI</span>
+      </a>
+      <nav aria-label="Navigazione principale"><a class="nav-link" href="#aziende">Le nostre aziende</a><a class="nav-link" href="https://www.sanvincenzoservice.it/login/">Area dipendenti</a></nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="intro" aria-labelledby="title">
+      <p class="eyebrow">Le imprese della nostra famiglia</p>
+      <h1 id="title">Gruppo Di Giovanni</h1>
+      <p class="intro-copy">Quattro aziende, un legame comune.<br>Identit&agrave; diverse, unite dalla famiglia Di Giovanni.</p>
+    </section>
+    <section id="aziende" aria-labelledby="companies-title">
+      <div class="section-heading"><h2 id="companies-title">Le nostre aziende</h2></div>
+      <div class="companies">
+        <a class="company" href="https://www.sanvincenzoservice.it/azienda/san-vincenzo/" aria-label="San Vincenzo SRL: visita il sito">
+          <span class="logo-space"><img class="company-logo logo-san-vincenzo" src="https://www.sanvincenzoservice.it/static/portal/logo.png" alt="Logo San Vincenzo" width="200" height="172"></span>
+          <span class="company-name">San Vincenzo <span class="legal">SRL</span></span>
+          <span class="company-description">Servizi professionali per le imprese.</span>
+          <span class="company-bottom">Visita il sito <span class="arrow" aria-hidden="true">&nearr;</span></span>
+        </a>
+        <button class="company" type="button" data-company="Eurofrozen SRL" aria-haspopup="dialog">
+          <span class="logo-space"><img class="company-logo logo-eurofrozen" src="logo-eurofrozen.png" alt="Logo Eurofrozen, servizio catering" width="200" height="172"></span>
+          <span class="company-name">Eurofrozen <span class="legal">SRL</span></span>
+          <span class="company-description">Servizi nel settore del catering.</span>
+          <span class="company-bottom"><span class="status">Prossimamente</span><span class="arrow" aria-hidden="true">&nearr;</span></span>
+        </button>
+        <button class="company" type="button" data-company="Antimo Petroli SRL" aria-haspopup="dialog">
+          <span class="logo-space"><img class="company-logo logo-antimo-petroli" src="logo-antimo-petroli.png" alt="Logo Antimo Petroli" width="200" height="172"></span>
+          <span class="company-name">Antimo Petroli <span class="legal">SRL</span></span>
+          <span class="company-description">Attivit&agrave; nel settore dei carburanti.</span>
+          <span class="company-bottom"><span class="status">Prossimamente</span><span class="arrow" aria-hidden="true">&nearr;</span></span>
+        </button>
+        <a class="company" href="https://www.timmygel.com/index.html?azienda=timmy-gel" aria-label="Timmy Gel SRL: visita il sito">
+          <span class="logo-space"><img class="company-logo logo-timmy-gel" src="logo-timmy-gel.png" alt="Logo Timmy Gel, trasporti e logistica" width="200" height="172"></span>
+          <span class="company-name">Timmy Gel <span class="legal">SRL</span></span>
+          <span class="company-description">Servizi di trasporto e logistica.</span>
+          <span class="company-bottom">Visita il sito <span class="arrow" aria-hidden="true">&nearr;</span></span>
+        </a>
+      </div>
+    </section>
+  </main>
+  <footer><div class="wrap footer-inner"><p><strong>Gruppo Di Giovanni</strong><br>Le aziende della famiglia Di Giovanni.</p><p>San Vincenzo &middot; Eurofrozen &middot; Antimo Petroli &middot; Timmy Gel</p></div></footer>
+  <dialog id="coming-soon" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <span class="eyebrow">Prossimamente</span>
+    <h2 id="dialog-title"></h2>
+    <p id="dialog-description">Il sito di questa azienda &egrave; in preparazione. Sar&agrave; disponibile prossimamente.</p>
+    <form method="dialog"><button class="close-button" autofocus>Torna alle aziende</button></form>
+  </dialog>
+  <script>
+    const companyDialog = document.querySelector('#coming-soon');
+    const dialogTitle = document.querySelector('#dialog-title');
+    document.querySelectorAll('[data-company]').forEach((button) => {
+      button.addEventListener('click', () => {
+        dialogTitle.textContent = button.dataset.company;
+        companyDialog.showModal();
+      });
+    });
+    companyDialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        companyDialog.close();
+      }
+    });
+    companyDialog.addEventListener('click', (event) => {
+      const bounds = companyDialog.getBoundingClientRect();
+      if (event.target === companyDialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+        companyDialog.close();
+      }
+    });
+  </script>
+</body>
+</html>

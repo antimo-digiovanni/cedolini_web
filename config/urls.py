@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from portal import views
+from portal import group_gateway
 
 urlpatterns = [
 
@@ -10,6 +11,9 @@ urlpatterns = [
 
     # Home
     path('', views.home, name='home'),
+    path('gruppo/', group_gateway.group_home, name='group_home'),
+    path('gruppo/<str:filename>', group_gateway.group_asset, name='group_asset'),
+    path('azienda/san-vincenzo/', group_gateway.select_san_vincenzo, name='select_san_vincenzo'),
     path('sito-web/', views.public_home, name='public_home'),
     path('chi-siamo/', views.public_about, name='public_about'),
     path('servizi/', views.public_services, name='public_services'),

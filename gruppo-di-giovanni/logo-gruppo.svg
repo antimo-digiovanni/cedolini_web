@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <title>Gruppo Di Giovanni - monogramma DG</title>
+  <rect width="80" height="80" rx="16" fill="white"/>
+  <path d="M17 22h10c12 0 20 7 20 18s-8 18-20 18H17V22Z" stroke="#0b1220" stroke-width="5"/>
+  <path d="M63 27a18 18 0 1 0 0 26V41H51" stroke="#1d4ed8" stroke-width="5" stroke-linecap="square"/>
+</svg>
