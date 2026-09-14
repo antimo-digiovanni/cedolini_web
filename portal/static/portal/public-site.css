@@ -25,11 +25,17 @@ body {
 
 
 .site-page {
-    opacity: 1 !important;
-    transform: none !important;
-    filter: none !important;
-    transition: none !important;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+    transition: opacity 0.18s ease, transform 0.2s ease, filter 0.2s ease;
     position: relative;
+}
+
+.site-page.is-leaving {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.995);
+    filter: blur(2px);
 }
 
 .site-page::before {
@@ -39,7 +45,7 @@ body {
     pointer-events: none;
     background: linear-gradient(90deg, rgba(15, 23, 42, 0), rgba(37, 99, 235, 0.15), rgba(15, 23, 42, 0));
     transform: translateX(-120%);
-    transition: transform 0.42s ease;
+    transition: transform 0.22s ease;
     z-index: 9999;
 }
 
