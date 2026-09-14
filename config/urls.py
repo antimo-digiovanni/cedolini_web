@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from portal import views
 from portal import group_gateway
+from portal import public_site
 from django.views.generic import TemplateView
 
 urlpatterns = [
@@ -11,17 +12,18 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # Home
-    path('', views.home, name='home'),
+    path('', public_site.home, name='home'),
     path('gruppo/', group_gateway.group_home, name='group_home'),
     path('gruppo/<path:filename>', group_gateway.group_asset, name='group_asset'),
     path('azienda/san-vincenzo/', group_gateway.select_san_vincenzo, name='select_san_vincenzo'),
-    path('sito-web/', views.public_home, name='public_home'),
-    path('disinfestazione-derattizzazione/', TemplateView.as_view(template_name='site/pest_control.html'), name='public_pest_control'),
-    path('chi-siamo/', views.public_about, name='public_about'),
-    path('servizi/', views.public_services, name='public_services'),
-    path('servizi-digitali/', views.public_digital_services, name='public_digital_services'),
-    path('macchinari/', views.public_machinery, name='public_machinery'),
-    path('contatti/', views.public_contacts, name='public_contacts'),
+    path('sito-web/', public_site.page, name='public_home'),
+    path('disinfestazione-derattizzazione/', public_site.page, {'page':'disinfestazione-derattizzazione'}, name='public_pest_control'),
+    path('chi-siamo/', public_site.page, {'page':'chi-siamo'}, name='public_about'),
+    path('servizi/', public_site.page, {'page':'servizi'}, name='public_services'),
+    path('servizi-digitali/', public_site.page, {'page':'servizi-digitali'}, name='public_digital_services'),
+    path('macchinari/', public_site.page, {'page':'macchinari'}, name='public_machinery'),
+    path('contatti/', public_site.page, {'page':'contatti'}, name='public_contacts'),
+    path('san-vincenzo-assets/<str:filename>', public_site.asset, name='public_site_asset'),
     path('site.webmanifest', views.site_webmanifest, name='site_webmanifest'),
     path('manifest.webmanifest', views.site_webmanifest, name='site_webmanifest_alias'),
     path('employee-app.webmanifest', views.employee_webmanifest, name='employee_webmanifest'),
