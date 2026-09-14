@@ -39,7 +39,8 @@ class GroupGatewayTests(SimpleTestCase):
         self.assertContains(response, 'Gruppo Di Giovanni')
         self.assertContains(response, 'https://www.timmygel.com/index.html')
         self.assertNotContains(response, '?azienda=')
-        self.assertEqual(self.client.get('/gruppo/logo-gruppo.svg').status_code, 200)
+        self.assertEqual(self.client.get('/gruppo/assets/logo-gruppo.svg').status_code, 200)
+        self.assertEqual(self.client.get('/gruppo/assets/gruppo-servizi-hero.png').status_code, 200)
         self.assertEqual(self.client.get('/gruppo/README.md').status_code, 404)
 
     def test_root_preserves_employee_redirect(self):

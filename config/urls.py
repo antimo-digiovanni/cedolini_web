@@ -13,7 +13,7 @@ urlpatterns = [
     # Home
     path('', views.home, name='home'),
     path('gruppo/', group_gateway.group_home, name='group_home'),
-    path('gruppo/<str:filename>', group_gateway.group_asset, name='group_asset'),
+    path('gruppo/<path:filename>', group_gateway.group_asset, name='group_asset'),
     path('azienda/san-vincenzo/', group_gateway.select_san_vincenzo, name='select_san_vincenzo'),
     path('sito-web/', views.public_home, name='public_home'),
     path('disinfestazione-derattizzazione/', TemplateView.as_view(template_name='site/pest_control.html'), name='public_pest_control'),

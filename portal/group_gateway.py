@@ -8,8 +8,11 @@ from django.views.decorators.http import require_safe
 
 
 GROUP_ASSETS = {
-    'logo-gruppo.svg', 'logo-eurofrozen.png', 'logo-antimo-petroli.png',
-    'logo-timmy-gel.png',
+    'assets/antimo-petroli.png', 'assets/catering.png', 'assets/eurofrozen.png',
+    'assets/flotta.png', 'assets/gruppo-hero.png',
+    'assets/gruppo-servizi-hero.png', 'assets/logo-gruppo.svg',
+    'assets/san-vincenzo-servizi.png', 'assets/san-vincenzo.png',
+    'assets/timmy.png',
 }
 
 
