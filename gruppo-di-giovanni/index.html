@@ -1,19 +1,134 @@
 <!doctype html>
 <html lang="it">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101d26"><title>Gruppo Di Giovanni | Quattro aziende, una famiglia</title><meta name="description" content="San Vincenzo, Eurofrozen, Antimo Petroli e Timmy Gel. Quattro identità, una famiglia: scopri le aziende del Gruppo Di Giovanni."><link rel="icon" href="assets/logo-gruppo.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><script src="app.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#05090d"><title>Gruppo Di Giovanni | Quattro aziende, una famiglia</title><meta name="description" content="San Vincenzo, Eurofrozen, Antimo Petroli e Timmy Gel. Quattro identità, una famiglia: scopri le aziende del Gruppo Di Giovanni."><link rel="icon" href="assets/logo-gruppo.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js" defer></script><script src="app.js" defer></script></head>
 <body>
 <a class="skip" href="#aziende">Vai alle aziende</a>
-<header class="header"><a href="#inizio" class="brand" aria-label="Gruppo Di Giovanni, inizio"><img src="assets/logo-gruppo.svg" alt="" width="54" height="54"><span>GRUPPO<strong>DI GIOVANNI</strong></span></a><nav aria-label="Navigazione principale"><a href="#aziende">Le nostre aziende</a><a class="employee" href="https://www.sanvincenzoservice.it/login/">Area dipendenti <span aria-hidden="true">↗</span></a></nav></header>
+
+<header class="hdr" data-hdr>
+<a href="#inizio" class="hdr-brand" aria-label="Gruppo Di Giovanni, inizio"><img src="assets/logo-gruppo.svg" alt="" width="44" height="44"><span>GRUPPO<strong>DI GIOVANNI</strong></span></a>
+<nav aria-label="Navigazione principale"><a href="#aziende">Le nostre aziende</a><a class="hdr-employee" href="https://www.sanvincenzoservice.it/login/">Area dipendenti <span aria-hidden="true">↗</span></a></nav>
+</header>
+
 <main id="inizio">
-<section class="hero" aria-labelledby="hero-title"><div class="hero-photo"><img src="assets/gruppo-servizi-hero.png" alt="Composizione illustrativa dei servizi del gruppo: attrezzature e assistenza, ristorazione, carburanti e logistica refrigerata" fetchpriority="high"></div><div class="hero-content"><p class="eyebrow">GRUPPO DI GIOVANNI <span></span> LE IMPRESE DELLA NOSTRA FAMIGLIA</p><h1 id="hero-title">Identità diverse.<br><em>Una sola famiglia.</em></h1><div class="hero-bottom"><p>Quattro aziende, un legame comune.<br>La forza di esserci, insieme.</p><a class="discover" href="#aziende">Scopri il gruppo <span aria-hidden="true">↓</span></a></div></div><div class="hero-side" aria-hidden="true">IMPRESE · PERSONE · LEGAMI</div><div class="hero-caption"><span>GRUPPO DI GIOVANNI</span><span>Quattro identità. Un unico legame.</span></div></section>
-<div class="company-index" aria-label="Le quattro aziende"><a href="#san-vincenzo"><span>01</span>San Vincenzo</a><a href="#eurofrozen"><span>02</span>Eurofrozen</a><a href="#antimo-petroli"><span>03</span>Antimo Petroli</a><a href="#timmy-gel"><span>04</span>Timmy Gel</a></div>
-<section class="companies" id="aziende" aria-labelledby="companies-title"><div class="section-head"><div><p class="eyebrow">LE NOSTRE AZIENDE</p><h2 id="companies-title">Quattro realtà.<br><span>Un orizzonte comune.</span></h2></div><p>Servizi alle imprese, ristorazione, energia e logistica. Ogni azienda ha la propria identità. Tutte portano con sé il nome e l’impegno della famiglia Di Giovanni.</p></div>
-<div class="grid">
-<a class="company san" id="san-vincenzo" href="https://www.sanvincenzoservice.it/sito-web/" aria-label="San Vincenzo SRL: visita il sito"><img class="card-photo" src="assets/san-vincenzo-servizi.png" alt="" loading="lazy"><div class="card-top"><span class="number">01 / SERVIZI ALLE IMPRESE</span><span class="round-arrow" aria-hidden="true">↗</span></div><div class="logo-stage"><img src="assets/san-vincenzo.png" alt="San Vincenzo" loading="lazy"></div><div class="card-copy"><h3>San Vincenzo <small>SRL</small></h3><p>Servizi professionali per le imprese.</p><span class="visit">Visita il sito <span aria-hidden="true">↗</span></span></div></a>
-<a class="company euro" id="eurofrozen" href="https://www.eurofrozensrl.com/" aria-label="Eurofrozen SRL: visita il sito"><img class="card-photo" src="assets/catering.png" alt="" loading="lazy"><div class="card-top"><span class="number">02 / RISTORAZIONE E CATERING</span><span class="round-arrow" aria-hidden="true">↗</span></div><div class="logo-stage"><img src="assets/eurofrozen.png" alt="Eurofrozen, servizio catering" loading="lazy"></div><div class="card-copy"><h3>Eurofrozen <small>SRL</small></h3><p>Buona cucina, accoglienza e servizi alla sosta.</p><span class="visit">Visita il sito <span aria-hidden="true">↗</span></span></div></a>
-<article class="company petroli" id="antimo-petroli"><div class="card-top"><span class="number">03 / ENERGIA E CARBURANTI</span><span class="soon">SITO IN ARRIVO</span></div><div class="logo-stage"><img src="assets/antimo-petroli.png" alt="Antimo Petroli" loading="lazy"></div><div class="card-copy"><h3>Antimo Petroli <small>SRL</small></h3><p>Le nostre attività nel settore dei carburanti.</p><span class="visit unavailable">Prossimamente online</span></div></article>
-<a class="company timmy" id="timmy-gel" href="https://www.timmygel.com/index.html" aria-label="Timmy Gel SRL: visita il sito"><img class="card-photo" src="assets/flotta.png" alt="" loading="lazy"><div class="card-top"><span class="number">04 / TRASPORTI E LOGISTICA</span><span class="round-arrow" aria-hidden="true">↗</span></div><div class="logo-stage"><img src="assets/timmy.png" alt="Timmy Gel" loading="lazy"></div><div class="card-copy"><h3>Timmy Gel <small>SRL</small></h3><p>Trasporto, distribuzione e logistica del freddo.</p><span class="visit">Visita il sito <span aria-hidden="true">↗</span></span></div></a>
-</div></section>
-<section class="family" aria-label="La famiglia Di Giovanni"><p class="eyebrow">IL LEGAME CHE CI UNISCE</p><p class="family-title">Il nostro nome.<br><span>La nostra responsabilità.</span></p><div class="family-bottom"><p>Identità diverse, unite dalla famiglia Di Giovanni.</p><a href="#aziende">Incontra le nostre aziende <span aria-hidden="true">↑</span></a></div></section>
-</main><footer><a href="#inizio" class="brand"><img src="assets/logo-gruppo.svg" alt="" width="48" height="48"><span>GRUPPO<strong>DI GIOVANNI</strong></span></a><p>San Vincenzo · Eurofrozen · Antimo Petroli · Timmy Gel</p><a href="https://www.sanvincenzoservice.it/login/">Area dipendenti ↗</a><div class="footer-bottom"><span>© <span id="year">2026</span> Gruppo Di Giovanni</span><a href="#inizio">Torna all’inizio ↑</a></div></footer>
+
+<section class="hero" data-hero aria-labelledby="hero-title">
+  <div class="hero-bg" data-parallax><img src="assets/gruppo-servizi-hero.png" alt="Composizione delle attività del gruppo: logistica, ristorazione, energia e trasporti" fetchpriority="high"></div>
+  <div class="hero-scrim"></div>
+
+  <div class="constellation" aria-hidden="true">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+      <path class="cline" data-line="1" d="M48,38 C55,42 61,45 68,50"/>
+      <path class="cline" data-line="2" d="M90,36 C83,41 76,45 68,50"/>
+      <path class="cline" data-line="3" d="M45,68 C53,62 60,56 68,50"/>
+      <path class="cline" data-line="4" d="M86,74 C79,65 73,57 68,50"/>
+    </svg>
+    <div class="node node-1" data-node><div class="node-chip"><img src="assets/san-vincenzo.png" alt=""></div><span>San Vincenzo</span></div>
+    <div class="node node-2" data-node><div class="node-chip"><img src="assets/eurofrozen.png" alt=""></div><span>Eurofrozen</span></div>
+    <div class="node node-3" data-node><div class="node-chip"><img src="assets/antimo-petroli.png" alt=""></div><span>Antimo Petroli</span></div>
+    <div class="node node-4" data-node><div class="node-chip"><img src="assets/timmy.png" alt=""></div><span>Timmy Gel</span></div>
+    <div class="node node-core" data-node><div class="node-chip"><img src="assets/logo-gruppo.svg" alt=""></div><span>Gruppo Di Giovanni</span></div>
+  </div>
+
+  <div class="hero-content">
+    <p class="eyebrow">GRUPPO DI GIOVANNI <span></span> LE IMPRESE DELLA NOSTRA FAMIGLIA</p>
+    <h1 id="hero-title"><span class="line-mask" data-line><span>Identità diverse.</span></span><span class="line-mask" data-line><span><em>Una sola famiglia.</em></span></span></h1>
+    <div class="hero-bottom reveal-up" data-fade>
+      <p>Quattro aziende, un legame comune.<br>La forza di esserci, insieme.</p>
+      <a class="discover" href="#aziende">Scopri il gruppo <span class="ring" aria-hidden="true">↓</span></a>
+    </div>
+  </div>
+  <div class="hero-caption reveal-up" data-fade><span>GRUPPO DI GIOVANNI</span><span>Quattro identità. Un unico legame.</span></div>
+</section>
+
+<div class="company-index" aria-label="Le quattro aziende">
+  <a href="#san-vincenzo"><span>01</span>San Vincenzo</a>
+  <a href="#eurofrozen"><span>02</span>Eurofrozen</a>
+  <a href="#antimo-petroli"><span>03</span>Antimo Petroli</a>
+  <a href="#timmy-gel"><span>04</span>Timmy Gel</a>
+</div>
+
+<section class="companies" id="aziende" aria-labelledby="companies-title">
+  <div class="section-head">
+    <div><p class="eyebrow">LE NOSTRE AZIENDE</p><h2 id="companies-title">Quattro realtà.<br><span>Un orizzonte comune.</span></h2></div>
+    <p>Servizi alle imprese, ristorazione, energia e logistica. Ogni azienda ha la propria identità. Tutte portano con sé il nome e l'impegno della famiglia Di Giovanni.</p>
+  </div>
+
+  <div class="stories">
+
+    <article class="story story-01 has-link" id="san-vincenzo" data-story>
+      <div class="story-media"><img class="card-photo" src="assets/san-vincenzo-servizi.png" alt="Sede e flotta San Vincenzo Service" loading="lazy"><div class="story-mark" data-mark><img src="assets/san-vincenzo.png" alt="San Vincenzo"></div></div>
+      <div class="story-copy">
+        <span class="story-index reveal-up" data-fade>01</span>
+        <p class="story-cat reveal-up" data-fade>Servizi alle imprese</p>
+        <h3 class="reveal-up" data-fade>San Vincenzo <small>SRL</small></h3>
+        <p class="story-desc reveal-up" data-fade>Servizi professionali per le imprese.</p>
+        <a class="story-cta reveal-up" data-fade href="https://www.sanvincenzoservice.it/sito-web/">Visita il sito <span aria-hidden="true">↗</span></a>
+      </div>
+    </article>
+
+    <article class="story story-02 reverse has-link" id="eurofrozen" data-story>
+      <div class="story-media"><img class="card-photo" src="assets/catering.png" alt="Preparazione piatti Eurofrozen" loading="lazy"><div class="story-mark on-card" data-mark><img src="assets/eurofrozen.png" alt="Eurofrozen"></div></div>
+      <div class="story-copy">
+        <span class="story-index reveal-up" data-fade>02</span>
+        <p class="story-cat reveal-up" data-fade>Ristorazione e catering</p>
+        <h3 class="reveal-up" data-fade>Eurofrozen <small>SRL</small></h3>
+        <p class="story-desc reveal-up" data-fade>Buona cucina, accoglienza e servizi alla sosta.</p>
+        <a class="story-cta reveal-up" data-fade href="https://www.eurofrozensrl.com/">Visita il sito <span aria-hidden="true">↗</span></a>
+      </div>
+    </article>
+
+    <article class="story story-03 has-link" id="antimo-petroli" data-story>
+      <div class="story-media-empty"><div class="story-mark" data-mark><img src="assets/antimo-petroli.png" alt="Antimo Petroli"></div></div>
+      <div class="story-copy">
+        <span class="story-index reveal-up" data-fade>03</span>
+        <p class="story-cat reveal-up" data-fade>Energia e carburanti</p>
+        <h3 class="reveal-up" data-fade>Antimo Petroli <small>SRL</small></h3>
+        <span class="story-badge reveal-up" data-fade>SITO IN ARRIVO</span>
+        <p class="story-desc reveal-up" data-fade>Le nostre attività nel settore dei carburanti.</p>
+        <span class="story-cta is-soon reveal-up" data-fade>Prossimamente online</span>
+      </div>
+    </article>
+
+    <article class="story story-04 reverse has-link" id="timmy-gel" data-story>
+      <div class="story-media"><img class="card-photo" src="assets/flotta.png" alt="Flotta Timmy Gel" loading="lazy"><div class="story-mark" data-mark><img src="assets/timmy.png" alt="Timmy Gel"></div></div>
+      <div class="story-copy">
+        <span class="story-index reveal-up" data-fade>04</span>
+        <p class="story-cat reveal-up" data-fade>Trasporti e logistica del freddo</p>
+        <h3 class="reveal-up" data-fade>Timmy Gel <small>SRL</small></h3>
+        <p class="story-desc reveal-up" data-fade>Trasporto, distribuzione e logistica del freddo.</p>
+        <a class="story-cta reveal-up" data-fade href="https://www.timmygel.com/index.html">Visita il sito <span aria-hidden="true">↗</span></a>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section class="bond" aria-label="La famiglia Di Giovanni">
+  <div class="bond-bg" aria-hidden="true"><img src="assets/gruppo-hero.png" alt=""></div>
+  <div class="bond-inner">
+    <p class="eyebrow">IL LEGAME CHE CI UNISCE</p>
+    <p class="bond-title"><span class="line-mask" data-line><span>Il nostro nome.</span></span><span class="line-mask" data-line><span class="tint">La nostra responsabilità.</span></span></p>
+    <div class="bond-bottom">
+      <p class="reveal-up" data-fade>Identità diverse, unite dalla famiglia Di Giovanni.</p>
+      <a href="#aziende" class="reveal-up" data-fade>Incontra le nostre aziende <span aria-hidden="true">↑</span></a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="ftr-top">
+    <a href="#inizio" class="ftr-brand"><img src="assets/logo-gruppo.svg" alt="" width="52" height="52"><span>GRUPPO<strong>DI GIOVANNI</strong></span></a>
+    <ul class="ftr-companies">
+      <li><a href="https://www.sanvincenzoservice.it/sito-web/">San Vincenzo</a></li>
+      <li><a href="https://www.eurofrozensrl.com/">Eurofrozen</a></li>
+      <li><span>Antimo Petroli</span></li>
+      <li><a href="https://www.timmygel.com/index.html">Timmy Gel</a></li>
+    </ul>
+    <a class="ftr-employee" href="https://www.sanvincenzoservice.it/login/">Area dipendenti <span aria-hidden="true">↗</span></a>
+  </div>
+  <div class="footer-bottom"><span>© <span id="year">2026</span> Gruppo Di Giovanni</span><a href="#inizio">Torna all'inizio ↑</a></div>
+</footer>
+
 </body></html>
