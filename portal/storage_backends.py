@@ -3,6 +3,18 @@ from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
 
 
+class R2PrivateStorage(S3Boto3Storage):
+    """Storage backend per documenti protetti.
+
+    Usa l'endpoint S3 autenticato e non espone URL pubblici o firmati
+    come meccanismo principale di accesso: i file devono essere serviti
+    dal backend Django dopo i controlli autorizzativi.
+    """
+
+    querystring_auth = True
+    custom_domain = None
+
+
 class R2PublicStorage(S3Boto3Storage):
     """Storage backend per Cloudflare R2 con URL pubblici.
 

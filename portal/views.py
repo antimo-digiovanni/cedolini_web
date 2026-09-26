@@ -8,7 +8,7 @@ from copy import deepcopy
 import re
 import tempfile
 import zipfile
-from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
+from urllib.parse import quote
 import uuid
 import unicodedata
 from collections import OrderedDict
@@ -20,7 +20,7 @@ from pathlib import Path
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect, HttpResponsePermanentRedirect
+from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponsePermanentRedirect
 from django.db import transaction, IntegrityError
 from django.db.models import Count, Q, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce, ExtractMonth, ExtractYear
@@ -5989,11 +5989,11 @@ def admin_work_zones(request):
 # APERTURA CEDOLINO + EMAIL NOTIFICA LETTURA
 # =========================================================
 
-def _append_cache_buster(url, version_token):
-    parts = urlsplit(url)
-    query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    query['v'] = str(version_token)
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+def _build_protected_file_response(field_file, *, download_name):
+    field_file.open('rb')
+    response = FileResponse(field_file, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{quote(download_name)}"'
+    return _disable_response_cache(response)
 
 @login_required
 def open_payslip(request, payslip_id):
@@ -6018,11 +6018,9 @@ def open_payslip(request, payslip_id):
             metadata={"first_view": created},
         )
 
-    # Reindirizza sempre all'URL pubblico del PDF (R2 gestisce la visualizzazione/download)
     try:
-        version_token = f"{payslip.id}-{int(payslip.uploaded_at.timestamp())}"
-        url = _append_cache_buster(payslip.pdf.url, version_token)
-        return HttpResponseRedirect(url)
+        download_name = os.path.basename(payslip.pdf.name) or f'cedolino-{payslip.year}-{payslip.month:02d}.pdf'
+        return _build_protected_file_response(payslip.pdf, download_name=download_name)
     except Exception:
         logger.exception('open_payslip: failed to build payslip URL id=%s', payslip_id)
         return HttpResponse('Errore nel recupero del file', status=500)
@@ -6051,9 +6049,8 @@ def open_cud(request, cud_id):
         )
 
     try:
-        version_token = f"{cud.id}-{int(cud.uploaded_at.timestamp())}"
-        url = _append_cache_buster(cud.pdf.url, version_token)
-        return HttpResponseRedirect(url)
+        download_name = os.path.basename(cud.pdf.name) or f'cud-{cud.year}.pdf'
+        return _build_protected_file_response(cud.pdf, download_name=download_name)
     except Exception:
         logger.exception('open_cud: failed to build CUD URL id=%s', cud_id)
         return HttpResponse('Errore nel recupero del file CUD', status=500)

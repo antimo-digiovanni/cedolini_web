@@ -144,22 +144,18 @@ AWS_QUERYSTRING_AUTH = False
 # Deve essere configurato come R2_PUBLIC_BASE_URL nelle variabili di ambiente
 R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL")
 
-# Storage predefinito: backend personalizzato che costruisce URL pubblici R2
-
+# MEDIA_URL non viene piu usato per servire i documenti riservati del portale.
+# Manteniamo un fallback coerente per eventuali asset non sensibili.
 if R2_PUBLIC_BASE_URL:
-    # MEDIA_URL coerente con gli URL pubblici generati dallo storage
     MEDIA_URL = R2_PUBLIC_BASE_URL.rstrip("/") + "/"
-elif AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
-    # fallback: vecchio comportamento (potrebbe richiedere autorizzazione)
-    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 else:
     MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Django 4.2+ STORAGES configuration
-if R2_PUBLIC_BASE_URL and AWS_STORAGE_BUCKET_NAME:
-    default_storage_backend = "portal.storage_backends.R2PublicStorage"
+if AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
+    default_storage_backend = "portal.storage_backends.R2PrivateStorage"
     default_storage_options = {}
 else:
     default_storage_backend = "django.core.files.storage.FileSystemStorage"

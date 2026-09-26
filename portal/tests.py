@@ -1,4 +1,4 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from decimal import Decimal
 from django.conf import settings
@@ -1839,15 +1839,31 @@ class PayslipBulkDeleteTests(TestCase):
 		self.assertFalse(Payslip.objects.filter(id=may_two.id).exists())
 		self.assertEqual(Payslip.objects.filter(year=2026, month=6).count(), 1)
 
-	def test_open_payslip_redirect_adds_cache_buster(self):
+	def test_open_payslip_streams_pdf_without_public_redirect(self):
 		payslip = self._create_payslip(self.employee, 2026, 5, "cache-maggio.pdf")
+		original_name = payslip.pdf.name
 		self.client.force_login(self.employee_user)
 
 		response = self.client.get(reverse("open_payslip", args=[payslip.id]))
 
-		self.assertEqual(response.status_code, 302)
-		self.assertIn("/payslips/", response["Location"])
-		self.assertIn(f"v={payslip.id}-", response["Location"])
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "application/pdf")
+		self.assertIn("inline; filename=", response["Content-Disposition"])
+		self.assertEqual(response["Cache-Control"], "no-store, no-cache, must-revalidate, max-age=0")
+		self.assertEqual(b"".join(response.streaming_content), b"%PDF-1.4\n%test pdf\n")
+		response.close()
+		payslip.refresh_from_db()
+		self.assertEqual(payslip.pdf.name, original_name)
+		self.assertTrue(payslip.pdf.storage.exists(original_name))
+
+	def test_other_employee_cannot_open_payslip(self):
+		payslip = self._create_payslip(self.employee, 2026, 5, "riservato.pdf")
+		self.client.force_login(self.other_employee_user)
+
+		response = self.client.get(reverse("open_payslip", args=[payslip.id]))
+
+		self.assertEqual(response.status_code, 403)
+		self.assertTrue(payslip.pdf.storage.exists(payslip.pdf.name))
 
 
 class CudUploadImportTests(TestCase):
@@ -1907,6 +1923,33 @@ class CudUploadImportTests(TestCase):
 
 	def _pdf_file(self, name, content=b"%PDF-1.4\n%test pdf\n"):
 		return SimpleUploadedFile(name, content, content_type="application/pdf")
+
+	def test_cud_is_streamed_without_changing_existing_file(self):
+		cud = Cud.objects.create(employee=self.active_employee, year=2026, pdf=self._pdf_file("CU2026_ROSSI_MARIO.pdf"))
+		original_name = cud.pdf.name
+		self.client.force_login(self.active_user)
+
+		response = self.client.get(reverse("open_cud", args=[cud.id]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "application/pdf")
+		self.assertEqual(response["Cache-Control"], "no-store, no-cache, must-revalidate, max-age=0")
+		self.assertEqual(b"".join(response.streaming_content), b"%PDF-1.4\n%test pdf\n")
+		response.close()
+		cud.refresh_from_db()
+		self.assertEqual(cud.pdf.name, original_name)
+		self.assertTrue(cud.pdf.storage.exists(original_name))
+
+	def test_other_employee_cannot_open_cud(self):
+		cud = Cud.objects.create(employee=self.active_employee, year=2026, pdf=self._pdf_file("CU2026_ROSSI_MARIO.pdf"))
+		other_user = get_user_model().objects.create_user(username="other.cud", password="Password123!")
+		Employee.objects.create(user=other_user, first_name="Luca", last_name="Verdi")
+		self.client.force_login(other_user)
+
+		response = self.client.get(reverse("open_cud", args=[cud.id]))
+
+		self.assertEqual(response.status_code, 403)
+		self.assertTrue(cud.pdf.storage.exists(cud.pdf.name))
 
 	def test_upload_imports_only_cuds_for_active_accounts(self):
 		response = self.client.post(
