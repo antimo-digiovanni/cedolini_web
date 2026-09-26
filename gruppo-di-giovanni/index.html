@@ -1,134 +1,646 @@
 <!doctype html>
 <html lang="it">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#05090d"><title>Gruppo Di Giovanni | Quattro aziende, una famiglia</title><meta name="description" content="San Vincenzo, Eurofrozen, Antimo Petroli e Timmy Gel. Quattro identità, una famiglia: scopri le aziende del Gruppo Di Giovanni."><link rel="icon" href="assets/logo-gruppo.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js" defer></script><script src="app.js" defer></script></head>
-<body>
-<a class="skip" href="#aziende">Vai alle aziende</a>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gruppo Di Giovanni | Quattro aziende, una famiglia</title>
+<meta name="description" content="San Vincenzo, Eurofrozen, Antimo Petroli e Timmy Gel. Quattro identità, una famiglia.">
+<meta name="theme-color" content="#05090d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05090d; --ink:#eef2f5; --mute:#8a96a3; --line:rgba(255,255,255,.1);
+  --sv:#3d7bff; --ef:#ff6b4a; --ap:#f5b82e; --tg:#5fd4f0;
+  --serif:"Instrument Serif", Georgia, serif;
+  --sans:"Inter Tight", system-ui, -apple-system, Segoe UI, sans-serif;
+  --pad:clamp(20px,4vw,64px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+em{font-family:var(--serif);font-style:italic;font-weight:400}
+.eyebrow{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--mute)}
 
-<header class="hdr" data-hdr>
-<a href="#inizio" class="hdr-brand" aria-label="Gruppo Di Giovanni, inizio"><img src="assets/logo-gruppo.svg" alt="" width="44" height="44"><span>GRUPPO<strong>DI GIOVANNI</strong></span></a>
-<nav aria-label="Navigazione principale"><a href="#aziende">Le nostre aziende</a><a class="hdr-employee" href="https://www.sanvincenzoservice.it/login/">Area dipendenti <span aria-hidden="true">↗</span></a></nav>
+/* grain */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.progress{position:fixed;top:0;left:0;height:2px;width:100%;z-index:60;transform-origin:0 50%;transform:scaleX(0);
+  background:linear-gradient(90deg,var(--sv),var(--ef),var(--ap),var(--tg))}
+
+/* header */
+.hdr{position:fixed;inset:0 0 auto 0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:22px var(--pad);transition:background .4s,padding .4s}
+.hdr.scrolled{background:rgba(5,9,13,.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding-block:14px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:500}
+.brand img{height:34px;width:auto}
+.brand b{font-weight:600}
+.nav{display:flex;gap:28px;align-items:center;font-size:14px}
+.nav a{color:var(--mute);transition:color .25s}
+.nav a:hover{color:var(--ink)}
+.nav .pill{color:var(--ink);border:1px solid var(--line);padding:9px 16px;border-radius:99px;transition:background .25s,color .25s}
+.nav .pill:hover{background:var(--ink);color:var(--bg)}
+@media (max-width:700px){.nav a:not(.pill){display:none}}
+
+/* ===== JOURNEY (hero + aziende, unite dalla scia) ===== */
+.journey{position:relative}
+.rail{position:absolute;left:50%;width:2px;margin-left:-1px;top:0;height:0;z-index:1;pointer-events:none;background:rgba(255,255,255,.05)}
+.rail i{position:absolute;inset:0;transform-origin:50% 0;transform:scaleY(0);
+  background:linear-gradient(to bottom,rgba(255,255,255,0),rgba(255,255,255,.35) 40%,#fff);
+  box-shadow:0 0 12px rgba(255,255,255,.35)}
+
+/* punto luminoso (fisso al centro dello schermo) */
+.dot-wrap{position:fixed;left:50%;top:50%;z-index:1;pointer-events:none;--dc:#fff;transition:opacity .4s}
+.dot{width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;opacity:0;transform:scale(0);
+  box-shadow:0 0 10px 3px #fff,0 0 34px 10px var(--dc),0 0 90px 24px var(--dc);transition:box-shadow .5s}
+
+/* hero sticky */
+.hero{position:relative;height:340vh}
+.stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;display:grid;place-items:center}
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.names{position:absolute;inset:0;pointer-events:none}
+.names span{position:absolute;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.7);white-space:nowrap}
+.hero-copy{position:relative;z-index:2;text-shadow:0 2px 30px rgba(5,9,13,.55);text-align:center;padding:0 var(--pad);display:flex;flex-direction:column;align-items:center}
+.h1{font-family:var(--serif);font-weight:400;font-size:clamp(52px,11vw,176px);line-height:.95;letter-spacing:-.02em;margin-top:22px;display:grid}
+.h1 .l{grid-area:1/1;align-self:center;overflow:hidden;padding-bottom:.1em}
+.h1 .l > span{display:inline-block}
+.hero-sub{margin-top:26px;max-width:440px;color:#aab4be;font-size:clamp(15px,1.3vw,18px)}
+.cue{position:absolute;bottom:32px;left:50%;translate:-50% 0;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--mute)}
+.cue i{width:1px;height:48px;background:linear-gradient(var(--ink),transparent);animation:cue 2s ease-in-out infinite;transform-origin:top}
+@keyframes cue{0%{transform:scaleY(0)}50%{transform:scaleY(1)}100%{transform:scaleY(1);opacity:0}}
+
+/* intro aziende */
+.co-intro{position:relative;z-index:2;display:grid;grid-template-columns:1fr 160px 1fr;align-items:end;padding:70vh var(--pad) 40vh;max-width:1400px;margin:0 auto}
+.co-intro h2{font-family:var(--serif);font-weight:400;font-size:clamp(52px,7vw,116px);line-height:.95;letter-spacing:-.02em;text-align:right}
+.co-intro p{grid-column:3;color:var(--mute);max-width:32ch;font-size:18px}
+
+/* blocco azienda */
+.co{position:relative;z-index:2;min-height:180vh;display:grid;place-items:center;padding:20vh var(--pad)}
+.co-inner{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:clamp(32px,6vw,110px);width:100%;max-width:1400px}
+.co-text{text-align:right}
+.co-meta{font-family:var(--serif);font-size:clamp(90px,12vw,200px);line-height:.8;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.1);transition:-webkit-text-stroke-color 1s}
+.co-text{order:1}.card{order:2}.co-meta{order:3}
+.co:nth-of-type(even) .co-text{order:3;text-align:left}
+.co:nth-of-type(even) .co-meta{order:1;text-align:right}
+.tag{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}
+.tag::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 14px var(--c)}
+.co-text h3{font-family:var(--serif);font-weight:400;font-size:clamp(44px,5.6vw,96px);line-height:.95;letter-spacing:-.02em;margin:18px 0 16px}
+.co-text p{font-size:clamp(16px,1.3vw,20px);color:#c6ced6}
+.co:nth-of-type(odd) .co-text p{margin-left:auto}
+.co-text p{max-width:28ch}
+.cta{margin-top:30px;display:inline-flex;align-items:center;gap:12px;font-size:15px;padding:13px 22px;border-radius:99px;border:1px solid var(--line);transition:background .3s,color .3s,border-color .3s}
+.cta:hover{background:var(--c);border-color:var(--c);color:#05090d}
+.cta .arr{transition:transform .3s}.cta:hover .arr{transform:translate(3px,-3px)}
+.cta.soon{pointer-events:none;color:var(--mute);border-style:dashed}
+
+/* riquadro che si accende */
+.card{position:relative;width:clamp(240px,24vw,340px);aspect-ratio:4/5;border-radius:26px;overflow:hidden;display:grid;place-items:center;
+  background:#0a1016;border:1px solid var(--line);transition:border-color 1s,box-shadow 1.2s,background 1.2s}
+.card .mono{font-family:var(--serif);font-size:clamp(90px,9vw,140px);line-height:1;color:rgba(255,255,255,.08);transition:color 1s,text-shadow 1s}
+.card img{position:absolute;inset:0;width:100%;height:100%;padding:14px;object-fit:contain;filter:grayscale(1) brightness(.35);transition:filter 1.2s}
+.card .burst{position:absolute;left:50%;top:0;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:2px solid var(--c);opacity:0;pointer-events:none}
+.co.lit .card{border-color:var(--c);background:radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--c) 38%,transparent),transparent 70%),#0a1016;
+  box-shadow:0 0 0 1px var(--c),0 0 70px -10px var(--c),0 30px 160px -40px var(--c)}
+.co.lit .card .mono{color:var(--c);text-shadow:0 0 40px var(--c)}
+.co.lit .card img{filter:none}
+.co.lit .co-meta{-webkit-text-stroke-color:color-mix(in srgb,var(--c) 55%,transparent)}
+
+@media (max-width:900px){
+  .co-intro{grid-template-columns:1fr;text-align:center;gap:20px;padding:60vh var(--pad) 30vh}
+  .co-intro h2,.co-intro p{text-align:center;grid-column:auto;margin:0 auto;background:var(--bg);padding:10px 0}
+  .co{min-height:0;padding:45vh var(--pad)}
+  .co-inner{grid-template-columns:1fr;justify-items:center;gap:28px}
+  .co .co-text,.co:nth-of-type(even) .co-text{order:2;text-align:center;background:var(--bg);padding:16px 8px}
+  .co .co-text p{margin:0 auto}
+  .co-meta{display:none}
+  .card{order:1;width:min(72vw,300px)}
+}
+
+/* statement */
+.statement{position:relative;z-index:2;padding:clamp(120px,20vh,220px) var(--pad);max-width:1280px;margin:0 auto}
+.statement p{background:var(--bg);padding:12px 0;font-size:clamp(30px,4.6vw,68px);line-height:1.12;letter-spacing:-.015em;font-weight:300}
+.statement .w{display:inline-block;margin-right:.24em}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:clamp(64px,10vh,120px)}
+.fact{background:var(--bg);padding:32px 28px}
+.fact b{display:block;font-family:var(--serif);font-weight:400;font-size:clamp(56px,7vw,104px);line-height:1}
+.fact span{color:var(--mute);font-size:14px}
+@media (max-width:700px){.facts{grid-template-columns:1fr}}
+
+/* legame */
+.bond{position:relative;height:100vh;height:100svh;overflow:hidden;display:grid;place-items:center}
+.bond svg{position:absolute;inset:0;width:100%;height:100%}
+.bond .node{opacity:.2}
+.bond-copy{position:relative;z-index:2;text-align:center;padding:0 var(--pad);max-width:900px}
+.bond-copy::before{content:"";position:absolute;inset:-18% -12%;z-index:-1;background:radial-gradient(closest-side,var(--bg) 55%,transparent)}
+.bond-copy h2{font-family:var(--serif);font-weight:400;font-size:clamp(46px,7.5vw,120px);line-height:.95;letter-spacing:-.02em;margin:20px 0 28px}
+.bond-copy p{color:#c6ced6;font-size:clamp(17px,1.5vw,21px);max-width:52ch;margin:0 auto}
+
+/* footer */
+.foot{position:relative;z-index:2;border-top:1px solid var(--line);padding:clamp(80px,12vh,140px) var(--pad) 40px;overflow:hidden}
+.foot-top{display:grid;grid-template-columns:1fr 140px 1fr;gap:0}
+.foot-lists{grid-column:3;display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.foot h4{font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--mute);font-weight:500;margin-bottom:18px}
+.foot ul{list-style:none;display:grid;gap:10px}
+.foot li a{transition:color .2s}.foot li a:hover{color:var(--c,var(--ink))}
+.foot .claim{font-family:var(--serif);font-size:clamp(30px,3.4vw,48px);line-height:1.05}
+.giant{font-family:var(--serif);font-size:clamp(52px,16vw,300px);line-height:.85;letter-spacing:-.03em;white-space:nowrap;margin:clamp(60px,10vh,120px) 0 30px;
+  background:linear-gradient(90deg,var(--sv),var(--ef) 35%,var(--ap) 65%,var(--tg));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.giant.lit{filter:drop-shadow(0 0 40px rgba(255,255,255,.18))}
+.beam{position:absolute;height:2px;margin-top:-1px;z-index:3;pointer-events:none;border-radius:2px;
+  background:linear-gradient(90deg,transparent,var(--bc) 20%,#fff 50%,var(--bc) 80%,transparent);box-shadow:0 0 14px var(--bc),0 0 40px var(--bc)}
+
+.static .giant{opacity:1}
+.foot-bottom{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--mute);font-size:13px;border-top:1px solid var(--line);padding-top:24px}
+@media (max-width:800px){.foot-top > *{background:var(--bg)}.foot-top{grid-template-columns:1fr;gap:40px}.foot-lists{grid-column:auto;grid-template-columns:1fr;text-align:center;padding:10px 0}.foot .claim{text-align:center;padding:10px 0}}
+
+/* senza animazioni: tutto acceso */
+.static .co .card{border-color:var(--c)} .static .co-text{opacity:1;transform:none} .static .rail i{transform:none}
+.static .statement .w{opacity:1}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"></div>
+<div class="dot-wrap" id="dotWrap" aria-hidden="true"><div class="dot" id="dot"></div></div>
+
+<header class="hdr" id="hdr">
+  <a href="#top" class="brand" aria-label="Gruppo Di Giovanni">
+    <img src="assets/logo-gruppo.svg" alt="" onerror="this.remove()">
+    <span>Gruppo <b>Di Giovanni</b></span>
+  </a>
+  <nav class="nav">
+    <a href="#aziende">Le aziende</a>
+    <a href="#legame">Il legame</a>
+    <a class="pill" href="https://www.sanvincenzoservice.it/login/">Area dipendenti ↗</a>
+  </nav>
 </header>
 
-<main id="inizio">
+<div class="journey" id="journey">
+<main id="top">
+  <div class="rail" id="rail"><i id="railFill"></i></div>
 
-<section class="hero" data-hero aria-labelledby="hero-title">
-  <div class="hero-bg" data-parallax><img src="assets/gruppo-servizi-hero.png" alt="Composizione delle attività del gruppo: logistica, ristorazione, energia e trasporti" fetchpriority="high"></div>
-  <div class="hero-scrim"></div>
+  <!-- HERO: 4 luci → 1 → punto luminoso -->
+  <section class="hero" id="hero">
+    <div class="stage" id="stage">
+      <canvas id="fx" aria-hidden="true"></canvas>
+      <div class="names" aria-hidden="true">
+        <span>San Vincenzo</span><span>Eurofrozen</span><span>Antimo Petroli</span><span>Timmy Gel</span>
+      </div>
+      <div class="hero-copy">
+        <div class="eyebrow" id="heroEyebrow">Gruppo Di Giovanni</div>
+        <h1 class="h1">
+          <span class="l l1"><span>Identità <em>diverse.</em></span></span>
+          <span class="l l2"><span>Una sola <em>famiglia.</em></span></span>
+        </h1>
+        <p class="hero-sub">Quattro aziende, un legame comune. La forza di esserci, insieme.</p>
+      </div>
+      <div class="cue" aria-hidden="true"><i></i>Scorri</div>
+    </div>
+  </section>
 
-  <div class="constellation" aria-hidden="true">
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-      <path class="cline" data-line="1" d="M48,38 C55,42 61,45 68,50"/>
-      <path class="cline" data-line="2" d="M90,36 C83,41 76,45 68,50"/>
-      <path class="cline" data-line="3" d="M45,68 C53,62 60,56 68,50"/>
-      <path class="cline" data-line="4" d="M86,74 C79,65 73,57 68,50"/>
+  <!-- AZIENDE: la scia accende ogni riquadro -->
+  <div id="aziende">
+    <div class="co-intro">
+      <h2>Quattro<br><em>identità.</em></h2>
+      <p>Ognuna con il proprio mestiere, tutte con la stessa radice.</p>
+    </div>
+
+    <section class="co" style="--c:var(--sv)">
+      <div class="co-inner">
+        <div class="co-text">
+          <span class="tag">Servizi alle imprese</span>
+          <h3>San Vincenzo</h3>
+          <p>Servizi professionali per le imprese.</p>
+          <a class="cta" href="https://www.sanvincenzoservice.it/sito-web/">Visita il sito <span class="arr">↗</span></a>
+        </div>
+        <div class="card"><span class="mono">SV</span><img src="assets/san-vincenzo.png" alt="San Vincenzo" onerror="this.remove()"><span class="burst"></span></div>
+        <div class="co-meta">01</div>
+      </div>
+    </section>
+
+    <section class="co" style="--c:var(--ef)">
+      <div class="co-inner">
+        <div class="co-text">
+          <span class="tag">Ristorazione e catering</span>
+          <h3>Eurofrozen</h3>
+          <p>Buona cucina, accoglienza e servizi alla sosta.</p>
+          <a class="cta" href="https://www.eurofrozensrl.com/">Visita il sito <span class="arr">↗</span></a>
+        </div>
+        <div class="card"><span class="mono">EF</span><img src="assets/eurofrozen.png" alt="Eurofrozen" onerror="this.remove()"><span class="burst"></span></div>
+        <div class="co-meta">02</div>
+      </div>
+    </section>
+
+    <section class="co" style="--c:var(--ap)">
+      <div class="co-inner">
+        <div class="co-text">
+          <span class="tag">Energia e carburanti</span>
+          <h3>Antimo Petroli</h3>
+          <p>Le nostre attività nel settore dei carburanti.</p>
+          <span class="cta soon">Prossimamente online</span>
+        </div>
+        <div class="card"><span class="mono">AP</span><img src="assets/antimo-petroli.png" alt="Antimo Petroli" onerror="this.remove()"><span class="burst"></span></div>
+        <div class="co-meta">03</div>
+      </div>
+    </section>
+
+    <section class="co" style="--c:var(--tg)">
+      <div class="co-inner">
+        <div class="co-text">
+          <span class="tag">Trasporti e logistica del freddo</span>
+          <h3>Timmy Gel</h3>
+          <p>Trasporto, distribuzione e logistica del freddo.</p>
+          <a class="cta" href="https://www.timmygel.com/index.html">Visita il sito <span class="arr">↗</span></a>
+        </div>
+        <div class="card"><span class="mono">TG</span><img src="assets/timmy.png" alt="Timmy Gel" onerror="this.remove()"><span class="burst"></span></div>
+        <div class="co-meta">04</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- STATEMENT -->
+  <section class="statement">
+    <p class="reveal">Servizi alle imprese, ristorazione, energia e logistica del freddo. Quattro mestieri diversi, un unico modo di lavorare: <em>la forza di esserci, insieme.</em></p>
+    <div class="facts">
+      <div class="fact"><b>4</b><span>Aziende</span></div>
+      <div class="fact"><b>4</b><span>Settori</span></div>
+      <div class="fact"><b>1</b><span>Famiglia</span></div>
+    </div>
+  </section>
+
+  <!-- IL LEGAME -->
+  <section class="bond" id="legame">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="lg" x1="0" x2="1">
+        <stop offset="0" stop-color="#3d7bff"/><stop offset=".35" stop-color="#ff6b4a"/><stop offset=".65" stop-color="#f5b82e"/><stop offset="1" stop-color="#5fd4f0"/>
+      </linearGradient></defs>
+      <path id="bondPath" d="M-40 640 C 200 640, 260 260, 420 260 S 640 700, 800 700 S 1000 220, 1180 220 S 1420 600, 1640 560" fill="none" stroke="url(#lg)" stroke-width="2" stroke-linecap="round"/>
+      <circle class="node" cx="420" cy="260" r="7" fill="#3d7bff"/><circle class="node" cx="800" cy="700" r="7" fill="#ff6b4a"/>
+      <circle class="node" cx="1180" cy="220" r="7" fill="#f5b82e"/><circle class="node" cx="1560" cy="572" r="7" fill="#5fd4f0"/>
     </svg>
-    <div class="node node-1" data-node><div class="node-chip"><img src="assets/san-vincenzo.png" alt=""></div><span>San Vincenzo</span></div>
-    <div class="node node-2" data-node><div class="node-chip"><img src="assets/eurofrozen.png" alt=""></div><span>Eurofrozen</span></div>
-    <div class="node node-3" data-node><div class="node-chip"><img src="assets/antimo-petroli.png" alt=""></div><span>Antimo Petroli</span></div>
-    <div class="node node-4" data-node><div class="node-chip"><img src="assets/timmy.png" alt=""></div><span>Timmy Gel</span></div>
-    <div class="node node-core" data-node><div class="node-chip"><img src="assets/logo-gruppo.svg" alt=""></div><span>Gruppo Di Giovanni</span></div>
-  </div>
-
-  <div class="hero-content">
-    <p class="eyebrow">GRUPPO DI GIOVANNI <span></span> LE IMPRESE DELLA NOSTRA FAMIGLIA</p>
-    <h1 id="hero-title"><span class="line-mask" data-line><span>Identità diverse.</span></span><span class="line-mask" data-line><span><em>Una sola famiglia.</em></span></span></h1>
-    <div class="hero-bottom reveal-up" data-fade>
-      <p>Quattro aziende, un legame comune.<br>La forza di esserci, insieme.</p>
-      <a class="discover" href="#aziende">Scopri il gruppo <span class="ring" aria-hidden="true">↓</span></a>
+    <div class="bond-copy">
+      <div class="eyebrow">Il legame che ci unisce</div>
+      <h2>Un'unica <em>radice.</em></h2>
+      <p>Dietro ogni azienda c'è la stessa famiglia e lo stesso senso di responsabilità verso clienti, collaboratori e territorio.</p>
     </div>
-  </div>
-  <div class="hero-caption reveal-up" data-fade><span>GRUPPO DI GIOVANNI</span><span>Quattro identità. Un unico legame.</span></div>
-</section>
-
-<div class="company-index" aria-label="Le quattro aziende">
-  <a href="#san-vincenzo"><span>01</span>San Vincenzo</a>
-  <a href="#eurofrozen"><span>02</span>Eurofrozen</a>
-  <a href="#antimo-petroli"><span>03</span>Antimo Petroli</a>
-  <a href="#timmy-gel"><span>04</span>Timmy Gel</a>
-</div>
-
-<section class="companies" id="aziende" aria-labelledby="companies-title">
-  <div class="section-head">
-    <div><p class="eyebrow">LE NOSTRE AZIENDE</p><h2 id="companies-title">Quattro realtà.<br><span>Un orizzonte comune.</span></h2></div>
-    <p>Servizi alle imprese, ristorazione, energia e logistica. Ogni azienda ha la propria identità. Tutte portano con sé il nome e l'impegno della famiglia Di Giovanni.</p>
-  </div>
-
-  <div class="stories">
-
-    <article class="story story-01 has-link" id="san-vincenzo" data-story>
-      <div class="story-media"><img class="card-photo" src="assets/san-vincenzo-servizi.png" alt="Sede e flotta San Vincenzo Service" loading="lazy"><div class="story-mark" data-mark><img src="assets/san-vincenzo.png" alt="San Vincenzo"></div></div>
-      <div class="story-copy">
-        <span class="story-index reveal-up" data-fade>01</span>
-        <p class="story-cat reveal-up" data-fade>Servizi alle imprese</p>
-        <h3 class="reveal-up" data-fade>San Vincenzo <small>SRL</small></h3>
-        <p class="story-desc reveal-up" data-fade>Servizi professionali per le imprese.</p>
-        <a class="story-cta reveal-up" data-fade href="https://www.sanvincenzoservice.it/sito-web/">Visita il sito <span aria-hidden="true">↗</span></a>
-      </div>
-    </article>
-
-    <article class="story story-02 reverse has-link" id="eurofrozen" data-story>
-      <div class="story-media"><img class="card-photo" src="assets/catering.png" alt="Preparazione piatti Eurofrozen" loading="lazy"><div class="story-mark on-card" data-mark><img src="assets/eurofrozen.png" alt="Eurofrozen"></div></div>
-      <div class="story-copy">
-        <span class="story-index reveal-up" data-fade>02</span>
-        <p class="story-cat reveal-up" data-fade>Ristorazione e catering</p>
-        <h3 class="reveal-up" data-fade>Eurofrozen <small>SRL</small></h3>
-        <p class="story-desc reveal-up" data-fade>Buona cucina, accoglienza e servizi alla sosta.</p>
-        <a class="story-cta reveal-up" data-fade href="https://www.eurofrozensrl.com/">Visita il sito <span aria-hidden="true">↗</span></a>
-      </div>
-    </article>
-
-    <article class="story story-03 has-link" id="antimo-petroli" data-story>
-      <div class="story-media-empty"><div class="story-mark" data-mark><img src="assets/antimo-petroli.png" alt="Antimo Petroli"></div></div>
-      <div class="story-copy">
-        <span class="story-index reveal-up" data-fade>03</span>
-        <p class="story-cat reveal-up" data-fade>Energia e carburanti</p>
-        <h3 class="reveal-up" data-fade>Antimo Petroli <small>SRL</small></h3>
-        <span class="story-badge reveal-up" data-fade>SITO IN ARRIVO</span>
-        <p class="story-desc reveal-up" data-fade>Le nostre attività nel settore dei carburanti.</p>
-        <span class="story-cta is-soon reveal-up" data-fade>Prossimamente online</span>
-      </div>
-    </article>
-
-    <article class="story story-04 reverse has-link" id="timmy-gel" data-story>
-      <div class="story-media"><img class="card-photo" src="assets/flotta.png" alt="Flotta Timmy Gel" loading="lazy"><div class="story-mark" data-mark><img src="assets/timmy.png" alt="Timmy Gel"></div></div>
-      <div class="story-copy">
-        <span class="story-index reveal-up" data-fade>04</span>
-        <p class="story-cat reveal-up" data-fade>Trasporti e logistica del freddo</p>
-        <h3 class="reveal-up" data-fade>Timmy Gel <small>SRL</small></h3>
-        <p class="story-desc reveal-up" data-fade>Trasporto, distribuzione e logistica del freddo.</p>
-        <a class="story-cta reveal-up" data-fade href="https://www.timmygel.com/index.html">Visita il sito <span aria-hidden="true">↗</span></a>
-      </div>
-    </article>
-
-  </div>
-</section>
-
-<section class="bond" aria-label="La famiglia Di Giovanni">
-  <div class="bond-bg" aria-hidden="true"><img src="assets/gruppo-hero.png" alt=""></div>
-  <div class="bond-inner">
-    <p class="eyebrow">IL LEGAME CHE CI UNISCE</p>
-    <p class="bond-title"><span class="line-mask" data-line><span>Il nostro nome.</span></span><span class="line-mask" data-line><span class="tint">La nostra responsabilità.</span></span></p>
-    <div class="bond-bottom">
-      <p class="reveal-up" data-fade>Identità diverse, unite dalla famiglia Di Giovanni.</p>
-      <a href="#aziende" class="reveal-up" data-fade>Incontra le nostre aziende <span aria-hidden="true">↑</span></a>
-    </div>
-  </div>
-</section>
-
+  </section>
 </main>
 
-<footer>
-  <div class="ftr-top">
-    <a href="#inizio" class="ftr-brand"><img src="assets/logo-gruppo.svg" alt="" width="52" height="52"><span>GRUPPO<strong>DI GIOVANNI</strong></span></a>
-    <ul class="ftr-companies">
-      <li><a href="https://www.sanvincenzoservice.it/sito-web/">San Vincenzo</a></li>
-      <li><a href="https://www.eurofrozensrl.com/">Eurofrozen</a></li>
-      <li><span>Antimo Petroli</span></li>
-      <li><a href="https://www.timmygel.com/index.html">Timmy Gel</a></li>
-    </ul>
-    <a class="ftr-employee" href="https://www.sanvincenzoservice.it/login/">Area dipendenti <span aria-hidden="true">↗</span></a>
+<footer class="foot">
+  <div class="foot-top">
+    <div><p class="claim">Identità diverse.<br><em>Una sola famiglia.</em></p></div>
+    <div class="foot-lists"><div>
+      <h4>Aziende</h4>
+      <ul>
+        <li><a style="--c:var(--sv)" href="https://www.sanvincenzoservice.it/sito-web/">San Vincenzo ↗</a></li>
+        <li><a style="--c:var(--ef)" href="https://www.eurofrozensrl.com/">Eurofrozen ↗</a></li>
+        <li><a style="--c:var(--ap)" href="#aziende">Antimo Petroli <span style="color:var(--mute)">· presto</span></a></li>
+        <li><a style="--c:var(--tg)" href="https://www.timmygel.com/index.html">Timmy Gel ↗</a></li>
+      </ul>
+    </div>
+    <div><h4>Area riservata</h4><ul><li><a href="https://www.sanvincenzoservice.it/login/">Area dipendenti ↗</a></li></ul></div></div>
   </div>
-  <div class="footer-bottom"><span>© <span id="year">2026</span> Gruppo Di Giovanni</span><a href="#inizio">Torna all'inizio ↑</a></div>
+  <div class="giant" id="giant">Di Giovanni</div>
+  <div class="foot-bottom"><span>© <span id="yr"></span> Gruppo Di Giovanni</span><a href="#top">Torna su ↑</a></div>
 </footer>
+</div>
 
-</body></html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+const hdr = document.getElementById('hdr');
+addEventListener('scroll', () => hdr.classList.toggle('scrolled', scrollY > 40), {passive:true});
+
+// parole della frase
+document.querySelectorAll('.reveal').forEach(p => {
+  [...p.childNodes].forEach(c => {
+    if (c.nodeType !== 3) { c.classList.add('w'); return; }
+    const f = document.createDocumentFragment();
+    c.textContent.split(/\s+/).filter(Boolean).forEach(w => { const s = document.createElement('span'); s.className = 'w'; s.textContent = w; f.appendChild(s); });
+    c.replaceWith(f);
+  });
+});
+
+// la scia parte dal centro dell'hero (quando si sblocca) e finisce al centro dell'ultimo riquadro
+const journey = document.getElementById('journey'), hero = document.getElementById('hero'), stage = document.getElementById('stage');
+const rail = document.getElementById('rail'), cards = [...document.querySelectorAll('.co .card')];
+function layoutRail(){
+  const jTop = journey.getBoundingClientRect().top + scrollY;
+  const top = hero.offsetTop + hero.offsetHeight - stage.offsetHeight / 2;
+  const r = document.getElementById('giant').getBoundingClientRect();
+  const maxC = document.documentElement.scrollHeight - innerHeight / 2 - jTop - 2;   // il punto deve poterci arrivare
+  const bottom = Math.min(r.top + scrollY - jTop + r.height * .15, maxC);
+  rail.style.top = top + 'px'; rail.style.height = Math.max(0, bottom - top) + 'px';
+}
+layoutRail();
+
+(function(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!window.gsap || !window.ScrollTrigger || reduce) {
+    document.body.classList.add('static');
+    document.querySelectorAll('.co').forEach(c => c.classList.add('lit'));
+    return;
+  }
+  gsap.registerPlugin(ScrollTrigger);
+  ScrollTrigger.addEventListener('refreshInit', layoutRail);
+
+  if (window.Lenis) {
+    const lenis = new Lenis({ lerp: 0.09, smoothWheel: true });
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add(t => lenis.raf(t * 1000));
+    gsap.ticker.lagSmoothing(0);
+    document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href')); if (!t) return;
+      e.preventDefault(); lenis.scrollTo(t, { duration: 1.8 });
+    }));
+  }
+
+  gsap.to('.progress', { scaleX: 1, ease: 'none', scrollTrigger: { start: 0, end: 'max', scrub: .3 } });
+
+  // ---------- HERO: ingresso ----------
+  gsap.set('.l2 > span', { yPercent: 115 });
+  gsap.from('.l1 > span', { yPercent: 115, duration: 1.4, ease: 'expo.out', delay: .15 });
+  gsap.from(['#heroEyebrow', '.hero-sub', '.cue'], { opacity: 0, y: 20, duration: 1.2, stagger: .12, ease: 'power3.out', delay: .5 });
+  gsap.from('#fx', { opacity: 0, duration: 2, ease: 'power2.out' });
+
+  // ---------- HERO FX (canvas): spirale → impatto → implosione → punto ----------
+  const cv = document.getElementById('fx'), cx = cv.getContext('2d');
+  const COLORS = ['#3d7bff', '#ff6b4a', '#f5b82e', '#5fd4f0'];
+  const isMobile = innerWidth < 900;
+  const CORN = [[-1,-1],[1,-1],[-1,1],[1,1]];
+  const SX = isMobile ? .26 : .28, SY = isMobile ? .24 : .22;
+  let W = 0, H = 0, DPR = 1;
+  const fx = { p: 0 };
+
+  // sprite di luce pre-renderizzati (veloci da disegnare)
+  function sprite(color, core){
+    const s = 256, c = document.createElement('canvas'); c.width = c.height = s;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+    if (core){ gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.18, color); gr.addColorStop(.45, color + '55'); gr.addColorStop(1, color + '00'); }
+    else { gr.addColorStop(0, color + 'ff'); gr.addColorStop(.35, color + '88'); gr.addColorStop(1, color + '00'); }
+    g.fillStyle = gr; g.fillRect(0, 0, s, s); return c;
+  }
+  const GLOW = COLORS.map(c => sprite(c, false)), CORE = COLORS.map(c => sprite(c, true));
+  const WHITE = sprite('#ffffff', true), WGLOW = sprite('#dfe9ff', false);
+
+  // particelle deterministiche (lo scroll all'indietro le riavvolge)
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const PARTS = Array.from({ length: isMobile ? 80 : 130 }, (_, i) => ({
+    c: i % 4, a: rnd() * Math.PI * 2, v: .25 + rnd() * .75, s: 1 + rnd() * 2.6, sw: (rnd() - .5) * 2.4, d: rnd() * .08
+  }));
+
+  function resize(){
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = stage.clientWidth; H = stage.clientHeight;
+    cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  }
+  resize(); addEventListener('resize', resize);
+
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const seg = (p, a, b) => clamp((p - a) / (b - a));
+  const eIn = t => t * t * t, eOut = t => 1 - Math.pow(1 - t, 3), eIO = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+  const draw = (img, x, y, size, a, sx = 1, sy = 1) => {
+    if (a <= .002 || size <= .1) return;
+    cx.globalAlpha = Math.min(1, a); cx.drawImage(img, x - size*sx/2, y - size*sy/2, size*sx, size*sy);
+  };
+
+  // posizione della luce i al tempo t della spirale (0 = angoli, 1 = centro)
+  function orbPos(i, t, time){
+    const k = eIO(t), r = 1 - k, rot = k * Math.PI * 2.4 * (i % 2 ? 1 : 1);
+    const bx = CORN[i][0] * W * SX, by = CORN[i][1] * H * SY;
+    const wob = (1 - k) * Math.min(W, H) * .012;
+    const x = (bx * Math.cos(rot) - by * Math.sin(rot)) * r + Math.sin(time * .7 + i * 1.7) * wob;
+    const y = (bx * Math.sin(rot) + by * Math.cos(rot)) * r + Math.cos(time * .6 + i * 2.1) * wob;
+    return [W/2 + x, H/2 + y];
+  }
+
+  const T_HIT = .34, T_SHRINK0 = .58, T_DOT = .74;
+  function render(time){
+    const p = fx.p, M = Math.min(W, H), X = W/2, Y = H/2;
+    cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1; cx.clearRect(0, 0, W, H);
+    cx.globalCompositeOperation = 'lighter';
+
+    // 1) spirale: quattro comete che si avvitano verso il centro
+    const ts = seg(p, 0, T_HIT);
+    if (p < T_HIT + .02){
+      const fade = 1 - seg(p, T_HIT - .02, T_HIT + .02);
+      for (let i = 0; i < 4; i++){
+        const size = M * (.62 - .38 * eIO(ts));
+        const [x, y] = orbPos(i, ts, time);
+        draw(GLOW[i], x, y, size, .55 * fade);
+        // scia
+        const N = 70, span = .16 * Math.min(1, ts * 4 + .05);
+        for (let j = N; j >= 1; j--){
+          const tt = ts - span * j / N; if (tt < 0) continue;
+          const [tx, ty] = orbPos(i, tt, time), f = 1 - j / N;
+          draw(CORE[i], tx, ty, M * (.016 + .045 * f), .32 * f * fade * Math.min(1, ts * 6));
+        }
+        draw(CORE[i], x, y, M * (.07 + .05 * ts), (.8 + .2 * Math.sin(time * 3 + i)) * fade);
+      }
+    }
+
+    // 2) impatto: lampo + onda d'urto
+    const u = seg(p, T_HIT - .01, T_HIT + .16);
+    if (u > 0 && u < 1){
+      draw(WGLOW, X, Y, Math.max(W, H) * (.4 + 1.1 * eOut(u)), .9 * Math.pow(1 - u, 2));
+      cx.globalAlpha = .55 * (1 - u); cx.strokeStyle = '#fff'; cx.lineWidth = 1.5 + 3 * (1 - u);
+      cx.beginPath(); cx.arc(X, Y, Math.max(W, H) * .75 * eOut(u), 0, Math.PI * 2); cx.stroke();
+      cx.globalAlpha = .3 * (1 - u); cx.lineWidth = 1;
+      cx.beginPath(); cx.arc(X, Y, Math.max(W, H) * .5 * eOut(seg(u, .12, 1)), 0, Math.PI * 2); cx.stroke();
+    }
+
+    // 3) scintille: esplodono, orbitano e vengono risucchiate nel punto
+    const q = seg(p, T_HIT, T_DOT - .02);
+    if (q > 0 && q < 1){
+      const dim = .4 + .6 * seg(p, T_SHRINK0 - .04, T_SHRINK0 + .02);   // più tenui mentre si legge il titolo
+      for (const s of PARTS){
+        const qq = seg(q, s.d, 1); if (qq <= 0) continue;
+        const out = Math.sin(Math.PI * Math.pow(qq, .75));
+        const d = s.v * M * .55 * out;
+        const a = s.a + s.sw * qq * 2.2;
+        draw(CORE[s.c], X + Math.cos(a) * d, Y + Math.sin(a) * d * .8, M * .01 * s.s * (1 + out * dim), .85 * out * dim);
+      }
+    }
+
+    // 4) la luce unica: respira, poi implode in un punto con riflesso anamorfico
+    if (p >= T_HIT - .02 && p < T_DOT + .04){
+      const born = eOut(seg(p, T_HIT - .02, T_HIT + .06));
+      const sh = eIn(seg(p, T_SHRINK0, T_DOT));
+      const breathe = 1 + .04 * Math.sin(time * 2.2);
+      const big = M * .5 * breathe, dotSize = 30;
+      const size = born * (big + (dotSize - big) * sh);
+      const end = 1 - seg(p, T_DOT, T_DOT + .04);
+      // alone tenue mentre c'è il titolo, più intenso quando si stringe
+      draw(WGLOW, X, Y, size * 1.9, (.22 + .5 * sh) * end);
+      COLORS.forEach((_, i) => {
+        const ang = time * .5 + i * Math.PI / 2, off = size * .12 * (1 - sh);
+        draw(GLOW[i], X + Math.cos(ang) * off, Y + Math.sin(ang) * off, size * 1.2, .16 * (1 - sh) * end);
+      });
+      draw(WHITE, X, Y, size * .55, (.35 + .65 * sh) * end);
+      // riflesso orizzontale che si accende durante l'implosione
+      const flare = Math.sin(Math.PI * seg(p, T_SHRINK0 + .04, T_DOT + .02));
+      draw(WGLOW, X, Y, W * .9 * (1 - .6 * sh), .55 * flare * end, 1, .018);
+      draw(WGLOW, X, Y, W * .5 * (1 - .6 * sh), .35 * flare * end, 1, .05);
+    }
+  }
+  gsap.ticker.add(time => { if (fx.p < .8 || !render.parked){ render(time); render.parked = fx.p >= .8; } });
+
+  // nomi delle aziende sulle quattro luci
+  const names = gsap.utils.toArray('.names span');
+  names.forEach((n,i) => gsap.set(n, { left: 50 + CORN[i][0]*SX*100 + '%', top: 50 + CORN[i][1]*SY*100 + '%', xPercent: -50, yPercent: -50 }));
+
+  // ---------- HERO: timeline sullo scroll ----------
+  const tl = gsap.timeline({ defaults: { ease: 'none' },
+    scrollTrigger: { trigger: '#hero', start: 'top top', end: 'bottom bottom', scrub: 1.2 } });
+  tl.to(fx, { p: 1, duration: 1 }, 0)
+    .to('.cue', { opacity: 0, duration: .04 }, 0)
+    .to(names, { opacity: 0, scale: .8, duration: .1 }, .02)
+    .to('#heroEyebrow', { opacity: 0, duration: .08 }, .06)
+    // titolo: "Identità diverse." esce prima dell'impatto, "Una sola famiglia." entra col lampo
+    .to('.l1 > span', { yPercent: -115, duration: .1, ease: 'power2.in' }, .2)
+    .to('.l2 > span', { yPercent: 0, duration: .12, ease: 'power3.out' }, T_HIT)
+    .to(['.h1', '.hero-sub'], { opacity: 0, y: -30, duration: .06 }, T_SHRINK0 - .04)
+    .to('#dot', { opacity: 1, scale: 1, duration: .03 }, T_DOT - .01);
+
+
+  // ---------- la scia scende ----------
+  gsap.fromTo('#railFill', { scaleY: 0 }, { scaleY: 1, ease: 'none',
+    scrollTrigger: { trigger: '#rail', start: 'top center', end: 'bottom center', scrub: true } });
+
+  // ---------- ACCENSIONE: il punto arriva → un raggio parte dalla scia → il contenuto appare ----------
+  const dotWrap = document.getElementById('dotWrap');
+  const MOB = () => innerWidth < 900;
+  const CLIP = {
+    left:   'inset(-20% -12% -20% 112%)',   // testo a sinistra della scia: si svela da destra verso sinistra
+    right:  'inset(-20% 112% -20% -12%)',   // testo a destra: da sinistra verso destra
+    center: 'inset(-20% 50% -20% 50%)',     // centrato: dal centro verso fuori
+    open:   'inset(-20% -12% -20% -12%)'
+  };
+  const hiddenState = dir => ({ opacity: 0, filter: 'blur(14px)', clipPath: CLIP[dir], x: dir === 'left' ? 50 : dir === 'right' ? -50 : 0 });
+  const hide = g => gsap.set(g.els, hiddenState(g.dir));
+
+  function fireBeam(el, dir, color){
+    if (typeof el === 'string') el = document.querySelector(el);
+    const jr = journey.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const mid = jr.width / 2, y = r.top - jr.top + r.height / 2;
+    let left, width, origin;
+    if (dir === 'left')      { left = r.left - jr.left - 30; width = mid - left; origin = '100% 50%'; }
+    else if (dir === 'right'){ left = mid; width = r.right - jr.left + 30 - mid; origin = '0% 50%'; }
+    else                     { left = Math.min(r.left - jr.left, mid - 40) - 30; width = Math.max(r.right - jr.left, mid + 40) + 30 - left; origin = (mid - left) / width * 100 + '% 50%'; }
+    const b = document.createElement('div');
+    b.className = 'beam'; b.style.cssText = `top:${y}px;left:${left}px;width:${width}px;--bc:${color};transform-origin:${origin}`;
+    journey.appendChild(b);
+    gsap.timeline({ onComplete: () => b.remove() })
+      .fromTo(b, { scaleX: 0, opacity: 1 }, { scaleX: 1, duration: .55, ease: 'power3.out' })
+      .to(b, { opacity: 0, scaleY: 4, duration: .7, ease: 'power2.out' }, .35);
+  }
+  function pulse(color){
+    dotWrap.style.setProperty('--dc', color);
+    gsap.fromTo(dotWrap, { scale: 2.2 }, { scale: 1, duration: .8, ease: 'expo.out', overwrite: true, clearProps: 'transform' });
+  }
+  function show(groups, color = '#ffffff'){
+    groups.forEach((g, gi) => {
+      fireBeam(g.beamEl || g.els[0], g.dir, color);
+      gsap.to(g.els, { opacity: 1, filter: 'blur(0px)', clipPath: CLIP.open, x: 0,
+        duration: 1.2, ease: 'expo.out', delay: .18 + gi * .05, stagger: g.stagger || .09, overwrite: 'auto',
+        onComplete: () => gsap.set(g.els, { clearProps: 'filter,clipPath' }) });
+    });
+  }
+  function unshow(groups){
+    groups.forEach(g => gsap.to(g.els, { ...hiddenState(g.dir), duration: .45, ease: 'power2.in', stagger: { each: .04, from: 'end' }, overwrite: 'auto' }));
+  }
+  function ignite(trigger, groups, opts = {}){
+    groups.forEach(hide);
+    ScrollTrigger.create({ trigger, start: opts.start || 'center center', end: 'max',
+      onEnter: () => { show(groups, opts.color); pulse(opts.dotColor || dotWrap.style.getPropertyValue('--dc') || '#fff'); opts.onEnter && opts.onEnter(); },
+      onLeaveBack: () => { unshow(groups); opts.onLeaveBack && opts.onLeaveBack(); } });
+  }
+
+  // intro "Quattro identità."
+  ignite('.co-intro h2', MOB()
+    ? [{ els: ['.co-intro h2', '.co-intro p'], dir: 'center' }]
+    : [{ els: ['.co-intro h2'], dir: 'left' }, { els: ['.co-intro p'], dir: 'right' }]);
+
+  // aziende: il riquadro si accende e il raggio accende testo e numero
+  const blocks = gsap.utils.toArray('.co');
+  blocks.forEach((co, i) => {
+    const card = co.querySelector('.card'), burst = co.querySelector('.burst');
+    const color = getComputedStyle(co).getPropertyValue('--c').trim() || '#fff';
+    const odd = i % 2 === 0;
+    const text = co.querySelector('.co-text');
+    const groups = MOB()
+      ? [{ els: [...text.children], beamEl: text, dir: 'center' }]
+      : [{ els: [...text.children], beamEl: text, dir: odd ? 'left' : 'right' },
+         { els: [co.querySelector('.co-meta')], dir: odd ? 'right' : 'left' }];
+    groups.forEach(hide);
+    const prev = i ? getComputedStyle(blocks[i-1]).getPropertyValue('--c').trim() : '#fff';
+    ScrollTrigger.create({
+      trigger: card, start: 'top center', end: 'max',
+      onEnter: () => {
+        co.classList.add('lit'); pulse(color);
+        gsap.fromTo(burst, { scale: .2, opacity: 1 }, { scale: 9, opacity: 0, duration: 1.1, ease: 'expo.out' });
+        gsap.fromTo(card, { scale: .96 }, { scale: 1, duration: .9, ease: 'elastic.out(1,.5)' });
+        show(groups, color);
+      },
+      onLeaveBack: () => { co.classList.remove('lit'); dotWrap.style.setProperty('--dc', prev); unshow(groups); }
+    });
+    gsap.fromTo(co.querySelector('.co-meta'), { y: 80 }, { y: -80, ease: 'none',
+      scrollTrigger: { trigger: co, start: 'top bottom', end: 'bottom top', scrub: true } });
+  });
+
+  // frase: le parole si accendono dal centro verso l'esterno
+  const words = gsap.utils.toArray('.statement .w');
+  gsap.set(words, { opacity: 0, filter: 'blur(10px)', y: 16 });
+  ScrollTrigger.create({ trigger: '.statement p', start: 'top center', end: 'max',
+    onEnter: () => {
+      fireBeam(document.querySelector('.statement p'), 'center', '#ffffff'); pulse(dotWrap.style.getPropertyValue('--dc'));
+      gsap.to(words, { opacity: 1, filter: 'blur(0px)', y: 0, duration: 1, ease: 'expo.out', stagger: { each: .025, from: 'center' }, overwrite: 'auto',
+        onComplete: () => gsap.set(words, { clearProps: 'filter' }) });
+    },
+    onLeaveBack: () => gsap.to(words, { opacity: 0, filter: 'blur(10px)', y: 16, duration: .4, stagger: { each: .01, from: 'edges' }, overwrite: 'auto' })
+  });
+
+  // numeri
+  ignite('.facts', [{ els: ['.facts'], dir: 'center' }, { els: gsap.utils.toArray('.fact'), beamEl: document.querySelector('.facts'), dir: 'center', stagger: .12 }]);
+
+  // legame: la linea si disegna con lo scroll, il testo si accende quando arriva il punto
+  const path = document.getElementById('bondPath'), len = path.getTotalLength();
+  gsap.set(path, { strokeDasharray: len, strokeDashoffset: len });
+  gsap.timeline({ scrollTrigger: { trigger: '#legame', start: 'top 75%', end: 'bottom 60%', scrub: 1 } })
+    .to(path, { strokeDashoffset: 0, ease: 'none', duration: 1 }, 0)
+    .to('.bond .node', { opacity: 1, attr: { r: 10 }, stagger: .22, duration: .1 }, .15);
+  ignite('.bond-copy h2', [{ els: gsap.utils.toArray('.bond-copy > *'), beamEl: document.querySelector('.bond-copy h2'), dir: 'center', stagger: .12 }]);
+
+  // footer
+  ignite('.foot-top', MOB()
+    ? [{ els: ['.foot .claim', '.foot-lists'], dir: 'center' }]
+    : [{ els: ['.foot .claim'], dir: 'left' }, { els: gsap.utils.toArray('.foot-lists > div'), beamEl: document.querySelector('.foot-lists'), dir: 'right' }]);
+
+  // finale: il punto entra in "Di Giovanni" e la accende
+  const giant = document.getElementById('giant');
+  const gGroups = [{ els: [giant], dir: 'center' }, { els: ['.foot-bottom'], dir: 'center' }];
+  gGroups.forEach(hide);
+  ScrollTrigger.create({
+    trigger: '#rail', start: 'bottom center', end: 'max',
+    onEnter: () => { giant.classList.add('lit'); show(gGroups); gsap.to('#dot', { scale: 3, opacity: 0, duration: .6, ease: 'power2.out' }); },
+    onLeaveBack: () => { giant.classList.remove('lit'); unshow(gGroups); dotWrap.style.setProperty('--dc', getComputedStyle(blocks[blocks.length-1]).getPropertyValue('--c').trim()); gsap.to('#dot', { scale: 1, opacity: 1, duration: .3 }); }
+  });
+
+  gsap.fromTo('#giant', { xPercent: 12 }, { xPercent: -4, ease: 'none',
+    scrollTrigger: { trigger: '.foot', start: 'top bottom', end: 'bottom bottom', scrub: 1 } });
+
+  addEventListener('load', () => ScrollTrigger.refresh());
+  document.fonts && document.fonts.ready.then(() => ScrollTrigger.refresh());
+})();
+</script>
+</body>
+</html>
