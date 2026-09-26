@@ -923,6 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <select class="form-select" name="operation_type">
                             <option value="top_up" {% if entry.operation_type == 'top_up' %}selected{% endif %}>Ricarica datore di lavoro</option>
                             <option value="expense" {% if entry.operation_type == 'expense' %}selected{% endif %}>Spesa carta aziendale</option>
+                            <option value="withdrawal" {% if entry.operation_type == 'withdrawal' %}selected{% endif %}>Prelievo allo sportello</option>
                         </select>
                     </div>
                     <div class="col-6">

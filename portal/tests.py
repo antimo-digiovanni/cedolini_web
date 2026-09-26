@@ -455,6 +455,36 @@ class PersonalAssetDashboardTests(TestCase):
 		pdf_document.close()
 		self.assertIn("Prelievo allo sportello", pdf_text)
 
+	def test_edit_corporate_card_movement_can_set_withdrawal_type(self):
+		self.client.force_login(self.user)
+		entry = CorporateCardEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate(),
+			operation_type=CorporateCardEntry.TYPE_EXPENSE,
+			category="Contanti",
+			amount=Decimal("25.00"),
+		)
+
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertContains(page, '<option value="withdrawal">Prelievo allo sportello</option>', html=False)
+
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "update_corporate_card_entry",
+			"entry_id": str(entry.id),
+			"occurred_on": entry.occurred_on.isoformat(),
+			"operation_type": CorporateCardEntry.TYPE_WITHDRAWAL,
+			"category": "Contanti",
+			"amount": "25.00",
+			"payment_method": "cash_withdrawn",
+			"cash_delivery_note": "Piccola cassa",
+			"description": "Prelievo ATM",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_updated")
+		entry.refresh_from_db()
+		self.assertEqual(entry.operation_type, CorporateCardEntry.TYPE_WITHDRAWAL)
+		self.assertEqual(entry.balance_delta, Decimal("-25.00"))
+		self.assertEqual(entry.cash_delivery_note, "Piccola cassa")
+
 	def test_planned_expenses_are_printable_and_move_to_card_when_paid(self):
 		self.client.force_login(self.user)
 		for category, amount in (("Materiale", "40.00"), ("Carburante", "60.00")):
