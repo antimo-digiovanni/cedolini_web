@@ -483,11 +483,18 @@
                 </h2>
                 <div id="corporateCardMonth{{ month_group.key }}" class="accordion-collapse collapse" aria-labelledby="corporateCardMonthHeading{{ month_group.key }}" data-bs-parent="#corporateCardMonths">
                     <div class="accordion-body p-2 p-md-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <label class="form-check mb-0 d-inline-flex align-items-center gap-2">
+                                <input class="form-check-input" type="checkbox" data-select-all-card-month="{{ month_group.key }}" aria-label="Seleziona tutti i movimenti di {{ month_group.label }}">
+                                <span>Seleziona tutte</span>
+                            </label>
+                            <div class="small text-muted">{{ month_group.label }}: <strong data-card-month-selected-count="{{ month_group.key }}">0</strong> voci · Totale <strong data-card-month-selected-total="{{ month_group.key }}">0,00 €</strong></div>
+                        </div>
                         <div class="table-responsive d-none d-md-block">
                             <table class="table corporate-card-table align-middle mb-0">
                                 <thead><tr><th>PDF</th><th>Data</th><th>Movimento</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Saldo dopo</th><th class="text-end">Azioni</th></tr></thead>
                                 <tbody>{% for entry in month_group.entries %}<tr>
-                                    <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}" aria-label="Seleziona movimento per PDF"></td>
+                                    <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-card-month="{{ month_group.key }}" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}" aria-label="Seleziona movimento per PDF"></td>
                                     <td>{{ entry.occurred_on|date:"d/m/Y" }}</td><td>{{ entry.get_operation_type_display }}</td><td>{{ entry.category }}</td><td>{{ entry.description|default:"-" }}
                                         <div class="corporate-card-inline-note">Metodo: {{ entry.get_payment_method_display|default:"Non specificato" }}</div>
                                         {% if entry.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ entry.cash_delivery_note }}</div>{% endif %}
@@ -499,7 +506,7 @@
                             </table>
                         </div>
                         <div class="d-md-none">{% for entry in month_group.entries %}
-                            <div class="corporate-card-mobile-entry"><div class="d-flex justify-content-between align-items-start gap-3"><div><div class="fw-semibold">{{ entry.get_operation_type_display }}</div><div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div></div><div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div></div><div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div><div class="corporate-card-inline-note">Metodo: {{ entry.get_payment_method_display|default:"Non specificato" }}</div>{% if entry.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ entry.cash_delivery_note }}</div>{% endif %}{% if entry.planned_origin %}<div class="mt-2"><span class="corporate-card-badge-soft">Derivata da spesa prevista</span></div>{% endif %}{% if entry.charge_refund_details_list %}<div class="corporate-card-inline-note mt-2">Addebiti: {{ entry.charge_total|floatformat:2 }} € · Rimborsi: {{ entry.refund_total|floatformat:2 }} € · Netto: {{ entry.net_detail_total|floatformat:2 }} €</div>{% endif %}<div class="d-flex justify-content-between align-items-center gap-2 mt-3"><span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span><div><label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}"> <span>PDF</span></label><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="m-0 d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></div></div></div>
+                            <div class="corporate-card-mobile-entry"><div class="d-flex justify-content-between align-items-start gap-3"><div><div class="fw-semibold">{{ entry.get_operation_type_display }}</div><div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div></div><div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div></div><div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div><div class="corporate-card-inline-note">Metodo: {{ entry.get_payment_method_display|default:"Non specificato" }}</div>{% if entry.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ entry.cash_delivery_note }}</div>{% endif %}{% if entry.planned_origin %}<div class="mt-2"><span class="corporate-card-badge-soft">Derivata da spesa prevista</span></div>{% endif %}{% if entry.charge_refund_details_list %}<div class="corporate-card-inline-note mt-2">Addebiti: {{ entry.charge_total|floatformat:2 }} € · Rimborsi: {{ entry.refund_total|floatformat:2 }} € · Netto: {{ entry.net_detail_total|floatformat:2 }} €</div>{% endif %}<div class="d-flex justify-content-between align-items-center gap-2 mt-3"><span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span><div><label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-card-month="{{ month_group.key }}" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}"> <span>PDF</span></label><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="m-0 d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></div></div></div>
                         {% endfor %}</div>
                     </div>
                 </div>
@@ -509,6 +516,7 @@
         <form id="selectedCardExpensesForm" method="post" class="mt-3" data-current-balance="{{ corporate_card_balance|unlocalize }}" {% if corporate_card_bank_difference is not None %}data-bank-difference="{{ corporate_card_bank_difference|unlocalize }}"{% endif %}>
             {% csrf_token %}
             <input type="hidden" name="action" value="download_selected_corporate_card_expenses_pdf">
+            <div class="small text-muted mb-2">Selezionati: <strong data-card-selected-count>0</strong> voci · Totale importi: <strong data-card-selected-total>0,00 €</strong></div>
             <button type="submit" class="btn btn-outline-success">PDF movimenti selezionati</button>
         </form>
         {% else %}
@@ -559,6 +567,49 @@ function collectUniqueChecked(selector) {
         }
     });
     return Array.from(mapped.values());
+}
+
+function updateCardSelectionState() {
+    const allCheckboxes = Array.from(document.querySelectorAll('input[data-corporate-card-checkbox="1"]'));
+    const allEntries = new Map();
+    allCheckboxes.forEach(checkbox => {
+        if (!allEntries.has(checkbox.value)) {
+            allEntries.set(checkbox.value, checkbox);
+        }
+    });
+    const checked = collectUniqueChecked('input[data-corporate-card-checkbox="1"]');
+    const selectedTotal = checked.reduce((sum, checkbox) => sum + parseAmount(checkbox.dataset.amount), 0);
+    document.querySelectorAll('[data-card-selected-count]').forEach(node => { node.textContent = checked.length; });
+    document.querySelectorAll('[data-card-selected-total]').forEach(node => { node.textContent = formatCurrency(selectedTotal); });
+
+    document.querySelectorAll('[data-select-all-card-month]').forEach(master => {
+        const monthKey = master.dataset.selectAllCardMonth;
+        const monthEntries = new Map();
+        allCheckboxes.filter(checkbox => checkbox.dataset.cardMonth === monthKey).forEach(checkbox => {
+            if (!monthEntries.has(checkbox.value)) {
+                monthEntries.set(checkbox.value, checkbox);
+            }
+        });
+        const monthChecked = Array.from(monthEntries.values()).filter(checkbox => checkbox.checked);
+        const monthTotal = monthChecked.reduce((sum, checkbox) => sum + parseAmount(checkbox.dataset.amount), 0);
+        const countNode = document.querySelector(`[data-card-month-selected-count="${monthKey}"]`);
+        const totalNode = document.querySelector(`[data-card-month-selected-total="${monthKey}"]`);
+        if (countNode) {
+            countNode.textContent = monthChecked.length;
+        }
+        if (totalNode) {
+            totalNode.textContent = formatCurrency(monthTotal);
+        }
+        master.checked = monthEntries.size > 0 && monthChecked.length === monthEntries.size;
+        master.indeterminate = monthChecked.length > 0 && monthChecked.length < monthEntries.size;
+    });
+}
+
+function toggleCardMonthSelections(monthKey, checked) {
+    document.querySelectorAll(`input[data-corporate-card-checkbox="1"][data-card-month="${monthKey}"]`).forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    updateCardSelectionState();
 }
 
 function updatePlannedSelectionState() {
@@ -652,6 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkbox.addEventListener('change', () => {
             syncCheckboxGroup(checkbox);
             updatePlannedSelectionState();
+            updateCardSelectionState();
         });
     });
 
@@ -679,6 +731,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('selectAllPlannedExpensesMobile')?.addEventListener('change', event => {
         toggleAllPlannedSelections(event.target.checked);
+    });
+    document.querySelectorAll('[data-select-all-card-month]').forEach(master => {
+        master.addEventListener('change', event => {
+            toggleCardMonthSelections(event.target.dataset.selectAllCardMonth, event.target.checked);
+        });
     });
 
     document.querySelectorAll('form').forEach(form => {
@@ -757,6 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     updatePlannedSelectionState();
+    updateCardSelectionState();
 });
 </script>
 {% endblock %}

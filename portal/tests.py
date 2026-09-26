@@ -619,6 +619,44 @@ class PersonalAssetDashboardTests(TestCase):
 		})
 		self.assertRedirects(missing_selection, reverse('personal_asset_dashboard') + '?status=corporate_card_expenses_pdf_missing')
 
+	def test_card_movement_selection_controls_are_scoped_to_each_month(self):
+		self.client.force_login(self.user)
+		selected = CorporateCardEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate().replace(day=1),
+			operation_type=CorporateCardEntry.TYPE_EXPENSE,
+			category='Inclusa nel PDF',
+			description='Movimento selezionato',
+			amount=Decimal('12.00'),
+		)
+		unselected = CorporateCardEntry.objects.create(
+			user=self.user,
+			occurred_on=timezone.localdate().replace(day=2),
+			operation_type=CorporateCardEntry.TYPE_EXPENSE,
+			category='Esclusa dal PDF',
+			description='Movimento non selezionato',
+			amount=Decimal('45.00'),
+		)
+		month_key = selected.occurred_on.strftime('%Y-%m')
+
+		page = self.client.get(reverse('personal_asset_dashboard'))
+		self.assertContains(page, f'data-select-all-card-month="{month_key}"')
+		self.assertContains(page, f'data-card-month="{month_key}"')
+		self.assertContains(page, f'data-card-month-selected-count="{month_key}"')
+
+		pdf_response = self.client.post(reverse('personal_asset_dashboard'), {
+			'action': 'download_selected_corporate_card_expenses_pdf',
+			'corporate_card_entry_ids': [str(selected.id)],
+		})
+		self.assertEqual(pdf_response.status_code, 200)
+		import fitz
+		pdf_document = fitz.open(stream=pdf_response.content, filetype='pdf')
+		pdf_text = '\n'.join(pdf_page.get_text() for pdf_page in pdf_document)
+		pdf_document.close()
+		self.assertIn('Inclusa nel PDF', pdf_text)
+		self.assertNotIn('Esclusa dal PDF', pdf_text)
+		self.assertTrue(CorporateCardEntry.objects.filter(id=unselected.id).exists())
+
 	@override_settings(STORAGES={
 		'default': {
 			'BACKEND': 'django.core.files.storage.FileSystemStorage',
