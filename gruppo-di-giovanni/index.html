@@ -162,9 +162,35 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:100;op
 .static .co .card{border-color:var(--c)} .static .co-text{opacity:1;transform:none} .static .rail i{transform:none}
 .static .statement .w{opacity:1}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ingresso */
+body.is-loading{overflow:hidden}
+.site-preloader{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:var(--bg);opacity:1;visibility:visible;transition:opacity .8s ease,visibility .8s ease}
+.site-preloader.is-done{opacity:0;visibility:hidden;pointer-events:none}
+.preloader-inner{width:min(380px,100vw);text-align:center}
+.preloader-mark{width:64px;height:64px;margin:0 auto 24px;padding:9px;border-radius:16px;background:#f0f2f4;box-shadow:0 18px 44px rgba(0,0,0,.4);animation:preloader-breathe 2.4s ease-in-out infinite}
+.preloader-mark img{width:100%;height:100%;object-fit:contain}
+.preloader-brand{font-family:var(--serif);font-size:clamp(23px,7vw,42px);line-height:1.05;white-space:nowrap;animation:preloader-breathe 2.4s ease-in-out infinite}
+.preloader-brand em{color:var(--ef)}
+.preloader-status{margin-top:12px;color:var(--mute);font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+.preloader-track{height:2px;margin:24px auto 0;background:var(--line);overflow:hidden}
+.preloader-track span{display:block;width:100%;height:100%;transform-origin:left;background:linear-gradient(90deg,var(--sv),var(--ef),var(--ap),var(--tg));animation:preloader-line-breathe 1.8s ease-in-out infinite}
+@keyframes preloader-breathe{0%,100%{opacity:.72;transform:scale(.985)}50%{opacity:1;transform:scale(1.015)}}
+@keyframes preloader-line-breathe{0%,100%{transform:scaleX(.28);opacity:.55}50%{transform:scaleX(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.preloader-mark,.preloader-brand,.preloader-track span{animation:none}}
 </style>
 </head>
-<body>
+<body class="is-loading">
+
+<div class="site-preloader" id="sitePreloader" role="status" aria-live="polite">
+  <div class="preloader-inner">
+    <div class="preloader-mark"><img src="assets/logo-gruppo.svg" alt=""></div>
+    <div class="preloader-brand">Gruppo <em>Di Giovanni</em></div>
+    <div class="preloader-status" id="preloaderStatus">Quattro aziende. Un legame.</div>
+    <div class="preloader-track" aria-hidden="true"><span></span></div>
+  </div>
+</div>
+<noscript><style>.site-preloader{display:none}body.is-loading{overflow:auto}</style></noscript>
 
 <div class="progress" aria-hidden="true"></div>
 <div class="dot-wrap" id="dotWrap" aria-hidden="true"><div class="dot" id="dot"></div></div>
@@ -642,5 +668,27 @@ layoutRail();
   document.fonts && document.fonts.ready.then(() => ScrollTrigger.refresh());
 })();
 </script>
+  <script>
+  (() => {
+    const loader = document.getElementById('sitePreloader');
+    if (!loader) return;
+    const startedAt = performance.now();
+
+    let released = false;
+    const reveal = () => {
+      if (released) return;
+      released = true;
+      const delay = Math.max(0, 1800 - (performance.now() - startedAt));
+      setTimeout(() => {
+        document.body.classList.remove('is-loading');
+        loader.classList.add('is-done');
+      }, delay);
+    };
+
+    if (document.readyState === 'complete') reveal();
+    else addEventListener('load', reveal, { once: true });
+    setTimeout(reveal, 5000);
+  })();
+  </script>
 </body>
 </html>
