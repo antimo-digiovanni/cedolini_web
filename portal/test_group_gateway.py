@@ -28,6 +28,14 @@ class GroupGatewayTests(SimpleTestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'href="/gruppo/"')
 
+    def test_breathing_preloader_is_limited_to_home(self):
+        home = self.client.get('/sito-web/?preview-loader=1')
+        self.assertContains(home, 'id="sv-preloader"')
+        self.assertContains(home, "'Anteprima'")
+
+        services = self.client.get('/servizi/')
+        self.assertNotContains(services, 'sv-preloader')
+
     def test_choice_allows_company_navigation(self):
         request = self.request('/azienda/san-vincenzo/')
         response = select_san_vincenzo(request)
