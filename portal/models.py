@@ -8,6 +8,20 @@ import secrets
 RECEIPT_IMAGE_MAX_DIMENSION = 1600
 RECEIPT_IMAGE_JPEG_QUALITY = 82
 RECEIPT_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff')
+CORPORATE_CARD_PAYMENT_METHOD_COMPANY_CARD = 'company_card'
+CORPORATE_CARD_PAYMENT_METHOD_CASH = 'cash_withdrawn'
+CORPORATE_CARD_PAYMENT_METHOD_TRANSFER = 'bank_transfer_other'
+CORPORATE_CARD_PAYMENT_METHOD_CHOICES = [
+    (CORPORATE_CARD_PAYMENT_METHOD_COMPANY_CARD, 'Carta aziendale'),
+    (CORPORATE_CARD_PAYMENT_METHOD_CASH, 'Contanti prelevati'),
+    (CORPORATE_CARD_PAYMENT_METHOD_TRANSFER, 'Bonifico/altro'),
+]
+CORPORATE_CARD_DETAIL_TYPE_CHARGE = 'charge'
+CORPORATE_CARD_DETAIL_TYPE_REFUND = 'refund'
+CORPORATE_CARD_DETAIL_TYPE_CHOICES = [
+    (CORPORATE_CARD_DETAIL_TYPE_CHARGE, 'Addebito'),
+    (CORPORATE_CARD_DETAIL_TYPE_REFUND, 'Rimborso'),
+]
 
 
 def _compress_receipt_image(field_file):
@@ -76,6 +90,9 @@ class PortalUserSetting(models.Model):
     show_published_turni = models.BooleanField(default=True)
     personal_asset_account_adjustment = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     personal_asset_reimbursement_adjustment = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    corporate_card_bank_balance = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    corporate_card_bank_balance_date = models.DateField(null=True, blank=True)
+    corporate_card_bank_note = models.TextField(blank=True)
 
     def __str__(self):
         return self.user.get_username()
@@ -86,9 +103,11 @@ class CorporateCardEntry(models.Model):
 
     TYPE_TOP_UP = 'top_up'
     TYPE_EXPENSE = 'expense'
+    TYPE_WITHDRAWAL = 'withdrawal'
     TYPE_CHOICES = [
         (TYPE_TOP_UP, 'Ricarica datore di lavoro'),
         (TYPE_EXPENSE, 'Spesa carta aziendale'),
+        (TYPE_WITHDRAWAL, 'Prelievo allo sportello'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='corporate_card_entries')
@@ -97,6 +116,8 @@ class CorporateCardEntry(models.Model):
     category = models.CharField(max_length=80)
     description = models.CharField(max_length=255, blank=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=30, choices=CORPORATE_CARD_PAYMENT_METHOD_CHOICES, blank=True, default='')
+    cash_delivery_note = models.CharField(max_length=255, blank=True, default='')
     receipt_image = models.FileField(upload_to='corporate_card_receipts/', blank=True, null=True)
     balance_delta = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     created_at = models.DateTimeField(auto_now_add=True)
@@ -128,6 +149,8 @@ class PlannedCorporateCardExpense(models.Model):
     category = models.CharField(max_length=80)
     description = models.CharField(max_length=255, blank=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=30, choices=CORPORATE_CARD_PAYMENT_METHOD_CHOICES, blank=True, default='')
+    cash_delivery_note = models.CharField(max_length=255, blank=True, default='')
     receipt_image = models.FileField(upload_to='corporate_card_receipts/', blank=True, null=True)
     paid_entry = models.OneToOneField(
         CorporateCardEntry,
@@ -158,6 +181,32 @@ class PlannedCorporateCardExpense(models.Model):
 
     def __str__(self):
         return f"{self.user.get_username()} planned {self.planned_on} {self.amount}"
+
+
+class CorporateCardEntryChargeRefundDetail(models.Model):
+    corporate_card_entry = models.ForeignKey(
+        CorporateCardEntry,
+        on_delete=models.CASCADE,
+        related_name='charge_refund_details',
+    )
+    detail_type = models.CharField(max_length=20, choices=CORPORATE_CARD_DETAIL_TYPE_CHOICES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    occurred_on = models.DateField(default=timezone.localdate)
+    note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['occurred_on', 'created_at', 'id']
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({'amount': 'Inserisci un importo maggiore di zero.'})
+
+    def __str__(self):
+        return f"{self.corporate_card_entry_id} {self.detail_type} {self.amount}"
 
 
 class Payslip(models.Model):

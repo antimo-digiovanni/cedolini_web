@@ -15,7 +15,7 @@ from collections import OrderedDict
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import Group, User
@@ -51,10 +51,14 @@ from .models import (
     PortalUserSetting,
     CorporateCardEntry,
     PlannedCorporateCardExpense,
+    CorporateCardEntryChargeRefundDetail,
+    CORPORATE_CARD_DETAIL_TYPE_CHARGE,
+    CORPORATE_CARD_DETAIL_TYPE_CHOICES,
+    CORPORATE_CARD_DETAIL_TYPE_REFUND,
 )
 from .models import AuditEvent
 from django.core.paginator import Paginator
-from .forms import PersonalAssetEntryForm, PersonalAssetQuickAccountAdjustmentForm, CorporateCardEntryForm, PlannedCorporateCardExpenseForm
+from .forms import PersonalAssetEntryForm, PersonalAssetQuickAccountAdjustmentForm, CorporateCardEntryForm, PlannedCorporateCardExpenseForm, CorporateCardBankCheckForm
 
 import logging
 import secrets
@@ -177,7 +181,7 @@ def _personal_asset_category_suggestions(user):
 
 
 def _corporate_card_entries_queryset(user):
-    return CorporateCardEntry.objects.filter(user=user).order_by('-occurred_on', '-created_at', '-id')
+    return CorporateCardEntry.objects.filter(user=user).prefetch_related('charge_refund_details').order_by('-occurred_on', '-created_at', '-id')
 
 
 def _corporate_card_summary(user, *, year=None, month=None):
@@ -195,11 +199,16 @@ def _corporate_card_summary(user, *, year=None, month=None):
         (entry.amount for entry in entries if entry.operation_type == CorporateCardEntry.TYPE_EXPENSE),
         Decimal('0.00'),
     )
+    withdrawal_total = sum(
+        (entry.amount for entry in entries if entry.operation_type == CorporateCardEntry.TYPE_WITHDRAWAL),
+        Decimal('0.00'),
+    )
     return {
         'entries': list(entries),
         'top_up_total': top_up_total,
         'expense_total': expense_total,
-        'net_total': top_up_total - expense_total,
+        'withdrawal_total': withdrawal_total,
+        'net_total': top_up_total - expense_total - withdrawal_total,
     }
 
 
@@ -250,6 +259,81 @@ def _planned_corporate_card_expenses_queryset(user):
         user=user,
         paid_entry__isnull=True,
     ).order_by('planned_on', 'created_at', 'id')
+
+
+def _parse_corporate_card_detail_rows(post):
+    detail_types = post.getlist('detail_type')
+    detail_amounts = post.getlist('detail_amount')
+    detail_dates = post.getlist('detail_date')
+    detail_notes = post.getlist('detail_note')
+    row_count = max(len(detail_types), len(detail_amounts), len(detail_dates), len(detail_notes), 0)
+    parsed_rows = []
+
+    for index in range(row_count):
+        detail_type = (detail_types[index] if index < len(detail_types) else '').strip()
+        amount_raw = (detail_amounts[index] if index < len(detail_amounts) else '').strip()
+        date_raw = (detail_dates[index] if index < len(detail_dates) else '').strip()
+        note = (detail_notes[index] if index < len(detail_notes) else '').strip()
+
+        if not any([detail_type, amount_raw, date_raw, note]):
+            continue
+        if detail_type not in dict(CORPORATE_CARD_DETAIL_TYPE_CHOICES):
+            raise ValueError('Ogni dettaglio addebito/rimborso deve avere un tipo valido.')
+        if not amount_raw or not date_raw:
+            raise ValueError('Compila importo e data per ogni dettaglio addebito/rimborso inserito.')
+        try:
+            amount = Decimal(amount_raw)
+        except (InvalidOperation, TypeError):
+            raise ValueError('Inserisci un importo valido nei dettagli addebiti/rimborsi.')
+        if amount <= 0:
+            raise ValueError('Gli importi dei dettagli addebiti/rimborsi devono essere maggiori di zero.')
+        try:
+            occurred_on = date.fromisoformat(date_raw)
+        except ValueError:
+            raise ValueError('Inserisci una data valida per ogni dettaglio addebito/rimborso.')
+        parsed_rows.append({
+            'detail_type': detail_type,
+            'amount': amount,
+            'occurred_on': occurred_on,
+            'note': note,
+        })
+
+    return parsed_rows
+
+
+def _replace_corporate_card_detail_rows(card_entry, detail_rows):
+    CorporateCardEntryChargeRefundDetail.objects.filter(corporate_card_entry=card_entry).delete()
+    if not detail_rows:
+        return
+    CorporateCardEntryChargeRefundDetail.objects.bulk_create([
+        CorporateCardEntryChargeRefundDetail(
+            corporate_card_entry=card_entry,
+            detail_type=row['detail_type'],
+            amount=row['amount'],
+            occurred_on=row['occurred_on'],
+            note=row['note'],
+        )
+        for row in detail_rows
+    ])
+
+
+def _decorate_corporate_card_entry(card_entry):
+    detail_rows = list(card_entry.charge_refund_details.all())
+    card_entry.charge_refund_details_list = detail_rows
+    card_entry.charge_total = sum(
+        (detail.amount for detail in detail_rows if detail.detail_type == CORPORATE_CARD_DETAIL_TYPE_CHARGE),
+        Decimal('0.00'),
+    )
+    card_entry.refund_total = sum(
+        (detail.amount for detail in detail_rows if detail.detail_type == CORPORATE_CARD_DETAIL_TYPE_REFUND),
+        Decimal('0.00'),
+    )
+    card_entry.net_detail_total = card_entry.charge_total - card_entry.refund_total
+    try:
+        card_entry.planned_origin = card_entry.planned_expense
+    except PlannedCorporateCardExpense.DoesNotExist:
+        card_entry.planned_origin = None
+    return card_entry
 
 
 def _planned_corporate_card_expenses_pdf_response(request, expense_ids=None):
@@ -370,6 +454,7 @@ def _corporate_card_report_response(request):
         'report_entries': summary['entries'],
         'report_top_up_total': summary['top_up_total'],
         'report_expense_total': summary['expense_total'],
+        'report_withdrawal_total': summary['withdrawal_total'],
         'report_net_total': summary['net_total'],
         'report_balance': _corporate_card_balance(request.user),
         'report_user': request.user,
@@ -410,6 +495,10 @@ def _corporate_card_pdf_response(request, entry_ids=None):
                 (entry.amount for entry in report_entries if entry.operation_type == CorporateCardEntry.TYPE_EXPENSE),
                 Decimal('0.00'),
             ),
+            'withdrawal_total': sum(
+                (entry.amount for entry in report_entries if entry.operation_type == CorporateCardEntry.TYPE_WITHDRAWAL),
+                Decimal('0.00'),
+            ),
             'net_total': sum((entry.balance_delta for entry in report_entries), Decimal('0.00')),
         }
         report_label = 'Movimenti selezionati'
@@ -446,9 +535,9 @@ def _corporate_card_pdf_response(request, entry_ids=None):
     story = [Spacer(1, 10 * mm), Paragraph('Gestione carta di credito aziendale', styles['CorporateTitle']), Paragraph(report_label, styles['CorporateSmall']), Paragraph(f'Dipendente: {request.user.get_full_name() or request.user.get_username()}', styles['CorporateSmall']), Spacer(1, 7 * mm)]
 
     kpi_table = Table([
-        [Paragraph('<b>RICARICHE DATORE</b>', styles['CorporateSmall']), Paragraph('<b>SPESE DEL MESE</b>', styles['CorporateSmall']), Paragraph('<b>SALDO CARTA ATTUALE</b>', styles['CorporateSmall'])],
-        [Paragraph(f"<b>{summary['top_up_total']:.2f} EUR</b>", styles['CorporateCell']), Paragraph(f"<b>{summary['expense_total']:.2f} EUR</b>", styles['CorporateCell']), Paragraph(f"<b>{_corporate_card_balance(request.user):.2f} EUR</b>", styles['CorporateCell'])],
-    ], colWidths=[57 * mm, 57 * mm, 57 * mm])
+        [Paragraph('<b>RICARICHE DATORE</b>', styles['CorporateSmall']), Paragraph('<b>SPESE CARTA</b>', styles['CorporateSmall']), Paragraph('<b>PRELIEVI SPORTELLO</b>', styles['CorporateSmall']), Paragraph('<b>SALDO CARTA ATTUALE</b>', styles['CorporateSmall'])],
+        [Paragraph(f"<b>{summary['top_up_total']:.2f} EUR</b>", styles['CorporateCell']), Paragraph(f"<b>{summary['expense_total']:.2f} EUR</b>", styles['CorporateCell']), Paragraph(f"<b>{summary['withdrawal_total']:.2f} EUR</b>", styles['CorporateCell']), Paragraph(f"<b>{_corporate_card_balance(request.user):.2f} EUR</b>", styles['CorporateCell'])],
+    ], colWidths=[43 * mm, 43 * mm, 43 * mm, 43 * mm])
     kpi_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fbff')),
         ('BOX', (0, 0), (-1, -1), 0.7, colors.HexColor('#dbe4f0')),
@@ -3951,11 +4040,15 @@ def personal_asset_dashboard(request):
     elif status == 'corporate_card_expenses_pdf_missing':
         feedback = 'Seleziona almeno una spesa fatta da inserire nel PDF.'
         feedback_level = 'danger'
+    elif status == 'corporate_card_bank_check_saved':
+        feedback = 'Controllo banca aggiornato correttamente.'
 
     form = PersonalAssetEntryForm(initial={'occurred_on': timezone.localdate()})
     adjustment_form = PersonalAssetQuickAccountAdjustmentForm()
     corporate_card_form = CorporateCardEntryForm(initial={'occurred_on': timezone.localdate()})
     planned_expense_form = PlannedCorporateCardExpenseForm(initial={'planned_on': timezone.localdate()})
+    bank_check_setting, _ = PortalUserSetting.objects.get_or_create(user=request.user)
+    corporate_card_bank_check_form = CorporateCardBankCheckForm(instance=bank_check_setting)
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
@@ -4012,6 +4105,8 @@ def personal_asset_dashboard(request):
                             category=planned_expense.category,
                             description=planned_expense.description,
                             amount=planned_expense.amount,
+                            payment_method=planned_expense.payment_method,
+                            cash_delivery_note=planned_expense.cash_delivery_note,
                             receipt_image=planned_expense.receipt_image,
                         )
                         planned_expense.paid_entry = card_entry
@@ -4037,19 +4132,28 @@ def personal_asset_dashboard(request):
                 ):
                     corporate_card_form.add_error('amount', 'La spesa supera il saldo disponibile della carta aziendale.')
                 else:
-                    card_entry.save()
-                    _create_audit_event(
-                        request,
-                        'corporate_card_entry_created',
-                        employee=getattr(request.user, 'employee', None),
-                        metadata={
-                            'operation_type': card_entry.operation_type,
-                            'occurred_on': str(card_entry.occurred_on),
-                            'category': card_entry.category,
-                            'amount': str(card_entry.amount),
-                        },
-                    )
-                    return redirect(f'{request.path}?status=corporate_card_created')
+                    try:
+                        detail_rows = _parse_corporate_card_detail_rows(request.POST)
+                    except ValueError as exc:
+                        corporate_card_form.add_error(None, str(exc))
+                        feedback = 'Correggi i dettagli addebiti/rimborsi e riprova.'
+                        feedback_level = 'danger'
+                    else:
+                        card_entry.save()
+                        if card_entry.operation_type == CorporateCardEntry.TYPE_EXPENSE:
+                            _replace_corporate_card_detail_rows(card_entry, detail_rows)
+                        _create_audit_event(
+                            request,
+                            'corporate_card_entry_created',
+                            employee=getattr(request.user, 'employee', None),
+                            metadata={
+                                'operation_type': card_entry.operation_type,
+                                'occurred_on': str(card_entry.occurred_on),
+                                'category': card_entry.category,
+                                'amount': str(card_entry.amount),
+                            },
+                        )
+                        return redirect(f'{request.path}?status=corporate_card_created')
             feedback = 'Correggi i campi della carta aziendale e riprova.'
             feedback_level = 'danger'
 
@@ -4071,23 +4175,42 @@ def personal_asset_dashboard(request):
                         feedback = 'Correggi i campi del movimento e riprova.'
                         feedback_level = 'danger'
                     else:
-                        updated_entry.save()
-                        _create_audit_event(
-                            request,
-                            'corporate_card_entry_updated',
-                            employee=getattr(request.user, 'employee', None),
-                            metadata={
-                                'entry_id': updated_entry.id,
-                                'operation_type': updated_entry.operation_type,
-                                'occurred_on': str(updated_entry.occurred_on),
-                                'category': updated_entry.category,
-                                'amount': str(updated_entry.amount),
-                            },
-                        )
-                        return redirect(f'{request.path}?status=corporate_card_updated')
+                        try:
+                            detail_rows = _parse_corporate_card_detail_rows(request.POST)
+                        except ValueError as exc:
+                            corporate_card_form.add_error(None, str(exc))
+                            feedback = 'Correggi i dettagli addebiti/rimborsi e riprova.'
+                            feedback_level = 'danger'
+                        else:
+                            updated_entry.save()
+                            if updated_entry.operation_type == CorporateCardEntry.TYPE_EXPENSE:
+                                _replace_corporate_card_detail_rows(updated_entry, detail_rows)
+                            else:
+                                _replace_corporate_card_detail_rows(updated_entry, [])
+                            _create_audit_event(
+                                request,
+                                'corporate_card_entry_updated',
+                                employee=getattr(request.user, 'employee', None),
+                                metadata={
+                                    'entry_id': updated_entry.id,
+                                    'operation_type': updated_entry.operation_type,
+                                    'occurred_on': str(updated_entry.occurred_on),
+                                    'category': updated_entry.category,
+                                    'amount': str(updated_entry.amount),
+                                },
+                            )
+                            return redirect(f'{request.path}?status=corporate_card_updated')
                 else:
                     feedback = 'Correggi i campi del movimento e riprova.'
                     feedback_level = 'danger'
+
+        elif action == 'save_corporate_card_bank_check':
+            corporate_card_bank_check_form = CorporateCardBankCheckForm(request.POST, instance=bank_check_setting)
+            if corporate_card_bank_check_form.is_valid():
+                corporate_card_bank_check_form.save()
+                return redirect(f'{request.path}?status=corporate_card_bank_check_saved')
+            feedback = 'Correggi i dati del controllo banca e riprova.'
+            feedback_level = 'danger'
 
         elif action == 'download_selected_corporate_card_expenses_pdf':
             selected_ids = request.POST.getlist('corporate_card_entry_ids')
@@ -4263,9 +4386,15 @@ def personal_asset_dashboard(request):
     for card_entry in chronological_card_entries:
         running_card_balance += card_entry.balance_delta
         card_entry.balance_after = running_card_balance
+        _decorate_corporate_card_entry(card_entry)
     corporate_card_entries = chronological_card_entries[::-1][:100]
     corporate_card_month_groups = _corporate_card_month_groups(corporate_card_entries)
     corporate_card_balance = _corporate_card_balance(request.user)
+    corporate_card_bank_difference = None
+    corporate_card_bank_matches = False
+    if bank_check_setting.corporate_card_bank_balance is not None:
+        corporate_card_bank_difference = corporate_card_balance - bank_check_setting.corporate_card_bank_balance
+        corporate_card_bank_matches = corporate_card_bank_difference == Decimal('0.00')
     corporate_card_month = _corporate_card_summary(
         request.user,
         year=timezone.localdate().year,
@@ -4274,6 +4403,14 @@ def personal_asset_dashboard(request):
     corporate_card_months = _corporate_card_months(request.user)
     planned_expenses = list(_planned_corporate_card_expenses_queryset(request.user))
     planned_expenses_total = sum((expense.amount for expense in planned_expenses), Decimal('0.00'))
+    corporate_card_overview = {
+        'planned_selected_total': Decimal('0.00'),
+        'planned_total_to_recharge': planned_expenses_total,
+        'period_top_up_total': corporate_card_month['top_up_total'],
+        'period_expense_total': corporate_card_month['expense_total'],
+        'period_withdrawal_total': corporate_card_month['withdrawal_total'],
+        'current_balance': corporate_card_balance,
+    }
     category_suggestions = _personal_asset_category_suggestions(request.user)
     reimbursement_toggle_query = '0' if show_reimbursement_in_assets else '1'
 
@@ -4284,8 +4421,14 @@ def personal_asset_dashboard(request):
         'corporate_card_entries': corporate_card_entries,
         'corporate_card_month_groups': corporate_card_month_groups,
         'corporate_card_balance': corporate_card_balance,
+        'corporate_card_overview': corporate_card_overview,
         'corporate_card_month': corporate_card_month,
         'corporate_card_months': corporate_card_months,
+        'corporate_card_current_period_label': f"{MONTH_LABELS_IT[timezone.localdate().month]} {timezone.localdate().year}",
+        'corporate_card_bank_check_form': corporate_card_bank_check_form,
+        'corporate_card_bank_check': bank_check_setting,
+        'corporate_card_bank_difference': corporate_card_bank_difference,
+        'corporate_card_bank_matches': corporate_card_bank_matches,
         'planned_expense_form': planned_expense_form,
         'planned_expenses': planned_expenses,
         'planned_expenses_total': planned_expenses_total,

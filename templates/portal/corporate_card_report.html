@@ -17,7 +17,7 @@
 }
 .corporate-report-kpis {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
     margin-bottom: 1.5rem;
 }
@@ -68,6 +68,10 @@
         <div class="corporate-report-kpi">
             <div class="corporate-report-label">Spese del mese</div>
             <div class="corporate-report-value">{{ report_expense_total|floatformat:2 }} €</div>
+        </div>
+        <div class="corporate-report-kpi">
+            <div class="corporate-report-label">Prelievi allo sportello</div>
+            <div class="corporate-report-value">{{ report_withdrawal_total|floatformat:2 }} €</div>
         </div>
         <div class="corporate-report-kpi">
             <div class="corporate-report-label">Saldo carta attuale</div>

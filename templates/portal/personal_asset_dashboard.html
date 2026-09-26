@@ -56,6 +56,51 @@
     color: #64748b;
     font-size: 0.85rem;
 }
+.corporate-card-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.75rem;
+}
+.corporate-card-summary-item {
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 0.85rem 0.95rem;
+}
+.corporate-card-summary-label {
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
+.corporate-card-summary-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+.corporate-card-inline-note {
+    color: #64748b;
+    font-size: 0.82rem;
+    margin-top: 0.3rem;
+}
+.corporate-card-detail-box {
+    border: 1px dashed #cfe2d7;
+    border-radius: 14px;
+    background: #fcfefc;
+    padding: 0.85rem;
+}
+.corporate-card-detail-row + .corporate-card-detail-row {
+    margin-top: 0.65rem;
+}
+.corporate-card-badge-soft {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    background: #eaf6ef;
+    color: #146c43;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
 @media (max-width: 767.98px) {
     .corporate-card-page { width: 100%; }
     .corporate-card-panel { padding: 0.85rem; }
@@ -115,6 +160,100 @@
         <div class="border rounded-3 p-3 mb-4">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                 <div>
+                    <h4 class="h6 fw-semibold mb-1">Riepilogo ricariche e spese</h4>
+                    <p class="text-muted small mb-0">Quadro informativo del periodo corrente, senza creare movimenti automatici.</p>
+                </div>
+                <span class="finance-pill">{{ corporate_card_current_period_label }}</span>
+            </div>
+            <div class="corporate-card-summary-grid">
+                <div class="corporate-card-summary-item">
+                    <div class="corporate-card-summary-label">Totale spese da fare selezionate</div>
+                    <div class="corporate-card-summary-value" data-planned-selected-total>{{ corporate_card_overview.planned_selected_total|floatformat:2 }} €</div>
+                </div>
+                <div class="corporate-card-summary-item">
+                    <div class="corporate-card-summary-label">Importo da ricaricare</div>
+                    <div class="corporate-card-summary-value">{{ corporate_card_overview.planned_total_to_recharge|floatformat:2 }} €</div>
+                </div>
+                <div class="corporate-card-summary-item">
+                    <div class="corporate-card-summary-label">Ricariche ricevute nel periodo</div>
+                    <div class="corporate-card-summary-value">{{ corporate_card_overview.period_top_up_total|floatformat:2 }} €</div>
+                </div>
+                <div class="corporate-card-summary-item">
+                    <div class="corporate-card-summary-label">Spese pagate nel periodo</div>
+                    <div class="corporate-card-summary-value">{{ corporate_card_overview.period_expense_total|floatformat:2 }} €</div>
+                </div>
+                <div class="corporate-card-summary-item">
+                    <div class="corporate-card-summary-label">Prelievi allo sportello nel periodo</div>
+                    <div class="corporate-card-summary-value">{{ corporate_card_overview.period_withdrawal_total|floatformat:2 }} €</div>
+                </div>
+                <div class="corporate-card-summary-item">
+                    <div class="corporate-card-summary-label">Saldo calcolato attuale</div>
+                    <div class="corporate-card-summary-value">{{ corporate_card_overview.current_balance|floatformat:2 }} €</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border rounded-3 p-3 mb-4">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h4 class="h5 fw-semibold mb-1">Controllo con banca</h4>
+                    <p class="text-muted small mb-0">Verifica manuale non bloccante del saldo carta rispetto a quanto vedi su banca/carta.</p>
+                </div>
+            </div>
+            <div class="row g-3 align-items-start">
+                <div class="col-lg-6">
+                    <form method="post" class="row g-3" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_corporate_card_bank_check">
+                        <div class="col-md-6">
+                            <label class="form-label" for="{{ corporate_card_bank_check_form.corporate_card_bank_balance.id_for_label }}">{{ corporate_card_bank_check_form.corporate_card_bank_balance.label }}</label>
+                            {{ corporate_card_bank_check_form.corporate_card_bank_balance }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="{{ corporate_card_bank_check_form.corporate_card_bank_balance_date.id_for_label }}">{{ corporate_card_bank_check_form.corporate_card_bank_balance_date.label }}</label>
+                            {{ corporate_card_bank_check_form.corporate_card_bank_balance_date }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="{{ corporate_card_bank_check_form.corporate_card_bank_note.id_for_label }}">{{ corporate_card_bank_check_form.corporate_card_bank_note.label }}</label>
+                            {{ corporate_card_bank_check_form.corporate_card_bank_note }}
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-success">Salva controllo banca</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-lg-6">
+                    <div class="corporate-card-summary-grid">
+                        <div class="corporate-card-summary-item">
+                            <div class="corporate-card-summary-label">Saldo calcolato dal portale</div>
+                            <div class="corporate-card-summary-value">{{ corporate_card_balance|floatformat:2 }} €</div>
+                        </div>
+                        <div class="corporate-card-summary-item">
+                            <div class="corporate-card-summary-label">Saldo banca inserito manualmente</div>
+                            <div class="corporate-card-summary-value">{% if corporate_card_bank_check.corporate_card_bank_balance is not None %}{{ corporate_card_bank_check.corporate_card_bank_balance|floatformat:2 }} €{% else %}Non specificato{% endif %}</div>
+                            {% if corporate_card_bank_check.corporate_card_bank_balance_date %}<div class="corporate-card-inline-note">Verificato il {{ corporate_card_bank_check.corporate_card_bank_balance_date|date:"d/m/Y" }}</div>{% endif %}
+                        </div>
+                        <div class="corporate-card-summary-item">
+                            <div class="corporate-card-summary-label">Differenza portale - banca</div>
+                            <div class="corporate-card-summary-value">{% if corporate_card_bank_difference is not None %}{{ corporate_card_bank_difference|floatformat:2 }} €{% else %}Non specificato{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        {% if corporate_card_bank_difference is None %}
+                        <div class="alert alert-light border mb-0">Inserisci il saldo banca per confrontarlo con il saldo calcolato dal portale.</div>
+                        {% elif corporate_card_bank_matches %}
+                        <div class="alert alert-success mb-0">Tutto torna.</div>
+                        {% else %}
+                        <div class="alert alert-warning mb-0">Attenzione: il saldo banca non coincide con il saldo calcolato dal portale.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border rounded-3 p-3 mb-4">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
                     <h4 class="h5 fw-semibold mb-1">Spese da fare</h4>
                     <p class="text-muted small mb-0">Prepara l'elenco da inviare al titolare e chiedi la ricarica necessaria.</p>
                 </div>
@@ -141,6 +280,14 @@
                     {{ planned_expense_form.category }}
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label" for="{{ planned_expense_form.payment_method.id_for_label }}">{{ planned_expense_form.payment_method.label }}</label>
+                    {{ planned_expense_form.payment_method }}
+                </div>
+                <div class="col-md-3" data-cash-note-wrapper="1" hidden>
+                    <label class="form-label" for="{{ planned_expense_form.cash_delivery_note.id_for_label }}">{{ planned_expense_form.cash_delivery_note.label }}</label>
+                    {{ planned_expense_form.cash_delivery_note }}
+                </div>
+                <div class="col-md-3">
                     <label class="form-label" for="{{ planned_expense_form.description.id_for_label }}">{{ planned_expense_form.description.label }}</label>
                     {{ planned_expense_form.description }}
                 </div>
@@ -157,20 +304,31 @@
             <form method="post" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="action" id="plannedExpensesAction" value="mark_planned_expenses_paid">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <label class="form-check mb-0 d-inline-flex align-items-center gap-2">
+                        <input class="form-check-input" type="checkbox" id="selectAllPlannedExpensesDesktop">
+                        <span>Seleziona tutte</span>
+                    </label>
+                    <div class="small text-muted">Voci selezionate: <strong data-planned-selected-count>0</strong> · Totale: <strong data-planned-selected-total-inline>0,00 €</strong></div>
+                </div>
                 <div class="table-responsive d-none d-md-block">
                     <table class="table align-middle mb-3">
                         <thead>
                             <tr>
-                                <th>PDF / pagata</th><th>Data</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Azioni</th>
+                                <th>Seleziona tutte</th><th>Data</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Azioni</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for expense in planned_expenses %}
                             <tr>
-                                <td><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}" aria-label="Seleziona per PDF o segna pagata"></td>
+                                <td><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}" data-planned-expense-checkbox="1" data-amount="{{ expense.amount|unlocalize }}" aria-label="Seleziona per PDF o segna pagata"></td>
                                 <td>{{ expense.planned_on|date:"d/m/Y" }}</td>
                                 <td>{{ expense.category }}</td>
-                                <td>{{ expense.description|default:"-" }}</td>
+                                <td>
+                                    {{ expense.description|default:"-" }}
+                                    <div class="corporate-card-inline-note">Metodo: {{ expense.get_payment_method_display|default:"Non specificato" }}</div>
+                                    {% if expense.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ expense.cash_delivery_note }}</div>{% endif %}
+                                </td>
                                 <td class="text-end">{{ expense.amount|floatformat:2 }} €</td>
                                 <td class="text-end">
                                     <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editPlannedExpenseModal{{ expense.id }}">Modifica</button>
@@ -183,6 +341,10 @@
                 </div>
                 <input type="hidden" name="planned_expense_id" value="">
                 <div class="d-md-none mb-3">
+                    <label class="form-check mb-3 d-inline-flex align-items-center gap-2">
+                        <input class="form-check-input" type="checkbox" id="selectAllPlannedExpensesMobile">
+                        <span>Seleziona tutte</span>
+                    </label>
                     {% for expense in planned_expenses %}
                     <div class="corporate-card-mobile-entry">
                         <div class="d-flex justify-content-between align-items-start gap-3">
@@ -190,8 +352,10 @@
                             <div class="fw-semibold">{{ expense.amount|floatformat:2 }} €</div>
                         </div>
                         <div class="small mt-2">{{ expense.description|default:"Nessuna descrizione" }}</div>
+                        <div class="corporate-card-inline-note">Metodo: {{ expense.get_payment_method_display|default:"Non specificato" }}</div>
+                        {% if expense.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ expense.cash_delivery_note }}</div>{% endif %}
                         <div class="d-flex justify-content-between align-items-center mt-3">
-                            <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}"> <span>PDF / pagata</span></label>
+                            <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}" data-planned-expense-checkbox="1" data-amount="{{ expense.amount|unlocalize }}"> <span>PDF / pagata</span></label>
                             <div>
                                 <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editPlannedExpenseModal{{ expense.id }}">Modifica</button>
                                 <button type="submit" class="btn btn-sm btn-outline-danger" onclick="preparePlannedExpenseDelete(this, '{{ expense.id }}');">Elimina</button>
@@ -233,6 +397,14 @@
                     {{ corporate_card_form.category }}
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label" for="{{ corporate_card_form.payment_method.id_for_label }}">{{ corporate_card_form.payment_method.label }}</label>
+                    {{ corporate_card_form.payment_method }}
+                </div>
+                <div class="col-md-3" data-cash-note-wrapper="1" hidden>
+                    <label class="form-label" for="{{ corporate_card_form.cash_delivery_note.id_for_label }}">{{ corporate_card_form.cash_delivery_note.label }}</label>
+                    {{ corporate_card_form.cash_delivery_note }}
+                </div>
+                <div class="col-md-3">
                     <label class="form-label" for="{{ corporate_card_form.description.id_for_label }}">{{ corporate_card_form.description.label }}</label>
                     {{ corporate_card_form.description }}
                 </div>
@@ -243,6 +415,45 @@
                     {% for error in corporate_card_form.receipt_image.errors %}
                     <div class="text-danger small mt-1">{{ error }}</div>
                     {% endfor %}
+                </div>
+                <div class="col-12" data-expense-only-section="1">
+                    <div class="corporate-card-detail-box" data-charge-refund-section="1">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                            <div>
+                                <div class="fw-semibold">Dettagli addebiti/rimborsi</div>
+                                <div class="small text-muted">Facoltativo per Amazon o spese raggruppate. Non modifica automaticamente l'importo principale.</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-detail-add="1">Aggiungi riga</button>
+                        </div>
+                        <div data-charge-refund-container="1">
+                            <div class="row g-2 align-items-end corporate-card-detail-row" data-charge-refund-row="1">
+                                <div class="col-md-2">
+                                    <label class="form-label">Tipo</label>
+                                    <select class="form-select" name="detail_type" data-detail-type="1">
+                                        <option value="">Seleziona</option>
+                                        <option value="charge">Addebito</option>
+                                        <option value="refund">Rimborso</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Importo</label>
+                                    <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="detail_amount" data-detail-amount="1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Data</label>
+                                    <input type="date" class="form-control" name="detail_date" data-detail-date="1">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Nota / riferimento ordine Amazon</label>
+                                    <input type="text" class="form-control" name="detail_note" data-detail-note="1">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn btn-outline-danger w-100" data-detail-remove="1">-</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="small text-muted mt-3">Totale addebiti: <strong data-charge-total="1">0,00 €</strong> · Totale rimborsi: <strong data-refund-total="1">0,00 €</strong> · Spesa netta: <strong data-net-total="1">0,00 €</strong></div>
+                    </div>
                 </div>
                 <div class="col-12">
                     {% for error in corporate_card_form.non_field_errors %}
@@ -276,21 +487,26 @@
                             <table class="table corporate-card-table align-middle mb-0">
                                 <thead><tr><th>PDF</th><th>Data</th><th>Movimento</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Saldo dopo</th><th class="text-end">Azioni</th></tr></thead>
                                 <tbody>{% for entry in month_group.entries %}<tr>
-                                    <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" aria-label="Seleziona movimento per PDF"></td>
-                                    <td>{{ entry.occurred_on|date:"d/m/Y" }}</td><td>{{ entry.get_operation_type_display }}</td><td>{{ entry.category }}</td><td>{{ entry.description|default:"-" }}</td><td class="text-end">{{ entry.amount|floatformat:2 }} €</td><td class="text-end">{{ entry.balance_after|floatformat:2 }} €</td>
+                                    <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}" aria-label="Seleziona movimento per PDF"></td>
+                                    <td>{{ entry.occurred_on|date:"d/m/Y" }}</td><td>{{ entry.get_operation_type_display }}</td><td>{{ entry.category }}</td><td>{{ entry.description|default:"-" }}
+                                        <div class="corporate-card-inline-note">Metodo: {{ entry.get_payment_method_display|default:"Non specificato" }}</div>
+                                        {% if entry.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ entry.cash_delivery_note }}</div>{% endif %}
+                                        {% if entry.planned_origin %}<div class="mt-1"><span class="corporate-card-badge-soft">Derivata da spesa prevista</span></div>{% endif %}
+                                        {% if entry.charge_refund_details_list %}<div class="corporate-card-inline-note">Addebiti: {{ entry.charge_total|floatformat:2 }} € · Rimborsi: {{ entry.refund_total|floatformat:2 }} € · Netto: {{ entry.net_detail_total|floatformat:2 }} €</div>{% endif %}
+                                    </td><td class="text-end">{{ entry.amount|floatformat:2 }} €</td><td class="text-end">{{ entry.balance_after|floatformat:2 }} €</td>
                                     <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></td>
                                 </tr>{% endfor %}</tbody>
                             </table>
                         </div>
                         <div class="d-md-none">{% for entry in month_group.entries %}
-                            <div class="corporate-card-mobile-entry"><div class="d-flex justify-content-between align-items-start gap-3"><div><div class="fw-semibold">{{ entry.get_operation_type_display }}</div><div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div></div><div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div></div><div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div><div class="d-flex justify-content-between align-items-center gap-2 mt-3"><span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span><div><label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}"> <span>PDF</span></label><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="m-0 d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></div></div></div>
+                            <div class="corporate-card-mobile-entry"><div class="d-flex justify-content-between align-items-start gap-3"><div><div class="fw-semibold">{{ entry.get_operation_type_display }}</div><div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div></div><div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div></div><div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div><div class="corporate-card-inline-note">Metodo: {{ entry.get_payment_method_display|default:"Non specificato" }}</div>{% if entry.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ entry.cash_delivery_note }}</div>{% endif %}{% if entry.planned_origin %}<div class="mt-2"><span class="corporate-card-badge-soft">Derivata da spesa prevista</span></div>{% endif %}{% if entry.charge_refund_details_list %}<div class="corporate-card-inline-note mt-2">Addebiti: {{ entry.charge_total|floatformat:2 }} € · Rimborsi: {{ entry.refund_total|floatformat:2 }} € · Netto: {{ entry.net_detail_total|floatformat:2 }} €</div>{% endif %}<div class="d-flex justify-content-between align-items-center gap-2 mt-3"><span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span><div><label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}"> <span>PDF</span></label><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="m-0 d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></div></div></div>
                         {% endfor %}</div>
                     </div>
                 </div>
             </div>
             {% endfor %}
         </div>
-        <form id="selectedCardExpensesForm" method="post" class="mt-3">
+        <form id="selectedCardExpensesForm" method="post" class="mt-3" data-current-balance="{{ corporate_card_balance|unlocalize }}" {% if corporate_card_bank_difference is not None %}data-bank-difference="{{ corporate_card_bank_difference|unlocalize }}"{% endif %}>
             {% csrf_token %}
             <input type="hidden" name="action" value="download_selected_corporate_card_expenses_pdf">
             <button type="submit" class="btn btn-outline-success">PDF movimenti selezionati</button>
@@ -302,6 +518,8 @@
 </div>
 
 <script>
+const currencyFormatter = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+
 function preparePlannedExpenseDelete(button, expenseId) {
     const form = button.form;
     form.querySelector('#plannedExpensesAction').value = 'delete_planned_corporate_card_expense';
@@ -314,6 +532,103 @@ function prepareSelectedPlannedExpensesPdf(button) {
 
 function preparePlannedExpensesPaid(button) {
     button.form.querySelector('#plannedExpensesAction').value = 'mark_planned_expenses_paid';
+}
+
+function parseAmount(value) {
+    const parsed = Number.parseFloat(value || '0');
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatCurrency(value) {
+    return currencyFormatter.format(value || 0);
+}
+
+function syncCheckboxGroup(changedCheckbox) {
+    document.querySelectorAll(`input[name="${changedCheckbox.name}"][value="${changedCheckbox.value}"]`).forEach(other => {
+        if (other !== changedCheckbox) {
+            other.checked = changedCheckbox.checked;
+        }
+    });
+}
+
+function collectUniqueChecked(selector) {
+    const mapped = new Map();
+    document.querySelectorAll(selector).forEach(checkbox => {
+        if (checkbox.checked && !mapped.has(checkbox.value)) {
+            mapped.set(checkbox.value, checkbox);
+        }
+    });
+    return Array.from(mapped.values());
+}
+
+function updatePlannedSelectionState() {
+    const checked = collectUniqueChecked('input[data-planned-expense-checkbox="1"]');
+    const all = new Map();
+    document.querySelectorAll('input[data-planned-expense-checkbox="1"]').forEach(checkbox => {
+        if (!all.has(checkbox.value)) {
+            all.set(checkbox.value, checkbox);
+        }
+    });
+    const total = checked.reduce((sum, checkbox) => sum + parseAmount(checkbox.dataset.amount), 0);
+    document.querySelectorAll('[data-planned-selected-count]').forEach(node => { node.textContent = checked.length; });
+    document.querySelectorAll('[data-planned-selected-total-inline], [data-planned-selected-total]').forEach(node => { node.textContent = formatCurrency(total); });
+    ['selectAllPlannedExpensesDesktop', 'selectAllPlannedExpensesMobile'].forEach(id => {
+        const master = document.getElementById(id);
+        if (!master) {
+            return;
+        }
+        master.checked = all.size > 0 && checked.length === all.size;
+        master.indeterminate = checked.length > 0 && checked.length < all.size;
+    });
+}
+
+function toggleAllPlannedSelections(checked) {
+    document.querySelectorAll('input[data-planned-expense-checkbox="1"]').forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    updatePlannedSelectionState();
+}
+
+function toggleCashNoteVisibility(form) {
+    const select = form.querySelector('[data-payment-method-field="1"]');
+    const wrapper = form.querySelector('[data-cash-note-wrapper="1"]');
+    if (!select || !wrapper) {
+        return;
+    }
+    wrapper.hidden = select.value !== 'cash_withdrawn';
+}
+
+function toggleExpenseOnlySections(form) {
+    const operationField = form.querySelector('select[name="operation_type"]');
+    if (!operationField) {
+        return;
+    }
+    form.querySelectorAll('[data-expense-only-section="1"]').forEach(section => {
+        section.hidden = operationField.value !== 'expense';
+    });
+}
+
+function updateChargeRefundSummary(section) {
+    const rows = section.querySelectorAll('[data-charge-refund-row="1"]');
+    let chargeTotal = 0;
+    let refundTotal = 0;
+    rows.forEach(row => {
+        const type = row.querySelector('[data-detail-type="1"]').value;
+        const amount = parseAmount(row.querySelector('[data-detail-amount="1"]').value);
+        if (type === 'charge') {
+            chargeTotal += amount;
+        } else if (type === 'refund') {
+            refundTotal += amount;
+        }
+    });
+    section.querySelector('[data-charge-total="1"]').textContent = formatCurrency(chargeTotal);
+    section.querySelector('[data-refund-total="1"]').textContent = formatCurrency(refundTotal);
+    section.querySelector('[data-net-total="1"]').textContent = formatCurrency(chargeTotal - refundTotal);
+}
+
+function createChargeRefundRow() {
+    const template = document.getElementById('chargeRefundRowTemplate');
+    return template.content.firstElementChild.cloneNode(true);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -332,11 +647,148 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    document.querySelectorAll('input[data-planned-expense-checkbox="1"], input[data-corporate-card-checkbox="1"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            syncCheckboxGroup(checkbox);
+            updatePlannedSelectionState();
+        });
+    });
+
+    const plannedForm = document.querySelector('input#plannedExpensesAction')?.form;
+    if (plannedForm) {
+        plannedForm.addEventListener('submit', event => {
+            const action = plannedForm.querySelector('#plannedExpensesAction').value;
+            if (action === 'mark_planned_expenses_paid') {
+                const checked = collectUniqueChecked('input[data-planned-expense-checkbox="1"]');
+                const total = checked.reduce((sum, checkbox) => sum + parseAmount(checkbox.dataset.amount), 0);
+                if (!checked.length) {
+                    event.preventDefault();
+                    window.alert('Seleziona almeno una spesa da fare.');
+                    return;
+                }
+                if (!window.confirm(`Stai per segnare come pagate ${checked.length} voci per un totale di ${formatCurrency(total)}. Le voci non selezionate resteranno invariate. Continuare?`)) {
+                    event.preventDefault();
+                }
+            }
+        });
+    }
+
+    document.getElementById('selectAllPlannedExpensesDesktop')?.addEventListener('change', event => {
+        toggleAllPlannedSelections(event.target.checked);
+    });
+    document.getElementById('selectAllPlannedExpensesMobile')?.addEventListener('change', event => {
+        toggleAllPlannedSelections(event.target.checked);
+    });
+
+    document.querySelectorAll('form').forEach(form => {
+        toggleCashNoteVisibility(form);
+        toggleExpenseOnlySections(form);
+        form.querySelectorAll('[data-payment-method-field="1"]').forEach(select => {
+            select.addEventListener('change', () => toggleCashNoteVisibility(form));
+        });
+        form.querySelectorAll('select[name="operation_type"]').forEach(select => {
+            select.addEventListener('change', () => toggleExpenseOnlySections(form));
+        });
+    });
+
+    document.querySelectorAll('[data-charge-refund-section="1"]').forEach(section => {
+        updateChargeRefundSummary(section);
+        section.addEventListener('input', () => updateChargeRefundSummary(section));
+        section.addEventListener('change', () => updateChargeRefundSummary(section));
+    });
+
+    document.querySelectorAll('[data-detail-add="1"]').forEach(button => {
+        button.addEventListener('click', () => {
+            const section = button.closest('[data-charge-refund-section="1"]');
+            const container = section.querySelector('[data-charge-refund-container="1"]');
+            container.appendChild(createChargeRefundRow());
+            updateChargeRefundSummary(section);
+        });
+    });
+
+    document.addEventListener('click', event => {
+        const removeButton = event.target.closest('[data-detail-remove="1"]');
+        if (!removeButton) {
+            return;
+        }
+        const row = removeButton.closest('[data-charge-refund-row="1"]');
+        const section = removeButton.closest('[data-charge-refund-section="1"]');
+        const rows = section.querySelectorAll('[data-charge-refund-row="1"]');
+        if (rows.length === 1) {
+            row.querySelectorAll('input').forEach(input => { input.value = ''; });
+            row.querySelectorAll('select').forEach(select => { select.value = ''; });
+        } else {
+            row.remove();
+        }
+        updateChargeRefundSummary(section);
+    });
+
+    document.getElementById('selectedCardExpensesForm')?.addEventListener('submit', event => {
+        const form = event.currentTarget;
+        const checked = collectUniqueChecked('input[data-corporate-card-checkbox="1"]');
+        if (!checked.length) {
+            event.preventDefault();
+            window.alert('Seleziona almeno un movimento carta da inserire nel PDF.');
+            return;
+        }
+        let topUpTotal = 0;
+        let expenseTotal = 0;
+        checked.forEach(checkbox => {
+            const amount = parseAmount(checkbox.dataset.amount);
+            if (checkbox.dataset.entryType === 'top_up') {
+                topUpTotal += amount;
+            } else {
+                expenseTotal += amount;
+            }
+        });
+        const currentBalance = parseAmount(form.dataset.currentBalance);
+        let withdrawalTotal = 0;
+        checked.forEach(checkbox => {
+            if (checkbox.dataset.entryType === 'withdrawal') {
+                withdrawalTotal += parseAmount(checkbox.dataset.amount);
+            }
+        });
+        const bankDiff = form.dataset.bankDifference;
+        const diffText = bankDiff !== undefined ? `\nDifferenza con saldo banca: ${formatCurrency(parseAmount(bankDiff))}` : '\nDifferenza con saldo banca: non specificata';
+        if (!window.confirm(`Anteprima PDF mensile\nMovimenti selezionati: ${checked.length}\nTotale ricariche selezionate: ${formatCurrency(topUpTotal)}\nTotale spese con carta selezionate: ${formatCurrency(expenseTotal)}\nTotale prelievi allo sportello selezionati: ${formatCurrency(withdrawalTotal)}\nSaldo calcolato: ${formatCurrency(topUpTotal - expenseTotal - withdrawalTotal)}${diffText}\n\nProcedere con la generazione del PDF?`)) {
+            event.preventDefault();
+        }
+    });
+
+    updatePlannedSelectionState();
 });
 </script>
 {% endblock %}
 
 {% block modals %}
+<template id="chargeRefundRowTemplate">
+    <div class="row g-2 align-items-end corporate-card-detail-row" data-charge-refund-row="1">
+        <div class="col-md-2">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" name="detail_type" data-detail-type="1">
+                <option value="">Seleziona</option>
+                <option value="charge">Addebito</option>
+                <option value="refund">Rimborso</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Importo</label>
+            <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="detail_amount" data-detail-amount="1">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Data</label>
+            <input type="date" class="form-control" name="detail_date" data-detail-date="1">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Nota / riferimento ordine Amazon</label>
+            <input type="text" class="form-control" name="detail_note" data-detail-note="1">
+        </div>
+        <div class="col-md-1">
+            <button type="button" class="btn btn-outline-danger w-100" data-detail-remove="1">-</button>
+        </div>
+    </div>
+</template>
 {% for expense in planned_expenses %}
 <div class="modal fade" id="editPlannedExpenseModal{{ expense.id }}" tabindex="-1" aria-labelledby="editPlannedExpenseModalLabel{{ expense.id }}" aria-hidden="true">
     <div class="modal-dialog">
@@ -362,6 +814,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="col-6">
                         <label class="form-label">Categoria</label>
                         <input type="text" class="form-control" name="category" value="{{ expense.category }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Metodo di pagamento</label>
+                        <select class="form-select" name="payment_method" data-payment-method-field="1">
+                            <option value="">Non specificato</option>
+                            <option value="company_card" {% if expense.payment_method == 'company_card' %}selected{% endif %}>Carta aziendale</option>
+                            <option value="cash_withdrawn" {% if expense.payment_method == 'cash_withdrawn' %}selected{% endif %}>Contanti prelevati</option>
+                            <option value="bank_transfer_other" {% if expense.payment_method == 'bank_transfer_other' %}selected{% endif %}>Bonifico/altro</option>
+                        </select>
+                    </div>
+                    <div class="col-12" data-cash-note-wrapper="1" {% if expense.payment_method != 'cash_withdrawn' %}hidden{% endif %}>
+                        <label class="form-label">Consegnati a / motivo</label>
+                        <input type="text" class="form-control" name="cash_delivery_note" value="{{ expense.cash_delivery_note }}">
                     </div>
                     <div class="col-12">
                         <label class="form-label">Descrizione</label>
@@ -415,6 +880,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         <label class="form-label">Categoria</label>
                         <input type="text" class="form-control" name="category" value="{{ entry.category }}">
                     </div>
+                    <div class="col-6">
+                        <label class="form-label">Metodo di pagamento</label>
+                        <select class="form-select" name="payment_method" data-payment-method-field="1">
+                            <option value="">Non specificato</option>
+                            <option value="company_card" {% if entry.payment_method == 'company_card' %}selected{% endif %}>Carta aziendale</option>
+                            <option value="cash_withdrawn" {% if entry.payment_method == 'cash_withdrawn' %}selected{% endif %}>Contanti prelevati</option>
+                            <option value="bank_transfer_other" {% if entry.payment_method == 'bank_transfer_other' %}selected{% endif %}>Bonifico/altro</option>
+                        </select>
+                    </div>
+                    <div class="col-12" data-cash-note-wrapper="1" {% if entry.payment_method != 'cash_withdrawn' %}hidden{% endif %}>
+                        <label class="form-label">Consegnati a / motivo</label>
+                        <input type="text" class="form-control" name="cash_delivery_note" value="{{ entry.cash_delivery_note }}">
+                    </div>
                     <div class="col-12">
                         <label class="form-label">Descrizione</label>
                         <textarea class="form-control" name="description" rows="2">{{ entry.description }}</textarea>
@@ -423,6 +901,75 @@ document.addEventListener('DOMContentLoaded', () => {
                         <label class="form-label">Foto scontrino</label>
                         <input type="file" class="form-control" name="receipt_image" accept="image/*,.pdf,application/pdf">
                         {% if entry.receipt_image %}<div class="form-text">Lascia vuoto per mantenere l'allegato attuale.</div>{% endif %}
+                    </div>
+                    <div class="col-12" data-expense-only-section="1" {% if entry.operation_type != 'expense' %}hidden{% endif %}>
+                        <div class="corporate-card-detail-box" data-charge-refund-section="1">
+                            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                <div>
+                                    <div class="fw-semibold">Dettagli addebiti/rimborsi</div>
+                                    <div class="small text-muted">Facoltativo per Amazon o per raggruppare più addebiti e rimborsi sulla stessa spesa.</div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-detail-add="1">Aggiungi riga</button>
+                            </div>
+                            <div data-charge-refund-container="1">
+                                {% if entry.charge_refund_details_list %}
+                                    {% for detail in entry.charge_refund_details_list %}
+                                    <div class="row g-2 align-items-end corporate-card-detail-row" data-charge-refund-row="1">
+                                        <div class="col-md-2">
+                                            <label class="form-label">Tipo</label>
+                                            <select class="form-select" name="detail_type" data-detail-type="1">
+                                                <option value="">Seleziona</option>
+                                                <option value="charge" {% if detail.detail_type == 'charge' %}selected{% endif %}>Addebito</option>
+                                                <option value="refund" {% if detail.detail_type == 'refund' %}selected{% endif %}>Rimborso</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Importo</label>
+                                            <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="detail_amount" data-detail-amount="1" value="{{ detail.amount|unlocalize }}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Data</label>
+                                            <input type="date" class="form-control" name="detail_date" data-detail-date="1" value="{{ detail.occurred_on|date:'Y-m-d' }}">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Nota / riferimento ordine Amazon</label>
+                                            <input type="text" class="form-control" name="detail_note" data-detail-note="1" value="{{ detail.note }}">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <button type="button" class="btn btn-outline-danger w-100" data-detail-remove="1">-</button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="row g-2 align-items-end corporate-card-detail-row" data-charge-refund-row="1">
+                                        <div class="col-md-2">
+                                            <label class="form-label">Tipo</label>
+                                            <select class="form-select" name="detail_type" data-detail-type="1">
+                                                <option value="">Seleziona</option>
+                                                <option value="charge">Addebito</option>
+                                                <option value="refund">Rimborso</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Importo</label>
+                                            <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="detail_amount" data-detail-amount="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Data</label>
+                                            <input type="date" class="form-control" name="detail_date" data-detail-date="1">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Nota / riferimento ordine Amazon</label>
+                                            <input type="text" class="form-control" name="detail_note" data-detail-note="1">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <button type="button" class="btn btn-outline-danger w-100" data-detail-remove="1">-</button>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="small text-muted mt-3">Totale addebiti: <strong data-charge-total="1">0,00 €</strong> · Totale rimborsi: <strong data-refund-total="1">0,00 €</strong> · Spesa netta: <strong data-net-total="1">0,00 €</strong></div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

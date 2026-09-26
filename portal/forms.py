@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 from decimal import Decimal
-from .models import Employee, Payslip, PersonalAssetEntry, CorporateCardEntry, PlannedCorporateCardExpense
+from .models import Employee, Payslip, PersonalAssetEntry, CorporateCardEntry, PlannedCorporateCardExpense, PortalUserSetting, CORPORATE_CARD_PAYMENT_METHOD_CASH
 
 
 class PayslipUploadForm(forms.ModelForm):
@@ -107,25 +107,33 @@ class CorporateCardEntryForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['occurred_on'].required = False
         self.fields['category'].required = False
+        self.fields['payment_method'].required = False
+        self.fields['cash_delivery_note'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
         operation_type = cleaned_data.get('operation_type')
+        payment_method = cleaned_data.get('payment_method') or ''
         cleaned_data['occurred_on'] = cleaned_data.get('occurred_on') or timezone.localdate()
         if operation_type == CorporateCardEntry.TYPE_TOP_UP:
             cleaned_data['category'] = cleaned_data.get('category') or 'Ricarica datore'
         elif operation_type == CorporateCardEntry.TYPE_EXPENSE and not cleaned_data.get('category'):
             self.add_error('category', 'Inserisci la categoria della spesa.')
+        if payment_method != CORPORATE_CARD_PAYMENT_METHOD_CASH:
+            cleaned_data['cash_delivery_note'] = ''
+            self.instance.cash_delivery_note = ''
         return cleaned_data
 
     class Meta:
         model = CorporateCardEntry
-        fields = ['occurred_on', 'operation_type', 'category', 'amount', 'description', 'receipt_image']
+        fields = ['occurred_on', 'operation_type', 'category', 'amount', 'payment_method', 'cash_delivery_note', 'description', 'receipt_image']
         widgets = {
             'occurred_on': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
             'operation_type': forms.Select(attrs={'class': 'form-select'}),
             'category': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Es: Carburante, pranzo, materiale'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
+            'payment_method': forms.Select(attrs={'class': 'form-select', 'data-payment-method-field': '1'}),
+            'cash_delivery_note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Consegnati a / motivo'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Descrizione opzionale'}),
             'receipt_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*,.pdf,application/pdf'}),
         }
@@ -134,19 +142,36 @@ class CorporateCardEntryForm(forms.ModelForm):
             'operation_type': 'Movimento',
             'category': 'Categoria',
             'amount': 'Importo',
+            'payment_method': 'Metodo di pagamento',
+            'cash_delivery_note': 'Consegnati a / motivo',
             'description': 'Descrizione',
             'receipt_image': 'Foto scontrino',
         }
 
 
 class PlannedCorporateCardExpenseForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['payment_method'].required = False
+        self.fields['cash_delivery_note'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        payment_method = cleaned_data.get('payment_method') or ''
+        if payment_method != CORPORATE_CARD_PAYMENT_METHOD_CASH:
+            cleaned_data['cash_delivery_note'] = ''
+            self.instance.cash_delivery_note = ''
+        return cleaned_data
+
     class Meta:
         model = PlannedCorporateCardExpense
-        fields = ['planned_on', 'category', 'amount', 'description', 'receipt_image']
+        fields = ['planned_on', 'category', 'amount', 'payment_method', 'cash_delivery_note', 'description', 'receipt_image']
         widgets = {
             'planned_on': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
             'category': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Es: carburante, materiale'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
+            'payment_method': forms.Select(attrs={'class': 'form-select', 'data-payment-method-field': '1'}),
+            'cash_delivery_note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Consegnati a / motivo'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Cosa devo acquistare?'}),
             'receipt_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*,.pdf,application/pdf'}),
         }
@@ -154,6 +179,24 @@ class PlannedCorporateCardExpenseForm(forms.ModelForm):
             'planned_on': 'Data prevista',
             'category': 'Categoria',
             'amount': 'Importo da chiedere',
+            'payment_method': 'Metodo di pagamento',
+            'cash_delivery_note': 'Consegnati a / motivo',
             'description': 'Descrizione',
             'receipt_image': 'Allegato',
+        }
+
+
+class CorporateCardBankCheckForm(forms.ModelForm):
+    class Meta:
+        model = PortalUserSetting
+        fields = ['corporate_card_bank_balance', 'corporate_card_bank_balance_date', 'corporate_card_bank_note']
+        widgets = {
+            'corporate_card_bank_balance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0,00', 'inputmode': 'decimal'}),
+            'corporate_card_bank_balance_date': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'corporate_card_bank_note': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Nota facoltativa'}),
+        }
+        labels = {
+            'corporate_card_bank_balance': 'Saldo visualizzato su carta/banca',
+            'corporate_card_bank_balance_date': 'Data del saldo verificato',
+            'corporate_card_bank_note': 'Nota facoltativa',
         }

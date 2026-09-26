@@ -1,6 +1,7 @@
 from io import BytesIO, StringIO
 from pathlib import Path
 from decimal import Decimal
+import calendar
 from django.conf import settings
 from django.core import mail
 from django.core.management import call_command
@@ -17,7 +18,7 @@ from datetime import datetime
 from PIL import Image
 
 from .access import TODAY_MARKINGS_GROUP_NAME, TURNI_PLANNER_GROUP_NAME, PATRIMONIO_GROUP_NAME
-from .models import Cud, CorporateCardEntry, Employee, EmployeeWorkZone, ImportJob, Payslip, PersonalAssetEntry, PlannedCorporateCardExpense, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
+from .models import Cud, CorporateCardEntry, CorporateCardEntryChargeRefundDetail, Employee, EmployeeWorkZone, ImportJob, Payslip, PersonalAssetEntry, PlannedCorporateCardExpense, PortalUserSetting, TurniPlannerWeekState, VacationRequest, WorkSession, WorkZone
 
 
 class EmailOrUsernameBackendTests(TestCase):
@@ -354,9 +355,12 @@ class PersonalAssetDashboardTests(TestCase):
 
 	def test_corporate_card_top_up_and_expense_update_card_balance(self):
 		self.client.force_login(self.user)
+		today = timezone.localdate()
+		month_start = today.replace(day=1)
+		expense_day = today.replace(day=3 if calendar.monthrange(today.year, today.month)[1] >= 3 else 1)
 		top_up_response = self.client.post(reverse("personal_asset_dashboard"), {
 			"action": "create_corporate_card_entry",
-			"occurred_on": "2026-08-01",
+			"occurred_on": month_start.isoformat(),
 			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
 			"category": "Ricarica datore",
 			"amount": "500.00",
@@ -366,7 +370,7 @@ class PersonalAssetDashboardTests(TestCase):
 
 		expense_response = self.client.post(reverse("personal_asset_dashboard"), {
 			"action": "create_corporate_card_entry",
-			"occurred_on": "2026-08-03",
+			"occurred_on": expense_day.isoformat(),
 			"operation_type": CorporateCardEntry.TYPE_EXPENSE,
 			"category": "Carburante",
 			"amount": "125.50",
@@ -381,8 +385,8 @@ class PersonalAssetDashboardTests(TestCase):
 
 		report = self.client.get(reverse("personal_asset_dashboard"), {
 			"report": "corporate_card",
-			"year": "2026",
-			"month": "8",
+			"year": str(today.year),
+			"month": str(today.month),
 		})
 		self.assertEqual(report.status_code, 200)
 		self.assertEqual(report.context["report_net_total"], Decimal("374.50"))
@@ -413,6 +417,43 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(CorporateCardEntry.objects.filter(user=self.user).count(), 0)
 		self.assertContains(response, "La spesa supera il saldo disponibile")
+
+	def test_corporate_card_withdrawal_is_separate_and_reduces_balance(self):
+		self.client.force_login(self.user)
+		self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"amount": "500.00",
+		})
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_WITHDRAWAL,
+			"amount": "80.00",
+			"payment_method": "cash_withdrawn",
+			"cash_delivery_note": "Contanti per acquisto urgente",
+			"description": "Prelievo ATM",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+		entry = CorporateCardEntry.objects.get(operation_type=CorporateCardEntry.TYPE_WITHDRAWAL)
+		self.assertEqual(entry.balance_delta, Decimal("-80.00"))
+		self.assertEqual(entry.get_operation_type_display(), "Prelievo allo sportello")
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertEqual(page.context["corporate_card_balance"], Decimal("420.00"))
+		self.assertEqual(page.context["corporate_card_month"]["expense_total"], Decimal("0.00"))
+		self.assertEqual(page.context["corporate_card_month"]["withdrawal_total"], Decimal("80.00"))
+		self.assertContains(page, "Prelievo allo sportello")
+
+		pdf_response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "download_selected_corporate_card_expenses_pdf",
+			"corporate_card_entry_ids": [str(entry.id)],
+		})
+		self.assertEqual(pdf_response.status_code, 200)
+		self.assertEqual(pdf_response["Content-Type"], "application/pdf")
+		import fitz
+		pdf_document = fitz.open(stream=pdf_response.content, filetype="pdf")
+		pdf_text = "\n".join(page.get_text() for page in pdf_document)
+		pdf_document.close()
+		self.assertIn("Prelievo allo sportello", pdf_text)
 
 	def test_planned_expenses_are_printable_and_move_to_card_when_paid(self):
 		self.client.force_login(self.user)
@@ -445,6 +486,80 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(PlannedCorporateCardExpense.objects.filter(paid_entry__isnull=True).count(), 0)
 		self.assertEqual(CorporateCardEntry.objects.filter(operation_type=CorporateCardEntry.TYPE_EXPENSE).count(), 2)
 		self.assertEqual(CorporateCardEntry.objects.filter(user=self.user).count(), 3)
+
+	def test_planned_expense_keeps_payment_method_and_origin_when_marked_paid(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_planned_corporate_card_expense",
+			"planned_on": "2026-08-21",
+			"category": "Amazon",
+			"amount": "55.00",
+			"payment_method": "cash_withdrawn",
+			"cash_delivery_note": "Consegnati a Lorenzo per ordine urgente",
+			"description": "Ordine Amazon manutenzione",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=planned_expense_created")
+
+		planned = PlannedCorporateCardExpense.objects.get(user=self.user)
+		self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"amount": "100.00",
+		})
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "mark_planned_expenses_paid",
+			"planned_expense_ids": [str(planned.id)],
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=planned_expenses_paid")
+		planned.refresh_from_db()
+		self.assertIsNotNone(planned.paid_entry)
+		self.assertEqual(planned.paid_entry.payment_method, "cash_withdrawn")
+		self.assertEqual(planned.paid_entry.cash_delivery_note, "Consegnati a Lorenzo per ordine urgente")
+		page = self.client.get(reverse("personal_asset_dashboard"))
+		self.assertContains(page, "Derivata da spesa prevista")
+
+	def test_can_save_corporate_card_bank_check(self):
+		self.client.force_login(self.user)
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "save_corporate_card_bank_check",
+			"corporate_card_bank_balance": "123.45",
+			"corporate_card_bank_balance_date": "2026-08-31",
+			"corporate_card_bank_note": "Saldo verificato da app banca",
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_bank_check_saved")
+		settings_obj = PortalUserSetting.objects.get(user=self.user)
+		self.assertEqual(settings_obj.corporate_card_bank_balance, Decimal("123.45"))
+		self.assertEqual(str(settings_obj.corporate_card_bank_balance_date), "2026-08-31")
+		self.assertEqual(settings_obj.corporate_card_bank_note, "Saldo verificato da app banca")
+
+	def test_manual_corporate_card_entry_can_store_charge_and_refund_details(self):
+		self.client.force_login(self.user)
+		self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"operation_type": CorporateCardEntry.TYPE_TOP_UP,
+			"amount": "200.00",
+		})
+		response = self.client.post(reverse("personal_asset_dashboard"), {
+			"action": "create_corporate_card_entry",
+			"occurred_on": "2026-08-22",
+			"operation_type": CorporateCardEntry.TYPE_EXPENSE,
+			"category": "Amazon",
+			"amount": "60.00",
+			"payment_method": "company_card",
+			"description": "Ordine raggruppato",
+			"detail_type": ["charge", "refund"],
+			"detail_amount": ["70.00", "10.00"],
+			"detail_date": ["2026-08-22", "2026-08-24"],
+			"detail_note": ["Ordine A", "Rimborso A"],
+		})
+		self.assertRedirects(response, reverse("personal_asset_dashboard") + "?status=corporate_card_created")
+		entry = CorporateCardEntry.objects.get(user=self.user, operation_type=CorporateCardEntry.TYPE_EXPENSE)
+		self.assertEqual(entry.amount, Decimal("60.00"))
+		self.assertEqual(CorporateCardEntryChargeRefundDetail.objects.filter(corporate_card_entry=entry).count(), 2)
+		self.assertEqual(
+			CorporateCardEntryChargeRefundDetail.objects.filter(corporate_card_entry=entry, detail_type="charge").first().amount,
+			Decimal("70.00"),
+		)
 
 	def test_downloads_pdf_for_selected_planned_expenses_only(self):
 		self.client.force_login(self.user)
