@@ -36,6 +36,17 @@ class GroupGatewayTests(SimpleTestCase):
         services = self.client.get('/servizi/')
         self.assertNotContains(services, 'sv-preloader')
 
+    def test_home_aliases_canonicalize_to_root(self):
+        for path in ['/', '/sito-web/']:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                canonical_url = response.wsgi_request.build_absolute_uri('/')
+                self.assertContains(
+                    response,
+                    f'<link rel="canonical" href="{canonical_url}">',
+                    html=False,
+                )
+
     def test_choice_allows_company_navigation(self):
         request = self.request('/azienda/san-vincenzo/')
         response = select_san_vincenzo(request)
@@ -65,3 +76,4 @@ class GroupGatewayTests(SimpleTestCase):
         response = self.client.get('/sitemap.xml')
         self.assertContains(response, '/gruppo/</loc>')
         self.assertContains(response, '/chi-siamo/</loc>')
+        self.assertNotContains(response, '/sito-web/</loc>')

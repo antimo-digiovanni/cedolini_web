@@ -106,6 +106,11 @@ def page(request, page='index'):
             content,
             preview=request.GET.get('preview-loader') == '1',
         )
+        html = content.decode('utf-8')
+        canonical_url = request.build_absolute_uri('/')
+        canonical_tag = f'<link rel="canonical" href="{canonical_url}">'
+        html = html.replace('</head>', canonical_tag + '</head>', 1)
+        content = html.encode('utf-8')
     response=HttpResponse(content,content_type='text/html; charset=utf-8')
     response['Cache-Control']='no-cache'
     return response

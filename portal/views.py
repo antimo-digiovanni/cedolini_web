@@ -3348,7 +3348,6 @@ def public_contacts(request):
 def sitemap_xml(request):
     pages = [
         '',
-        'sito-web/',
         'chi-siamo/',
         'servizi/',
         'servizi-digitali/',
