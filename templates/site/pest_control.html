@@ -11,9 +11,10 @@
 <style>
   .site-page .bg-orb { display: none; }
   .pest-page { --pest-green: #146452; --pest-pale: #edf5f1; --pest-ink: #172d33; }
-  .pest-hero { position: relative; isolation: isolate; background: #172d33; color: #fff; padding: 64px 0 48px; }
-  .pest-hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, #102b2ff5, #102b2feb 48%, #102b2f35); }
-  .pest-hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 45%; z-index: -2; }
+  .pest-hero { position: relative; isolation: isolate; overflow: hidden; background: #172d33; color: #fff; padding: 64px 0 48px; }
+  .pest-hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(115deg, #102b2f 0%, #173e37 100%); }
+  .pest-hero-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: center; gap: 40px; }
+  .pest-hero-copy { position: relative; z-index: 1; }
   .pest-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; font-weight: 700; }
   .pest-brand img { width: 56px; height: 56px; object-fit: contain; background: white; border-radius: 4px; padding: 5px; }
   .pest-kicker { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--pest-green); margin: 0 0 14px; }
@@ -25,6 +26,20 @@
   .pest-button:hover { background: #d5eadf; color: #153f35; }
   .pest-button-outline { background: transparent; color: white; border-color: #a2beb6; }
   .pest-hero-note { margin: 28px 0 0; color: #c3d7cf; font-size: 13px; }
+  .pest-hero-visual { position: relative; min-width: 0; height: 480px; }
+  #pest-canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
+  #pest-canvas:active { cursor: grabbing; }
+  .pest-hero-tag { position: absolute; z-index: 1; max-width: calc(100% - 16px); padding: 8px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 3px; background: rgba(16,43,47,.9); color: #f5faf7; font: 500 11px/1.35 'IBM Plex Mono', monospace; opacity: 0; transform: translateY(5px); transition: opacity .35s ease, transform .35s ease; pointer-events: none; }
+  .pest-hero-tag.is-visible { opacity: 1; transform: none; }
+  .pest-hero-tag i { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #ade2c9; vertical-align: 1px; }
+  .pest-replay { position: absolute; right: 4px; bottom: 4px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.3); border-radius: 3px; background: rgba(16,43,47,.82); color: #fff; font-size: 13px; cursor: pointer; }
+  .pest-replay:hover { background: #fff; color: #153f35; }
+  .pest-hero-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 30px 0 0; padding: 16px 0 0; border-top: 1px solid rgba(255,255,255,.2); list-style: none; }
+  .pest-hero-steps li { display: flex; flex-direction: column; gap: 8px; color: #c3d7cf; font-size: 12px; line-height: 1.3; transition: color .3s ease; }
+  .pest-hero-steps li.is-active { color: #fff; }
+  .pest-hero-steps b { font: 500 11px/1 'IBM Plex Mono', monospace; }
+  .pest-hero-steps .bar { position: relative; height: 2px; overflow: hidden; background: rgba(255,255,255,.2); }
+  .pest-hero-steps .bar::after { position: absolute; inset: 0; background: #ade2c9; content: ''; transform: scaleX(var(--progress, 0)); transform-origin: left; }
   .pest-index { background: var(--pest-pale); border-bottom: 1px solid #cedfd7; }
   .pest-index .container { display: flex; gap: 28px; flex-wrap: wrap; padding-block: 20px; }
   .pest-index a { color: #214d40; font-weight: 700; font-size: 14px; text-underline-offset: 5px; }
@@ -50,7 +65,8 @@
   .pest-equipment-photo { background: #f0f3f5; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .pest-equipment-photo img { display: block; width: 100%; height: 440px; object-fit: contain; }
   .pest-equipment figcaption { padding-top: 14px; color: #4b5b5d; font-size: 14px; line-height: 1.7; }
-  @media (max-width: 767px) { .pest-equipment-photo { grid-template-columns: 1fr; } .pest-equipment-photo img { height: 360px; } .pest-hero::before { background: #102b2fd9; } }
+  @media (max-width: 991px) { .pest-hero-layout { grid-template-columns: 1fr; gap: 18px; } .pest-hero-copy { max-width: 720px; } .pest-hero-visual { height: 390px; } }
+  @media (max-width: 767px) { .pest-equipment-photo { grid-template-columns: 1fr; } .pest-equipment-photo img { height: 360px; } }
   .pest-faq { max-width: 900px; }
   .pest-faq details { border-bottom: 1px solid #cddbd5; padding: 20px 0; }
   .pest-faq summary { font-weight: 700; color: var(--pest-ink); cursor: pointer; font-size: 17px; }
@@ -61,9 +77,13 @@
   .pest-contact address { margin-top: 28px; line-height: 1.9; }
   .pest-back { display: inline-block; margin-top: 22px; font-size: 14px; }
   @media (min-width: 992px) and (max-width: 1199px) { .site-header .navbar .nav-link { font-size: 12px; padding-inline: 5px; } .site-header .navbar-brand { font-size: 16px; } }
-  @media (max-width: 767px) { .pest-hero { padding: 40px 0 34px; } .pest-hero h1 { font-size: 36px; overflow-wrap: anywhere; } .pest-lead { font-size: 16px; } .pest-section { padding: 42px 0; } .pest-section h2 { font-size: 29px; } .pest-grid, .pest-contexts { grid-template-columns: 1fr; gap: 28px; } .pest-steps { grid-template-columns: 1fr 1fr; } .pest-index .container { gap: 14px 22px; } }
-  @media (max-width: 380px) { .pest-steps { grid-template-columns: 1fr; } .pest-hero h1 { font-size: 32px; } .pest-button { padding: 12px 14px; } }
+  @media (max-width: 767px) { .pest-hero { padding: 40px 0 34px; } .pest-hero h1 { font-size: 36px; overflow-wrap: anywhere; } .pest-hero-visual { height: 340px; } .pest-lead { font-size: 16px; } .pest-section { padding: 42px 0; } .pest-section h2 { font-size: 29px; } .pest-grid, .pest-contexts { grid-template-columns: 1fr; gap: 28px; } .pest-steps { grid-template-columns: 1fr 1fr; } .pest-index .container { gap: 14px 22px; } }
+  @media (max-width: 380px) { .pest-steps { grid-template-columns: 1fr; } .pest-hero h1 { font-size: 32px; } .pest-button { padding: 12px 14px; } .pest-hero-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (prefers-reduced-motion: reduce) { .pest-hero-tag, .pest-hero-steps li { transition: none; } }
 </style>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.184.0/build/three.module.js"},"integrity":{"https://unpkg.com/three@0.184.0/build/three.module.js":"sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J","https://unpkg.com/three@0.184.0/build/three.core.js":"sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT"}}
+</script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Service","name":"Disinfestazione, derattizzazione e Pest Management","serviceType":["Disinfestazione blatte","Derattizzazione","Pest Control","Pest Management"],"url":"https://www.sanvincenzoservice.it/disinfestazione-derattizzazione/","provider":{"@type":"Organization","name":"San Vincenzo SRL","telephone":"+393400515648","address":{"@type":"PostalAddress","streetAddress":"Via B. Cellini 154","addressLocality":"Grumo Nevano","addressRegion":"NA","postalCode":"80028","addressCountry":"IT"}}}
 </script>
@@ -71,19 +91,266 @@
 {% block content %}
 <div class="pest-page">
   <section class="pest-hero" aria-labelledby="pest-title">
-    <img class="pest-hero-photo" src="{% static 'portal/machinery/atomizzatore-pest-control-2.jpg' %}" alt="" width="1350" height="1800" fetchpriority="high">
-    <div class="container">
-      <div class="pest-brand"><img src="{% static 'portal/logo.png' %}" alt="" width="56" height="56">San Vincenzo SRL</div>
-      <p class="pest-kicker">Pest Control &amp; Pest Management</p>
-      <h1 id="pest-title">Disinfestazione e derattizzazione.</h1>
-      <p class="pest-lead">Blatte, ratti, topi e insetti negli ambienti di lavoro. Interventi mirati e prevenzione per affrontare il problema e ridurre il rischio che si ripresenti.</p>
-      <div class="pest-actions">
-        <a class="pest-button" href="tel:+393400515648"><i class="bi bi-telephone" aria-hidden="true"></i>340 051 5648</a>
-        <a class="pest-button pest-button-outline" href="#richiedi-valutazione">Parliamo del tuo caso <i class="bi bi-arrow-down" aria-hidden="true"></i></a>
+    <div class="container pest-hero-layout">
+      <div class="pest-hero-copy">
+        <div class="pest-brand"><img src="{% static 'portal/logo.png' %}" alt="" width="56" height="56">San Vincenzo SRL</div>
+        <p class="pest-kicker">Pest Control &amp; Pest Management</p>
+        <h1 id="pest-title">Disinfestazione e derattizzazione.</h1>
+        <p class="pest-lead">Blatte, ratti, topi e insetti negli ambienti di lavoro. Interventi mirati e prevenzione per affrontare il problema e ridurre il rischio che si ripresenti.</p>
+        <div class="pest-actions">
+          <a class="pest-button" href="tel:+393400515648"><i class="bi bi-telephone" aria-hidden="true"></i>340 051 5648</a>
+          <a class="pest-button pest-button-outline" href="#richiedi-valutazione">Parliamo del tuo caso <i class="bi bi-arrow-down" aria-hidden="true"></i></a>
+        </div>
+        <p class="pest-hero-note">Sede a Grumo Nevano (NA) &middot; Ambienti industriali, commerciali e logistici</p>
+        <ol class="pest-hero-steps" id="pest-hero-steps" aria-label="Fasi del Pest Management">
+          <li><span class="bar"></span><b>01</b>Valutazione</li>
+          <li><span class="bar"></span><b>02</b>Prevenzione</li>
+          <li><span class="bar"></span><b>03</b>Controllo</li>
+          <li><span class="bar"></span><b>04</b>Verifica</li>
+        </ol>
       </div>
-      <p class="pest-hero-note">Sede a Grumo Nevano (NA) &middot; Ambienti industriali, commerciali e logistici</p>
+      <div class="pest-hero-visual" id="pest-stage" role="group" aria-label="Modello 3D interattivo di una postazione di monitoraggio">
+        <canvas id="pest-canvas" aria-label="Postazione di monitoraggio con esca, chiusura di sicurezza e anelli di controllo"></canvas>
+        <span class="pest-hero-tag" id="pest-tag-lock"><i></i>Chiusura con chiave di sicurezza</span>
+        <span class="pest-hero-tag" id="pest-tag-bait"><i></i>Esca fissata all'interno</span>
+        <span class="pest-hero-tag" id="pest-tag-monitor"><i></i>Verifiche nel tempo</span>
+        <button class="pest-replay" id="pest-replay" type="button" aria-label="Rivedi l'animazione" title="Rivedi l'animazione"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Rivedi</button>
+      </div>
     </div>
   </section>
+  <script type="module">
+    import * as THREE from 'three';
+
+    const pestCanvas = document.getElementById('pest-canvas');
+    const pestStage = document.getElementById('pest-stage');
+    const pestReducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const pestRenderer = new THREE.WebGLRenderer({ canvas: pestCanvas, antialias: true, alpha: true });
+    pestRenderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    pestRenderer.shadowMap.enabled = true;
+    pestRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    pestRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    pestRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    pestRenderer.toneMappingExposure = 1.05;
+
+    const pestScene = new THREE.Scene();
+    const pestCamera = new THREE.PerspectiveCamera(28, 1, 0.01, 20);
+    pestScene.add(new THREE.HemisphereLight(0xfffaf0, 0x183b32, 1.5));
+    const pestKeyLight = new THREE.DirectionalLight(0xffffff, 2.3);
+    pestKeyLight.position.set(0.6, 1.2, 0.8);
+    pestKeyLight.castShadow = true;
+    pestKeyLight.shadow.mapSize.set(1024, 1024);
+    Object.assign(pestKeyLight.shadow.camera, { left: -0.5, right: 0.5, top: 0.5, bottom: -0.5, near: 0.1, far: 3 });
+    pestKeyLight.shadow.radius = 6;
+    pestKeyLight.shadow.bias = -0.0004;
+    pestScene.add(pestKeyLight);
+    const pestRimLight = new THREE.DirectionalLight(0xade2c9, 2.1);
+    pestRimLight.position.set(-0.8, 0.5, -0.6);
+    pestScene.add(pestRimLight);
+    const pestGround = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.ShadowMaterial({ opacity: 0.32 }));
+    pestGround.rotation.x = -Math.PI / 2;
+    pestGround.receiveShadow = true;
+    pestScene.add(pestGround);
+
+    const pestMaterial = (name, color, roughness, metalness = 0) => {
+      const material = new THREE.MeshStandardMaterial({ color, roughness, metalness });
+      material.name = name;
+      return material;
+    };
+    const pestPlastic = pestMaterial('plastica_scura', 0x343a38, 0.5);
+    const pestLidMaterial = pestMaterial('coperchio', 0x414945, 0.4);
+    const pestLabelMaterial = pestMaterial('etichetta_verde', 0x4d9b76, 0.6);
+    const pestWarningMaterial = pestMaterial('etichetta_gialla', 0xe5bb42, 0.5);
+    const pestSteel = pestMaterial('acciaio', 0xc4c7c3, 0.28, 0.35);
+    const pestBaitMaterial = pestMaterial('esca', 0x6e9b56, 0.85);
+    const pestDarkMaterial = pestMaterial('interno', 0x111513, 0.95);
+    const pestMesh = (parent, geometry, material, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => {
+      const object = new THREE.Mesh(geometry, material);
+      object.position.set(x, y, z);
+      object.rotation.set(rx, ry, rz);
+      object.castShadow = true;
+      object.receiveShadow = true;
+      parent.add(object);
+      return object;
+    };
+    const pestRoundedRect = (width, depth, radius) => {
+      const shape = new THREE.Shape();
+      const halfWidth = width / 2;
+      const halfDepth = depth / 2;
+      shape.moveTo(-halfWidth + radius, -halfDepth);
+      shape.lineTo(halfWidth - radius, -halfDepth);
+      shape.quadraticCurveTo(halfWidth, -halfDepth, halfWidth, -halfDepth + radius);
+      shape.lineTo(halfWidth, halfDepth - radius);
+      shape.quadraticCurveTo(halfWidth, halfDepth, halfWidth - radius, halfDepth);
+      shape.lineTo(-halfWidth + radius, halfDepth);
+      shape.quadraticCurveTo(-halfWidth, halfDepth, -halfWidth, halfDepth - radius);
+      shape.lineTo(-halfWidth, -halfDepth + radius);
+      shape.quadraticCurveTo(-halfWidth, -halfDepth, -halfWidth + radius, -halfDepth);
+      return shape;
+    };
+    const pestExtrude = (shape, depth, bevel) => new THREE.ExtrudeGeometry(shape, {
+      depth,
+      bevelEnabled: true,
+      bevelSize: bevel,
+      bevelThickness: bevel,
+      bevelSegments: 4,
+      curveSegments: 16,
+    });
+
+    const pestWidth = 0.3;
+    const pestDepth = 0.22;
+    const pestHeight = 0.075;
+    const pestTop = pestHeight + 0.012;
+    const pestStation = new THREE.Group();
+    pestScene.add(pestStation);
+    pestMesh(pestStation, pestExtrude(pestRoundedRect(pestWidth, pestDepth, 0.03), pestHeight, 0.006), pestPlastic, 0, 0.006, 0, -Math.PI / 2);
+    pestMesh(pestStation, new THREE.BoxGeometry(pestWidth - 0.03, 0.001, pestDepth - 0.03), pestDarkMaterial, 0, pestTop + 0.0005, 0);
+    const pestHoleRadius = 0.028;
+    [-1, 1].forEach((side) => {
+      pestMesh(pestStation, new THREE.CylinderGeometry(pestHoleRadius + 0.008, pestHoleRadius + 0.008, 0.02, 40, 1, true), pestPlastic, side * 0.095, 0.042, pestDepth / 2 + 0.012, Math.PI / 2);
+      pestMesh(pestStation, new THREE.CircleGeometry(pestHoleRadius, 40), pestDarkMaterial, side * 0.095, 0.042, pestDepth / 2 + 0.0075);
+      pestMesh(pestStation, new THREE.TorusGeometry(pestHoleRadius + 0.004, 0.005, 16, 48), pestPlastic, side * 0.095, 0.042, pestDepth / 2 + 0.022);
+    });
+    const pestLock = new THREE.Group();
+    pestLock.position.set(0, 0.062, pestDepth / 2 + 0.012);
+    pestStation.add(pestLock);
+    pestMesh(pestLock, new THREE.CylinderGeometry(0.011, 0.011, 0.012, 32), pestSteel, 0, 0, 0, Math.PI / 2);
+    pestMesh(pestLock, new THREE.BoxGeometry(0.003, 0.012, 0.002), pestDarkMaterial, 0, 0, 0.0065);
+    pestMesh(pestStation, new THREE.CylinderGeometry(0.007, 0.007, pestWidth * 0.8, 24), pestPlastic, 0, pestTop + 0.012, -pestDepth / 2 - 0.008, 0, 0, Math.PI / 2);
+    const pestRodY = pestTop + 0.008;
+    pestMesh(pestStation, new THREE.CylinderGeometry(0.003, 0.003, pestWidth - 0.05, 16), pestSteel, 0, pestRodY, 0, 0, 0, Math.PI / 2);
+    [-0.09, -0.05, 0.05, 0.09].forEach((x) => pestMesh(pestStation, new THREE.BoxGeometry(0.006, 0.008, 0.006), pestPlastic, x, pestTop + 0.004, 0));
+    const pestBlocks = [-0.07, -0.025, 0.025, 0.07].map((x) => {
+      const block = pestMesh(pestStation, new THREE.BoxGeometry(0.03, 0.022, 0.03), pestBaitMaterial, x, pestRodY, 0);
+      block.scale.setScalar(0.001);
+      return block;
+    });
+    const pestLidPivot = new THREE.Group();
+    pestLidPivot.position.set(0, pestTop + 0.012, -pestDepth / 2 - 0.008);
+    pestStation.add(pestLidPivot);
+    const pestLidZ = pestDepth / 2 + 0.008;
+    pestMesh(pestLidPivot, pestExtrude(pestRoundedRect(pestWidth + 0.008, pestDepth + 0.008, 0.034), 0.022, 0.01), pestLidMaterial, 0, 0.01, pestLidZ, -Math.PI / 2);
+    for (let index = -2; index <= 2; index += 1) {
+      [-1, 1].forEach((side) => pestMesh(pestLidPivot, new THREE.BoxGeometry(0.012, 0.006, 0.035), pestLidMaterial, index * 0.045, 0.045, pestLidZ + side * 0.075));
+    }
+    pestMesh(pestLidPivot, new THREE.BoxGeometry(0.16, 0.002, 0.09), pestLabelMaterial, 0, 0.0428, pestLidZ);
+    pestMesh(pestLidPivot, new THREE.BoxGeometry(0.16, 0.0025, 0.022), pestWarningMaterial, 0, 0.0432, pestLidZ + 0.03);
+    const pestRings = [0, 1, 2].map(() => {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.203, 96), new THREE.MeshBasicMaterial({ color: 0xade2c9, transparent: true, opacity: 0, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.001;
+      pestScene.add(ring);
+      return ring;
+    });
+
+    const pestEase = (value) => 1 - Math.pow(1 - value, 3);
+    const pestEaseInOut = (value) => value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
+    const pestBack = (value) => {
+      const overshoot = 1.7;
+      return 1 + (overshoot + 1) * Math.pow(value - 1, 3) + overshoot * Math.pow(value - 1, 2);
+    };
+    const pestSegment = (time, start, end) => Math.min(1, Math.max(0, (time - start) / (end - start)));
+    const pestPhases = [[0, 1.8], [1.8, 4.4], [4.4, 6.2], [6.2, 9]];
+    const pestSteps = [...document.querySelectorAll('#pest-hero-steps li')];
+    const pestTags = ['pest-tag-lock', 'pest-tag-bait', 'pest-tag-monitor'].map((id) => document.getElementById(id));
+    let pestStart = performance.now();
+    let pestDrag = null;
+    let pestUserYaw = 0;
+    let pestMouseX = 0;
+    let pestMouseY = 0;
+    let pestSmoothX = 0;
+    let pestSmoothY = 0;
+    const pestProjected = new THREE.Vector3();
+
+    function pestResize() {
+      const width = pestStage.clientWidth;
+      const height = pestStage.clientHeight;
+      pestRenderer.setSize(width, height, false);
+      pestCamera.aspect = width / height;
+      pestCamera.userData.distance = pestCamera.aspect < 1 ? 1.25 : 0.95;
+      pestCamera.updateProjectionMatrix();
+      if (pestReducedMotion) requestAnimationFrame(pestRender);
+    }
+    function pestPlaceTag(tag, point, offsetX = 0, offsetY = 0) {
+      pestProjected.copy(point).project(pestCamera);
+      const width = pestStage.clientWidth;
+      const height = pestStage.clientHeight;
+      const tagWidth = tag.offsetWidth;
+      const tagHeight = tag.offsetHeight;
+      let x = (pestProjected.x * 0.5 + 0.5) * width + offsetX;
+      let y = (-pestProjected.y * 0.5 + 0.5) * height + offsetY;
+      if (x + tagWidth > width - 8) x = (pestProjected.x * 0.5 + 0.5) * width - tagWidth - Math.abs(offsetX);
+      tag.style.left = `${Math.round(Math.max(8, Math.min(x, width - tagWidth - 8)))}px`;
+      tag.style.top = `${Math.round(Math.max(8, Math.min(y, height - tagHeight - 48)))}px`;
+    }
+    function pestRender(now = performance.now()) {
+      const time = pestReducedMotion ? 9.5 : (now - pestStart) / 1000;
+      const drop = pestSegment(time, 0, 1.4);
+      pestStation.position.y = (1 - pestBack(drop)) * 0.35;
+      pestStation.rotation.y = -0.9 + 0.55 * pestEase(pestSegment(time, 0, 1.8)) + pestUserYaw + Math.sin(time * 0.35) * 0.05 * pestSegment(time, 9, 11);
+      const open = pestEaseInOut(pestSegment(time, 1.8, 2.7)) - pestEaseInOut(pestSegment(time, 4.4, 5.2));
+      pestLidPivot.rotation.x = -1.85 * open;
+      pestBlocks.forEach((block, index) => {
+        block.scale.setScalar(Math.max(0.001, pestBack(pestSegment(time, 2.8 + index * 0.18, 3.3 + index * 0.18)) * (1 - pestEaseInOut(pestSegment(time, 4.2, 4.6)))));
+      });
+      pestLock.rotation.z = -Math.PI / 2 * pestEaseInOut(pestSegment(time, 5.4, 6));
+      pestRings.forEach((ring, index) => {
+        const phase = ((time - 6.2) / 2.4 + index / 3) % 1;
+        const visible = pestSegment(time, 6.2, 6.8);
+        ring.scale.setScalar(0.8 + phase * 1.2);
+        ring.material.opacity = time < 6.2 ? 0 : (1 - phase) * 0.38 * visible;
+      });
+      pestSmoothX += (pestMouseX - pestSmoothX) * 0.05;
+      pestSmoothY += (pestMouseY - pestSmoothY) * 0.05;
+      const distance = pestCamera.userData.distance;
+      const settled = pestEase(pestSegment(time, 0, 2.2));
+      const angle = 0.5 - 0.25 * settled + pestSmoothX * 0.25;
+      const elevation = 0.42 + 0.12 * (1 - settled) + pestSmoothY * 0.12;
+      const radius = distance * (1.25 - 0.25 * settled);
+      pestCamera.position.set(Math.sin(angle) * radius * Math.cos(elevation), Math.sin(elevation) * radius + 0.03, Math.cos(angle) * radius * Math.cos(elevation));
+      pestCamera.lookAt(0, 0.07, 0);
+      pestPhases.forEach(([start, end], index) => {
+        const step = pestSteps[index];
+        step.style.setProperty('--progress', pestSegment(time, start, end));
+        step.classList.toggle('is-active', time >= start);
+      });
+      pestStation.updateMatrixWorld();
+      pestPlaceTag(pestTags[0], pestLock.getWorldPosition(new THREE.Vector3()), 24, -4);
+      pestTags[0].classList.toggle('is-visible', time > 5.6);
+      pestPlaceTag(pestTags[1], pestBlocks[3].getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.06, 0)), 10, -30);
+      pestTags[1].classList.toggle('is-visible', time > 3.2 && time < 4.6);
+      pestPlaceTag(pestTags[2], new THREE.Vector3(-0.15, 0, 0.2), 10, 8);
+      pestTags[2].classList.toggle('is-visible', time > 6.8);
+      pestRenderer.render(pestScene, pestCamera);
+    }
+    function pestAnimate(now) {
+      pestRender(now);
+      if (!pestReducedMotion) requestAnimationFrame(pestAnimate);
+    }
+
+    new ResizeObserver(pestResize).observe(pestStage);
+    pestResize();
+    document.getElementById('pest-replay').addEventListener('click', () => {
+      pestStart = performance.now();
+      if (pestReducedMotion) pestRender();
+    });
+    pestCanvas.addEventListener('pointerdown', (event) => {
+      pestDrag = { x: event.clientX, yaw: pestUserYaw };
+      pestCanvas.setPointerCapture(event.pointerId);
+    });
+    pestCanvas.addEventListener('pointermove', (event) => {
+      if (!pestDrag) return;
+      pestUserYaw = pestDrag.yaw + (event.clientX - pestDrag.x) * 0.008;
+      if (pestReducedMotion) pestRender();
+    });
+    pestCanvas.addEventListener('pointerup', () => { pestDrag = null; });
+    pestCanvas.addEventListener('pointercancel', () => { pestDrag = null; });
+    window.addEventListener('pointermove', (event) => {
+      pestMouseX = event.clientX / innerWidth - 0.5;
+      pestMouseY = event.clientY / innerHeight - 0.5;
+      if (pestReducedMotion) pestRender();
+    });
+    requestAnimationFrame(pestAnimate);
+  </script>
   <nav class="pest-index" aria-label="In questa pagina"><div class="container"><a href="#infestanti">Gli infestanti</a><a href="#metodo">Il metodo</a><a href="#ambienti">Gli ambienti</a><a href="#domande">Domande frequenti</a></div></nav>
   <section class="pest-section" id="infestanti">
     <div class="container">
