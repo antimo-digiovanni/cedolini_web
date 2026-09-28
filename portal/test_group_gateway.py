@@ -77,3 +77,8 @@ class GroupGatewayTests(SimpleTestCase):
         self.assertContains(response, '/gruppo/</loc>')
         self.assertContains(response, '/chi-siamo/</loc>')
         self.assertNotContains(response, '/sito-web/</loc>')
+        self.assertNotContains(response, '/login/</loc>')
+
+    def test_login_is_excluded_from_search_index(self):
+        response = self.client.get('/login/')
+        self.assertContains(response, '<meta name="robots" content="noindex, follow">', html=False)

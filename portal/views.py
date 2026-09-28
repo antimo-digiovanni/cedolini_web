@@ -3355,7 +3355,6 @@ def sitemap_xml(request):
         'contatti/',
         'gruppo/',
         'disinfestazione-derattizzazione/',
-        'login/',
     ]
     base_url = request.build_absolute_uri('/').rstrip('/')
     xml_items = []
