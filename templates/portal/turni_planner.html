@@ -1166,6 +1166,66 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* Allineamento al tema del portale (solo aspetto) */
+    .turni-topbar {
+        top: calc(var(--sv-topbar-h) + env(safe-area-inset-top) + 8px);
+        border-color: var(--sv-border);
+        border-radius: var(--sv-radius-lg);
+        box-shadow: var(--sv-shadow-sm);
+    }
+    .turni-nav-button { border-radius: var(--sv-radius-sm); color: var(--sv-ink-2); }
+    .turni-nav-button:hover { background: var(--sv-surface-3); color: var(--sv-ink); }
+    .turni-nav-button.active { background: var(--sv-accent-tint); color: var(--sv-accent-ink); box-shadow: none; font-weight: 700; }
+    .turni-nav-button.active i { color: var(--sv-accent); }
+    .turni-grid-card,
+    .turni-table-wrap,
+    .turni-scorrimento-wrap,
+    .turni-recent-week-item {
+        border-color: var(--sv-border);
+        border-radius: var(--sv-radius-lg);
+        background: var(--sv-surface);
+        box-shadow: var(--sv-shadow-sm);
+    }
+    .turni-sheet-toolbar { border-color: var(--sv-border); border-radius: var(--sv-radius); background: var(--sv-surface-2); }
+    .turni-recent-week-item.is-selected { border-color: #b8c4f2; background: var(--sv-surface); box-shadow: 0 0 0 3px var(--sv-accent-tint), var(--sv-shadow-sm); }
+    .turni-recent-week-item.is-selected .turni-recent-week-layout { flex-direction: column; align-items: stretch; }
+    .turni-recent-week-item.is-selected .turni-recent-week-actions { justify-content: flex-end; }
+    .turni-week-mail-box { min-width: 0; width: 100%; align-items: stretch; }
+    .turni-recent-week-hint { color: var(--sv-accent-ink); background: var(--sv-accent-tint); border-color: #cdd6f7; }
+    .turni-week-mail-details { border-color: var(--sv-border); border-radius: var(--sv-radius); background: var(--sv-surface-2); box-shadow: none; }
+    .turni-week-mail-details summary { color: var(--sv-ink); }
+    .turni-dashboard-hero {
+        border: 1px solid var(--sv-border);
+        border-radius: var(--sv-radius-lg);
+        background: var(--sv-surface);
+        color: var(--sv-ink);
+        box-shadow: var(--sv-shadow-sm);
+    }
+    .turni-dashboard-hero .text-white,
+    .turni-dashboard-hero .text-white-50,
+    .turni-dashboard-hero .opacity-75 { color: var(--sv-muted) !important; }
+    .turni-action-card { border-color: var(--sv-border); border-radius: var(--sv-radius); background: var(--sv-surface-2); color: var(--sv-ink); }
+    .turni-scorrimento-table .turni-scorrimento-value-cell.is-rest { background: var(--sv-accent); }
+    .turni-row-limit-note { color: var(--sv-muted); }
+    /* Niente etichette sopra i titoli: il titolo parla da solo */
+    .turni-dashboard-hero .text-uppercase.small,
+    .turni-action-card > span.small:first-child { display: none; }
+    .turni-opening-row .card-modern.h-100 { height: auto !important; }
+    /* Un solo accento: export e stati scuri diventano neutri */
+    .turni-shell .btn-dark,
+    .container .btn-dark {
+        --bs-btn-color: var(--sv-ink);
+        --bs-btn-bg: var(--sv-surface);
+        --bs-btn-border-color: var(--sv-border-strong);
+        --bs-btn-hover-color: var(--sv-ink);
+        --bs-btn-hover-bg: var(--sv-surface-2);
+        --bs-btn-hover-border-color: #b9c3d0;
+        --bs-btn-active-color: var(--sv-ink);
+        --bs-btn-active-bg: var(--sv-surface-3);
+        box-shadow: var(--sv-shadow-xs);
+    }
+    .container .text-bg-dark { background: var(--sv-neutral-bg) !important; color: var(--sv-neutral) !important; box-shadow: inset 0 0 0 1px #dde2ea; }
 </style>
 <div class="container">
     <div class="page-hero turni-page-hero">
@@ -1464,7 +1524,7 @@
                                     <div class="text-muted small mt-2">Versione condivisa unica. Nessuno storico intermedio.</div>
                                 </div>
                                 <div class="turni-grid-card">
-                                    <div class="text-muted small mb-2">Operativita</div>
+                                    <div class="text-muted small mb-2 d-none">Operativita</div>
                                     <div class="fw-semibold">Compila come nell'app</div>
                                     <div class="text-muted small mt-2">Seleziona un pannello a sinistra, modifica, poi salva o scarica.</div>
                                 </div>
@@ -1474,7 +1534,7 @@
                                     <div class="text-muted small mt-2">{% if selected_state.updated_by %}Operatore: {{ selected_state.updated_by.username }}{% else %}Nessun operatore registrato{% endif %}</div>
                                 </div>
                                 <div class="turni-grid-card">
-                                    <div class="text-muted small mb-2">Scorciatoia</div>
+                                    <div class="text-muted small mb-2 d-none">Scorciatoia</div>
                                     <div class="fw-semibold">Apri una sezione</div>
                                     <div class="text-muted small mt-2">Settimana e Portineria settimana sono le due griglie piu dense.</div>
                                 </div>

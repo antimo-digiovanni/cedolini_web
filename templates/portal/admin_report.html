@@ -4,40 +4,13 @@
 
 {% block content %}
 <style>
-    .admin-hero {
-        background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);
-        border-radius: 16px;
-        padding: 22px;
-        color: #fff;
-        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.2);
-    }
-    .kpi-card {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        background: #fff;
-        padding: 16px;
-        height: 100%;
-    }
-    .kpi-label {
-        color: #64748b;
-        font-size: 0.82rem;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin-bottom: 4px;
-    }
-    .kpi-value {
-        color: #0f172a;
-        font-size: 1.6rem;
-        font-weight: 700;
-        line-height: 1.1;
-    }
-    .table-professional thead th {
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        color: #475569;
-        letter-spacing: .04em;
-        border-bottom-width: 1px;
-    }
+    .admin-hero { padding: 0; background: transparent; color: var(--sv-ink); }
+    .admin-hero h3 { font-size: 1.625rem; font-weight: 750; letter-spacing: -0.022em; }
+    .admin-hero h3 .bi { display: none; }
+    .admin-hero p { color: var(--sv-muted); }
+    .kpi-card { height: 100%; padding: 16px 18px; }
+    .kpi-label { margin-bottom: 4px; color: var(--sv-muted); font-size: 0.8125rem; font-weight: 650; }
+    .kpi-value { color: var(--sv-ink); font-size: 1.625rem; font-weight: 750; line-height: 1.1; letter-spacing: -0.025em; }
 </style>
 
 <div class="fade-in">

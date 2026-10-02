@@ -3,111 +3,99 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <title>Attivazione Account</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
+<link rel="stylesheet" href="{% static 'portal/portal-theme.css' %}">
 <style>
-body {
-    background: linear-gradient(135deg, #0f172a, #1e3a8a);
-    min-height: 100dvh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Segoe UI', sans-serif;
-    padding: 14px;
+body { margin: 0; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: radial-gradient(900px 500px at 10% -10%, rgba(31, 90, 214, 0.16), transparent 65%), radial-gradient(700px 480px at 100% 0%, rgba(124, 77, 219, 0.12), transparent 60%), radial-gradient(800px 500px at 50% 120%, rgba(14, 154, 167, 0.10), transparent 60%), var(--sv-bg); }
+.register-header {
+    padding: calc(14px + env(safe-area-inset-top)) max(32px, env(safe-area-inset-right)) 14px max(32px, env(safe-area-inset-left));
+    background: var(--sv-surface);
+    border-bottom: 1px solid var(--sv-border);
 }
-
+.register-brand { display: inline-flex; align-items: center; gap: 12px; color: var(--sv-ink); }
+.register-brand img { width: 40px; height: 40px; object-fit: contain; }
+.register-brand strong { display: block; font-size: 0.9375rem; font-weight: 750; letter-spacing: -0.01em; line-height: 1.2; }
+.register-brand span { display: block; margin-top: 2px; color: var(--sv-muted); font-size: 0.75rem; }
+.register-main { flex: 1; display: grid; place-items: center; padding: 48px 20px; }
 .card-box {
-    background: white;
-    padding: 40px;
-    border-radius: 18px;
-    width: min(100%, 420px);
-    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
-    text-align: center;
+    width: min(100%, 460px);
+    padding: 32px;
+    border: 1px solid var(--sv-border);
+    border-radius: 16px;
+    background: var(--sv-surface);
+    box-shadow: var(--sv-shadow-md);
 }
-
-.logo-bg {
-    background: white;
-    padding: 15px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-}
-
+.card-box h4 { margin-bottom: 6px !important; font-size: 1.5rem; font-weight: 750; letter-spacing: -0.022em; }
+.card-box > p { color: var(--sv-muted); }
+.register-field { margin-bottom: 14px; }
+.register-field .form-label { margin-bottom: 6px; }
+.card-box .form-control { min-height: 48px; font-size: 16px; border-radius: var(--sv-radius); }
+.card-box .input-group > .btn { min-width: 48px; border-color: var(--sv-border-strong); border-radius: 0 var(--sv-radius) var(--sv-radius) 0; }
+.card-box .input-group > .form-control { border-radius: var(--sv-radius) 0 0 var(--sv-radius); }
 .submit-btn {
-    background: #2563eb;
-    border: none;
-    padding: 10px;
     width: 100%;
-    color: white;
-    font-weight: 600;
-    border-radius: 8px;
+    min-height: 48px;
+    padding: 12px;
+    border: 1px solid var(--sv-accent);
+    border-radius: var(--sv-radius);
+    background: linear-gradient(180deg, #2f6cec 0%, #1f5ad6 100%);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(35, 58, 153, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
-
-.submit-btn:hover {
-    background: #1e40af;
-}
-
+.submit-btn:hover { background: var(--sv-accent-hover); }
+.submit-btn:focus-visible { outline: 0; box-shadow: var(--sv-ring); }
 .error {
-    color: red;
-    margin-bottom: 15px;
-    font-size: 14px;
-}
-
-.privacy-wrap {
-    text-align: left;
-    font-size: 0.92rem;
     margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--sv-danger-border);
+    border-radius: var(--sv-radius);
+    background: var(--sv-danger-bg);
+    color: #8f1a23;
+    font-size: 0.875rem;
 }
-
-.privacy-wrap .form-check-label {
-    color: #334155;
+.privacy-wrap { margin: 18px 0; padding: 14px; border: 1px solid var(--sv-border); border-radius: var(--sv-radius); background: var(--sv-surface-2); font-size: 0.875rem; }
+.privacy-wrap .form-check-label { color: var(--sv-ink-2); }
+.privacy-link { color: var(--sv-accent); font-weight: 650; text-decoration: none; }
+.privacy-link:hover { text-decoration: underline; }
+.privacy-modal-text { white-space: pre-line; color: var(--sv-ink-2); font-size: 0.9375rem; line-height: 1.6; }
+.register-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 16px;
+    padding: 18px max(32px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
+    border-top: 1px solid var(--sv-border);
+    color: var(--sv-muted);
+    font-size: 0.75rem;
 }
-
-.privacy-link {
-    color: #1d4ed8;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.privacy-link:hover {
-    text-decoration: underline;
-}
-
-.privacy-modal-text {
-    white-space: pre-line;
-    color: #334155;
-    font-size: 0.94rem;
-}
-
-@media (max-width: 480px) {
-    body {
-        align-items: flex-start;
-        overflow-y: auto;
-    }
-
-    .card-box {
-        padding: 22px;
-        border-radius: 14px;
-        margin: 12px 0;
-    }
-
-    .logo-bg {
-        margin-bottom: 14px;
-    }
+.register-footer strong { color: var(--sv-ink-2); }
+@media (max-width: 575px) {
+    .register-header { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+    .register-main { place-items: start center; padding: 24px 16px 32px; }
+    .card-box { padding: 24px 20px; border-radius: 14px; }
+    .register-footer { justify-content: center; text-align: center; padding-left: 16px; padding-right: 16px; }
 }
 </style>
 </head>
 
 <body>
 
-<div class="card-box">
-
-    <div class="logo-bg">
-        <img src="{% static 'portal/logo.png' %}" style="max-height:70px;">
+<header class="register-header">
+    <div class="register-brand">
+        <img src="{% static 'portal/logo.png' %}" alt="" width="40" height="40">
+        <div><strong>San Vincenzo S.r.l.</strong><span>Portale del personale</span></div>
     </div>
+</header>
+
+<main class="register-main">
+<div class="card-box">
 
     <h4 class="mb-3">Benvenuto nel Portale Cedolini</h4>
 
@@ -122,44 +110,64 @@ body {
     <form method="POST">
         {% csrf_token %}
 
+        <div class="register-field">
+        <label class="form-label" for="register_first_name">Nome</label>
         <input type="text"
+               id="register_first_name"
                name="first_name"
-               class="form-control mb-3"
+               autocomplete="given-name"
+               class="form-control"
                placeholder="Nome"
                required>
+        </div>
 
+         <div class="register-field">
+         <label class="form-label" for="register_last_name">Cognome</label>
          <input type="text"
+             id="register_last_name"
              name="last_name"
-             class="form-control mb-3"
+             autocomplete="family-name"
+             class="form-control"
              placeholder="Cognome"
              required>
+         </div>
 
+         <div class="register-field">
+         <label class="form-label" for="register_email">Email</label>
          <input type="email"
+             id="register_email"
              name="email"
-             class="form-control mb-3"
+             autocomplete="email"
+             autocapitalize="none"
+             class="form-control"
              placeholder="Email"
              required>
+         </div>
 
+         <label class="form-label" for="password">Nuova password</label>
          <div class="input-group mb-3">
              <input type="password"
                  id="password"
+                 autocomplete="new-password"
                  name="password"
                  class="form-control"
                  placeholder="Nuova password"
                  required>
-             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password', this)">
+             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password', this)" aria-label="Mostra password">
               <i class="bi bi-eye"></i>
              </button>
          </div>
 
-         <div class="input-group mb-4">
+         <label class="form-label" for="confirm_password">Conferma password</label>
+         <div class="input-group mb-2">
              <input type="password"
                  id="confirm_password"
+                 autocomplete="new-password"
                  name="confirm_password"
                  class="form-control"
                  placeholder="Conferma password"
                  required>
-             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirm_password', this)">
+             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirm_password', this)" aria-label="Mostra conferma password">
               <i class="bi bi-eye"></i>
              </button>
          </div>
@@ -180,6 +188,9 @@ body {
     </form>
 
 </div>
+</main>
+
+<footer class="register-footer"><span>San Vincenzo S.r.l.</span><span>Sistema sviluppato da <strong>Antimo Di Giovanni</strong></span></footer>
 
 <div class="modal fade" id="privacyModal" tabindex="-1" aria-labelledby="privacyModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-lg">

@@ -4,107 +4,42 @@
 
 {% block extra_css %}
 <style>
-.today-summary-card {
-    background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
-    color: #fff;
-}
+.today-summary-card { background: var(--sv-surface); color: var(--sv-ink); }
+.today-summary-card .text-white, .today-summary-card .text-white-50 { color: var(--sv-muted) !important; }
 
 .secretary-today-card {
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 18px;
-    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-lg);
+    background: var(--sv-surface);
+    box-shadow: var(--sv-shadow-sm);
 }
+.secretary-today-item { padding: 12px 14px; border: 1px solid var(--sv-border); border-radius: var(--sv-radius); background: var(--sv-surface); }
+.secretary-today-item + .secretary-today-item { margin-top: 10px; }
+.secretary-today-meta { color: var(--sv-muted); font-size: 0.8125rem; }
+.secretary-today-empty { padding: 14px; border: 1px dashed var(--sv-border-strong); border-radius: var(--sv-radius); background: var(--sv-surface-2); color: var(--sv-muted); }
 
-.secretary-today-item {
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 0.85rem 0.95rem;
-    background: #ffffff;
-}
+.agenda-item { padding: 14px 16px; border: 1px solid var(--sv-border); border-radius: var(--sv-radius); background: var(--sv-surface); }
+.agenda-item + .agenda-item { margin-top: 10px; }
+.agenda-section + .agenda-section { margin-top: 16px; }
+.agenda-meta { color: var(--sv-muted); font-size: 0.8125rem; }
+.agenda-empty { color: var(--sv-muted); font-size: 0.875rem; }
 
-.secretary-today-item + .secretary-today-item {
-    margin-top: 0.75rem;
-}
+.today-table td, .today-table th { white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-.secretary-today-meta {
-    color: #64748b;
-    font-size: 0.86rem;
-}
-
-.secretary-today-empty {
-    border: 1px dashed #cbd5e1;
-    border-radius: 14px;
-    padding: 0.95rem;
-    color: #64748b;
-    background: rgba(255, 255, 255, 0.8);
-}
-
-.agenda-item {
-    border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    padding: 1rem;
-    background: #fff;
-}
-
-.agenda-item + .agenda-item {
-    margin-top: 0.9rem;
-}
-
-.agenda-section + .agenda-section {
-    margin-top: 1rem;
-}
-
-.agenda-meta {
-    color: #64748b;
-    font-size: 0.9rem;
-}
-
-.agenda-empty {
-    color: #64748b;
-    font-size: 0.95rem;
-}
-
-.today-table td,
-.today-table th {
-    white-space: nowrap;
-}
-
-.employee-turni-gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-}
-
-.employee-turni-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    padding: 1rem;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-}
-
+.employee-turni-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px; }
+.employee-turni-card { padding: 16px; border: 1px solid var(--sv-border); border-radius: var(--sv-radius-lg); background: var(--sv-surface); box-shadow: var(--sv-shadow-sm); }
 .employee-turni-link {
     display: block;
-    text-decoration: none;
-    color: inherit;
     aspect-ratio: 210 / 297;
-    border-radius: 12px;
-    border: 1px solid #dbe4f0;
-    background: linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%);
     overflow: hidden;
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-sm);
+    background: var(--sv-surface-2);
+    color: inherit;
+    text-decoration: none;
 }
-
-.employee-turni-card img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    background: transparent;
-    object-fit: contain;
-}
-
-.employee-turni-open {
-    margin-top: 0.85rem;
-}
+.employee-turni-card img { display: block; width: 100%; height: 100%; object-fit: contain; background: transparent; }
+.employee-turni-open { margin-top: 12px; }
 </style>
 {% endblock %}
 
@@ -142,7 +77,7 @@
     <div class="row g-4">
         <div class="col-lg-4">
             <div class="card-modern today-summary-card h-100">
-                <div class="small text-uppercase opacity-75 mb-2">Data</div>
+                <div class="small text-muted mb-2">Data</div>
                 <div class="display-6 fw-bold">{{ today|date:"d/m/Y" }}</div>
                 <div class="mt-3">Dipendenti con almeno una marcatura: <strong>{{ today_marked_sessions|length }}</strong></div>
             </div>
@@ -241,7 +176,7 @@
     <div class="row g-4">
         <div class="col-lg-4">
             <div class="card-modern border h-100">
-                <div class="small text-uppercase text-muted mb-2">Data selezionata</div>
+                <div class="small text-muted mb-2">Data selezionata</div>
                 <div class="display-6 fw-bold">{{ selected_date|date:"d/m/Y" }}</div>
                 <div class="mt-3">Dipendenti con almeno una marcatura: <strong>{{ selected_marked_sessions|length }}</strong></div>
             </div>

@@ -1,0 +1,28 @@
+.public-portal-page { min-height: 100dvh; display: flex; flex-direction: column; background: var(--portal-bg); }
+.auth-brand-header { padding: 20px 32px; background: #fff; border-bottom: 1px solid var(--portal-border); }
+.auth-brand-link { display: inline-flex; align-items: center; gap: 14px; text-decoration: none; color: var(--portal-text); }
+.auth-brand-link img { width: 48px; height: 48px; object-fit: contain; }
+.auth-brand-link strong { font-size: 1.1rem; }
+.auth-brand-link span { display: block; font-size: 0.8rem; color: var(--portal-muted); }
+.auth-main { flex: 1; display: grid; align-items: center; }
+.public-portal-page .auth-shell { min-height: auto; padding: 24px 0; }
+.public-portal-page .auth-card, .public-portal-page .auth-panel { background: transparent; border: 0; border-radius: 0; box-shadow: none; max-width: 480px; padding: 0; }
+.public-portal-page .auth-card__header { background: transparent; color: var(--portal-text); padding: 0 0 28px; }
+.public-portal-page .auth-card__header .text-white-50 { color: var(--portal-muted) !important; }
+.public-portal-page .auth-card__header > .small { display: none; }
+.public-portal-page .auth-card__body { padding: 0; }
+.public-portal-page .auth-form-control { border-radius: 6px; min-height: 52px; }
+.public-portal-page .auth-action { border-radius: 6px; min-height: 52px; background: var(--sv-blue); color: #fff; }
+.public-portal-page h1 { font-size: 1.75rem; font-weight: 750; }
+.public-portal-page .auth-check, .public-portal-page .auth-success { width: 52px; height: 52px; border-radius: 8px; }
+.public-portal-page .errorlist { padding-left: 20px; }
+.auth-footer { border-top: 1px solid var(--portal-border); padding: 22px 32px; font-size: 0.75rem; color: var(--portal-muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.password-change { max-width: 560px; }
+.password-change label { display: block; font-weight: 600; margin-bottom: 8px; }
+.password-change input { width: 100%; min-height: 48px; border: 1px solid #a9b6c7; border-radius: 6px; padding: 10px 12px; }
+.password-change .errorlist { color: #98222f; padding-left: 20px; margin-top: 8px; }
+@media (max-width: 575px) {
+    .auth-brand-header, .auth-footer { padding: 18px 24px; }
+    .auth-main { padding-inline: 24px; }
+    .public-portal-page .auth-shell { padding: 0; }
+}

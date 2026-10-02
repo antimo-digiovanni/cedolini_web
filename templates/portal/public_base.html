@@ -3,10 +3,10 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}Portale Cedolini{% endblock %}</title>
   <link rel="manifest" href="{% url 'employee_webmanifest' %}">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#ffffff">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -20,14 +20,19 @@
   <link rel="apple-touch-icon-precomposed" href="{% url 'apple_touch_icon_precomposed' %}">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   {% block extra_head %}{% endblock %}
-  <style>
-    body { background-color: #f4f6f9; }
-    .card-custom { border:none; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
-  </style>
+  <link rel="stylesheet" href="{% static 'portal/portal-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'portal/portal-auth.css' %}">
 </head>
-<body>
-  <main class="container py-5">
+<body class="public-portal-page">
+  <header class="auth-brand-header">
+    <a href="{% url 'login' %}" class="auth-brand-link">
+      <img src="{% static 'portal/logo.png' %}" alt="" width="40" height="40">
+      <div><strong>San Vincenzo S.r.l.</strong><span>Portale del personale</span></div>
+    </a>
+  </header>
+  <main class="container py-5 auth-main">
     {% block content %}{% endblock %}
   </main>
+  <footer class="auth-footer"><span>San Vincenzo S.r.l.</span><span>Sistema sviluppato da <strong>Antimo Di Giovanni</strong></span></footer>
 </body>
 </html>

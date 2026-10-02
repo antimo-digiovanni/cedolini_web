@@ -1,13 +1,52 @@
-:root {
-    --pc-bg: #f1f5f9;
-    --pc-text: #0f172a;
-    --pc-muted: #475569;
+/* Django admin allineato al tema del Portale San Vincenzo */
+:root,
+html[data-theme="light"],
+html[data-theme="auto"] {
+    --pc-bg: #f6f8fb;
+    --pc-text: #1a2233;
+    --pc-muted: #5b6678;
     --pc-surface: #ffffff;
-    --pc-border: #dbe3ef;
-    --pc-grad-start: #0f172a;
-    --pc-grad-end: #1d4ed8;
-    --pc-primary: #1d4ed8;
-    --pc-primary-hover: #1e40af;
+    --pc-border: #e3e8ee;
+    --pc-primary: #3451d1;
+    --pc-primary-hover: #2a43b0;
+    --pc-tint: #eef1fd;
+
+    --primary: #3451d1;
+    --secondary: #1a2233;
+    --accent: #3451d1;
+    --primary-fg: #ffffff;
+    --body-fg: #1a2233;
+    --body-bg: #ffffff;
+    --body-quiet-color: #5b6678;
+    --body-loud-color: #1a2233;
+    --header-color: #1a2233;
+    --header-branding-color: #1a2233;
+    --header-bg: #ffffff;
+    --header-link-color: #3451d1;
+    --breadcrumbs-fg: #5b6678;
+    --breadcrumbs-link-fg: #3451d1;
+    --breadcrumbs-bg: #f6f8fb;
+    --link-fg: #3451d1;
+    --link-hover-color: #2a43b0;
+    --link-selected-fg: #22378f;
+    --hairline-color: #e3e8ee;
+    --border-color: #e3e8ee;
+    --darkened-bg: #f6f8fb;
+    --selected-bg: #eef1fd;
+    --selected-row: #eef1fd;
+    --button-fg: #ffffff;
+    --button-bg: #3451d1;
+    --button-hover-bg: #2a43b0;
+    --default-button-bg: #3451d1;
+    --default-button-hover-bg: #2a43b0;
+    --close-button-bg: #5b6678;
+    --close-button-hover-bg: #384255;
+    --delete-button-bg: #be2530;
+    --delete-button-hover-bg: #a51f29;
+    --object-tools-fg: #ffffff;
+    --object-tools-bg: #384255;
+    --object-tools-hover-bg: #1a2233;
+    --font-family-primary: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 body,
@@ -17,77 +56,73 @@ body,
 }
 
 #header {
-    background: linear-gradient(90deg, var(--pc-grad-start) 0%, var(--pc-grad-end) 100%);
-    color: #ffffff;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+    background: var(--pc-surface);
+    color: var(--pc-text);
+    border-bottom: 1px solid var(--pc-border);
+    box-shadow: none;
 }
 
-#header a:link,
-#header a:visited,
-#site-name a,
+#site-name a:link,
+#site-name a:visited { color: var(--pc-text); font-weight: 750; }
 #user-tools,
-#user-tools a {
-    color: #ffffff;
-}
+#user-tools a,
+#header a:link,
+#header a:visited { color: var(--pc-primary); }
+#user-tools { color: var(--pc-muted); }
+#user-tools button { color: var(--pc-primary); }
 
 div.breadcrumbs {
-    background: #e8efff;
-    color: #1e3a8a;
-    border-bottom: 1px solid #c7d2fe;
+    background: var(--pc-bg);
+    color: var(--pc-muted);
+    border-bottom: 1px solid var(--pc-border);
 }
-
-.module,
-.inline-group,
-.dashboard .module table,
-#changelist-form .results,
-#changelist-filter,
-.submit-row,
-.object-tools a,
-.login #content-main,
-.login .form-row,
-.login .submit-row {
-    border-radius: 12px;
-}
+div.breadcrumbs a { color: var(--pc-primary); }
 
 .module,
 .inline-group,
 #changelist-filter,
 .login #content-main,
 .dashboard .module {
+    overflow: hidden;
     border: 1px solid var(--pc-border);
+    border-radius: 12px;
     background: var(--pc-surface);
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 6px rgba(16, 24, 40, 0.04);
 }
 
 .module h2,
 .module caption,
 .inline-group h2 {
-    background: linear-gradient(90deg, var(--pc-grad-start) 0%, var(--pc-grad-end) 100%);
-    color: #ffffff;
-    border-radius: 10px 10px 0 0;
+    background: #f9fafc;
+    color: var(--pc-text);
+    border-bottom: 1px solid var(--pc-border);
+    border-radius: 0;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
 }
+.module caption a,
+.module h2 a { color: var(--pc-text); }
+
+thead th,
+tfoot td { background: #f9fafc; color: var(--pc-muted); border-bottom: 1px solid var(--pc-border); }
 
 a:link,
-a:visited {
-    color: var(--pc-primary);
-}
-
+a:visited { color: var(--pc-primary); }
 a:hover,
-a:focus {
-    color: var(--pc-primary-hover);
-}
+a:focus { color: var(--pc-primary-hover); }
 
 .button,
 input[type=submit],
 input[type=button],
 .submit-row input,
 a.button {
-    background: var(--pc-primary);
     border: 1px solid var(--pc-primary);
-    color: #ffffff;
     border-radius: 8px;
+    background: var(--pc-primary);
+    color: #ffffff;
+    font-weight: 650;
 }
-
 .button:hover,
 input[type=submit]:hover,
 input[type=button]:hover,
@@ -96,32 +131,35 @@ a.button:hover {
     background: var(--pc-primary-hover);
     border-color: var(--pc-primary-hover);
 }
-
 .button.default,
 input[type=submit].default,
-.submit-row input.default {
-    background: linear-gradient(90deg, var(--pc-grad-start) 0%, var(--pc-grad-end) 100%);
-    border: none;
-}
+.submit-row input.default { background: var(--pc-primary); border: 1px solid var(--pc-primary); }
 
-.login {
-    background: radial-gradient(circle at 20% 30%, #1e3a8a, #0f172a 60%);
-}
+.submit-row { border-radius: 12px; border: 1px solid var(--pc-border); background: #f9fafc; }
 
-.login #container {
-    background: transparent;
+input[type=text],
+input[type=password],
+input[type=email],
+input[type=url],
+input[type=number],
+input[type=tel],
+textarea,
+select,
+.vTextField {
+    border: 1px solid #cfd7e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--pc-text);
 }
+input:focus,
+select:focus,
+textarea:focus { border-color: var(--pc-primary); outline: 0; box-shadow: 0 0 0 3px rgba(52, 81, 209, 0.22); }
 
-.login #header {
-    border-radius: 14px 14px 0 0;
-}
-
-.login #content {
-    border-radius: 0 0 14px 14px;
-}
+.login { background: var(--pc-bg); }
+.login #container { background: var(--pc-surface); border: 1px solid var(--pc-border); border-radius: 16px; box-shadow: 0 2px 4px rgba(16, 24, 40, 0.04), 0 8px 20px rgba(16, 24, 40, 0.07); overflow: hidden; }
+.login #header { border-radius: 0; }
+.login #content { border-radius: 0; }
 
 @media (max-width: 900px) {
-    #header {
-        padding: 10px 14px;
-    }
+    #header { padding: 10px 14px; }
 }

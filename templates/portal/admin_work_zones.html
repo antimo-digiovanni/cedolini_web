@@ -10,58 +10,33 @@
 #zoneMap {
     width: 100%;
     min-height: 720px;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-lg);
+    box-shadow: var(--sv-shadow-sm);
 }
-
-.zone-map-hint {
-    font-size: 0.9rem;
-    color: #64748b;
-}
-
-.rect-selection-status {
-    font-size: 0.9rem;
-    color: #475569;
-}
-
-.rect-selection-count {
-    font-size: 0.85rem;
-    color: #64748b;
-}
-
-#geocodeResults .list-group-item {
-    cursor: pointer;
-}
-#geocodeResults .list-group-item:hover {
-    background: #f1f5f9;
-}
-
+.zone-map-hint { color: var(--sv-muted); font-size: 0.875rem; }
+.rect-selection-status { color: var(--sv-ink-2); font-size: 0.875rem; }
+.rect-selection-count { color: var(--sv-muted); font-size: 0.8125rem; }
+#geocodeResults .list-group-item { cursor: pointer; }
+#geocodeResults .list-group-item:hover { background: var(--sv-surface-2); }
 .assignment-employee-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 8px;
+    min-height: 32px;
     padding: 0;
     border: 0;
     background: transparent;
-    color: #0f172a;
-    font-weight: 600;
+    color: var(--sv-ink);
+    font-weight: 650;
     text-align: left;
 }
-
-.assignment-employee-toggle:hover {
-    color: #0d6efd;
-}
-
-.assignment-employee-toggle .bi {
-    transition: transform 0.2s ease;
-}
-
-.assignment-employee-toggle[aria-expanded="true"] .bi {
-    transform: rotate(90deg);
-}
-
-.assignment-group-detail {
-    background: #f8fafc;
+.assignment-employee-toggle:hover { color: var(--sv-accent); }
+.assignment-employee-toggle .bi { color: var(--sv-muted); transition: transform 0.2s ease; }
+.assignment-employee-toggle[aria-expanded="true"] .bi { transform: rotate(90deg); }
+.assignment-group-detail { background: var(--sv-surface-2); }
+@media (max-width: 767.98px) {
+    #zoneMap { min-height: 62vh; }
 }
 </style>
 {% endblock %}

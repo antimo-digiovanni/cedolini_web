@@ -5,65 +5,30 @@
 
 {% block extra_css %}
 <style>
-.report-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
+.report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.month-grid {
-    display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 0.55rem;
-}
-
+.month-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
 .month-cell {
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 0.45rem 0.5rem;
-    background: #ffffff;
     min-height: 62px;
+    padding: 8px 10px;
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-sm);
+    background: var(--sv-surface);
 }
+.month-cell-day { color: var(--sv-muted); font-size: 0.75rem; font-weight: 650; }
+.month-cell-value { margin-top: 4px; color: var(--sv-ink); font-size: 0.75rem; line-height: 1.25; font-variant-numeric: tabular-nums; }
 
-.month-cell-day {
-    font-size: 0.72rem;
-    color: #64748b;
-    font-weight: 600;
-}
-
-.month-cell-value {
-    margin-top: 0.22rem;
-    font-size: 0.75rem;
-    line-height: 1.15;
-    color: #0f172a;
-}
-
-.pending-request-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    padding: 1rem;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-}
-
-.pending-request-card + .pending-request-card {
-    margin-top: 0.9rem;
-}
-
-.pending-request-meta {
-    color: #64748b;
-    font-size: 0.85rem;
-}
+.pending-request-card { padding: 14px 16px; border: 1px solid var(--sv-border); border-radius: var(--sv-radius); background: var(--sv-surface); }
+.pending-request-card + .pending-request-card { margin-top: 10px; }
+.pending-request-meta { color: var(--sv-muted); font-size: 0.8125rem; }
 
 @media (max-width: 1199.98px) {
-    .month-grid {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-    }
+    .month-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
-
 @media (max-width: 767.98px) {
-    .month-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+    .month-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .report-actions { display: grid; grid-template-columns: 1fr 1fr; }
+    .report-actions > * { width: 100%; }
 }
 </style>
 {% endblock %}

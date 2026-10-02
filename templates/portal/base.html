@@ -3,11 +3,11 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{% block title %}Portale Cedolini{% endblock %}</title>
 
 <link rel="manifest" href="{% url 'employee_webmanifest' %}">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#ffffff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -24,439 +24,229 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
 <style>
-body {
-    background-color: #f1f5f9;
-    font-family: 'Segoe UI', sans-serif;
-    position: relative;
-    overflow-x: hidden;
-}
-
-.background-logo {
-    position: fixed;
-    /* Desktop layout has a 260px sidebar and topbar; offset center to the content area. */
-    top: calc(50% + 28px);
-    left: calc(50% + 140px);
-    transform: translate(-50%, -50%);
-    width: 900px;
-    max-width: 70%;
-    opacity: 0.04;
-    z-index: 0;
-    pointer-events: none;
-    user-select: none;
-}
-
-.sidebar {
-    height: 100vh;
-    background: linear-gradient(90deg, #1d4ed8 0%, #0f172a 100%);
-    position: sticky;
-    top: 0;
-    padding: 25px 15px;
-    z-index: 2;
-    overflow-y: auto;
-}
-
-.sidebar-desktop {
-    width: 280px !important;
-    flex: 0 0 280px;
-}
-
-.sidebar-title {
-    color: #94a3b8;
-    font-size: 0.8rem;
-    letter-spacing: 1px;
-    margin-bottom: 25px;
-    text-transform: uppercase;
-}
-
-.sidebar a, .sidebar button {
-    color: #cbd5e1;
-    text-decoration: none;
-    padding: 12px 18px;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    border: none;
-    background: transparent;
-    transition: all 0.25s ease;
-    line-height: 1.35;
-    width: 100%;
-    text-align: left;
-}
-
-.sidebar a i,
-.sidebar button i {
-    flex: 0 0 18px;
-    margin-top: 1px;
-}
-
-.sidebar a:hover, .sidebar button:hover {
-    background-color: #2563eb;
-    color: #ffffff;
-    transform: translateX(6px);
-}
-
-.sidebar a.active {
-    background: linear-gradient(90deg, #2563eb, #3b82f6);
-    color: white;
-    box-shadow: 0 0 15px rgba(37, 99, 235, 0.5);
-}
-
-.topbar {
-    background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);
-    padding: 14px 30px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 2;
-    position: relative;
-}
-
-.topbar-title {
-    color: white;
-    font-weight: 600;
-}
-
-.topbar-user {
-    color: #cbd5e1;
-    font-size: 0.9rem;
-}
-
-.card-modern {
-    border: none;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.06);
-    padding: 25px;
-    transition: 0.25s ease;
-    position: relative;
-    z-index: 2;
-}
-
-.card-modern:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 18px 40px rgba(0,0,0,0.12);
-}
-
-.custom-footer {
-    position: fixed;
-    bottom: 10px;
-    right: 20px;
-    font-size: 0.75rem;
-    color: #94a3b8;
-    z-index: 2;
-}
-
-main {
-    position: relative;
-    z-index: 2;
-}
-
-.page-main {
-    padding: 1.5rem;
-}
-
-.sidebar-mobile-toggle {
-    border: 1px solid rgba(255, 255, 255, 0.28);
-    color: #ffffff;
-}
-
-.sidebar-mobile-toggle:hover,
-.sidebar-mobile-toggle:focus {
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.52);
-    background-color: rgba(255, 255, 255, 0.08);
-}
-
-.mobile-sidebar {
-    background: linear-gradient(90deg, #1d4ed8 0%, #0f172a 100%);
-}
-
-.page-hero {
-    background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);
-    border-radius: 16px;
-    padding: 24px;
-    color: #ffffff;
-    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.2);
-}
-
-.page-hero h2,
-.page-hero p {
-    color: inherit;
-}
-
-.mobile-sidebar .offcanvas-header {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-}
-
-.mobile-sidebar .btn-close {
-    filter: invert(1) grayscale(1);
-}
-
-.mobile-sidebar .sidebar {
-    height: auto;
-    position: static;
-    padding: 0;
-}
-
-@media (max-width: 991.98px) {
-    .background-logo {
-        display: none;
-    }
-
-    .topbar {
-        padding: 12px 14px;
-    }
-
-    .topbar-title {
-        font-size: 0.95rem;
-    }
-
-    .topbar-user {
-        display: none;
-    }
-
-    .page-main {
-        padding: 1rem;
-    }
-
-    .card-modern {
-        padding: 16px;
-        border-radius: 14px;
-    }
-
-    .custom-footer {
-        position: static;
-        margin: 8px 0 12px;
-        text-align: center;
-    }
-}
-
-/* Ensure Bootstrap modal appears above other page elements */
+/* Regole funzionali: livelli delle modali e pulsante installazione app. L'aspetto vive in portal-theme.css. */
 .modal {
     z-index: 2000 !important;
 }
 .modal-backdrop {
-    z-index: 1500 !important;
-}
-/* Stronger rules in case other elements overlay the modal */
-.modal-backdrop {
     z-index: 100000 !important;
-    background-color: rgba(0,0,0,0.55) !important;
 }
-
 .modal,
 .modal-dialog,
 .modal-content {
     z-index: 200000 !important;
     pointer-events: auto !important;
 }
-
-/* ensure modal is fixed and centered above all other stacking contexts */
 .modal {
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
 }
-
-.confirm-modal-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #1d4ed8;
-    font-size: 1.35rem;
-}
-
-.confirm-modal-note {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 0.85rem 1rem;
-    color: #475569;
-    font-size: 0.92rem;
-}
-
 .sidebar-install-button {
     display: none !important;
 }
-
 .sidebar-install-button.is-visible {
     display: flex !important;
 }
-
-.install-modal-steps {
-    margin: 0;
-    padding-left: 1rem;
-    color: #475569;
-}
-
-.install-modal-steps li + li {
-    margin-top: 0.35rem;
-}
 </style>
+<link rel="stylesheet" href="{% static 'portal/portal-theme.css' %}">
 {% block extra_css %}{% endblock %}
 </head>
 
 <body {% block body_data_attrs %}{% endblock %}>
+<a class="skip-link" href="#portal-main">Vai al contenuto</a>
+{% with un=request.resolver_match.url_name %}
+<div class="portal-shell">
 
-<img src="{% static 'portal/logo.png' %}" class="background-logo" alt="Background Logo">
+    <aside class="sidebar sidebar-desktop d-none d-lg-flex" aria-label="Menu principale">
+        <div id="sidebarMenuContent" class="sidebar-inner">
+            <a class="sidebar-brand" href="{% if has_full_admin_access %}{% url 'admin_dashboard' %}{% elif has_today_markings_only_access %}{% url 'today_markings_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}">
+                <img src="{% static 'portal/logo.png' %}" alt="" width="40" height="40">
+                <span class="sidebar-brand-text"><strong>San Vincenzo S.r.l.</strong><span>{% if has_full_admin_access %}Amministrazione{% else %}Area personale{% endif %}</span></span>
+            </a>
 
-<div class="d-flex">
-
-    <div class="sidebar sidebar-desktop d-none d-lg-block" style="width:260px;">
-        <div id="sidebarMenuContent">
-            <div class="sidebar-title">Menu</div>
-
+            <nav class="sidebar-nav">
             {% if has_full_admin_access %}
-            <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
-                <i class="bi bi-speedometer2"></i> Dashboard
+            <a href="{% url 'admin_dashboard' %}" class="{% if un == 'admin_dashboard' %}active{% endif %}">
+                <i class="bi bi-grid-1x2" aria-hidden="true"></i> Dashboard
             </a>
             {% elif has_today_markings_only_access %}
-            <a href="{% url 'today_markings_dashboard' %}" class="{% if request.resolver_match.url_name == 'today_markings_dashboard' %}active{% endif %}">
-                <i class="bi bi-calendar-check"></i> Chi ha marcato oggi
+            <a href="{% url 'today_markings_dashboard' %}" class="{% if un == 'today_markings_dashboard' %}active{% endif %}">
+                <i class="bi bi-calendar-check" aria-hidden="true"></i> Chi ha marcato oggi
             </a>
             {% else %}
-            <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-                <i class="bi bi-speedometer2"></i> Dashboard
+            <a href="{% url 'dashboard' %}" class="{% if un == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-grid-1x2" aria-hidden="true"></i> Dashboard
             </a>
-            <a href="{% url 'timekeeping' %}" class="{% if request.resolver_match.url_name == 'timekeeping' %}active{% endif %}">
-                <i class="bi bi-stopwatch"></i> Marcatura
+            <a href="{% url 'timekeeping' %}" class="{% if un == 'timekeeping' %}active{% endif %}">
+                <i class="bi bi-stopwatch" aria-hidden="true"></i> Marcatura
             </a>
             {% if has_patrimonio_access %}
-            <a href="{% url 'personal_asset_dashboard' %}" class="{% if request.resolver_match.url_name == 'personal_asset_dashboard' %}active{% endif %}">
-                <i class="bi bi-piggy-bank"></i> Gestione Patrimonio
+            <a href="{% url 'personal_asset_dashboard' %}" class="{% if un == 'personal_asset_dashboard' %}active{% endif %}">
+                <i class="bi bi-wallet2" aria-hidden="true"></i> Gestione Patrimonio
             </a>
             {% endif %}
-            <a href="{% url 'portal_tutorial' %}" class="{% if request.resolver_match.url_name == 'portal_tutorial' %}active{% endif %}">
-                <i class="bi bi-journal-text"></i> Tutorial Portale
+            <a href="{% url 'portal_tutorial' %}" class="{% if un == 'portal_tutorial' %}active{% endif %}">
+                <i class="bi bi-journal-text" aria-hidden="true"></i> Tutorial Portale
             </a>
             <button type="button" id="sidebarInstallAppButton" class="sidebar-install-button" aria-label="Installa app del portale">
-                <i class="bi bi-phone"></i> Installa app
+                <i class="bi bi-phone" aria-hidden="true"></i> Installa app
             </button>
             {% if has_today_markings_access %}
-            <a href="{% url 'today_markings_dashboard' %}" class="{% if request.resolver_match.url_name == 'today_markings_dashboard' %}active{% endif %}">
-                <i class="bi bi-calendar-check"></i> Chi ha marcato oggi
+            <a href="{% url 'today_markings_dashboard' %}" class="{% if un == 'today_markings_dashboard' %}active{% endif %}">
+                <i class="bi bi-calendar-check" aria-hidden="true"></i> Chi ha marcato oggi
             </a>
             {% endif %}
             {% endif %}
 
             {% if has_full_admin_access %}
-            <a href="{% url 'admin:index' %}">
-                <i class="bi bi-gear"></i> Admin Django
+            <div class="sidebar-title">Personale</div>
+            <a href="{% url 'admin_employees' %}" class="{% if un == 'admin_employees' or un == 'admin_employee_detail' or un == 'admin_employee_payslips' %}active{% endif %}">
+                <i class="bi bi-people" aria-hidden="true"></i> Gestione Dipendenti
+            </a>
+            <a href="{% url 'turni_planner_home' %}" class="{% if un == 'turni_planner_home' %}active{% endif %}">
+                <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Turni Planner
             </a>
 
+            <div class="sidebar-title">Cedolini</div>
+            <a href="{% url 'admin_all_payslips' %}" class="{% if un == 'admin_all_payslips' %}active{% endif %}">
+                <i class="bi bi-folder2-open" aria-hidden="true"></i> Archivio Cedolini
+            </a>
+            <a href="{% url 'admin_report' %}" class="{% if un == 'admin_report' %}active{% endif %}">
+                <i class="bi bi-graph-up" aria-hidden="true"></i> Report cedolini
+            </a>
+            <a href="{% url 'admin_payslip_integrity' %}" class="{% if un == 'admin_payslip_integrity' %}active{% endif %}">
+                <i class="bi bi-shield-check" aria-hidden="true"></i> Controllo cedolini
+            </a>
+            <a href="{% url 'admin_import_jobs' %}" class="{% if un == 'admin_import_jobs' or un == 'admin_import_job_payslips' %}active{% endif %}">
+                <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Storico caricamenti
+            </a>
+
+            <div class="sidebar-title">Presenze</div>
+            <a href="{% url 'admin_timekeeping' %}" class="{% if un == 'admin_timekeeping' %}active{% endif %}">
+                <i class="bi bi-calendar-week" aria-hidden="true"></i> Report marcature
+            </a>
+            <a href="{% url 'admin_out_of_zone_requests' %}" class="{% if un == 'admin_out_of_zone_requests' %}active{% endif %}">
+                <i class="bi bi-geo" aria-hidden="true"></i> Storico richieste fuori zona
+            </a>
+            <a href="{% url 'admin_vacation_requests' %}" class="{% if un == 'admin_vacation_requests' %}active{% endif %}">
+                <i class="bi bi-airplane" aria-hidden="true"></i> Storico richieste ferie
+            </a>
+            <a href="{% url 'admin_work_zones' %}" class="{% if un == 'admin_work_zones' %}active{% endif %}">
+                <i class="bi bi-geo-alt" aria-hidden="true"></i> Zone di lavoro
+            </a>
+
+            <div class="sidebar-title">Amministrazione</div>
             {% if has_patrimonio_access %}
-            <a href="{% url 'personal_asset_dashboard' %}" class="{% if request.resolver_match.url_name == 'personal_asset_dashboard' %}active{% endif %}">
-                <i class="bi bi-piggy-bank"></i> Gestione Patrimonio
+            <a href="{% url 'personal_asset_dashboard' %}" class="{% if un == 'personal_asset_dashboard' %}active{% endif %}">
+                <i class="bi bi-wallet2" aria-hidden="true"></i> Gestione Patrimonio
             </a>
             {% endif %}
-
-            <a href="{% url 'turni_planner_home' %}" class="{% if request.resolver_match.url_name == 'turni_planner_home' %}active{% endif %}">
-                <i class="bi bi-grid-3x3-gap"></i> Turni Planner
+            <a href="{% url 'admin_audit_events' %}" class="{% if un == 'admin_audit_events' %}active{% endif %}">
+                <i class="bi bi-clipboard-data" aria-hidden="true"></i> Storico azioni
             </a>
-
-            <a href="{% url 'admin_employees' %}">
-                <i class="bi bi-people"></i> Gestione Dipendenti
-            </a>
-            <a href="{% url 'admin_all_payslips' %}" class="{% if request.resolver_match.url_name == 'admin_all_payslips' %}active{% endif %}">
-                <i class="bi bi-folder2-open"></i> Archivio Cedolini
-            </a>
-            <a href="{% url 'admin_report' %}">
-                <i class="bi bi-graph-up"></i> Report cedolini
-            </a>
-            <a href="{% url 'admin_timekeeping' %}">
-                <i class="bi bi-calendar-week"></i> Report marcature
-            </a>
-            <a href="{% url 'admin_out_of_zone_requests' %}" class="{% if request.resolver_match.url_name == 'admin_out_of_zone_requests' %}active{% endif %}">
-                <i class="bi bi-clock-history"></i> Storico richieste fuori zona
-            </a>
-            <a href="{% url 'admin_vacation_requests' %}" class="{% if request.resolver_match.url_name == 'admin_vacation_requests' %}active{% endif %}">
-                <i class="bi bi-airplane"></i> Storico richieste ferie
-            </a>
-            <a href="{% url 'admin_work_zones' %}">
-                <i class="bi bi-geo-alt"></i> Zone di lavoro
-            </a>
-            <a href="{% url 'admin_audit_events' %}">
-                <i class="bi bi-clipboard-data"></i> Storico azioni
-            </a>
-            <a href="{% url 'admin_import_jobs' %}">
-                <i class="bi bi-clock-history"></i> Storico caricamenti
-            </a>
-            <a href="{% url 'admin_payslip_integrity' %}">
-                <i class="bi bi-shield-check"></i> Controllo cedolini
+            <a href="{% url 'admin:index' %}">
+                <i class="bi bi-gear" aria-hidden="true"></i> Admin Django
             </a>
             {% endif %}
 
             {% if has_turni_planner_access and not has_full_admin_access %}
-            <a href="{% url 'turni_planner_home' %}" class="{% if request.resolver_match.url_name == 'turni_planner_home' %}active{% endif %}">
-                <i class="bi bi-grid-3x3-gap"></i> Turni Planner
+            <a href="{% url 'turni_planner_home' %}" class="{% if un == 'turni_planner_home' %}active{% endif %}">
+                <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Turni Planner
             </a>
             {% endif %}
 
+            <div class="sidebar-title">Account</div>
             <a href="{% url 'public_home' %}" target="_blank" rel="noopener">
-                <i class="bi bi-globe2"></i> Sito aziendale
+                <i class="bi bi-globe2" aria-hidden="true"></i> Sito aziendale <i class="bi bi-box-arrow-up-right sidebar-external" aria-hidden="true"></i>
             </a>
 
-            <a href="{% url 'password_change' %}">
-                <i class="bi bi-key"></i> Cambia Password
+            <a href="{% url 'password_change' %}" class="{% if un == 'password_change' or un == 'password_change_done' %}active{% endif %}">
+                <i class="bi bi-key" aria-hidden="true"></i> Cambia Password
             </a>
 
             <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
                 <button type="submit">
-                    <i class="bi bi-box-arrow-right"></i> Logout
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Logout
                 </button>
             </form>
+            </nav>
         </div>
-    </div>
+    </aside>
 
-    <div class="flex-fill">
+    <div class="portal-workspace">
 
-        <div class="topbar">
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-sm sidebar-mobile-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Apri menu">
-                    <i class="bi bi-list"></i>
+        <header class="topbar">
+            <div class="topbar-start">
+                <button class="btn sidebar-mobile-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Apri menu">
+                    <i class="bi bi-list" aria-hidden="true"></i>
                 </button>
+                <img class="topbar-logo d-lg-none" src="{% static 'portal/logo.png' %}" alt="" width="32" height="32">
                 <div class="topbar-title">
-                    San Vincenzo - Area Cedolini
+                    <span class="d-lg-none">San Vincenzo</span>
+                    <span class="d-none d-lg-inline">San Vincenzo S.r.l. <span class="topbar-sep" aria-hidden="true">/</span> <span class="topbar-context">{% if un == 'admin_dashboard' or un == 'dashboard' %}Dashboard{% elif un == 'admin_employees' or un == 'admin_employee_detail' or un == 'admin_employee_payslips' %}Gestione dipendenti{% elif un == 'turni_planner_home' %}Turni Planner{% elif un == 'admin_all_payslips' %}Archivio cedolini{% elif un == 'admin_report' %}Report cedolini{% elif un == 'admin_payslip_integrity' %}Controllo cedolini{% elif un == 'admin_import_jobs' or un == 'admin_import_job_payslips' %}Storico caricamenti{% elif un == 'admin_upload_period_folder' %}Carica cedolini{% elif un == 'admin_upload_cud' %}Carica CUD{% elif un == 'admin_timekeeping' %}Report marcature{% elif un == 'admin_out_of_zone_requests' %}Richieste fuori zona{% elif un == 'admin_vacation_requests' %}Richieste ferie{% elif un == 'admin_work_zones' %}Zone di lavoro{% elif un == 'personal_asset_dashboard' %}Gestione patrimonio{% elif un == 'admin_audit_events' %}Storico azioni{% elif un == 'timekeeping' %}Marcatura{% elif un == 'portal_tutorial' %}Tutorial{% elif un == 'today_markings_dashboard' %}Chi ha marcato oggi{% elif un == 'password_change' or un == 'password_change_done' %}Cambia password{% elif has_full_admin_access %}Amministrazione{% else %}Area personale{% endif %}</span></span>
                 </div>
             </div>
 
             <div class="topbar-user">
+                <span class="topbar-avatar" aria-hidden="true">{% if user.first_name or user.last_name %}{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}{% else %}{{ user.username|first|upper }}{% endif %}</span>
+                <span class="topbar-name">
                 {% if user.first_name or user.last_name %}
                     {{ user.first_name }} {{ user.last_name }}
                 {% else %}
                     {{ user.username }}
                 {% endif %}
+                </span>
             </div>
-        </div>
+        </header>
 
-        <main class="container-fluid page-main">
+        <main class="page-main" id="portal-main" tabindex="-1">
             {% block content %}{% endblock %}
         </main>
+
+        <footer class="custom-footer">
+            <span>&copy; San Vincenzo S.r.l.</span>
+            <span>Sistema sviluppato da <strong>Antimo Di Giovanni</strong></span>
+        </footer>
 
     </div>
 </div>
 
+<nav class="mobile-tabbar d-lg-none" aria-label="Navigazione rapida">
+    {% if has_full_admin_access %}
+    <a href="{% url 'admin_dashboard' %}" class="{% if un == 'admin_dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Dashboard</span></a>
+    <a href="{% url 'admin_employees' %}" class="{% if un == 'admin_employees' or un == 'admin_employee_detail' %}active{% endif %}"><i class="bi bi-people" aria-hidden="true"></i><span>Dipendenti</span></a>
+    <a href="{% url 'admin_timekeeping' %}" class="{% if un == 'admin_timekeeping' %}active{% endif %}"><i class="bi bi-calendar-week" aria-hidden="true"></i><span>Marcature</span></a>
+    <a href="{% url 'admin_all_payslips' %}" class="{% if un == 'admin_all_payslips' %}active{% endif %}"><i class="bi bi-folder2-open" aria-hidden="true"></i><span>Cedolini</span></a>
+    {% elif has_today_markings_only_access %}
+    <a href="{% url 'today_markings_dashboard' %}" class="{% if un == 'today_markings_dashboard' %}active{% endif %}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>Oggi</span></a>
+    {% if has_turni_planner_access %}
+    <a href="{% url 'turni_planner_home' %}" class="{% if un == 'turni_planner_home' %}active{% endif %}"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><span>Turni</span></a>
+    {% endif %}
+    {% else %}
+    <a href="{% url 'dashboard' %}" class="{% if un == 'dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Home</span></a>
+    <a href="{% url 'timekeeping' %}" class="{% if un == 'timekeeping' %}active{% endif %}"><i class="bi bi-stopwatch" aria-hidden="true"></i><span>Marcatura</span></a>
+    {% if has_patrimonio_access %}
+    <a href="{% url 'personal_asset_dashboard' %}" class="{% if un == 'personal_asset_dashboard' %}active{% endif %}"><i class="bi bi-wallet2" aria-hidden="true"></i><span>Patrimonio</span></a>
+    {% endif %}
+    <a href="{% url 'portal_tutorial' %}" class="{% if un == 'portal_tutorial' %}active{% endif %}"><i class="bi bi-journal-text" aria-hidden="true"></i><span>Guida</span></a>
+    {% endif %}
+    <button type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar"><i class="bi bi-three-dots" aria-hidden="true"></i><span>Altro</span></button>
+</nav>
+{% endwith %}
+
 {% block modals %}{% endblock %}
 
-<div class="offcanvas offcanvas-start mobile-sidebar text-white" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+<div class="offcanvas offcanvas-start mobile-sidebar" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title" id="mobileSidebarLabel">Menu</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Chiudi menu"></button>
     </div>
     <div class="offcanvas-body">
         <div class="sidebar" id="mobileSidebarMenu"></div>
     </div>
-</div>
-
-<div class="custom-footer">
-    Sistema sviluppato da <strong>Antimo Di Giovanni</strong>
 </div>
 
 <div class="modal fade" id="actionConfirmModal" tabindex="-1" aria-labelledby="actionConfirmModalLabel" aria-hidden="true">
@@ -785,6 +575,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+</script>
+<script>
+/* Effetti di presentazione: ombra della barra allo scorrimento e conteggio dei numeri nelle dashboard. */
+(function () {
+    var topbar = document.querySelector('.topbar');
+    if (topbar) {
+        var onScroll = function () { topbar.classList.toggle('is-scrolled', window.scrollY > 4); };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+    var selector = '.kpi-card .display-6, .dashboard-summary .fs-4, .employee-stat-value, .kpi-value, .corporate-report-value';
+    document.querySelectorAll(selector).forEach(function (el) {
+        var original = el.textContent;
+        var text = original.trim();
+        if (!/^\d{1,6}$/.test(text)) { return; }
+        var target = parseInt(text, 10);
+        if (target === 0) { return; }
+        var duration = 700;
+        var start = null;
+        el.textContent = original.replace(text, '0');
+        function step(ts) {
+            if (start === null) { start = ts; }
+            var t = Math.min((ts - start) / duration, 1);
+            var eased = 1 - Math.pow(1 - t, 3);
+            el.textContent = original.replace(text, String(Math.round(target * eased)));
+            if (t < 1) { requestAnimationFrame(step); } else { el.textContent = original; }
+        }
+        requestAnimationFrame(step);
+    });
+})();
 </script>
 {% block extra_js %}{% endblock %}
 
