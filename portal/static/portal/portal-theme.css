@@ -834,10 +834,13 @@ textarea.form-control { min-height: 88px; line-height: 1.5; }
     width: 1.125em;
     height: 1.125em;
     margin-top: 0.2em;
-    margin-left: -1.75em;
     border: 1px solid #b4bfcd;
     box-shadow: var(--sv-shadow-xs);
 }
+.form-check .form-check-input { margin-left: -1.75em; }
+/* Caselle fuori da .form-check (celle delle tabelle): nessun margine negativo, area di tocco comoda */
+td > .form-check-input,
+th > .form-check-input { width: 1.25em; height: 1.25em; margin: 0; vertical-align: middle; cursor: pointer; }
 .form-check-input:checked { background-color: var(--sv-accent); border-color: var(--sv-accent); }
 .form-check-input:focus { border-color: var(--sv-accent); box-shadow: var(--sv-ring); }
 .form-check-label { color: var(--sv-ink-2); }
