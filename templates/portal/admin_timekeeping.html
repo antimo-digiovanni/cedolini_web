@@ -146,7 +146,7 @@
 
 <div class="card-modern bg-white mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="mb-0">Richieste ferie</h5>
+        <h5 class="mb-0">Richieste ferie da approvare</h5>
         <div class="d-flex align-items-center gap-2">
             <span class="small text-muted">In attesa: {{ pending_vacation_requests|length }}</span>
             <a href="{% url 'admin_vacation_requests' %}" class="btn btn-sm btn-outline-primary">Apri storico</a>
@@ -232,6 +232,20 @@
         {% endfor %}
     </div>
 </div>
+
+<section class="mb-4" aria-labelledby="currentVacationsTitle">
+    <h2 id="currentVacationsTitle" class="h5 mb-3">In ferie oggi <span class="text-muted">{{ today|date:"d/m/Y" }}</span></h2>
+    <ul class="list-group">
+        {% for vacation in current_vacations %}
+        <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
+            <strong>{{ vacation.employee.display_name }}</strong>
+            <span>{{ vacation.start_date|date:"d/m/Y" }} - {{ vacation.end_date|date:"d/m/Y" }} <span class="badge bg-success">Approvata</span></span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">Nessun dipendente con ferie approvate per oggi.</li>
+        {% endfor %}
+    </ul>
+</section>
 
 <div class="card-modern bg-white mb-4">
     <form method="get" class="row g-2 align-items-end">
@@ -342,7 +356,7 @@
             <tbody>
                 {% for row in rows %}
                 <tr>
-                    <td>{{ row.date|date:"d/m/Y" }}</td>
+                    <td>{{ row.date|date:"d/m/Y" }}{% if row.sequence %}<div class="small text-muted">Intervallo {{ row.sequence }}</div>{% endif %}</td>
                     <td>{% if row.entry %}{{ row.entry|localtime|date:"H:i" }}{% else %}--:--{% endif %}</td>
                     <td>{% if row.exit %}{{ row.exit|localtime|date:"H:i" }}{% else %}--:--{% endif %}</td>
                     <td>{{ row.total }}</td>
@@ -405,6 +419,7 @@
                         <form method="post" class="d-flex flex-column gap-1">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="correct_day">
+                            <input type="hidden" name="session_id" value="{{ row.session_id|default:'' }}">
                             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
                             <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
 
@@ -432,6 +447,7 @@
                                 <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
                                 <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
                                 <input type="hidden" name="delete_target" value="start">
+                                <input type="hidden" name="session_id" value="{{ row.session_id }}">
                                 <input type="hidden" name="redirect_employee" value="{{ employee_filter }}">
                                 <input type="hidden" name="redirect_month" value="{{ selected_month }}">
                                 <input type="hidden" name="redirect_year" value="{{ selected_year }}">
@@ -456,6 +472,7 @@
                                 <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
                                 <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
                                 <input type="hidden" name="delete_target" value="end">
+                                <input type="hidden" name="session_id" value="{{ row.session_id }}">
                                 <input type="hidden" name="redirect_employee" value="{{ employee_filter }}">
                                 <input type="hidden" name="redirect_month" value="{{ selected_month }}">
                                 <input type="hidden" name="redirect_year" value="{{ selected_year }}">
@@ -464,13 +481,13 @@
                             {% endif %}
 
                             <form method="post"
-                                  data-confirm-title="Cancella giornata"
-                                  data-confirm-message="Stai per eliminare tutte le marcature del {{ row.date|date:'d/m/Y' }}."
-                                  data-confirm-note="Verranno rimossi ingresso, uscita ed eventuali correzioni admin di questa giornata."
+                                  data-confirm-title="Cancella intervallo"
+                                  data-confirm-message="Stai per eliminare l'intervallo {{ row.sequence }} del {{ row.date|date:'d/m/Y' }}."
+                                  data-confirm-note="Gli altri intervalli della giornata saranno conservati."
                                   data-confirm-button="Continua"
                                   data-confirm-class="btn-danger"
                                   data-confirm-second-title="Conferma finale"
-                                  data-confirm-second-message="Sei sicuro di voler cancellare tutta la giornata?"
+                                  data-confirm-second-message="Sei sicuro di voler cancellare questo intervallo?"
                                   data-confirm-second-note="L'operazione e irreversibile."
                                   data-confirm-second-button="Si, elimina tutto"
                                   data-confirm-second-class="btn-danger">
@@ -479,10 +496,11 @@
                                 <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
                                 <input type="hidden" name="target_date" value="{{ row.date|date:'Y-m-d' }}">
                                 <input type="hidden" name="delete_target" value="day">
+                                <input type="hidden" name="session_id" value="{{ row.session_id }}">
                                 <input type="hidden" name="redirect_employee" value="{{ employee_filter }}">
                                 <input type="hidden" name="redirect_month" value="{{ selected_month }}">
                                 <input type="hidden" name="redirect_year" value="{{ selected_year }}">
-                                <button class="btn btn-sm btn-danger" type="submit">Cancella giornata</button>
+                                <button class="btn btn-sm btn-danger" type="submit">Cancella intervallo</button>
                             </form>
                         </div>
                         {% endif %}

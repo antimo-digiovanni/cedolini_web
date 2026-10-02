@@ -390,6 +390,7 @@ class WorkSession(models.Model):
 
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="work_sessions")
     work_date = models.DateField(default=timezone.localdate)
+    sequence = models.PositiveIntegerField(default=1)
     day_type = models.CharField(max_length=20, choices=DAY_TYPE_CHOICES, default=DAY_TYPE_WORK)
     started_at = models.DateTimeField(blank=True, null=True)
     ended_at = models.DateTimeField(blank=True, null=True)
@@ -432,7 +433,7 @@ class WorkSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = [("employee", "work_date")]
+        unique_together = [("employee", "work_date", "sequence")]
         ordering = ["-work_date", "-created_at"]
 
     def effective_started_at(self):
@@ -486,6 +487,10 @@ class WorkMarkRequest(models.Model):
     work_date = models.DateField(default=timezone.localdate)
     mark_type = models.CharField(max_length=10, choices=MARK_TYPE_CHOICES, default=MARK_TYPE_BOTH)
     reason = models.TextField()
+    applied_at = models.DateTimeField(blank=True, null=True)
+    applied_session = models.ForeignKey(
+        WorkSession, on_delete=models.SET_NULL, blank=True, null=True, related_name='mark_requests',
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     review_note = models.CharField(max_length=255, blank=True, null=True)
     reviewed_by = models.ForeignKey(

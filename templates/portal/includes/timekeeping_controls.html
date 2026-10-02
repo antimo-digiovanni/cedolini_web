@@ -1,0 +1,147 @@
+<div class="row g-4 mb-4">
+    <section class="col-lg-6" aria-labelledby="ordinaryMarkTitle">
+        <h2 id="ordinaryMarkTitle" class="h5 mb-3">Marcatura ordinaria</h2>
+        <div class="card-modern bg-white">
+            <p class="text-muted mb-3">{{ today_session.work_date|date:"d/m/Y" }}</p>
+            {% if is_vacation_today %}
+            <div class="alert alert-info" role="status">Oggi sei in ferie approvate. Le marcature sono disabilitate.</div>
+            {% elif not has_active_zone %}
+            <div class="alert alert-warning" role="status">Nessuna zona attiva assegnata. Contatta l'amministrazione.</div>
+            {% endif %}
+            {% with entry=today_session.effective_started_at exit=today_session.effective_ended_at %}
+            <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+                <strong>{% if entry and not exit %}Turno in corso{% elif exit %}Turno concluso{% else %}Pronto per l'ingresso{% endif %}</strong>
+                {% if entry and not exit %}<span class="badge bg-success">Dalle {{ entry|date:"H:i" }}</span>{% endif %}
+            </div>
+            <div class="row g-2">
+                <div class="col-6">
+                    <button id="btnStart" type="button" class="btn btn-success w-100" {% if entry and not exit or not has_active_zone or is_vacation_today %}disabled{% endif %}>
+                        <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Entrata
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button id="btnEnd" type="button" class="btn btn-danger w-100" {% if not entry or exit or not has_active_zone or is_vacation_today %}disabled{% endif %}>
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Uscita
+                    </button>
+                </div>
+            </div>
+            {% endwith %}
+            <div id="timekeepingFeedback" class="alert mt-3 d-none" role="status" aria-live="polite"></div>
+            <h3 class="h6 mt-4 mb-2">Ingressi e uscite</h3>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th scope="col">Ingresso</th><th scope="col">Uscita</th></tr></thead>
+                    <tbody>
+                        {% for interval in today_sessions %}
+                        {% if interval.effective_started_at or interval.effective_ended_at %}
+                        <tr>
+                            <td>{{ interval.effective_started_at|date:"H:i"|default:"--:--" }}</td>
+                            <td>{{ interval.effective_ended_at|date:"H:i"|default:"In corso" }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if active_zones %}
+            <div class="mt-3 small text-muted"><strong>Zone assegnate:</strong> {% for zone in active_zones %}{{ zone.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+            {% endif %}
+        </div>
+    </section>
+    <section class="col-lg-6" aria-labelledby="outsideMarkTitle">
+        <h2 id="outsideMarkTitle" class="h5 mb-3">Marcatura fuori zona</h2>
+        <div class="card-modern bg-white">
+            <p class="fw-semibold mb-3">Usare solo se sei fuori zona</p>
+            {% if request_status == 'sent_start' or request_status == 'sent_end' %}
+            <div class="alert alert-success" role="status">Richiesta inviata. Se approvata, la marcatura avra l'orario di invio.</div>
+            {% elif request_status == 'already_pending' %}
+            <div class="alert alert-warning" role="status">Hai gia una richiesta di questo tipo in attesa.</div>
+            {% elif request_status == 'invalid' %}
+            <div class="alert alert-danger" role="alert">Inserisci una motivazione di almeno 8 caratteri.</div>
+            {% elif request_status == 'invalid_type' %}
+            <div class="alert alert-danger" role="alert">Scegli entrata oppure uscita.</div>
+            {% elif request_status == 'vacation' %}
+            <div class="alert alert-warning" role="alert">Non puoi richiedere una marcatura durante le ferie approvate.</div>
+            {% endif %}
+            <div class="d-flex flex-wrap gap-3 mb-3 small">
+                <span>Ultima entrata: <strong>{{ today_mark_request_start.get_status_display|default:"Nessuna richiesta" }}</strong></span>
+                <span>Ultima uscita: <strong>{{ today_mark_request_end.get_status_display|default:"Nessuna richiesta" }}</strong></span>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="request_out_of_zone">
+                <fieldset {% if is_vacation_today %}disabled{% endif %}>
+                    <legend class="form-label fs-6">Quale marcatura vuoi richiedere?</legend>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="mark_type" id="markTypeStart" value="start" required>
+                            <label class="btn btn-outline-success w-100" for="markTypeStart">Entrata</label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="mark_type" id="markTypeEnd" value="end" required>
+                            <label class="btn btn-outline-danger w-100" for="markTypeEnd">Uscita</label>
+                        </div>
+                    </div>
+                    <label class="form-label" for="outsideReason">Perche sei fuori zona?</label>
+                    <textarea id="outsideReason" name="reason" rows="3" class="form-control" minlength="8" placeholder="Es. acquisto materiali per il cantiere" required></textarea>
+                    <button class="btn btn-outline-primary mt-3" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Invia al preposto</button>
+                </fieldset>
+            </form>
+        </div>
+    </section>
+</div>
+<script>
+(() => {
+    const startButton = document.getElementById('btnStart');
+    const endButton = document.getElementById('btnEnd');
+    const feedback = document.getElementById('timekeepingFeedback');
+    let busy = false;
+    function showFeedback(level, text) {
+        feedback.className = `alert mt-3 alert-${level}`;
+        feedback.textContent = text;
+    }
+    async function mark(action) {
+        if (busy) return;
+        busy = true;
+        const startDisabled = startButton.disabled;
+        const endDisabled = endButton.disabled;
+        startButton.disabled = true;
+        endButton.disabled = true;
+        showFeedback('info', 'Ricerca della posizione...');
+        try {
+            const position = await new Promise(resolve => {
+                if (!navigator.geolocation) return resolve(null);
+                navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), {
+                    enableHighAccuracy: true, timeout: 8000, maximumAge: 0,
+                });
+            });
+            const payload = new URLSearchParams({action, session_id: '{{ today_session.pk }}'});
+            if (position) {
+                payload.set('latitude', position.coords.latitude);
+                payload.set('longitude', position.coords.longitude);
+            }
+            showFeedback('info', 'Registrazione in corso...');
+            const response = await fetch("{% url 'timekeeping' %}", {
+                method: 'POST',
+                headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+                body: payload,
+            });
+            if (response.redirected) throw new Error('Sessione scaduta. Ricarica la pagina e accedi di nuovo.');
+            if (!(response.headers.get('content-type') || '').includes('application/json')) {
+                throw new Error('Impossibile confermare la marcatura. Ricarica la pagina per verificare lo stato.');
+            }
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || 'Marcatura non registrata.');
+            showFeedback('success', action === 'start' ? 'Entrata registrata.' : 'Uscita registrata.');
+            window.location.reload();
+        } catch (error) {
+            showFeedback('danger', error instanceof TypeError ? 'Connessione interrotta. Ricarica la pagina per verificare la marcatura prima di riprovare.' : error.message);
+            startButton.disabled = startDisabled;
+            endButton.disabled = endDisabled;
+            busy = false;
+        }
+    }
+    startButton.addEventListener('click', () => mark('start'));
+    endButton.addEventListener('click', () => mark('end'));
+})();
+</script>
