@@ -196,12 +196,15 @@
         }
         .login-content:has(.login-submit:disabled) .login-field { opacity: 0.6; transition: opacity 300ms ease; }
 
+        /* Movimento ridotto: niente spostamenti, ma scheda e campi compaiono comunque con una dissolvenza */
+        @keyframes sv-fade { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) {
-            .login-content, .access-symbol, .login-content h1, .login-heading p, .login-field, .login-submit, .login-security { animation: none !important; }
+            .login-content, .access-symbol, .login-content h1, .login-heading p, .login-field, .login-submit, .login-security { animation-name: sv-fade !important; }
             body::before { animation: none !important; }
-            .login-content:has(.login-submit:disabled) { transform: none; }
+            .login-content:has(.login-submit:disabled),
+            .login-submit:hover,
+            .login-submit:active { transform: none !important; }
         }
-        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
     </style>
 </head>
 <body>

@@ -1209,7 +1209,7 @@ details > summary { cursor: pointer; font-weight: 650; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    *, *::before, *::after { scroll-behavior: auto !important; }
 }
 
 /* --------------------------------------------------------------------------
@@ -1485,8 +1485,14 @@ fieldset:disabled .btn {
 
 .modal.fade .modal-dialog { transition: transform 280ms var(--sv-ease-out), opacity 200ms ease; }
 
+/* Movimento ridotto: niente spostamenti, ma i contenuti compaiono comunque con una dissolvenza */
+@keyframes sv-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-    .page-main > *, .page-main > .container > *, .page-main > .container-fluid > * { animation: none !important; }
+    .page-main > *, .page-main > .container > *, .page-main > .container-fluid > * { animation-name: sv-fade !important; animation-duration: 400ms !important; }
     .kpi-card:hover, .employee-stat:hover, .employee-turni-card:hover, .turni-recent-week-item:hover,
-    .btn-primary:hover, .btn-success:hover, .btn-danger:hover { transform: none; }
+    .btn-primary:hover, .btn-success:hover, .btn-danger:hover,
+    .btn:active:not(:disabled),
+    .mobile-tabbar a:active i, .mobile-tabbar button:active i,
+    .sidebar a:hover i, .sidebar button:hover i { transform: none !important; }
+    .modal.fade .modal-dialog { transform: none !important; }
 }
