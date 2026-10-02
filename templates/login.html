@@ -149,6 +149,58 @@
             .login-content { padding: 28px 20px 22px; border-radius: 14px; }
             .login-footer { justify-content: center; text-align: center; padding-left: 16px; padding-right: 16px; }
         }
+        /* Ingresso: scudo che compare, poi titolo e campi in sequenza */
+        @keyframes sv-pop { 0% { opacity: 0; transform: scale(0.5) rotate(-12deg); } 60% { opacity: 1; transform: scale(1.08) rotate(3deg); } 100% { opacity: 1; transform: none; } }
+        @keyframes sv-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        .login-content { animation-duration: 650ms; }
+        .access-symbol { animation: sv-pop 700ms cubic-bezier(0.16, 1, 0.3, 1) 180ms backwards; }
+        .login-content h1 { animation: sv-up 550ms cubic-bezier(0.16, 1, 0.3, 1) 300ms backwards; }
+        .login-heading p { animation: sv-up 550ms cubic-bezier(0.16, 1, 0.3, 1) 370ms backwards; }
+        .login-field:nth-of-type(1) { animation: sv-up 550ms cubic-bezier(0.16, 1, 0.3, 1) 440ms backwards; }
+        .login-field:nth-of-type(2) { animation: sv-up 550ms cubic-bezier(0.16, 1, 0.3, 1) 510ms backwards; }
+        .login-submit { animation: sv-up 550ms cubic-bezier(0.16, 1, 0.3, 1) 580ms backwards; }
+        .login-security { animation: sv-up 550ms cubic-bezier(0.16, 1, 0.3, 1) 650ms backwards; }
+
+        /* Sfondo: le velature di colore si spostano lentamente */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: -20%;
+            z-index: -1;
+            pointer-events: none;
+            background:
+                radial-gradient(40% 35% at 20% 25%, rgba(31, 90, 214, 0.18), transparent 70%),
+                radial-gradient(35% 35% at 80% 20%, rgba(124, 77, 219, 0.15), transparent 70%),
+                radial-gradient(40% 40% at 55% 85%, rgba(14, 154, 167, 0.12), transparent 70%);
+            animation: sv-drift 18s ease-in-out infinite alternate;
+        }
+        @keyframes sv-drift { from { transform: translate3d(-3%, -2%, 0) rotate(0deg); } to { transform: translate3d(3%, 2%, 0) rotate(6deg); } }
+
+        /* Dopo "Accedi": rotellina nel bottone e scheda che si raccoglie mentre si apre la dashboard */
+        @keyframes sv-spin { to { transform: rotate(360deg); } }
+        .login-submit:disabled { opacity: 1; cursor: wait; background: linear-gradient(180deg, #2f6cec 0%, #1f5ad6 100%); }
+        .login-submit:disabled i { display: none; }
+        .login-submit:disabled::after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: sv-spin 700ms linear infinite;
+        }
+        .login-content:has(.login-submit:disabled) {
+            transform: scale(0.985);
+            box-shadow: 0 2px 4px rgba(16, 24, 40, 0.04), 0 12px 28px rgba(13, 27, 61, 0.10);
+            transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 400ms ease;
+        }
+        .login-content:has(.login-submit:disabled) .login-field { opacity: 0.6; transition: opacity 300ms ease; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .login-content, .access-symbol, .login-content h1, .login-heading p, .login-field, .login-submit, .login-security { animation: none !important; }
+            body::before { animation: none !important; }
+            .login-content:has(.login-submit:disabled) { transform: none; }
+        }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
     </style>
 </head>
