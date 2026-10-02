@@ -23,6 +23,54 @@
         padding: 0.55rem !important;
     }
 
+    .turni-shell .turni-sidebar .turni-sidebar-card {
+        background: #e0f2fe !important;
+        border: 1px solid #a8d7f0;
+        border-radius: 10px;
+        margin-top: 0 !important;
+    }
+
+    .turni-sidebar-card .turni-nav-button {
+        color: #164e63;
+        min-height: 44px;
+    }
+
+    .turni-sidebar-card .turni-nav-button.active {
+        background: #b8e3fa;
+        color: #0c4a6e;
+        box-shadow: none;
+    }
+
+    .turni-week-history > summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        min-height: 44px;
+        padding: 8px 0;
+        color: var(--sv-accent-ink);
+        font-weight: 600;
+        list-style: none;
+    }
+
+    .turni-week-history > summary::-webkit-details-marker { display: none; }
+    .turni-week-history[open] > summary .turni-history-expand,
+    .turni-week-history:not([open]) > summary .turni-history-collapse { display: none; }
+
+    .turni-week-history-list {
+        max-height: min(320px, 50vh);
+        overflow-y: auto;
+        padding: 4px;
+    }
+
+    .turni-opening-row .turni-recent-week-item {
+        padding: 10px 12px;
+    }
+
+    .turni-opening-row .turni-recent-week-layout {
+        gap: 8px;
+    }
+
     .turni-content {
         min-width: 0;
         width: 100%;
@@ -444,7 +492,9 @@
     }
 
     .turni-scrollbar {
-        display: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 16px;
     }
 
     .turni-scrollbar-track {
@@ -452,7 +502,7 @@
     }
 
     .turni-table-wrap[data-scrollable-sheet] {
-        overflow-x: hidden;
+        overflow-x: auto;
         overflow-y: hidden;
     }
 
@@ -460,6 +510,30 @@
         width: 100%;
         min-width: 0;
     }
+
+    .turni-table-wrap[data-scrollable-sheet="weekly-sheet"] table { min-width: 1900px; }
+    .turni-table-wrap[data-scrollable-sheet="portineria-weekly-sheet"] table { min-width: 740px; }
+    .turni-table-wrap[data-scrollable-sheet] .turni-weekend-app-table { min-width: 1100px; }
+    .turni-table-wrap[data-scrollable-sheet] input[type="text"] {
+        min-height: 44px;
+        font-size: 16px;
+        letter-spacing: 0;
+    }
+
+    .turni-name-editor {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        padding: 12px;
+        margin-bottom: 16px;
+        background: #e0f2fe;
+        border: 1px solid #a8d7f0;
+        border-radius: 8px;
+    }
+    .turni-name-editor label { color: #164e63; font-weight: 600; margin: 0; }
+    .turni-name-editor input { flex: 1 1 220px; min-width: 0; min-height: 44px; }
+    .turni-name-editor[hidden] { display: none; }
 
     .turni-table-wrap[data-scrollable-sheet] tbody th,
     .turni-table-wrap[data-scrollable-sheet] thead th:first-child {
@@ -847,6 +921,7 @@
     }
 
     .turni-weekly-sidehead {
+        width: 80px;
         min-width: 74px;
         background: #c7dcff;
         color: #16315c;
@@ -1269,11 +1344,19 @@
             <div class="card-modern bg-white h-100">
                 <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                     <h4 class="fw-semibold mb-0">Settimane recenti</h4>
-                    <span class="text-muted small">Ultime 12 aggiornate</span>
                 </div>
                 {% if recent_weeks %}
                     <div class="list-group list-group-flush">
                         {% for week in recent_weeks %}
+                        {% if forloop.counter == 2 %}
+                        <details class="turni-week-history">
+                            <summary>
+                                <i class="bi bi-chevron-expand" aria-hidden="true"></i>
+                                <span class="turni-history-expand">Espandi settimane precedenti</span>
+                                <span class="turni-history-collapse">Riduci elenco</span>
+                            </summary>
+                            <div class="turni-week-history-list">
+                        {% endif %}
                         <div class="list-group-item px-0 border-0 bg-transparent">
                             <div class="turni-recent-week-item {% if selected_state and selected_state.id == week.id %}is-selected{% endif %}">
                                 <div class="turni-recent-week-layout {% if not selected_state or selected_state.id != week.id %}is-compact{% endif %}">
@@ -1295,6 +1378,11 @@
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="generate_weekend_email">
                                         <input type="hidden" name="week_label" value="{{ week.week_label }}">
+                                        <details class="turni-week-mail-details">
+                                            <summary>
+                                                <span class="turni-week-mail-summary-title">Invia turni per email</span>
+                                                <span class="turni-week-mail-summary-icon"><i class="bi bi-envelope-paper"></i></span>
+                                            </summary>
                                         <div class="turni-week-mail-compact">
                                             <input type="text" name="mail_recipients" class="form-control form-control-sm turni-week-mail-recipient" placeholder="destinatario@email.it" aria-label="Destinatari mail per {{ week.week_label }}" data-turni-mail-recipients>
                                             <button type="button" class="btn btn-outline-secondary btn-sm" data-turni-mail-fill-last>Usa ultimo testo</button>
@@ -1302,14 +1390,6 @@
                                                 <i class="bi bi-envelope-paper"></i>
                                             </button>
                                         </div>
-                                        <details class="turni-week-mail-details" open>
-                                            <summary>
-                                                <span class="turni-week-mail-summary-text">
-                                                    <span class="turni-week-mail-summary-title">Scegli che turno inviare</span>
-                                                    <span class="turni-week-mail-summary-note">Seleziona turni e formato allegati prima dell'invio</span>
-                                                </span>
-                                                <span class="turni-week-mail-summary-icon"><i class="bi bi-sliders"></i></span>
-                                            </summary>
                                             <div class="turni-week-mail-fields">
                                                 <div class="turni-week-mail-text-fields">
                                                     <input type="text" name="mail_subject" class="form-control form-control-sm turni-week-mail-subject" placeholder="Oggetto mail" aria-label="Oggetto mail per {{ week.week_label }}" data-turni-mail-subject>
@@ -1344,6 +1424,7 @@
                                             </div>
                                         </details>
                                     </form>
+                                    </div>
                                     {% endif %}
                                     <div class="turni-recent-week-actions">
                                     {% if not selected_state or selected_state.id != week.id %}
@@ -1361,6 +1442,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% if forloop.last and not forloop.first %}</div></details>{% endif %}
                         {% endfor %}
                     </div>
                 {% else %}
@@ -1479,6 +1561,10 @@
                     </div>
 
                     <div class="turni-content">
+                        <div class="turni-name-editor" hidden data-turni-name-editor-box>
+                            <label for="turni-selected-name">Nome selezionato</label>
+                            <input id="turni-selected-name" type="text" class="form-control" data-turni-name-editor list="turni-name-suggestions" autocomplete="off" disabled>
+                        </div>
                         <section class="turni-panel active" data-turni-panel-content="dashboard">
                             <div class="turni-dashboard-hero">
                                 <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 align-items-xl-center">
@@ -1550,17 +1636,16 @@
                                 </div>
                                 <div class="turni-bulk-export-actions">
                                     <button type="button" class="btn btn-dark btn-sm" data-bulk-export-format="pdf">
-                                        <i class="bi bi-file-earmark-pdf"></i> Salva tutti i PDF
+                                        <i class="bi bi-file-earmark-pdf"></i> Salva PDF modificati
                                     </button>
                                     <button type="button" class="btn btn-dark btn-sm" data-bulk-export-format="jpg">
-                                        <i class="bi bi-image"></i> Salva tutti i JPG
+                                        <i class="bi bi-image"></i> Salva JPG modificati
                                     </button>
                                     <button type="button" class="btn btn-primary btn-sm" data-bulk-export-format="all">
-                                        <i class="bi bi-archive"></i> Salva tutti i PDF e JPG
+                                        <i class="bi bi-archive"></i> Salva PDF e JPG modificati
                                     </button>
                                 </div>
                                 <div class="turni-bulk-export-status text-muted small" data-bulk-export-status>
-                                    Scegli una cartella e il planner salvera li dentro tutti i file separati.
                                 </div>
                                 <div class="turni-export-grid">
                                     <div class="turni-export-item">
@@ -1631,12 +1716,11 @@
                             <div class="turni-sheet-toolbar">
                                 <div>
                                     <div class="fw-semibold">Foglio settimanale</div>
-                                    <div class="text-muted small">Usa frecce, Invio e incolla da Excel per muoverti e compilare piu velocemente.</div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
                                     <div class="btn-group" role="group" aria-label="Scorrimento foglio settimanale">
-                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-left="weekly-sheet">&larr; Sinistra</button>
-                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-right="weekly-sheet">Destra &rarr;</button>
+                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-left="weekly-sheet" title="Scorri a sinistra" aria-label="Scorri a sinistra"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
+                                        <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-right="weekly-sheet" title="Scorri a destra" aria-label="Scorri a destra"><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -2072,10 +2156,20 @@
         const openingRow = document.querySelector('[data-turni-opening-row]');
         const exportBlock = document.querySelector('[data-turni-export-block]');
         const savePlannerButton = plannerForm ? plannerForm.querySelector('button[name="action"][value="save_planner"]') : null;
+        const nameEditor = document.querySelector('[data-turni-name-editor]');
+        const nameEditorBox = document.querySelector('[data-turni-name-editor-box]');
         const bulkExportButtons = Array.from(document.querySelectorAll('[data-bulk-export-format]'));
         const bulkExportStatus = document.querySelector('[data-bulk-export-status]');
         const mailForms = Array.from(document.querySelectorAll('[data-turni-mail-form]'));
         const mailDraftStorageKey = 'turniPlannerWeekendMailDraft';
+        const exportStorageKey = 'turniPlannerExports:v1:{{ request.user.pk }}:{{ selected_state.pk }}';
+        let exportedSnapshots = {};
+        try {
+            const stored = JSON.parse(window.localStorage.getItem(exportStorageKey) || '{}');
+            if (stored && typeof stored === 'object' && !Array.isArray(stored)) exportedSnapshots = stored;
+        } catch (error) {
+            exportedSnapshots = {};
+        }
 
         const bulkExportActionMap = {
             pdf: [
@@ -2139,8 +2233,7 @@
             return userAgent.includes('Electron') || userAgent.includes('Code/');
         }
 
-        async function fetchExportBlob(actionName) {
-            const formData = new FormData(plannerForm);
+        async function fetchExportBlob(actionName, formData) {
             formData.set('action', actionName);
             const targetUrl = plannerForm.getAttribute('action') || window.location.href;
             const response = await fetch(targetUrl, {
@@ -2152,7 +2245,8 @@
                 },
             });
 
-            if (!response.ok) {
+            const expectedType = actionName.startsWith('export_pdf_') ? 'application/pdf' : 'image/jpeg';
+            if (!response.ok || response.redirected || !(response.headers.get('Content-Type') || '').startsWith(expectedType)) {
                 throw new Error('Export non riuscito.');
             }
 
@@ -2177,23 +2271,44 @@
                 return;
             }
 
-            const actions = format === 'all'
+            const candidates = format === 'all'
                 ? [...bulkExportActionMap.pdf, ...bulkExportActionMap.jpg]
                 : bulkExportActionMap[format];
 
+            setBulkExportBusy(true);
             try {
+                const formData = new FormData(plannerForm);
+                const snapshots = {};
+                for (const actionName of candidates) {
+                    const section = actionName.replace(/^export_(pdf|jpg)_/, '');
+                    const values = Array.from(formData.entries()).filter(([name]) => name === 'week_label' || name.startsWith(section + '_'));
+                    const content = JSON.stringify(values.map(([name, value]) => [name, value.trim()]));
+                    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
+                    snapshots[actionName] = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+                }
+                const actions = candidates.filter(actionName => exportedSnapshots[actionName] !== snapshots[actionName]);
+                if (!actions.length) {
+                    setBulkExportStatus('Nessun turno modificato da esportare nel formato scelto.', 'muted');
+                    return;
+                }
                 const directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                setBulkExportBusy(true);
                 setBulkExportStatus('Cartella selezionata. Avvio salvataggio file...', 'muted');
+                let storageUnavailable = false;
 
                 for (let index = 0; index < actions.length; index += 1) {
                     const actionName = actions[index];
                     setBulkExportStatus('Salvataggio file ' + (index + 1) + ' di ' + actions.length + '...', 'muted');
-                    const { blob, filename } = await fetchExportBlob(actionName);
+                    const { blob, filename } = await fetchExportBlob(actionName, formData);
                     await saveBlobToDirectory(directoryHandle, filename, blob);
+                    exportedSnapshots[actionName] = snapshots[actionName];
+                    try {
+                        window.localStorage.setItem(exportStorageKey, JSON.stringify(exportedSnapshots));
+                    } catch (error) {
+                        storageUnavailable = true;
+                    }
                 }
 
-                setBulkExportStatus('Tutti i file sono stati salvati nella cartella scelta.', 'success');
+                setBulkExportStatus(actions.length + ' file salvati nella cartella scelta.' + (storageUnavailable ? ' Memoria del browser non disponibile: il confronto resta valido solo in questa pagina.' : ''), 'success');
             } catch (error) {
                 if (error && error.name === 'AbortError') {
                     setBulkExportStatus('Selezione cartella annullata.', 'muted');
@@ -2217,6 +2332,11 @@
         }
 
         function activatePanel(panelName) {
+            if (nameEditor) {
+                nameEditor.disabled = true;
+                nameEditor.value = '';
+                nameEditorBox.hidden = panelName === 'dashboard';
+            }
             buttons.forEach((button) => {
                 button.classList.toggle('active', button.dataset.turniPanel === panelName);
             });
@@ -2310,6 +2430,7 @@
             container.addEventListener('scroll', syncScrollbarFromContainer);
             scrollbar.addEventListener('scroll', syncContainerFromScrollbar);
             window.addEventListener('resize', syncTrackWidth);
+            new ResizeObserver(syncTrackWidth).observe(container);
             syncTrackWidth();
             syncScrollbarFromContainer();
         }
@@ -2320,6 +2441,8 @@
             }
             input.focus();
             input.select();
+            input.dataset.turniTextEditing = 'false';
+            input.scrollIntoView({block: 'nearest', inline: 'nearest'});
         }
 
         function getCellElement(input) {
@@ -2403,7 +2526,11 @@
                 .filter((value) => value.length > 1);
             const uniqueValues = Array.from(new Set(values)).sort((left, right) => left.localeCompare(right, 'it'));
 
-            nameSuggestions.innerHTML = uniqueValues.map((value) => '<option value="' + value.replace(/"/g, '&quot;') + '"></option>').join('');
+            nameSuggestions.replaceChildren(...uniqueValues.map((value) => {
+                const option = document.createElement('option');
+                option.value = value;
+                return option;
+            }));
         }
 
         function hasPendingHistoryChange() {
@@ -2639,6 +2766,12 @@
             }
 
             const rect = cell.getBoundingClientRect();
+            const sheet = cell.closest('[data-scrollable-sheet]');
+            const sheetRect = sheet ? sheet.getBoundingClientRect() : rect;
+            if (!cell.getClientRects().length || rect.right > Math.min(sheetRect.right, document.documentElement.clientWidth) - 4 || rect.right < sheetRect.left + 6) {
+                fillHandle.style.display = 'none';
+                return;
+            }
             fillHandle.style.display = 'block';
             fillHandle.style.left = window.scrollX + rect.right - 6 + 'px';
             fillHandle.style.top = window.scrollY + rect.bottom - 6 + 'px';
@@ -2647,6 +2780,10 @@
         function updateActiveGridHighlights(input) {
             clearGridHighlights();
             activeInput = input;
+            if (nameEditor) {
+                nameEditor.disabled = !isNameInput(input);
+                nameEditor.value = isNameInput(input) ? input.value : '';
+            }
 
             paintKeyboardSelection();
 
@@ -2833,19 +2970,31 @@
         }
 
         function bindPlannerInput(input) {
-            if (!input || input.dataset.turniInputBound === 'true') {
+            if (!input || input.hasAttribute('data-turni-name-editor') || input.dataset.turniInputBound === 'true') {
                 return;
             }
             input.dataset.turniInputBound = 'true';
             if (isNameInput(input) && nameSuggestions) {
                 input.setAttribute('list', 'turni-name-suggestions');
                 input.setAttribute('autocomplete', 'off');
+                input.setAttribute('aria-label', 'Nome del personale, riga ' + (Number(input.dataset.sheetRow || 0) + 1) + ', colonna ' + (Number(input.dataset.sheetCol || 0) + 1));
+                input.setAttribute('spellcheck', 'false');
             }
 
             input.addEventListener('focus', function () {
                 input.dataset.editStartValue = input.value;
+                input.dataset.turniTextEditing = 'false';
                 pendingHistoryInput = null;
                 updateActiveGridHighlights(input);
+            });
+
+            input.addEventListener('click', function (event) {
+                if (!event.altKey && input.dataset.turniTextEditing !== 'true') input.select();
+            });
+
+            input.addEventListener('dblclick', function () {
+                input.dataset.turniTextEditing = 'true';
+                input.setSelectionRange(input.value.length, input.value.length);
             });
 
             input.addEventListener('blur', function () {
@@ -2860,9 +3009,11 @@
             });
 
             input.addEventListener('input', function () {
+                input.dataset.turniTextEditing = 'true';
                 pendingHistoryInput = input;
                 if (isNameInput(input)) {
                     refreshNameSuggestions();
+                    if (nameEditor && activeInput === input) nameEditor.value = input.value;
                 }
                 updateHistoryButtons();
             });
@@ -2886,6 +3037,33 @@
                 if (!input.dataset.sheetName || event.altKey || event.ctrlKey || event.metaKey) {
                     return;
                 }
+
+                if (event.isComposing) return;
+                if (event.key === 'F2') {
+                    event.preventDefault();
+                    input.dataset.turniTextEditing = 'true';
+                    input.setSelectionRange(input.value.length, input.value.length);
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    input.value = input.dataset.editStartValue ?? input.value;
+                    input.dispatchEvent(new Event('input', {bubbles: true}));
+                    focusCell(input);
+                    return;
+                }
+                if (event.key === 'Tab') {
+                    const rows = sheetGrids.get(input.dataset.sheetName);
+                    const cells = rows ? rows.flat() : [];
+                    const target = cells[cells.indexOf(input) + (event.shiftKey ? -1 : 1)];
+                    if (target) {
+                        event.preventDefault();
+                        clearKeyboardSelection();
+                        focusCell(target);
+                    }
+                    return;
+                }
+                if (input.dataset.turniTextEditing === 'true' && event.key.startsWith('Arrow')) return;
 
                 if ((event.key === 'Delete' || event.key === 'Backspace') && clearSelectedGridData(input)) {
                     event.preventDefault();
@@ -2961,6 +3139,36 @@
                     return;
                 }
                 updatePointerSelection(input);
+            });
+        }
+
+        if (nameEditor) {
+            nameEditor.addEventListener('input', function () {
+                if (!activeInput || !isNameInput(activeInput)) return;
+                activeInput.value = nameEditor.value;
+                activeInput.dispatchEvent(new Event('input', {bubbles: true}));
+            });
+            nameEditor.addEventListener('blur', function () {
+                if (activeInput) commitInputHistory(activeInput);
+            });
+            nameEditor.addEventListener('keydown', function (event) {
+                if (!activeInput || !isNameInput(activeInput)) return;
+                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+                    event.preventDefault();
+                    if (event.shiftKey) redoLastChange(); else undoLastChange();
+                } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+                    event.preventDefault();
+                    redoLastChange();
+                } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    commitInputHistory(activeInput);
+                    moveGridFocus(activeInput, event.shiftKey ? -1 : 1, 0);
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    activeInput.value = activeInput.dataset.editStartValue ?? activeInput.value;
+                    activeInput.dispatchEvent(new Event('input', {bubbles: true}));
+                    focusCell(activeInput);
+                }
             });
         }
 
@@ -3273,6 +3481,7 @@
             });
 
             document.addEventListener('keydown', function (event) {
+                if (event.defaultPrevented) return;
                 const wantsUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z';
                 const wantsRedo = ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') || ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z');
 
