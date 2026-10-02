@@ -1496,3 +1496,51 @@ fieldset:disabled .btn {
     .sidebar a:hover i, .sidebar button:hover i { transform: none !important; }
     .modal.fade .modal-dialog { transform: none !important; }
 }
+
+/* Benvenuto dopo il login */
+.sv-welcome {
+    position: fixed;
+    inset: 0;
+    z-index: 400000;
+    display: grid;
+    place-items: center;
+    background:
+        radial-gradient(60% 50% at 50% 40%, rgba(47, 108, 236, 0.45), transparent 70%),
+        linear-gradient(160deg, #10224d 0%, #0b1733 100%);
+    color: #ffffff;
+    text-align: center;
+    transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sv-welcome.is-leaving { opacity: 0; transform: scale(1.06); pointer-events: none; }
+.sv-welcome-inner { padding: 24px; }
+.sv-welcome img {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 30px rgba(47, 108, 236, 0.55));
+    animation: sv-welcome-logo 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.sv-welcome-title {
+    margin-top: 18px;
+    font-size: 1.625rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    animation: sv-welcome-text 700ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
+}
+.sv-welcome-sub {
+    margin-top: 6px;
+    color: #9fb0d6;
+    font-size: 0.875rem;
+    font-weight: 600;
+    animation: sv-welcome-text 700ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both;
+}
+@keyframes sv-welcome-logo { from { opacity: 0; transform: scale(0.7) rotate(-8deg); } to { opacity: 1; transform: none; } }
+@keyframes sv-welcome-text { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+/* La dashboard entra dopo il benvenuto */
+body.sv-welcoming .page-main > *,
+body.sv-welcoming .page-main > .container > * { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+    .sv-welcome, .sv-welcome.is-leaving { transform: none; }
+    .sv-welcome img, .sv-welcome-title, .sv-welcome-sub { animation-name: sv-fade; }
+}

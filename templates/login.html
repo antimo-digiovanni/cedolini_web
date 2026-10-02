@@ -196,6 +196,31 @@
         }
         .login-content:has(.login-submit:disabled) .login-field { opacity: 0.6; transition: opacity 300ms ease; }
 
+        /* Uscita dopo "Accedi": lo schermo sfuma nel blu del portale con il logo */
+        .login-leave {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(60% 50% at 50% 40%, rgba(47, 108, 236, 0.45), transparent 70%),
+                linear-gradient(160deg, #10224d 0%, #0b1733 100%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 450ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .login-leave img {
+            width: 96px;
+            height: 96px;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 30px rgba(47, 108, 236, 0.55));
+            transform: scale(0.7);
+            transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        body.is-leaving .login-leave { opacity: 1; pointer-events: auto; }
+        body.is-leaving .login-leave img { transform: scale(1); }
+
         /* Movimento ridotto: niente spostamenti, ma scheda e campi compaiono comunque con una dissolvenza */
         @keyframes sv-fade { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) {
@@ -250,6 +275,7 @@
             <p class="login-security"><i class="bi bi-shield-lock" aria-hidden="true"></i> Area riservata al personale San Vincenzo</p>
         </div>
     </main>
+    <div class="login-leave" aria-hidden="true"><img src="{% static 'portal/logo.png' %}" alt=""></div>
     <footer class="login-footer"><span>San Vincenzo S.r.l.</span><span>Sistema sviluppato da <strong>Antimo Di Giovanni</strong></span></footer>
     <script>
         const passwordField = document.getElementById('id_password');
@@ -265,13 +291,17 @@
         });
         const loginForm = document.getElementById('loginForm');
         const submitButton = loginForm.querySelector('[type="submit"]');
+        try { sessionStorage.removeItem('sv-welcome'); } catch (e) {}
         loginForm.addEventListener('submit', () => {
             submitButton.disabled = true;
             submitButton.querySelector('span').textContent = 'Accesso in corso...';
+            try { sessionStorage.setItem('sv-welcome', '1'); } catch (e) {}
+            setTimeout(() => document.body.classList.add('is-leaving'), 250);
         });
         window.addEventListener('pageshow', () => {
             submitButton.disabled = false;
             submitButton.querySelector('span').textContent = 'Accedi';
+            document.body.classList.remove('is-leaving');
         });
         document.getElementById('login-error')?.focus();
     </script>
