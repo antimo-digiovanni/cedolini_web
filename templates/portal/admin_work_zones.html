@@ -412,9 +412,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultLon = 14.297982;
     const map = L.map('zoneMap').setView([defaultLat, defaultLon], 11);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+        // OSM richiede il Referer: la policy same-origin del portale lo omette.
+        // Invio solo l'origine, senza percorsi o parametri della pagina riservata.
+        referrerPolicy: 'strict-origin-when-cross-origin',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
     let marker = null;
