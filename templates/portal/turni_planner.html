@@ -1301,6 +1301,41 @@
         box-shadow: var(--sv-shadow-xs);
     }
     .container .text-bg-dark { background: var(--sv-neutral-bg) !important; color: var(--sv-neutral) !important; box-shadow: inset 0 0 0 1px #dde2ea; }
+
+    /* Il planner usa la larghezza disponibile, mantenendo il foglio originale. */
+    @media (min-width: 992px) {
+        #portal-main { max-width: none; padding-inline: 12px; }
+        #portal-main > .container { max-width: none; padding-inline: 0; }
+        .turni-table-wrap[data-scrollable-sheet="weekly-sheet"] table { min-width: 0; }
+        .turni-table-wrap[data-scrollable-sheet="weekly-sheet"] input[type="text"] {
+            font-size: 11px;
+            padding-inline: 4px;
+        }
+        .turni-weekly-label-cell,
+        .turni-weekly-sidehead { font-size: 12px; }
+        .turni-weekly-header-cell,
+        .turni-weekly-reparto-band { position: relative; }
+        .turni-header-fitted input:not(:focus) { color: transparent; }
+        .turni-header-label {
+            position: absolute;
+            inset: 2px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            line-height: 13px;
+            font-weight: 700;
+            color: #16315c;
+            text-align: center;
+            overflow-wrap: anywhere;
+            pointer-events: none;
+        }
+        .turni-weekly-reparto-band .turni-header-label { font-size: 11px; font-weight: 400; }
+        .turni-header-fitted:focus-within .turni-header-label { visibility: hidden; }
+    }
+    @media (max-width: 991px) { .turni-header-label { display: none; } }
+    .turni-weekly-app-table.turni-extra-columns-hidden .turni-extra-column { display: none; }
+    .turni-extra-columns-toggle { font-size: 12px; padding: 4px 8px; }
 </style>
 <div class="container">
     <div class="page-hero turni-page-hero">
@@ -1457,7 +1492,6 @@
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="week_label" value="{{ selected_state.week_label }}">
-                <datalist id="turni-name-suggestions"></datalist>
 
                 <div class="turni-topbar d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
                     <div>
@@ -1482,7 +1516,7 @@
                         <button type="submit" name="action" value="save_planner" class="btn btn-primary">
                             <i class="bi bi-floppy"></i> Salva planner
                         </button>
-                        <div class="turni-topbar-shortcuts">Frecce, Alt+trascina per selezionare celle, trascina il quadratino per copiare, Ctrl+Z, Ctrl+Y</div>
+                        <div class="turni-topbar-shortcuts">Clic: seleziona · Secondo clic o F2: correggi · Invio: giù · Tab: destra · Esc: annulla modifica · Ctrl+Z: annulla ultima operazione</div>
                     </div>
                 </div>
 
@@ -1563,7 +1597,7 @@
                     <div class="turni-content">
                         <div class="turni-name-editor" hidden data-turni-name-editor-box>
                             <label for="turni-selected-name">Nome selezionato</label>
-                            <input id="turni-selected-name" type="text" class="form-control" data-turni-name-editor list="turni-name-suggestions" autocomplete="off" disabled>
+                            <input id="turni-selected-name" type="text" class="form-control" data-turni-name-editor autocomplete="off" disabled>
                         </div>
                         <section class="turni-panel active" data-turni-panel-content="dashboard">
                             <div class="turni-dashboard-hero">
@@ -1718,6 +1752,7 @@
                                     <div class="fw-semibold">Foglio settimanale</div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm turni-extra-columns-toggle" data-turni-extra-columns-toggle aria-expanded="false" aria-controls="turni-weekly-table">Mostra colonne 9–10</button>
                                     <div class="btn-group" role="group" aria-label="Scorrimento foglio settimanale">
                                         <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-left="weekly-sheet" title="Scorri a sinistra" aria-label="Scorri a sinistra"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
                                         <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-right="weekly-sheet" title="Scorri a destra" aria-label="Scorri a destra"><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
@@ -1730,7 +1765,7 @@
                             </div>
 
                             <div class="turni-table-wrap" data-scrollable-sheet="weekly-sheet">
-                                <table class="turni-weekly-app-table">
+                                <table id="turni-weekly-table" class="turni-weekly-app-table turni-extra-columns-hidden">
                                     <tbody>
                                         <tr>
                                             <th class="turni-weekly-sidehead">Turno</th>
@@ -2145,6 +2180,40 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const weeklyTable = document.querySelector('#turni-weekly-table');
+        const extraColumnsToggle = document.querySelector('[data-turni-extra-columns-toggle]');
+        if (weeklyTable && extraColumnsToggle) {
+            weeklyTable.querySelectorAll('tr').forEach((row) => {
+                Array.from(row.children).slice(9).forEach((cell) => cell.classList.add('turni-extra-column'));
+            });
+            const extraColumnsHaveData = Array.from(weeklyTable.querySelectorAll('.turni-extra-column input'))
+                .some((input) => input.value.trim());
+            weeklyTable.classList.toggle('turni-extra-columns-hidden', !extraColumnsHaveData);
+            const syncExtraColumnsButton = () => {
+                const visible = !weeklyTable.classList.contains('turni-extra-columns-hidden');
+                extraColumnsToggle.textContent = visible ? 'Nascondi colonne 9–10' : 'Mostra colonne 9–10';
+                extraColumnsToggle.setAttribute('aria-expanded', String(visible));
+            };
+            syncExtraColumnsButton();
+            extraColumnsToggle.addEventListener('click', () => {
+                weeklyTable.classList.toggle('turni-extra-columns-hidden');
+                syncExtraColumnsButton();
+                rebuildSheetGrid('weekly-sheet');
+                clearGridHighlights();
+                fillHandle.style.display = 'none';
+            });
+        }
+        document.querySelectorAll('.turni-weekly-header-cell input, .turni-weekly-reparto-band input').forEach((input) => {
+            const label = document.createElement('span');
+            label.className = 'turni-header-label';
+            label.setAttribute('aria-hidden', 'true');
+            input.parentElement.classList.add('turni-header-fitted');
+            input.parentElement.appendChild(label);
+            const syncLabel = () => { label.textContent = input.value; };
+            input.addEventListener('input', syncLabel);
+            input.addEventListener('blur', syncLabel);
+            syncLabel();
+        });
         const buttons = Array.from(document.querySelectorAll('[data-turni-panel]'));
         const panels = Array.from(document.querySelectorAll('[data-turni-panel-content]'));
         const dashboardActionButtons = Array.from(document.querySelectorAll('[data-turni-dashboard-action]'));
@@ -2442,6 +2511,7 @@
             input.focus();
             input.select();
             input.dataset.turniTextEditing = 'false';
+            input.dataset.turniEntryMode = 'select';
             input.scrollIntoView({block: 'nearest', inline: 'nearest'});
         }
 
@@ -2459,7 +2529,10 @@
             }
 
             const rows = Array.from(container.querySelectorAll('tr'))
-                .map((row) => Array.from(row.querySelectorAll('input[type="text"]')))
+                .map((row) => Array.from(row.querySelectorAll('input[type="text"]')).filter((input) => {
+                    return !(weeklyTable && weeklyTable.classList.contains('turni-extra-columns-hidden') &&
+                        weeklyTable.contains(input) && input.closest('.turni-extra-column'));
+                }))
                 .filter((row) => row.length);
 
             rows.forEach((row, rowIndex) => {
@@ -2481,7 +2554,6 @@
         }
 
         buildSheetGrids();
-        const nameSuggestions = plannerForm ? plannerForm.querySelector('#turni-name-suggestions') : null;
         const undoButton = plannerForm ? plannerForm.querySelector('[data-turni-undo]') : null;
         const redoButton = plannerForm ? plannerForm.querySelector('[data-turni-redo]') : null;
         const weekendRowSections = Array.from(document.querySelectorAll('[data-weekend-row-prefix]'));
@@ -2513,24 +2585,6 @@
 
             const weekendSheets = new Set(['saturday-sheet', 'sunday-sheet', 'jolly-weekend-sheet', 'portineria-weekend-sheet']);
             return weekendSheets.has(input.dataset.sheetName) && Number(input.dataset.sheetCol || '-1') === 2;
-        }
-
-        function refreshNameSuggestions() {
-            if (!nameSuggestions || !plannerForm) {
-                return;
-            }
-
-            const values = Array.from(plannerForm.querySelectorAll('input[type="text"]'))
-                .filter((input) => isNameInput(input))
-                .map((input) => input.value.trim())
-                .filter((value) => value.length > 1);
-            const uniqueValues = Array.from(new Set(values)).sort((left, right) => left.localeCompare(right, 'it'));
-
-            nameSuggestions.replaceChildren(...uniqueValues.map((value) => {
-                const option = document.createElement('option');
-                option.value = value;
-                return option;
-            }));
         }
 
         function hasPendingHistoryChange() {
@@ -2620,7 +2674,6 @@
                 historyStack.push(sourceEntry);
             }
 
-            refreshNameSuggestions();
             updateHistoryButtons();
         }
 
@@ -2974,8 +3027,7 @@
                 return;
             }
             input.dataset.turniInputBound = 'true';
-            if (isNameInput(input) && nameSuggestions) {
-                input.setAttribute('list', 'turni-name-suggestions');
+            if (isNameInput(input)) {
                 input.setAttribute('autocomplete', 'off');
                 input.setAttribute('aria-label', 'Nome del personale, riga ' + (Number(input.dataset.sheetRow || 0) + 1) + ', colonna ' + (Number(input.dataset.sheetCol || 0) + 1));
                 input.setAttribute('spellcheck', 'false');
@@ -2984,17 +3036,28 @@
             input.addEventListener('focus', function () {
                 input.dataset.editStartValue = input.value;
                 input.dataset.turniTextEditing = 'false';
+                input.dataset.turniEntryMode = 'select';
                 pendingHistoryInput = null;
                 updateActiveGridHighlights(input);
             });
 
             input.addEventListener('click', function (event) {
-                if (!event.altKey && input.dataset.turniTextEditing !== 'true') input.select();
+                if (event.altKey) return;
+                if (input.dataset.turniPointerWasFocused === 'true' ||
+                    !window.matchMedia('(pointer: fine)').matches) {
+                    // Il browser conserva il cursore nel punto cliccato.
+                    input.dataset.turniTextEditing = 'true';
+                    input.dataset.turniEntryMode = 'edit';
+                } else {
+                    input.select();
+                    input.dataset.turniTextEditing = 'false';
+                    input.dataset.turniEntryMode = 'select';
+                }
             });
 
             input.addEventListener('dblclick', function () {
                 input.dataset.turniTextEditing = 'true';
-                input.setSelectionRange(input.value.length, input.value.length);
+                input.dataset.turniEntryMode = 'edit';
             });
 
             input.addEventListener('blur', function () {
@@ -3009,10 +3072,10 @@
             });
 
             input.addEventListener('input', function () {
+                if (input.dataset.turniEntryMode === 'select') input.dataset.turniEntryMode = 'replace';
                 input.dataset.turniTextEditing = 'true';
                 pendingHistoryInput = input;
                 if (isNameInput(input)) {
-                    refreshNameSuggestions();
                     if (nameEditor && activeInput === input) nameEditor.value = input.value;
                 }
                 updateHistoryButtons();
@@ -3042,6 +3105,7 @@
                 if (event.key === 'F2') {
                     event.preventDefault();
                     input.dataset.turniTextEditing = 'true';
+                    input.dataset.turniEntryMode = 'edit';
                     input.setSelectionRange(input.value.length, input.value.length);
                     return;
                 }
@@ -3063,8 +3127,6 @@
                     }
                     return;
                 }
-                if (input.dataset.turniTextEditing === 'true' && event.key.startsWith('Arrow')) return;
-
                 if ((event.key === 'Delete' || event.key === 'Backspace') && clearSelectedGridData(input)) {
                     event.preventDefault();
                     return;
@@ -3125,6 +3187,7 @@
                 }
 
                 if (!event.altKey) {
+                    input.dataset.turniPointerWasFocused = String(document.activeElement === input);
                     clearKeyboardSelection();
                     updateActiveGridHighlights(input);
                     return;
@@ -3145,6 +3208,7 @@
         if (nameEditor) {
             nameEditor.addEventListener('input', function () {
                 if (!activeInput || !isNameInput(activeInput)) return;
+                activeInput.dataset.turniEntryMode = 'edit';
                 activeInput.value = nameEditor.value;
                 activeInput.dispatchEvent(new Event('input', {bubbles: true}));
             });
@@ -3153,6 +3217,14 @@
             });
             nameEditor.addEventListener('keydown', function (event) {
                 if (!activeInput || !isNameInput(activeInput)) return;
+                if (event.isComposing) return;
+                const arrowMoves = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] };
+                if (arrowMoves[event.key] && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    event.preventDefault();
+                    commitInputHistory(activeInput);
+                    moveGridFocus(activeInput, ...arrowMoves[event.key]);
+                    return;
+                }
                 if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
                     event.preventDefault();
                     if (event.shiftKey) redoLastChange(); else undoLastChange();
@@ -3292,7 +3364,6 @@
             section.querySelectorAll('tbody input[type="text"]').forEach((input) => {
                 bindPlannerInput(input);
             });
-            refreshNameSuggestions();
             resetHistoryState();
 
             if (focusTarget) {
@@ -3415,7 +3486,6 @@
                 });
             });
 
-            refreshNameSuggestions();
             updateHistoryButtons();
 
             if (undoButton) {
