@@ -2261,6 +2261,31 @@
             ],
         };
 
+        async function snapshotExportSection(actionName, formData) {
+            const section = actionName.replace(/^export_(pdf|jpg)_/, '');
+            const values = Array.from(formData.entries()).filter(([name]) => name === 'week_label' || name.startsWith(section + '_'));
+            const content = JSON.stringify(values.map(([name, value]) => [name, value.trim()]));
+            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
+            return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Un foglio mai esportato non e automaticamente un foglio modificato.
+        // Cattura i valori iniziali prima che l'utente inizi a scrivere e conserva
+        // riferimenti separati per PDF e JPG, anche dopo il salvataggio del planner.
+        const initialExportFormData = plannerForm ? new FormData(plannerForm) : null;
+        const exportBaselineReady = initialExportFormData ? (async () => {
+            for (const actionName of [...bulkExportActionMap.pdf, ...bulkExportActionMap.jpg]) {
+                if (typeof exportedSnapshots[actionName] !== 'string') {
+                    exportedSnapshots[actionName] = await snapshotExportSection(actionName, initialExportFormData);
+                }
+            }
+            try {
+                window.localStorage.setItem(exportStorageKey, JSON.stringify(exportedSnapshots));
+            } catch (error) {
+                // Il confronto rimane disponibile per questa pagina.
+            }
+        })() : Promise.resolve();
+
         function setBulkExportStatus(message, tone) {
             if (!bulkExportStatus) {
                 return;
@@ -2346,14 +2371,11 @@
 
             setBulkExportBusy(true);
             try {
+                await exportBaselineReady;
                 const formData = new FormData(plannerForm);
                 const snapshots = {};
                 for (const actionName of candidates) {
-                    const section = actionName.replace(/^export_(pdf|jpg)_/, '');
-                    const values = Array.from(formData.entries()).filter(([name]) => name === 'week_label' || name.startsWith(section + '_'));
-                    const content = JSON.stringify(values.map(([name, value]) => [name, value.trim()]));
-                    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
-                    snapshots[actionName] = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+                    snapshots[actionName] = await snapshotExportSection(actionName, formData);
                 }
                 const actions = candidates.filter(actionName => exportedSnapshots[actionName] !== snapshots[actionName]);
                 if (!actions.length) {

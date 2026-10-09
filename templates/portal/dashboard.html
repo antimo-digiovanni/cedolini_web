@@ -237,26 +237,33 @@
                     {% elif vacation_status == 'already_approved' %}
                     <div class="alert alert-warning py-2">Hai gia ferie approvate su almeno uno dei giorni selezionati.</div>
                     {% elif vacation_status == 'invalid_dates' %}
-                    <div class="alert alert-danger py-2">Seleziona una data inizio e una data fine valide.</div>
+                    <div class="alert alert-danger py-2">Seleziona il giorno di ferie e, per più giorni, una data fine valida.</div>
                     {% elif vacation_status == 'invalid_range' %}
                     <div class="alert alert-danger py-2">La data fine non puo essere precedente alla data inizio.</div>
                     {% elif vacation_status == 'invalid_reason' %}
                     <div class="alert alert-danger py-2">Inserisci una motivazione piu dettagliata per la richiesta ferie.</div>
                     {% endif %}
 
-                    <form method="post">
+                    <form method="post" id="vacation-request-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="request_vacation">
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label">Dal giorno</label>
-                                <input type="date" name="start_date" class="form-control" required>
+                                <label class="form-label" for="vacation-start-date">Dal giorno</label>
+                                <input type="date" id="vacation-start-date" name="start_date" class="form-control" required>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Al giorno</label>
-                                <input type="date" name="end_date" class="form-control" required>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" id="vacation-multiple-days" name="multiple_days" class="form-check-input" aria-controls="vacation-end-date-field">
+                                    <label class="form-check-label" for="vacation-multiple-days">Più giorni</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="vacation-end-date-field" hidden>
+                                <label class="form-label" for="vacation-end-date">Fino al giorno</label>
+                                <input type="date" id="vacation-end-date" name="end_date" class="form-control" disabled>
                             </div>
                         </div>
+                        <div class="small text-muted mt-2">Per un solo giorno scegli la data. Per un periodo attiva “Più giorni”: il giorno finale è incluso.</div>
                         <label class="form-label mt-2">Motivazione</label>
                         <textarea name="vacation_reason" rows="3" class="form-control" placeholder="Es: ferie programmate con la famiglia dal 12 al 16 agosto." required></textarea>
                         <button class="btn btn-outline-primary mt-2" type="submit">Invia richiesta ferie</button>
@@ -268,7 +275,7 @@
                         <div class="border rounded-3 p-2 mb-2">
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <div>
-                                    <div class="fw-semibold">{{ req.start_date|date:"d/m/Y" }} - {{ req.end_date|date:"d/m/Y" }}</div>
+                                    <div class="fw-semibold">{{ req.start_date|date:"d/m/Y" }}{% if req.start_date != req.end_date %} - {{ req.end_date|date:"d/m/Y" }}{% endif %}</div>
                                     <div class="small text-muted">Inviata il {{ req.created_at|date:"d/m/Y H:i" }}</div>
                                 </div>
                                 <div>
@@ -530,4 +537,30 @@
 
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('vacation-request-form');
+        if (!form) return;
+        const startDate = form.querySelector('#vacation-start-date');
+        const multipleDays = form.querySelector('#vacation-multiple-days');
+        const endField = form.querySelector('#vacation-end-date-field');
+        const endDate = form.querySelector('#vacation-end-date');
+
+        function syncVacationDates() {
+            endField.hidden = !multipleDays.checked;
+            endDate.disabled = !multipleDays.checked;
+            endDate.required = multipleDays.checked;
+            endDate.min = startDate.value;
+            if (!multipleDays.checked) endDate.value = '';
+        }
+
+        multipleDays.addEventListener('change', function () {
+            syncVacationDates();
+            if (multipleDays.checked) endDate.focus();
+        });
+        startDate.addEventListener('change', syncVacationDates);
+        window.addEventListener('pageshow', syncVacationDates);
+        syncVacationDates();
+    });
+</script>
 {% endblock %}

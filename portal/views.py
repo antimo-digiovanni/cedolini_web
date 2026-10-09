@@ -3858,7 +3858,8 @@ def dashboard(request):
 
         if action == 'request_vacation':
             start_date = _parse_date_or_none(request.POST.get('start_date'))
-            end_date = _parse_date_or_none(request.POST.get('end_date'))
+            multiple_days = request.POST.get('multiple_days') == 'on'
+            end_date = _parse_date_or_none(request.POST.get('end_date')) if multiple_days else start_date
             reason = (request.POST.get('vacation_reason') or '').strip()
 
             if not start_date or not end_date:
