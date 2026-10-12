@@ -2,11 +2,30 @@
 
 {% block extra_css %}
 <style>
-    .dpi-row { display:flex; align-items:center; gap:12px; min-height:48px; }
+    .dpi-row { display:flex; align-items:center; gap:12px; min-height:52px; }
     .dpi-row input[type=checkbox] { width:28px; height:28px; flex-shrink:0; }
-    .dpi-row label { flex:1; font-size:1.05rem; margin:0; }
-    .dpi-qty { width:84px; text-align:center; }
-    .dpi-pad { touch-action:none; border:2px dashed #8fa3c9; border-radius:10px; background:#fafcff; width:100%; height:200px; display:block; }
+    .dpi-row label { flex:1; font-size:1.05rem; margin:0; min-width:0; }
+    .dpi-row input[type=text] { flex:1; min-width:0; }
+    .dpi-qty { width:76px !important; flex:0 0 76px; text-align:center; }
+    .dpi-sign-btn { width:100%; min-height:56px; font-size:1.15rem; }
+
+    .dpi-sign { position:fixed; inset:0; z-index:2147483000; background:#fff; display:none; flex-direction:column; }
+    .dpi-sign.open { display:flex; }
+    .dpi-sign-head { padding:14px 16px 10px; border-bottom:1px solid #e1e8f4; }
+    .dpi-sign-head h3 { font-size:1.2rem; margin:0 0 4px; font-weight:700; color:#0b2a5b; }
+    .dpi-sign-head p { margin:0; font-size:.9rem; color:#4a5f87; }
+    .dpi-sign-body { flex:1; min-height:0; padding:12px 16px; display:flex; flex-direction:column; gap:8px; }
+    .dpi-pad-wrap { flex:1; min-height:160px; position:relative; }
+    .dpi-pad { position:absolute; inset:0; width:100%; height:100%; touch-action:none; border:2px dashed #8fa3c9; border-radius:12px; background:#fafcff; }
+    .dpi-pad-line { position:absolute; left:6%; right:6%; bottom:26%; border-top:1px solid #c5d0e6; pointer-events:none; }
+    .dpi-pad-hint { position:absolute; left:0; right:0; bottom:calc(26% - 26px); text-align:center; font-size:.85rem; color:#8fa3c9; pointer-events:none; }
+    .dpi-sign-foot { padding:10px 16px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid #e1e8f4; display:flex; gap:10px; flex-wrap:wrap; }
+    .dpi-sign-foot .btn { min-height:52px; flex:1 1 120px; font-size:1.05rem; }
+    .dpi-sign-foot .btn-primary { flex:2 1 200px; }
+    .dpi-rotate { display:none; font-size:.85rem; color:#7a4a00; background:#fff4e0; border-radius:8px; padding:6px 10px; }
+    @media (orientation: portrait) and (max-width: 600px) { .dpi-rotate { display:block; } }
+    body.dpi-locked { overflow:hidden; }
+    body.dpi-locked .mobile-tabbar { display:none !important; }
 </style>
 {% endblock %}
 
@@ -17,18 +36,19 @@
 </div>
 
 {% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
+<div class="alert alert-warning mb-3 d-none" id="dpiItemsError">Seleziona almeno un DPI prima di firmare.</div>
 
 <form method="post" id="dpiForm" novalidate>
     {% csrf_token %}
 
     <div class="card-modern mb-4">
-        <h4 class="mb-3">1 · Dispositivi consegnati</h4>
+        <h4 class="mb-3">Dispositivi consegnati</h4>
         {% for key, label, has_qty in standard_items %}
         <div class="dpi-row">
-            <input type="checkbox" name="item" value="{{ key }}" id="item_{{ key }}" {% if posted and key in posted.item %}checked{% endif %}>
+            <input type="checkbox" name="item" value="{{ key }}" id="item_{{ key }}" data-label="{{ label }}" {% if posted and key in posted.item %}checked{% endif %}>
             <label for="item_{{ key }}">{{ label }}</label>
             {% if has_qty %}
-            <input type="number" class="form-control dpi-qty" name="qty_{{ key }}" min="1" max="99" value="2" aria-label="Quantità {{ label }}">
+            <input type="number" inputmode="numeric" class="form-control dpi-qty" name="qty_{{ key }}" id="qty_{{ key }}" min="1" max="99" value="2" aria-label="Quantità {{ label }}">
             {% endif %}
         </div>
         {% endfor %}
@@ -38,17 +58,31 @@
         <button type="button" class="btn btn-outline-primary mt-2" id="addExtra">+ Aggiungi voce a mano</button>
     </div>
 
-    <div class="card-modern mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h4 class="mb-0">2 · Firma del lavoratore</h4>
-            <button type="button" class="btn btn-outline-secondary" id="clearSig">Cancella</button>
+    <div class="d-flex flex-column gap-2 mb-4">
+        <button type="button" class="btn btn-primary dpi-sign-btn" id="openSign">Firma per avvenuta ricezione</button>
+        <a href="{% url 'admin_employee_detail' employee.id %}" class="btn btn-outline-secondary">Annulla</a>
+    </div>
+
+    <input type="hidden" name="signature" id="sigData">
+
+    <div class="dpi-sign" id="signView" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+        <div class="dpi-sign-head">
+            <h3 id="signTitle">Firma per avvenuta ricezione</h3>
+            <p>{{ employee.full_name }} · <span id="signSummary"></span></p>
         </div>
-        <p class="text-muted">Firma con il dito o la penna. Vale per presa consegna e per presa visione dell'informativa (pag. 2).</p>
-        <canvas id="sigPad" class="dpi-pad" aria-label="Area firma"></canvas>
-        <input type="hidden" name="signature" id="sigData">
-        <div class="d-flex gap-2 mt-3">
-            <button type="submit" class="btn btn-primary btn-lg">Conferma e genera documento</button>
-            <a href="{% url 'admin_employee_detail' employee.id %}" class="btn btn-outline-secondary btn-lg">Annulla</a>
+        <div class="dpi-sign-body">
+            <div class="dpi-rotate">Gira il telefono in orizzontale per avere più spazio.</div>
+            <div class="dpi-pad-wrap">
+                <canvas id="sigPad" class="dpi-pad" aria-label="Area firma"></canvas>
+                <div class="dpi-pad-line"></div>
+                <div class="dpi-pad-hint" id="sigHint">Firma qui con il dito o la penna</div>
+            </div>
+            <div class="alert alert-warning mb-0 d-none" id="sigError">Serve la firma prima di confermare.</div>
+        </div>
+        <div class="dpi-sign-foot">
+            <button type="button" class="btn btn-outline-secondary" id="closeSign">Indietro</button>
+            <button type="button" class="btn btn-outline-secondary" id="clearSig">Cancella</button>
+            <button type="submit" form="dpiForm" class="btn btn-primary" id="confirmSign">Conferma e genera documento</button>
         </div>
     </div>
 </form>
@@ -57,18 +91,38 @@
 {% block extra_js %}
 <script>
 (function () {
+    var form = document.getElementById('dpiForm');
+    var view = document.getElementById('signView');
+    // Fuori dal contenuto della pagina, così copre tutto lo schermo (anche la barra in basso).
+    document.body.appendChild(view);
     var canvas = document.getElementById('sigPad');
     var ctx = canvas.getContext('2d');
+    var hint = document.getElementById('sigHint');
     var drawing = false, dirty = false;
 
+    function style() {
+        ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a5b';
+    }
     function resize() {
-        var ratio = window.devicePixelRatio || 1;
         var rect = canvas.getBoundingClientRect();
-        canvas.width = Math.round(rect.width * ratio);
-        canvas.height = Math.round(rect.height * ratio);
+        if (!rect.width || !rect.height) return;
+        var ratio = window.devicePixelRatio || 1;
+        var w = Math.round(rect.width * ratio), h = Math.round(rect.height * ratio);
+        if (w === canvas.width && h === canvas.height) return;
+        var old = null;
+        if (dirty && canvas.width && canvas.height) {
+            old = document.createElement('canvas');
+            old.width = canvas.width; old.height = canvas.height;
+            old.getContext('2d').drawImage(canvas, 0, 0);
+        }
+        canvas.width = w; canvas.height = h;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        if (old) {
+            var k = Math.min(w / old.width, h / old.height);
+            ctx.drawImage(old, 0, 0, old.width * k, old.height * k);
+        }
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-        ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a5b';
-        dirty = false;
+        style();
     }
     function pos(e) {
         var r = canvas.getBoundingClientRect();
@@ -76,44 +130,80 @@
     }
     canvas.addEventListener('pointerdown', function (e) {
         e.preventDefault();
-        canvas.setPointerCapture(e.pointerId);
-        drawing = true; dirty = true;
+        try { canvas.setPointerCapture(e.pointerId); } catch (x) {}
+        drawing = true; dirty = true; hint.style.display = 'none';
+        document.getElementById('sigError').classList.add('d-none');
         var p = pos(e);
         ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + 0.1, p[1] + 0.1); ctx.stroke();
     });
     canvas.addEventListener('pointermove', function (e) {
         if (!drawing) return;
+        e.preventDefault();
         var p = pos(e);
         ctx.lineTo(p[0], p[1]); ctx.stroke();
     });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) {
+    ['pointerup', 'pointercancel'].forEach(function (n) {
         canvas.addEventListener(n, function () { drawing = false; });
     });
-    document.getElementById('clearSig').addEventListener('click', function () {
-        ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false;
+    function clearPad() {
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.restore();
+        dirty = false; hint.style.display = '';
+    }
+    document.getElementById('clearSig').addEventListener('click', clearPad);
+
+    function selectedItems() {
+        var out = [];
+        form.querySelectorAll('input[name=item]:checked').forEach(function (cb) {
+            var q = document.getElementById('qty_' + cb.value);
+            out.push((q ? q.value + ' ' : '') + cb.dataset.label.toLowerCase());
+        });
+        var labels = form.querySelectorAll('input[name=extra_label]');
+        var qtys = form.querySelectorAll('input[name=extra_qty]');
+        labels.forEach(function (l, i) {
+            if (l.value.trim()) out.push((qtys[i] ? qtys[i].value : '1') + ' ' + l.value.trim().toLowerCase());
+        });
+        return out;
+    }
+
+    document.getElementById('openSign').addEventListener('click', function () {
+        var items = selectedItems();
+        var err = document.getElementById('dpiItemsError');
+        if (!items.length) { err.classList.remove('d-none'); err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        err.classList.add('d-none');
+        document.getElementById('signSummary').textContent = items.join(', ');
+        view.classList.add('open');
+        document.body.classList.add('dpi-locked');
+        requestAnimationFrame(resize);
     });
-    window.addEventListener('resize', resize);
-    resize();
+    document.getElementById('closeSign').addEventListener('click', function () {
+        view.classList.remove('open');
+        document.body.classList.remove('dpi-locked');
+    });
+    window.addEventListener('resize', function () { if (view.classList.contains('open')) resize(); });
+
+    form.addEventListener('change', function () { document.getElementById('dpiItemsError').classList.add('d-none'); });
 
     var extra = document.getElementById('extraRows');
     document.getElementById('addExtra').addEventListener('click', function () {
         var row = document.createElement('div');
         row.className = 'dpi-row mb-2';
-        row.innerHTML = '<input type="text" class="form-control" name="extra_label" maxlength="80" placeholder="es. casco, guanti invernali…" aria-label="Voce DPI">' +
-            '<input type="number" class="form-control dpi-qty" name="extra_qty" min="1" max="99" value="1" aria-label="Quantità">' +
-            '<button type="button" class="btn btn-outline-danger" aria-label="Rimuovi">×</button>';
+        row.innerHTML = '<input type="text" class="form-control" name="extra_label" maxlength="80" placeholder="es. casco" aria-label="Voce DPI">' +
+            '<input type="number" inputmode="numeric" class="form-control dpi-qty" name="extra_qty" min="1" max="99" value="1" aria-label="Quantità">' +
+            '<button type="button" class="btn btn-outline-danger" aria-label="Rimuovi" style="min-width:44px;min-height:44px">&times;</button>';
         row.querySelector('button').addEventListener('click', function () { row.remove(); });
         extra.appendChild(row);
         row.querySelector('input').focus();
     });
 
-    document.getElementById('dpiForm').addEventListener('submit', function (e) {
+    form.addEventListener('submit', function (e) {
         if (!dirty) {
             e.preventDefault();
-            alert('Serve la firma del lavoratore prima di confermare.');
+            document.getElementById('sigError').classList.remove('d-none');
             return;
         }
         document.getElementById('sigData').value = canvas.toDataURL('image/png');
+        var btn = document.getElementById('confirmSign');
+        btn.disabled = true; btn.textContent = 'Generazione in corso…';
     });
 })();
 </script>

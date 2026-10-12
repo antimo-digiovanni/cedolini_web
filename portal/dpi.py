@@ -2,6 +2,7 @@
 
 import base64
 import io
+from pathlib import Path
 
 from PIL import Image
 from reportlab.lib.enums import TA_CENTER
@@ -34,7 +35,8 @@ STANDARD_ITEMS = [
     ('giacche', 'Giacche', True),
 ]
 
-MAX_SIGNATURE_BYTES = 600 * 1024
+MAX_SIGNATURE_BYTES = 1500 * 1024
+COMPANY_STAMP_PATH = Path(__file__).resolve().parent / 'dpi_assets' / 'timbro_firma_azienda.png'
 
 INFORMATIVA = [
     ('Articolo 20 D.Lgs. 81/2008 - Obbligo di uso', [
@@ -97,8 +99,16 @@ def decode_signature(data_url):
     background = Image.new('RGBA', img.size, (255, 255, 255, 255))
     flat = Image.alpha_composite(background, img).convert('RGB')
     # Firma vuota: nessun pixel scuro.
-    if flat.convert('L').getextrema()[0] > 200:
+    gray = flat.convert('L')
+    if gray.getextrema()[0] > 200:
         raise DpiError('Firma mancante.')
+    # Ritaglia attorno al tratto così la firma occupa tutto lo spazio nel PDF.
+    bbox = gray.point(lambda v: 255 if v < 200 else 0).getbbox()
+    if bbox:
+        pad = 12
+        bbox = (max(0, bbox[0] - pad), max(0, bbox[1] - pad),
+                min(flat.width, bbox[2] + pad), min(flat.height, bbox[3] + pad))
+        flat = flat.crop(bbox)
     out = io.BytesIO()
     flat.save(out, format='PNG')
     return out.getvalue()
@@ -157,7 +167,7 @@ def build_pdf(*, employee_name, delivered_on, items, signature_png):
     date_txt = delivered_on.strftime('%d/%m/%Y')
     sig_img = ImageReader(io.BytesIO(signature_png))
     sig_w, sig_h = sig_img.getSize()
-    box_w, box_h = 60 * mm, 22 * mm
+    box_w, box_h = 78 * mm, 34 * mm
     scale = min(box_w / sig_w, box_h / sig_h)
 
     def sig():
@@ -212,13 +222,21 @@ def build_pdf(*, employee_name, delivered_on, items, signature_png):
         Spacer(1, 6 * mm),
     ]
 
-    def signatures(worker_caption, employer=True):
-        left = [Spacer(1, box_h), Paragraph('Timbro e Firma del Datore di Lavoro', cap)] if employer else ['']
+    def stamp():
+        if not COMPANY_STAMP_PATH.exists():
+            return Spacer(1, box_h)
+        reader = ImageReader(str(COMPANY_STAMP_PATH))
+        w, h = reader.getSize()
+        k = min(70 * mm / w, box_h / h)
+        return RLImage(str(COMPANY_STAMP_PATH), width=w * k, height=h * k)
+
+    def signatures(worker_caption):
+        left = [stamp(), Paragraph('Timbro e Firma del Datore di Lavoro', cap)]
         right = [sig(), Paragraph(worker_caption, cap)]
-        t = Table([[left, right]], colWidths=[80 * mm, 80 * mm])
+        t = Table([[left, right]], colWidths=[82 * mm, 82 * mm])
         t.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-            ('LINEABOVE', (0, 0), (0, 0), 0, (1, 1, 1)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ]))
         return t
 
@@ -240,7 +258,7 @@ def build_pdf(*, employee_name, delivered_on, items, signature_png):
         Paragraph(f'{DELIVERY_PLACE}, lì {date_txt}', base),
         Spacer(1, 2 * mm),
         KeepTogether(Table([[sig()], [Paragraph('Il Lavoratore per avvenuta informazione', cap)]],
-                           colWidths=[80 * mm], hAlign='RIGHT')),
+                           colWidths=[82 * mm], hAlign='RIGHT')),
     ]
     doc.build(story)
     return buf.getvalue()
