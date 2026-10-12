@@ -101,8 +101,11 @@
     var drawing = false, dirty = false;
 
     function style() {
-        ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a5b';
+        var ratio = window.devicePixelRatio || 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.lineWidth = 3 * ratio; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a5b';
     }
+    // Riallinea la superficie di disegno alla dimensione reale del riquadro (es. dopo la rotazione del telefono).
     function resize() {
         var rect = canvas.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
@@ -116,25 +119,29 @@
             old.getContext('2d').drawImage(canvas, 0, 0);
         }
         canvas.width = w; canvas.height = h;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        style();
         if (old) {
             var k = Math.min(w / old.width, h / old.height);
             ctx.drawImage(old, 0, 0, old.width * k, old.height * k);
         }
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-        style();
     }
+    // Coordinate calcolate sempre sulla dimensione attuale: il tratto segue il dito anche se il riquadro cambia.
     function pos(e) {
         var r = canvas.getBoundingClientRect();
-        return [e.clientX - r.left, e.clientY - r.top];
+        return [(e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height];
     }
+    if (window.ResizeObserver) {
+        new ResizeObserver(function () { if (view.classList.contains('open')) resize(); }).observe(canvas);
+    }
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 300); });
     canvas.addEventListener('pointerdown', function (e) {
         e.preventDefault();
         try { canvas.setPointerCapture(e.pointerId); } catch (x) {}
+        resize();
         drawing = true; dirty = true; hint.style.display = 'none';
         document.getElementById('sigError').classList.add('d-none');
         var p = pos(e);
-        ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + 0.1, p[1] + 0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + 0.5, p[1] + 0.5); ctx.stroke();
     });
     canvas.addEventListener('pointermove', function (e) {
         if (!drawing) return;
@@ -146,7 +153,7 @@
         canvas.addEventListener(n, function () { drawing = false; });
     });
     function clearPad() {
-        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.restore();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         dirty = false; hint.style.display = '';
     }
     document.getElementById('clearSig').addEventListener('click', clearPad);
