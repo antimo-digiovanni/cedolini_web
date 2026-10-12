@@ -7200,6 +7200,7 @@ def admin_employee_detail(request, emp_id):
         'employee': employee,
         'detailed': detailed,
         'cuds_detailed': cuds_detailed,
+        'dpi_deliveries': employee.dpi_deliveries.all()[:20],
         'feedback': feedback,
         'feedback_level': feedback_level,
         'has_patrimonio_access': employee.user.groups.filter(id=patrimonio_group.id).exists(),

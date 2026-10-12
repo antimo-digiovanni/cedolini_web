@@ -192,4 +192,28 @@
 
 {% endif %}
 
+<div class="card-modern mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-2">
+        <div>
+            <h4 class="mb-1">Consegna DPI</h4>
+            <p class="text-muted mb-0">Registra la consegna dei dispositivi di protezione con firma del dipendente.</p>
+        </div>
+        <a href="{% url 'admin_employee_dpi' employee.id %}" class="btn btn-primary">Nuova consegna DPI</a>
+    </div>
+    {% if dpi_deliveries %}
+    <table class="table align-middle mb-0">
+        <thead><tr><th>Data</th><th>DPI consegnati</th><th></th></tr></thead>
+        <tbody>
+        {% for d in dpi_deliveries %}
+            <tr>
+                <td>{{ d.delivered_on|date:"d/m/Y" }}</td>
+                <td>{% for i in d.items %}{{ i.text }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                <td class="text-end"><a href="{% url 'open_dpi' d.id %}" class="btn btn-sm btn-secondary" target="_blank">Apri PDF</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
 {% endblock %}

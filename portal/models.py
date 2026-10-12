@@ -699,3 +699,19 @@ class PersonalAssetEntry(models.Model):
 
     def __str__(self):
         return f"{self.user.get_username()} {self.operation_type} {self.occurred_on}"
+
+class DpiDelivery(models.Model):
+    """Consegna di Dispositivi di Protezione Individuale firmata dal dipendente."""
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='dpi_deliveries')
+    delivered_on = models.DateField()
+    items = models.JSONField(default=list)
+    pdf = models.FileField(upload_to='dpi/')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-delivered_on', '-id']
+
+    def __str__(self):
+        return f"DPI {self.delivered_on:%d/%m/%Y} - {self.employee.full_name}"

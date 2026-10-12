@@ -1,0 +1,120 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .dpi-row { display:flex; align-items:center; gap:12px; min-height:48px; }
+    .dpi-row input[type=checkbox] { width:28px; height:28px; flex-shrink:0; }
+    .dpi-row label { flex:1; font-size:1.05rem; margin:0; }
+    .dpi-qty { width:84px; text-align:center; }
+    .dpi-pad { touch-action:none; border:2px dashed #8fa3c9; border-radius:10px; background:#fafcff; width:100%; height:200px; display:block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Consegna DPI</h2>
+    <p class="mb-0 opacity-75">{{ employee.full_name }} · {{ today|date:"d/m/Y" }}</p>
+</div>
+
+{% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
+
+<form method="post" id="dpiForm" novalidate>
+    {% csrf_token %}
+
+    <div class="card-modern mb-4">
+        <h4 class="mb-3">1 · Dispositivi consegnati</h4>
+        {% for key, label, has_qty in standard_items %}
+        <div class="dpi-row">
+            <input type="checkbox" name="item" value="{{ key }}" id="item_{{ key }}" {% if posted and key in posted.item %}checked{% endif %}>
+            <label for="item_{{ key }}">{{ label }}</label>
+            {% if has_qty %}
+            <input type="number" class="form-control dpi-qty" name="qty_{{ key }}" min="1" max="99" value="2" aria-label="Quantità {{ label }}">
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <hr>
+        <div id="extraRows"></div>
+        <button type="button" class="btn btn-outline-primary mt-2" id="addExtra">+ Aggiungi voce a mano</button>
+    </div>
+
+    <div class="card-modern mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0">2 · Firma del lavoratore</h4>
+            <button type="button" class="btn btn-outline-secondary" id="clearSig">Cancella</button>
+        </div>
+        <p class="text-muted">Firma con il dito o la penna. Vale per presa consegna e per presa visione dell'informativa (pag. 2).</p>
+        <canvas id="sigPad" class="dpi-pad" aria-label="Area firma"></canvas>
+        <input type="hidden" name="signature" id="sigData">
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary btn-lg">Conferma e genera documento</button>
+            <a href="{% url 'admin_employee_detail' employee.id %}" class="btn btn-outline-secondary btn-lg">Annulla</a>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var canvas = document.getElementById('sigPad');
+    var ctx = canvas.getContext('2d');
+    var drawing = false, dirty = false;
+
+    function resize() {
+        var ratio = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = Math.round(rect.width * ratio);
+        canvas.height = Math.round(rect.height * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a5b';
+        dirty = false;
+    }
+    function pos(e) {
+        var r = canvas.getBoundingClientRect();
+        return [e.clientX - r.left, e.clientY - r.top];
+    }
+    canvas.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        drawing = true; dirty = true;
+        var p = pos(e);
+        ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + 0.1, p[1] + 0.1); ctx.stroke();
+    });
+    canvas.addEventListener('pointermove', function (e) {
+        if (!drawing) return;
+        var p = pos(e);
+        ctx.lineTo(p[0], p[1]); ctx.stroke();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) {
+        canvas.addEventListener(n, function () { drawing = false; });
+    });
+    document.getElementById('clearSig').addEventListener('click', function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false;
+    });
+    window.addEventListener('resize', resize);
+    resize();
+
+    var extra = document.getElementById('extraRows');
+    document.getElementById('addExtra').addEventListener('click', function () {
+        var row = document.createElement('div');
+        row.className = 'dpi-row mb-2';
+        row.innerHTML = '<input type="text" class="form-control" name="extra_label" maxlength="80" placeholder="es. casco, guanti invernali…" aria-label="Voce DPI">' +
+            '<input type="number" class="form-control dpi-qty" name="extra_qty" min="1" max="99" value="1" aria-label="Quantità">' +
+            '<button type="button" class="btn btn-outline-danger" aria-label="Rimuovi">×</button>';
+        row.querySelector('button').addEventListener('click', function () { row.remove(); });
+        extra.appendChild(row);
+        row.querySelector('input').focus();
+    });
+
+    document.getElementById('dpiForm').addEventListener('submit', function (e) {
+        if (!dirty) {
+            e.preventDefault();
+            alert('Serve la firma del lavoratore prima di confermare.');
+            return;
+        }
+        document.getElementById('sigData').value = canvas.toDataURL('image/png');
+    });
+})();
+</script>
+{% endblock %}
