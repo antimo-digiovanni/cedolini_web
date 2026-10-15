@@ -1,3 +1,4 @@
+import mimetypes
 from pathlib import Path
 
 from django.conf import settings
@@ -6,9 +7,17 @@ from django.shortcuts import redirect
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
 
+mimetypes.add_type('font/woff2', '.woff2')
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('text/javascript', '.js')
 
 GROUP_ASSETS = {
     'app.js', 'style.css',
+    'assets/fonts.css', 'assets/gsap.min.js', 'assets/ScrollTrigger.min.js',
+    'assets/lenis.min.js',
+    'assets/instrument-serif-latin-400-normal.woff2',
+    'assets/instrument-serif-latin-400-italic.woff2',
+    'assets/inter-tight-latin-wght-normal.woff2',
     'assets/antimo-petroli.png', 'assets/catering.png', 'assets/eurofrozen.png',
     'assets/flotta.png', 'assets/gruppo-hero.png',
     'assets/gruppo-servizi-hero.png', 'assets/logo-gruppo.svg',

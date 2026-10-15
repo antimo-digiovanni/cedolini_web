@@ -8,8 +8,12 @@ from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.views.decorators.http import require_safe
 
+mimetypes.add_type('font/woff2', '.woff2')
+mimetypes.add_type('text/javascript', '.js')
+
 PAGES = {'index', 'chi-siamo', 'servizi', 'servizi-digitali',
-         'disinfestazione-derattizzazione', 'macchinari', 'contatti'}
+         'disinfestazione-derattizzazione', 'macchinari', 'contatti',
+         'privacy-policy', 'cookie-policy', 'informativa-dipendenti'}
 
 HOME_PRELOADER_STYLE = '''
 <style>
