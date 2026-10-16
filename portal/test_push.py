@@ -183,3 +183,21 @@ class PushRecentDevicesTests(TestCase):
         r = self.client.post(reverse('admin_dpi'), {'employee': emp.id, 'action': 'test_push'})
         self.assertContains(r, 'account «antimo.dip»')
         self.assertContains(r, 'account «admin» (admin)')
+
+
+class ServiceWorkerSyntaxTests(TestCase):
+    def test_service_worker_is_valid_javascript(self):
+        """Un errore di sintassi impedisce al telefono di installare il service worker (e quindi le notifiche)."""
+        import shutil
+        import subprocess
+        import tempfile
+        import unittest
+        node = shutil.which('node')
+        if not node:
+            raise unittest.SkipTest('node non disponibile')
+        body = self.client.get(reverse('service_worker')).content
+        with tempfile.NamedTemporaryFile(suffix='.js') as fh:
+            fh.write(body)
+            fh.flush()
+            result = subprocess.run([node, '--check', fh.name], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)

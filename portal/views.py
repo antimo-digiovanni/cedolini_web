@@ -3541,7 +3541,7 @@ self.addEventListener('fetch', (event) => {{
                     return cachedDashboard;
                 }}
                 return new Response(
-                    '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title><style>body{{font-family:Segoe UI,sans-serif;background:#f1f5f9;color:#0f172a;padding:24px}}.box{{max-width:420px;margin:10vh auto;background:#fff;border-radius:18px;padding:24px;box-shadow:0 12px 32px rgba(15,23,42,.12)}}h1{{font-size:1.2rem;margin:0 0 12px}}p{{margin:0;line-height:1.5;color:#475569}}</style></head><body><div class="box"><h1>Connessione assente</h1><p>Riapri l\'app quando la rete torna disponibile per consultare il portale dipendenti.</p></div></body></html>',
+                    '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title><style>body{{font-family:Segoe UI,sans-serif;background:#f1f5f9;color:#0f172a;padding:24px}}.box{{max-width:420px;margin:10vh auto;background:#fff;border-radius:18px;padding:24px;box-shadow:0 12px 32px rgba(15,23,42,.12)}}h1{{font-size:1.2rem;margin:0 0 12px}}p{{margin:0;line-height:1.5;color:#475569}}</style></head><body><div class="box"><h1>Connessione assente</h1><p>Riapri l&#39;app quando la rete torna disponibile per consultare il portale dipendenti.</p></div></body></html>',
                     {{ headers: {{ 'Content-Type': 'text/html; charset=utf-8' }} }}
                 );
             }})
