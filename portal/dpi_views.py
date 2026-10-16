@@ -69,6 +69,18 @@ def admin_dpi(request):
                                 metadata={'dpi_delivery_id': delivery.id})
             return redirect(f"{reverse('admin_dpi')}?outcome=cancelled")
 
+        if action == 'test_push':
+            employee = Employee.objects.select_related('user').filter(id=selected_id).first() if str(selected_id).isdigit() else None
+            if not employee:
+                error = 'Scegli il dipendente a cui mandare la notifica di prova.'
+            else:
+                sent = push.send_to_user(employee.user, title='Notifica di prova',
+                                         body='Le notifiche del portale San Vincenzo funzionano.',
+                                         url=reverse('employee_dpi'), tag='prova')
+                devices = push.describe_user_devices(employee.user)
+                return render(request, 'portal/admin_dpi.html', _admin_dpi_context(
+                    request, selected_id, None, None, push_test={'employee': employee, 'sent': sent, 'devices': devices}))
+
         if action in ('sign_now', 'send'):
             employee = Employee.objects.filter(id=selected_id).first() if str(selected_id).isdigit() else None
             items = dpi.build_items(request.POST)
@@ -99,7 +111,12 @@ def admin_dpi(request):
                 _create_audit_event(request, 'dpi_sent_for_signature', employee=employee,
                                     metadata={'dpi_delivery_id': delivery.id, 'items': [i['text'] for i in items],
                                               'notified_devices': delivery.notified_devices})
-                outcome = 'sent_push' if delivery.notified_devices else 'sent'
+                if delivery.notified_devices:
+                    outcome = 'sent_push'
+                elif employee.user.push_subscriptions.exists():
+                    outcome = 'sent_push_failed'
+                else:
+                    outcome = 'sent'
                 return redirect(f"{reverse('admin_dpi')}?outcome={outcome}")
 
     outcome = request.GET.get('outcome')
@@ -107,17 +124,24 @@ def admin_dpi(request):
         'sent': 'Consegna inviata: il dipendente la troverà da firmare nel suo account. '
                 'Non ha attivato le notifiche, quindi la vedrà al prossimo accesso.',
         'sent_push': 'Consegna inviata e notifica arrivata sul telefono del dipendente.',
+        'sent_push_failed': 'Consegna inviata, ma la notifica non è partita. Scegli il dipendente e usa «Prova notifica» per vedere l\'errore.',
         'cancelled': 'Richiesta di firma annullata.',
     }.get(outcome)
 
+    return render(request, 'portal/admin_dpi.html', _admin_dpi_context(request, selected_id, error, feedback))
+
+
+def _admin_dpi_context(request, selected_id, error, feedback, push_test=None):
+    employees = Employee.objects.select_related('user').order_by('last_name', 'first_name')
     status_filter = request.GET.get('stato', '')
     history = DpiDelivery.objects.select_related('employee').exclude(status=DPI_STATUS_CANCELLED)
     if status_filter in (DPI_STATUS_PENDING, DPI_STATUS_SIGNED):
         history = history.filter(status=status_filter)
     page = Paginator(history, 30).get_page(request.GET.get('page'))
 
-    return render(request, 'portal/admin_dpi.html', {
+    return {
         'employees': employees,
+        'push_test': push_test,
         'selected_id': str(selected_id),
         'standard_items': dpi.STANDARD_ITEMS,
         'error': error,
@@ -128,7 +152,7 @@ def admin_dpi(request):
         'status_filter': status_filter,
         'pending_count': DpiDelivery.objects.filter(status=DPI_STATUS_PENDING).count(),
         'push_user_ids': set(PushSubscription.objects.values_list('user_id', flat=True)),
-    })
+    }
 
 
 @login_required

@@ -140,3 +140,33 @@ class AdminEmployeePushTests(TestCase):
         User.objects.create_user('boss', password='x', is_staff=True)
         self.client.login(username='boss', password='x')
         self.assertNotContains(self.client.get(reverse('admin_dashboard')), 'Attiva notifiche')
+
+
+class PushDiagnosticsTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', is_staff=True)
+        self.user = User.objects.create_user('mario', password='x')
+        self.emp = Employee.objects.create(user=self.user, first_name='Mario', last_name='Rossi', must_change_password=False)
+        self.client.login(username='admin', password='x')
+
+    def test_no_devices(self):
+        r = self.client.post(reverse('admin_dpi'), {'employee': self.emp.id, 'action': 'test_push'})
+        self.assertContains(r, 'non ha nessun dispositivo iscritto')
+
+    def test_apple_error_is_shown_and_jwt_exp_under_24h(self):
+        import time
+        p256dh, auth = _fake_browser_keys()
+        PushSubscription.objects.create(user=self.user, endpoint='https://web.push.apple.com/x', p256dh=p256dh, auth=auth)
+        resp = FakeResponse(403); resp.reason = 'Forbidden'; resp.text = '{"reason":"BadJwtToken"}'
+        with mock.patch('pywebpush.requests.post', return_value=resp) as post:
+            r = self.client.post(reverse('admin_dpi'), {'employee': self.emp.id, 'action': 'test_push'})
+        self.assertContains(r, 'BadJwtToken')
+        self.assertContains(r, 'iPhone/Safari')
+        token = post.call_args[1]['headers']['authorization'].split('t=')[1].split(',')[0]
+        claims = json.loads(base64.urlsafe_b64decode(token.split('.')[1] + '=='))
+        self.assertLess(claims['exp'] - time.time(), 24 * 3600)
+        self.assertEqual(claims['aud'], 'https://web.push.apple.com')
+        # invio DPI con iscrizione presente ma fallita -> messaggio dedicato
+        with mock.patch('pywebpush.requests.post', return_value=resp):
+            r = self.client.post(reverse('admin_dpi'), {'employee': self.emp.id, 'item': ['scarpe'], 'action': 'send'})
+        self.assertIn('sent_push_failed', r['Location'])

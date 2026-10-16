@@ -7,6 +7,7 @@ così non serve configurare variabili d'ambiente.
 import base64
 import json
 import logging
+import time
 
 from django.db import transaction
 from django.utils import timezone
@@ -74,6 +75,23 @@ def get_keys():
         return key.private_pem, key.public_key
 
 
+def _record_error(sub, message):
+    sub.last_error = message[:300]
+    sub.last_error_at = timezone.now()
+    sub.save(update_fields=['last_error', 'last_error_at'])
+
+
+def describe_user_devices(user):
+    """Riepilogo leggibile dei dispositivi iscritti, per la diagnostica in pagina admin."""
+    out = []
+    for s in user.push_subscriptions.order_by('-created_at'):
+        host = s.endpoint.split('/')[2] if s.endpoint.count('/') >= 2 else s.endpoint
+        kind = 'iPhone/Safari' if 'apple.com' in host else ('Android/Chrome' if 'googleapis.com' in host else host)
+        out.append({'kind': kind, 'created_at': s.created_at, 'last_success_at': s.last_success_at,
+                    'last_error': s.last_error, 'last_error_at': s.last_error_at})
+    return out
+
+
 def send_to_user(user, *, title, body, url, tag='portale'):
     """Invia la notifica a tutti i dispositivi dell'utente. Restituisce quanti l'hanno ricevuta."""
     from py_vapid import Vapid02
@@ -97,23 +115,29 @@ def send_to_user(user, *, title, body, url, tag='portale'):
                 subscription_info={'endpoint': sub.endpoint, 'keys': {'p256dh': sub.p256dh, 'auth': sub.auth}},
                 data=payload,
                 vapid_private_key=vapid,
-                vapid_claims={'sub': VAPID_SUBJECT},
+                # Scadenza esplicita a 12 ore: Apple rifiuta i token con scadenza oltre le 24 ore.
+                vapid_claims={'sub': VAPID_SUBJECT, 'exp': int(time.time()) + 12 * 3600},
                 ttl=7 * 24 * 3600,
                 timeout=8,
             )
         except WebPushException as exc:
-            status = getattr(getattr(exc, 'response', None), 'status_code', None)
+            resp = getattr(exc, 'response', None)
+            status = getattr(resp, 'status_code', None)
             if status in (404, 410):
                 sub.delete()  # dispositivo non più valido (app disinstallata o permesso revocato)
-            else:
-                logger.warning('push: invio fallito user=%s status=%s', user.pk, status)
+                continue
+            detail = (getattr(resp, 'text', '') or str(exc))[:200]
+            logger.warning('push: invio fallito user=%s status=%s %s', user.pk, status, detail)
+            _record_error(sub, f'{status or "errore"} {detail}'.strip())
             continue
-        except Exception:
+        except Exception as exc:
             logger.exception('push: errore invio user=%s', user.pk)
+            _record_error(sub, f'{type(exc).__name__}: {exc}'[:300])
             continue
         delivered += 1
         sub.last_success_at = timezone.now()
-        sub.save(update_fields=['last_success_at'])
+        sub.last_error = ''
+        sub.save(update_fields=['last_success_at', 'last_error'])
     return delivered
 
 

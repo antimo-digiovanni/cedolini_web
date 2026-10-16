@@ -36,6 +36,25 @@
             <option value="{{ e.id }}" {% if selected_id == e.id|stringformat:"s" %}selected{% endif %}>{{ e.last_name|default:"" }} {{ e.first_name|default:"" }}{% if not e.last_name and not e.first_name %}{{ e.user.username }}{% endif %}{% if e.user_id in push_user_ids %} · notifiche attive{% endif %}</option>
             {% endfor %}
         </select>
+        <div class="mt-2"><button type="submit" name="action" value="test_push" class="btn btn-sm btn-outline-secondary" id="testPushBtn"><i class="bi bi-bell" aria-hidden="true"></i> Prova notifica</button></div>
+        {% if push_test %}
+        <div class="alert {% if push_test.sent %}alert-success{% else %}alert-warning{% endif %} mt-3 mb-0">
+            {% if push_test.sent %}
+            <strong>Notifica di prova inviata</strong> a {{ push_test.employee.full_name }} ({{ push_test.sent }} dispositiv{{ push_test.sent|pluralize:"o,i" }}). Se non compare sul telefono, il problema è sul dispositivo (notifiche disattivate nelle Impostazioni di iOS o modalità Full immersion).
+            {% elif not push_test.devices %}
+            <strong>{{ push_test.employee.full_name }} non ha nessun dispositivo iscritto.</strong> L'account con cui ha premuto «Attiva notifiche» non è quello collegato a questo dipendente (es. hai attivato dall'account admin), oppure l'attivazione non è arrivata al portale.
+            {% else %}
+            <strong>Invio non riuscito.</strong>
+            {% endif %}
+            {% if push_test.devices %}
+            <ul class="mb-0 mt-2 small">
+                {% for d in push_test.devices %}
+                <li>{{ d.kind }}, attivato il {{ d.created_at|date:"d/m/Y H:i" }}{% if d.last_success_at %} · ultimo invio riuscito {{ d.last_success_at|date:"d/m H:i" }}{% endif %}{% if d.last_error %} · <span class="text-danger">errore: {{ d.last_error }}</span>{% endif %}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 
     <div class="card-modern mb-4">
@@ -161,6 +180,7 @@
     });
     form.addEventListener('submit', function (e) {
         if (e.submitter && e.submitter.id === 'sendBtn' && !check()) e.preventDefault();
+        if (e.submitter && e.submitter.id === 'testPushBtn' && !select.value) { e.preventDefault(); errBox.textContent = 'Scegli il dipendente.'; errBox.classList.remove('d-none'); }
     });
 
     var extra = document.getElementById('extraRows');

@@ -762,6 +762,8 @@ class PushSubscription(models.Model):
     user_agent = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_success_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=300, blank=True)
+    last_error_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Push {self.user.get_username()}"
