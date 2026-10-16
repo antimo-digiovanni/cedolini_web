@@ -1,0 +1,81 @@
+{% comment %}Invito ad attivare le notifiche push sul dispositivo del dipendente.{% endcomment %}
+<div class="alert alert-info d-none flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" id="pushPrompt" role="region" aria-label="Notifiche">
+    <div><i class="bi bi-bell me-1" aria-hidden="true"></i> <strong>Attiva le notifiche</strong> per sapere subito quando hai un documento da firmare.</div>
+    <button type="button" class="btn btn-primary fw-semibold" id="pushEnable">Attiva notifiche</button>
+</div>
+<div class="alert alert-secondary d-none mb-4" id="pushIosHint" role="note">
+    <i class="bi bi-bell me-1" aria-hidden="true"></i> Per ricevere le notifiche su iPhone installa prima l'app: tocca <strong>Condividi</strong> e poi <strong>Aggiungi alla schermata Home</strong>, poi apri il portale dall'icona.
+</div>
+<div class="alert alert-secondary d-none mb-4" id="pushDenied" role="note">
+    Le notifiche sono bloccate su questo dispositivo. Puoi riattivarle dalle impostazioni del browser per questo sito.
+</div>
+<script>
+(function () {
+    var prompt = document.getElementById('pushPrompt');
+    var btn = document.getElementById('pushEnable');
+    var swUrl = "{% url 'service_worker' %}";
+    var keyUrl = "{% url 'push_public_key' %}";
+    var subUrl = "{% url 'push_subscribe' %}";
+    var csrf = "{{ csrf_token }}";
+
+    function show(el) { el.classList.remove('d-none'); if (el === prompt) el.classList.add('d-flex'); }
+    function hide(el) { el.classList.add('d-none'); el.classList.remove('d-flex'); }
+
+    var isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    var supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    if (!supported) {
+        if (isIos && !standalone) show(document.getElementById('pushIosHint'));
+        return;
+    }
+
+    function keyToBytes(b64) {
+        var pad = '='.repeat((4 - b64.length % 4) % 4);
+        var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+        var out = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+    }
+
+    async function subscribe() {
+        var reg = await navigator.serviceWorker.register(swUrl);
+        reg = await navigator.serviceWorker.ready;
+        var sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+            var key = (await (await fetch(keyUrl, { credentials: 'same-origin' })).json()).key;
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(key) });
+        }
+        await fetch(subUrl, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(sub.toJSON())
+        });
+    }
+
+    if (Notification.permission === 'granted') {
+        subscribe().catch(function () {});
+    } else if (Notification.permission === 'denied') {
+        show(document.getElementById('pushDenied'));
+    } else {
+        show(prompt);
+    }
+
+    btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+            var result = await Notification.requestPermission();
+            if (result === 'granted') {
+                await subscribe();
+                prompt.innerHTML = '<div><i class="bi bi-bell-fill me-1" aria-hidden="true"></i> Notifiche attivate su questo dispositivo.</div>';
+                prompt.classList.replace('alert-info', 'alert-success');
+                setTimeout(function () { hide(prompt); }, 4000);
+            } else {
+                hide(prompt);
+                if (result === 'denied') show(document.getElementById('pushDenied'));
+            }
+        } catch (e) {
+            btn.disabled = false;
+        }
+    });
+})();
+</script>

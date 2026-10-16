@@ -3567,6 +3567,8 @@ self.addEventListener('fetch', (event) => {{
     );
 }});
 """.strip()
+        from .push import SERVICE_WORKER_HANDLERS
+        script = script + "\n\n" + SERVICE_WORKER_HANDLERS.strip()
         response = HttpResponse(script, content_type='application/javascript; charset=utf-8')
         response['Service-Worker-Allowed'] = '/'
         response['Cache-Control'] = 'no-cache'

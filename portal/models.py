@@ -731,6 +731,7 @@ class DpiDelivery(models.Model):
     signed_at = models.DateTimeField(null=True, blank=True)
     signed_ip = models.GenericIPAddressField(null=True, blank=True)
     signed_user_agent = models.TextField(blank=True)
+    notified_devices = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ['-created_at', '-id']
@@ -741,3 +742,26 @@ class DpiDelivery(models.Model):
 
     def __str__(self):
         return f"DPI {self.get_status_display()} - {self.employee.full_name}"
+
+
+class WebPushKey(models.Model):
+    """Chiavi VAPID per le notifiche push, generate automaticamente al primo uso."""
+
+    private_pem = models.TextField()
+    public_key = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class PushSubscription(models.Model):
+    """Dispositivo di un utente abilitato a ricevere notifiche push."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.URLField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    user_agent = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Push {self.user.get_username()}"

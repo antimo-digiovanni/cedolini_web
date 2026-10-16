@@ -6,6 +6,8 @@
     <p class="mb-0 opacity-75">{{ employee.full_name }}</p>
 </div>
 
+{% include "portal/includes/push_prompt.html" %}
+
 {% if request.GET.outcome == 'signed' %}
 <div class="alert alert-success mb-3">Firma registrata. Grazie! Il documento è qui sotto.</div>
 {% endif %}

@@ -20,3 +20,4 @@ tzdata
 django-storages
 boto3
 python-docx
+pywebpush

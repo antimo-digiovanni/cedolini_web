@@ -33,7 +33,7 @@
         <select name="employee" id="employeeSelect" class="form-select form-select-lg">
             <option value="">— Scegli il dipendente —</option>
             {% for e in employees %}
-            <option value="{{ e.id }}" {% if selected_id == e.id|stringformat:"s" %}selected{% endif %}>{{ e.last_name|default:"" }} {{ e.first_name|default:"" }}{% if not e.last_name and not e.first_name %}{{ e.user.username }}{% endif %}</option>
+            <option value="{{ e.id }}" {% if selected_id == e.id|stringformat:"s" %}selected{% endif %}>{{ e.last_name|default:"" }} {{ e.first_name|default:"" }}{% if not e.last_name and not e.first_name %}{{ e.user.username }}{% endif %}{% if e.user_id in push_user_ids %} · notifiche attive{% endif %}</option>
             {% endfor %}
         </select>
     </div>
@@ -61,7 +61,7 @@
         <div class="col-md-6">
             <button type="submit" name="action" value="send" class="btn btn-outline-primary w-100" id="sendBtn"><i class="bi bi-send" aria-hidden="true"></i> Invia al dipendente</button>
         </div>
-        <div class="col-12"><p class="text-muted small mb-0">«Firma ora» se il dipendente è qui con te. «Invia al dipendente» per farlo firmare dal suo account: lo trova come «Firma consegna DPI».</p></div>
+        <div class="col-12"><p class="text-muted small mb-0">«Firma ora» se il dipendente è qui con te. «Invia al dipendente» per farlo firmare dal suo account: lo trova come «Firma consegna DPI» e, se ha attivato le notifiche, gli arriva un avviso sul telefono.</p></div>
     </div>
 </form>
 
@@ -87,7 +87,8 @@
                 <td>
                     {% if d.status == 'signed' %}<span class="badge bg-success">Firmato</span>
                     <div class="small text-muted">{% if d.mode == 'remote' %}dal suo account{% else %}in presenza{% endif %}</div>
-                    {% else %}<span class="badge bg-warning text-dark">In attesa di firma</span>{% endif %}
+                    {% else %}<span class="badge bg-warning text-dark">In attesa di firma</span>
+                    <div class="small text-muted">{% if d.notified_devices %}notifica inviata{% else %}senza notifica{% endif %}</div>{% endif %}
                 </td>
                 <td>{{ d.items_text }}</td>
                 <td class="text-nowrap">{% if d.signed_at %}{{ d.signed_at|date:"d/m/Y H:i" }}{% else %}inviata {{ d.created_at|date:"d/m/Y" }}{% endif %}</td>

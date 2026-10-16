@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dpi_views
+from . import views, dpi_views, push_views
 
 urlpatterns = [
 
@@ -31,6 +31,9 @@ urlpatterns = [
     path('admin-employee/<int:emp_id>/', views.admin_employee_detail, name='admin_employee_detail'),
     path('admin-employee/<int:emp_id>/dpi/', dpi_views.admin_employee_dpi, name='admin_employee_dpi'),
     path('dpi/<int:dpi_id>/', dpi_views.open_dpi, name='open_dpi'),
+    path('push/chiave/', push_views.push_public_key, name='push_public_key'),
+    path('push/iscrivi/', push_views.push_subscribe, name='push_subscribe'),
+    path('push/disiscrivi/', push_views.push_unsubscribe, name='push_unsubscribe'),
     path('admin-dpi/', dpi_views.admin_dpi, name='admin_dpi'),
     path('consegna-dpi/', dpi_views.employee_dpi, name='employee_dpi'),
     path('consegna-dpi/<int:dpi_id>/firma/', dpi_views.employee_dpi_sign, name='employee_dpi_sign'),

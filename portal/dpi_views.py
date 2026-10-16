@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from . import dpi
+from . import dpi, push
 from .models import (
     DPI_MODE_IN_PERSON,
     DPI_MODE_REMOTE,
@@ -18,6 +18,7 @@ from .models import (
     DPI_STATUS_SIGNED,
     DpiDelivery,
     Employee,
+    PushSubscription,
 )
 from .views import _build_protected_file_response, _create_audit_event
 
@@ -87,13 +88,25 @@ def admin_dpi(request):
                 if action == 'sign_now':
                     _sign_delivery(request, delivery, signature_png, DPI_MODE_IN_PERSON)
                     return redirect('open_dpi', dpi_id=delivery.id)
+                delivery.notified_devices = push.send_to_user(
+                    employee.user,
+                    title='Consegna DPI da firmare',
+                    body='Hai una consegna di dispositivi di protezione da firmare: tocca per firmare.',
+                    url=reverse('employee_dpi_sign', args=[delivery.id]),
+                    tag=f'dpi-{delivery.id}',
+                )
+                delivery.save(update_fields=['notified_devices'])
                 _create_audit_event(request, 'dpi_sent_for_signature', employee=employee,
-                                    metadata={'dpi_delivery_id': delivery.id, 'items': [i['text'] for i in items]})
-                return redirect(f"{reverse('admin_dpi')}?outcome=sent")
+                                    metadata={'dpi_delivery_id': delivery.id, 'items': [i['text'] for i in items],
+                                              'notified_devices': delivery.notified_devices})
+                outcome = 'sent_push' if delivery.notified_devices else 'sent'
+                return redirect(f"{reverse('admin_dpi')}?outcome={outcome}")
 
     outcome = request.GET.get('outcome')
     feedback = {
-        'sent': 'Consegna inviata: il dipendente la troverà da firmare nel suo account.',
+        'sent': 'Consegna inviata: il dipendente la troverà da firmare nel suo account. '
+                'Non ha attivato le notifiche, quindi la vedrà al prossimo accesso.',
+        'sent_push': 'Consegna inviata e notifica arrivata sul telefono del dipendente.',
         'cancelled': 'Richiesta di firma annullata.',
     }.get(outcome)
 
@@ -114,6 +127,7 @@ def admin_dpi(request):
         'page': page,
         'status_filter': status_filter,
         'pending_count': DpiDelivery.objects.filter(status=DPI_STATUS_PENDING).count(),
+        'push_user_ids': set(PushSubscription.objects.values_list('user_id', flat=True)),
     })
 
 
