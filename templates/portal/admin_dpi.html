@@ -42,7 +42,16 @@
             {% if push_test.sent %}
             <strong>Notifica di prova inviata</strong> a {{ push_test.employee.full_name }} ({{ push_test.sent }} dispositiv{{ push_test.sent|pluralize:"o,i" }}). Se non compare sul telefono, il problema è sul dispositivo (notifiche disattivate nelle Impostazioni di iOS o modalità Full immersion).
             {% elif not push_test.devices %}
-            <strong>{{ push_test.employee.full_name }} non ha nessun dispositivo iscritto.</strong> L'account con cui ha premuto «Attiva notifiche» non è quello collegato a questo dipendente (es. hai attivato dall'account admin), oppure l'attivazione non è arrivata al portale.
+            <strong>{{ push_test.employee.full_name }} (account «{{ push_test.account }}») non ha nessun dispositivo iscritto.</strong>
+            Sul telefono deve entrare con l'account «{{ push_test.account }}» e premere «Attiva notifiche».
+            <div class="mt-2 small">
+            {% if push_test.recent %}
+                Ultimi dispositivi iscritti nel portale:
+                <ul class="mb-0">{% for d in push_test.recent %}<li>{{ d.name }} — account «{{ d.account }}»{% if d.is_staff %} (admin){% endif %}, {{ d.kind }}, {{ d.created_at|date:"d/m/Y H:i" }}</li>{% endfor %}</ul>
+            {% else %}
+                Nel portale non risulta ancora nessun dispositivo iscritto: l'attivazione dal telefono non è mai arrivata. Riprova «Attiva notifiche»: se fallisce, ora il telefono mostra l'errore.
+            {% endif %}
+            </div>
             {% else %}
             <strong>Invio non riuscito.</strong>
             {% endif %}

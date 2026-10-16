@@ -6,6 +6,7 @@
 <div class="alert alert-secondary d-none mb-4" id="pushIosHint" role="note">
     <i class="bi bi-bell me-1" aria-hidden="true"></i> Per ricevere le notifiche su iPhone installa prima l'app: tocca <strong>Condividi</strong> e poi <strong>Aggiungi alla schermata Home</strong>, poi apri il portale dall'icona.
 </div>
+<div class="alert alert-danger d-none mb-4" id="pushError" role="alert"></div>
 <div class="alert alert-secondary d-none mb-4" id="pushDenied" role="note">
     Le notifiche sono bloccate su questo dispositivo. Puoi riattivarle dalle impostazioni del browser per questo sito.
 </div>
@@ -45,15 +46,25 @@
             var key = (await (await fetch(keyUrl, { credentials: 'same-origin' })).json()).key;
             sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(key) });
         }
-        await fetch(subUrl, {
+        var resp = await fetch(subUrl, {
             method: 'POST', credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
             body: JSON.stringify(sub.toJSON())
         });
+        if (!resp.ok) throw new Error('il portale ha risposto ' + resp.status);
+    }
+
+    function showError(err) {
+        var msg = (err && (err.message || err.name)) || 'errore sconosciuto';
+        var box = document.getElementById('pushError');
+        box.textContent = 'Attivazione notifiche non riuscita: ' + msg + '. Riprova; se continua, invia questo messaggio all\'amministratore.';
+        box.classList.remove('d-none');
+        btn.disabled = false;
+        show(prompt);
     }
 
     if (Notification.permission === 'granted') {
-        subscribe().catch(function () {});
+        subscribe().catch(showError);
     } else if (Notification.permission === 'denied') {
         show(document.getElementById('pushDenied'));
     } else {
@@ -74,7 +85,7 @@
                 if (result === 'denied') show(document.getElementById('pushDenied'));
             }
         } catch (e) {
-            btn.disabled = false;
+            showError(e);
         }
     });
 })();

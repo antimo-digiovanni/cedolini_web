@@ -170,3 +170,16 @@ class PushDiagnosticsTests(TestCase):
         with mock.patch('pywebpush.requests.post', return_value=resp):
             r = self.client.post(reverse('admin_dpi'), {'employee': self.emp.id, 'item': ['scarpe'], 'action': 'send'})
         self.assertIn('sent_push_failed', r['Location'])
+
+
+class PushRecentDevicesTests(TestCase):
+    def test_no_devices_lists_other_accounts(self):
+        admin = User.objects.create_user('admin', password='x', is_staff=True)
+        emp_user = User.objects.create_user('antimo.dip', password='x')
+        emp = Employee.objects.create(user=emp_user, first_name='Antimo', last_name='Di Giovanni', must_change_password=False)
+        p256dh, auth = _fake_browser_keys()
+        PushSubscription.objects.create(user=admin, endpoint='https://web.push.apple.com/z', p256dh=p256dh, auth=auth)
+        self.client.login(username='admin', password='x')
+        r = self.client.post(reverse('admin_dpi'), {'employee': emp.id, 'action': 'test_push'})
+        self.assertContains(r, 'account «antimo.dip»')
+        self.assertContains(r, 'account «admin» (admin)')

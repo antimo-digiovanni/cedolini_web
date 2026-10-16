@@ -79,7 +79,8 @@ def admin_dpi(request):
                                          url=reverse('employee_dpi'), tag='prova')
                 devices = push.describe_user_devices(employee.user)
                 return render(request, 'portal/admin_dpi.html', _admin_dpi_context(
-                    request, selected_id, None, None, push_test={'employee': employee, 'sent': sent, 'devices': devices}))
+                    request, selected_id, None, None, push_test={'employee': employee, 'sent': sent, 'devices': devices,
+                               'account': employee.user.get_username(), 'recent': push.recent_devices()}))
 
         if action in ('sign_now', 'send'):
             employee = Employee.objects.filter(id=selected_id).first() if str(selected_id).isdigit() else None

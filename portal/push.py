@@ -92,6 +92,23 @@ def describe_user_devices(user):
     return out
 
 
+def recent_devices(limit=10):
+    """Ultimi dispositivi iscritti in tutto il portale, con l'account a cui appartengono."""
+    from .models import PushSubscription
+    out = []
+    for s in PushSubscription.objects.select_related('user').order_by('-created_at')[:limit]:
+        name = s.user.get_full_name() or s.user.get_username()
+        try:
+            name = s.user.employee.full_name
+        except Exception:
+            pass
+        host = s.endpoint.split('/')[2] if s.endpoint.count('/') >= 2 else s.endpoint
+        kind = 'iPhone/Safari' if 'apple.com' in host else ('Android/Chrome' if 'googleapis.com' in host else host)
+        out.append({'account': s.user.get_username(), 'name': name, 'is_staff': s.user.is_staff,
+                    'kind': kind, 'created_at': s.created_at})
+    return out
+
+
 def send_to_user(user, *, title, body, url, tag='portale'):
     """Invia la notifica a tutti i dispositivi dell'utente. Restituisce quanti l'hanno ricevuta."""
     from py_vapid import Vapid02
