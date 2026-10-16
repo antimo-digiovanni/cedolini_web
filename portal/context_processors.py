@@ -8,6 +8,15 @@ from .access import (
 )
 
 
+def dpi_pending(request):
+    """Numero di consegne DPI che il dipendente deve ancora firmare (per menu e avviso)."""
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated or user.is_staff:
+        return {"dpi_pending_count": 0}
+    from .models import DPI_STATUS_PENDING, DpiDelivery
+    return {"dpi_pending_count": DpiDelivery.objects.filter(employee__user=user, status=DPI_STATUS_PENDING).count()}
+
+
 def portal_access(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:

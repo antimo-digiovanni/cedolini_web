@@ -31,6 +31,9 @@ urlpatterns = [
     path('admin-employee/<int:emp_id>/', views.admin_employee_detail, name='admin_employee_detail'),
     path('admin-employee/<int:emp_id>/dpi/', dpi_views.admin_employee_dpi, name='admin_employee_dpi'),
     path('dpi/<int:dpi_id>/', dpi_views.open_dpi, name='open_dpi'),
+    path('admin-dpi/', dpi_views.admin_dpi, name='admin_dpi'),
+    path('consegna-dpi/', dpi_views.employee_dpi, name='employee_dpi'),
+    path('consegna-dpi/<int:dpi_id>/firma/', dpi_views.employee_dpi_sign, name='employee_dpi_sign'),
     path('admin-employee-payslips/<int:emp_id>/', views.admin_employee_payslips, name='admin_employee_payslips'),
     path('admin-reset-payslip-view/<int:payslip_id>/', views.admin_reset_payslip_view, name='admin_reset_payslip_view'),
 

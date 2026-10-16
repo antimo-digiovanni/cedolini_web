@@ -700,18 +700,44 @@ class PersonalAssetEntry(models.Model):
     def __str__(self):
         return f"{self.user.get_username()} {self.operation_type} {self.occurred_on}"
 
+DPI_STATUS_PENDING = 'pending'
+DPI_STATUS_SIGNED = 'signed'
+DPI_STATUS_CANCELLED = 'cancelled'
+DPI_STATUS_CHOICES = [
+    (DPI_STATUS_PENDING, 'In attesa di firma'),
+    (DPI_STATUS_SIGNED, 'Firmato'),
+    (DPI_STATUS_CANCELLED, 'Annullato'),
+]
+DPI_MODE_IN_PERSON = 'in_person'
+DPI_MODE_REMOTE = 'remote'
+DPI_MODE_CHOICES = [
+    (DPI_MODE_IN_PERSON, 'Firmato in presenza'),
+    (DPI_MODE_REMOTE, 'Firmato dal dipendente sul proprio account'),
+]
+
+
 class DpiDelivery(models.Model):
     """Consegna di Dispositivi di Protezione Individuale firmata dal dipendente."""
 
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='dpi_deliveries')
-    delivered_on = models.DateField()
+    status = models.CharField(max_length=12, choices=DPI_STATUS_CHOICES, default=DPI_STATUS_SIGNED)
+    mode = models.CharField(max_length=12, choices=DPI_MODE_CHOICES, default=DPI_MODE_IN_PERSON)
+    # Data della firma (vuota finché la consegna è in attesa).
+    delivered_on = models.DateField(null=True, blank=True)
     items = models.JSONField(default=list)
-    pdf = models.FileField(upload_to='dpi/')
+    pdf = models.FileField(upload_to='dpi/', blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     created_at = models.DateTimeField(auto_now_add=True)
+    signed_at = models.DateTimeField(null=True, blank=True)
+    signed_ip = models.GenericIPAddressField(null=True, blank=True)
+    signed_user_agent = models.TextField(blank=True)
 
     class Meta:
-        ordering = ['-delivered_on', '-id']
+        ordering = ['-created_at', '-id']
+
+    @property
+    def items_text(self):
+        return ', '.join(i.get('text', '') for i in self.items)
 
     def __str__(self):
-        return f"DPI {self.delivered_on:%d/%m/%Y} - {self.employee.full_name}"
+        return f"DPI {self.get_status_display()} - {self.employee.full_name}"

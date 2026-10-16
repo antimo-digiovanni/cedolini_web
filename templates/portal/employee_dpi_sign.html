@@ -1,0 +1,37 @@
+{% extends "portal/base.html" %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Firma consegna DPI</h2>
+    <p class="mb-0 opacity-75">{{ employee.full_name }} · {{ today|date:"d/m/Y" }}</p>
+</div>
+
+{% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
+
+<form method="post" id="dpiSignForm" novalidate>
+    {% csrf_token %}
+    <div class="card-modern mb-4">
+        <h4 class="mb-3">Dispositivi che ti sono stati consegnati</h4>
+        <ul class="list-unstyled mb-3">
+            {% for i in delivery.items %}
+            <li class="py-2 {% if not forloop.last %}border-bottom{% endif %}"><i class="bi bi-check2-square text-primary me-2" aria-hidden="true"></i>{{ i.text }}</li>
+            {% endfor %}
+        </ul>
+        <p class="text-muted small mb-0">Firmando confermi di aver ricevuto questi dispositivi e di aver ricevuto l'informativa sul loro uso (D.Lgs. 81/2008). Il documento firmato resta nel tuo account.</p>
+    </div>
+    <div class="d-flex flex-column gap-2 mb-4">
+        <button type="button" class="btn btn-primary btn-lg" id="openSign" style="min-height:56px">Firma per avvenuta ricezione</button>
+        <a href="{% url 'employee_dpi' %}" class="btn btn-outline-secondary">Indietro</a>
+    </div>
+</form>
+
+{% include "portal/includes/dpi_sign.html" with form_id="dpiSignForm" signer=employee.full_name confirm_name="action" confirm_value="sign" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('openSign').addEventListener('click', function () {
+    window.dpiSign.open("{{ delivery.items_text|escapejs }}");
+});
+</script>
+{% endblock %}

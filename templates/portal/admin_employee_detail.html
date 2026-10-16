@@ -195,20 +195,21 @@
 <div class="card-modern mb-4">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-2">
         <div>
-            <h4 class="mb-1">Consegna DPI</h4>
-            <p class="text-muted mb-0">Registra la consegna dei dispositivi di protezione con firma del dipendente.</p>
+            <h4 class="mb-1">Consegne DPI</h4>
+            <p class="text-muted mb-0">Storico delle consegne di dispositivi di protezione di questo dipendente.</p>
         </div>
-        <a href="{% url 'admin_employee_dpi' employee.id %}" class="btn btn-primary">Nuova consegna DPI</a>
+        <a href="{% url 'admin_dpi' %}?employee={{ employee.id }}" class="btn btn-outline-primary">Nuova consegna DPI</a>
     </div>
     {% if dpi_deliveries %}
     <table class="table align-middle mb-0">
-        <thead><tr><th>Data</th><th>DPI consegnati</th><th></th></tr></thead>
+        <thead><tr><th>Stato</th><th>Data firma</th><th>DPI</th><th></th></tr></thead>
         <tbody>
         {% for d in dpi_deliveries %}
             <tr>
-                <td>{{ d.delivered_on|date:"d/m/Y" }}</td>
-                <td>{% for i in d.items %}{{ i.text }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-                <td class="text-end"><a href="{% url 'open_dpi' d.id %}" class="btn btn-sm btn-secondary" target="_blank">Apri PDF</a></td>
+                <td>{% if d.status == 'signed' %}<span class="badge bg-success">Firmato</span>{% elif d.status == 'pending' %}<span class="badge bg-warning text-dark">In attesa</span>{% else %}<span class="badge bg-secondary">Annullato</span>{% endif %}</td>
+                <td>{{ d.delivered_on|date:"d/m/Y"|default:"—" }}</td>
+                <td>{{ d.items_text }}</td>
+                <td class="text-end">{% if d.pdf %}<a href="{% url 'open_dpi' d.id %}" class="btn btn-sm btn-secondary" target="_blank">Apri PDF</a>{% endif %}</td>
             </tr>
         {% endfor %}
         </tbody>

@@ -1,0 +1,42 @@
+{% extends "portal/base.html" %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Consegna DPI</h2>
+    <p class="mb-0 opacity-75">{{ employee.full_name }}</p>
+</div>
+
+{% if request.GET.outcome == 'signed' %}
+<div class="alert alert-success mb-3">Firma registrata. Grazie! Il documento è qui sotto.</div>
+{% endif %}
+
+<div class="card-modern mb-4">
+    <h4 class="mb-3">Da firmare</h4>
+    {% for d in pending %}
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
+        <div>
+            <div class="fw-semibold">{{ d.items_text }}</div>
+            <div class="small text-muted">Inviata il {{ d.created_at|date:"d/m/Y" }}</div>
+        </div>
+        <a href="{% url 'employee_dpi_sign' d.id %}" class="btn btn-primary btn-lg">Firma consegna DPI</a>
+    </div>
+    {% empty %}
+    <p class="text-muted mb-0">Non hai consegne da firmare.</p>
+    {% endfor %}
+</div>
+
+{% if signed %}
+<div class="card-modern mb-4">
+    <h4 class="mb-3">Firmate</h4>
+    {% for d in signed %}
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
+        <div>
+            <div class="fw-semibold">{{ d.items_text }}</div>
+            <div class="small text-muted">Firmata il {{ d.delivered_on|date:"d/m/Y" }}</div>
+        </div>
+        {% if d.pdf %}<a href="{% url 'open_dpi' d.id %}" class="btn btn-outline-secondary" target="_blank">Apri PDF</a>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

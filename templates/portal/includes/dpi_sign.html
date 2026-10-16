@@ -1,0 +1,147 @@
+{% comment %}
+Schermata di firma a tutto schermo per la consegna DPI.
+Parametri: form_id (id del form da inviare), signer (nome mostrato), confirm_name/confirm_value (pulsante di conferma).
+Uso da JS: window.dpiSign.open("testo riepilogo DPI").
+{% endcomment %}
+<style>
+    .dpi-sign { position:fixed; inset:0; z-index:2147483000; background:#fff; display:none; flex-direction:column; }
+    .dpi-sign.open { display:flex; }
+    .dpi-sign-head { padding:14px 16px 10px; border-bottom:1px solid #e1e8f4; }
+    .dpi-sign-head h3 { font-size:1.2rem; margin:0 0 4px; font-weight:700; color:#0b2a5b; }
+    .dpi-sign-head p { margin:0; font-size:.9rem; color:#4a5f87; }
+    .dpi-sign-body { flex:1; min-height:0; padding:12px 16px; display:flex; flex-direction:column; gap:8px; }
+    .dpi-pad-wrap { flex:1; min-height:160px; position:relative; }
+    .dpi-pad { position:absolute; inset:0; width:100%; height:100%; touch-action:none; border:2px dashed #8fa3c9; border-radius:12px; background:#fafcff; }
+    .dpi-pad-line { position:absolute; left:6%; right:6%; bottom:26%; border-top:1px solid #c5d0e6; pointer-events:none; }
+    .dpi-pad-hint { position:absolute; left:0; right:0; bottom:calc(26% - 26px); text-align:center; font-size:.85rem; color:#8fa3c9; pointer-events:none; }
+    .dpi-sign-foot { padding:10px 16px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid #e1e8f4; display:flex; gap:10px; flex-wrap:wrap; }
+    .dpi-sign-foot .btn { min-height:52px; flex:1 1 120px; font-size:1.05rem; }
+    .dpi-sign-foot .btn-primary { flex:2 1 200px; }
+    .dpi-rotate { display:none; font-size:.85rem; color:#7a4a00; background:#fff4e0; border-radius:8px; padding:6px 10px; }
+    @media (orientation: portrait) and (max-width: 600px) { .dpi-rotate { display:block; } }
+    body.dpi-locked { overflow:hidden; }
+    body.dpi-locked .mobile-tabbar { display:none !important; }
+</style>
+
+<div class="dpi-sign" id="signView" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+    <input type="hidden" name="signature" id="sigData" form="{{ form_id }}">
+    <div class="dpi-sign-head">
+        <h3 id="signTitle">Firma per avvenuta ricezione</h3>
+        <p><span id="signSigner">{{ signer }}</span> · <span id="signSummary"></span></p>
+    </div>
+    <div class="dpi-sign-body">
+        <div class="dpi-rotate">Gira il telefono in orizzontale per avere più spazio.</div>
+        <div class="dpi-pad-wrap">
+            <canvas id="sigPad" class="dpi-pad" aria-label="Area firma"></canvas>
+            <div class="dpi-pad-line"></div>
+            <div class="dpi-pad-hint" id="sigHint">Firma qui con il dito o la penna</div>
+        </div>
+        <div class="alert alert-warning mb-0 d-none" id="sigError">Serve la firma prima di confermare.</div>
+    </div>
+    <div class="dpi-sign-foot">
+        <button type="button" class="btn btn-outline-secondary" id="closeSign">Indietro</button>
+        <button type="button" class="btn btn-outline-secondary" id="clearSig">Cancella</button>
+        <button type="submit" form="{{ form_id }}" class="btn btn-primary" id="confirmSign" name="{{ confirm_name|default:'action' }}" value="{{ confirm_value|default:'sign' }}">Conferma e genera documento</button>
+    </div>
+</div>
+
+<script>
+(function () {
+    var form = document.getElementById('{{ form_id }}');
+    var view = document.getElementById('signView');
+    // Fuori dal contenuto della pagina, così copre tutto lo schermo (anche la barra in basso).
+    document.body.appendChild(view);
+    var canvas = document.getElementById('sigPad');
+    var ctx = canvas.getContext('2d');
+    var hint = document.getElementById('sigHint');
+    var drawing = false, dirty = false;
+
+    function style() {
+        var ratio = window.devicePixelRatio || 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.lineWidth = 3 * ratio; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a5b';
+    }
+    // Riallinea la superficie di disegno alla dimensione reale del riquadro (es. dopo la rotazione del telefono).
+    function resize() {
+        var rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        var ratio = window.devicePixelRatio || 1;
+        var w = Math.round(rect.width * ratio), h = Math.round(rect.height * ratio);
+        if (w === canvas.width && h === canvas.height) return;
+        var old = null;
+        if (dirty && canvas.width && canvas.height) {
+            old = document.createElement('canvas');
+            old.width = canvas.width; old.height = canvas.height;
+            old.getContext('2d').drawImage(canvas, 0, 0);
+        }
+        canvas.width = w; canvas.height = h;
+        style();
+        if (old) {
+            var k = Math.min(w / old.width, h / old.height);
+            ctx.drawImage(old, 0, 0, old.width * k, old.height * k);
+        }
+    }
+    // Coordinate calcolate sempre sulla dimensione attuale: il tratto segue il dito anche se il riquadro cambia.
+    function pos(e) {
+        var r = canvas.getBoundingClientRect();
+        return [(e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height];
+    }
+    if (window.ResizeObserver) {
+        new ResizeObserver(function () { if (view.classList.contains('open')) resize(); }).observe(canvas);
+    }
+    window.addEventListener('orientationchange', function () { setTimeout(resize, 300); });
+    window.addEventListener('resize', function () { if (view.classList.contains('open')) resize(); });
+
+    canvas.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        try { canvas.setPointerCapture(e.pointerId); } catch (x) {}
+        resize();
+        drawing = true; dirty = true; hint.style.display = 'none';
+        document.getElementById('sigError').classList.add('d-none');
+        var p = pos(e);
+        ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + 0.5, p[1] + 0.5); ctx.stroke();
+    });
+    canvas.addEventListener('pointermove', function (e) {
+        if (!drawing) return;
+        e.preventDefault();
+        var p = pos(e);
+        ctx.lineTo(p[0], p[1]); ctx.stroke();
+    });
+    ['pointerup', 'pointercancel'].forEach(function (n) {
+        canvas.addEventListener(n, function () { drawing = false; });
+    });
+    document.getElementById('clearSig').addEventListener('click', function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        dirty = false; hint.style.display = '';
+    });
+    function close() {
+        view.classList.remove('open');
+        document.body.classList.remove('dpi-locked');
+    }
+    document.getElementById('closeSign').addEventListener('click', close);
+
+    form.addEventListener('submit', function (e) {
+        // La firma serve solo quando si conferma dalla schermata di firma.
+        if (e.submitter && e.submitter.id !== 'confirmSign') return;
+        if (!dirty) {
+            e.preventDefault();
+            document.getElementById('sigError').classList.remove('d-none');
+            return;
+        }
+        document.getElementById('sigData').value = canvas.toDataURL('image/png');
+        var btn = document.getElementById('confirmSign');
+        setTimeout(function () { btn.disabled = true; btn.textContent = 'Generazione in corso…'; }, 0);
+    });
+
+    window.dpiSign = {
+        open: function (summary, signer) {
+            document.getElementById('signSummary').textContent = summary || '';
+            if (signer) document.getElementById('signSigner').textContent = signer;
+            view.classList.add('open');
+            document.body.classList.add('dpi-locked');
+            requestAnimationFrame(resize);
+        },
+        close: close
+    };
+})();
+</script>

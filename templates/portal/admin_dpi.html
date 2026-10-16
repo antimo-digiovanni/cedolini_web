@@ -1,0 +1,178 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .dpi-row { display:flex; align-items:center; gap:12px; min-height:52px; }
+    .dpi-row input[type=checkbox] { width:28px; height:28px; flex-shrink:0; }
+    .dpi-row label { flex:1; font-size:1.05rem; margin:0; min-width:0; }
+    .dpi-row input[type=text] { flex:1; min-width:0; }
+    .dpi-qty { width:76px !important; flex:0 0 76px; text-align:center; }
+    .dpi-actions .btn { min-height:56px; font-size:1.1rem; }
+    .dpi-history td { vertical-align:middle; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Consegna DPI</h2>
+    <p class="mb-0 opacity-75">Scegli il dipendente e i dispositivi: fallo firmare subito o invialo sul suo account.</p>
+</div>
+
+{% if feedback %}<div class="alert alert-success mb-3">{{ feedback }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
+<div class="alert alert-warning mb-3 d-none" id="dpiClientError"></div>
+
+<form method="post" id="dpiForm" novalidate>
+    {% csrf_token %}
+
+    <div class="card-modern mb-4">
+        <h4 class="mb-3">1 · Dipendente</h4>
+        <label for="employeeSearch" class="form-label text-muted small mb-1">Cerca</label>
+        <input type="search" id="employeeSearch" class="form-control mb-2" placeholder="Scrivi nome o cognome…" autocomplete="off">
+        <label for="employeeSelect" class="visually-hidden">Dipendente</label>
+        <select name="employee" id="employeeSelect" class="form-select form-select-lg">
+            <option value="">— Scegli il dipendente —</option>
+            {% for e in employees %}
+            <option value="{{ e.id }}" {% if selected_id == e.id|stringformat:"s" %}selected{% endif %}>{{ e.last_name|default:"" }} {{ e.first_name|default:"" }}{% if not e.last_name and not e.first_name %}{{ e.user.username }}{% endif %}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="card-modern mb-4">
+        <h4 class="mb-3">2 · Dispositivi consegnati</h4>
+        {% for key, label, has_qty in standard_items %}
+        <div class="dpi-row">
+            <input type="checkbox" name="item" value="{{ key }}" id="item_{{ key }}" data-label="{{ label }}" {% if posted and key in posted.item %}checked{% endif %}>
+            <label for="item_{{ key }}">{{ label }}</label>
+            {% if has_qty %}
+            <input type="number" inputmode="numeric" class="form-control dpi-qty" name="qty_{{ key }}" id="qty_{{ key }}" min="1" max="99" value="2" aria-label="Quantità {{ label }}">
+            {% endif %}
+        </div>
+        {% endfor %}
+        <hr>
+        <div id="extraRows"></div>
+        <button type="button" class="btn btn-outline-primary mt-2" id="addExtra">+ Aggiungi voce a mano</button>
+    </div>
+
+    <div class="row g-2 mb-5 dpi-actions">
+        <div class="col-md-6">
+            <button type="button" class="btn btn-primary w-100" id="openSign"><i class="bi bi-pen" aria-hidden="true"></i> Firma ora</button>
+        </div>
+        <div class="col-md-6">
+            <button type="submit" name="action" value="send" class="btn btn-outline-primary w-100" id="sendBtn"><i class="bi bi-send" aria-hidden="true"></i> Invia al dipendente</button>
+        </div>
+        <div class="col-12"><p class="text-muted small mb-0">«Firma ora» se il dipendente è qui con te. «Invia al dipendente» per farlo firmare dal suo account: lo trova come «Firma consegna DPI».</p></div>
+    </div>
+</form>
+
+{% include "portal/includes/dpi_sign.html" with form_id="dpiForm" signer="" confirm_name="action" confirm_value="sign_now" %}
+
+<div class="card-modern mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h4 class="mb-0">Storico consegne</h4>
+        <div class="btn-group" role="group" aria-label="Filtra per stato">
+            <a href="?stato=" class="btn btn-sm {% if not status_filter %}btn-dark{% else %}btn-outline-dark{% endif %}">Tutte</a>
+            <a href="?stato=pending" class="btn btn-sm {% if status_filter == 'pending' %}btn-dark{% else %}btn-outline-dark{% endif %}">In attesa{% if pending_count %} ({{ pending_count }}){% endif %}</a>
+            <a href="?stato=signed" class="btn btn-sm {% if status_filter == 'signed' %}btn-dark{% else %}btn-outline-dark{% endif %}">Firmate</a>
+        </div>
+    </div>
+    {% if page.object_list %}
+    <div class="table-responsive">
+    <table class="table dpi-history mb-0">
+        <thead><tr><th>Dipendente</th><th>Stato</th><th>DPI</th><th>Data</th><th></th></tr></thead>
+        <tbody>
+        {% for d in page.object_list %}
+            <tr>
+                <td><a href="{% url 'admin_employee_detail' d.employee_id %}">{{ d.employee.full_name }}</a></td>
+                <td>
+                    {% if d.status == 'signed' %}<span class="badge bg-success">Firmato</span>
+                    <div class="small text-muted">{% if d.mode == 'remote' %}dal suo account{% else %}in presenza{% endif %}</div>
+                    {% else %}<span class="badge bg-warning text-dark">In attesa di firma</span>{% endif %}
+                </td>
+                <td>{{ d.items_text }}</td>
+                <td class="text-nowrap">{% if d.signed_at %}{{ d.signed_at|date:"d/m/Y H:i" }}{% else %}inviata {{ d.created_at|date:"d/m/Y" }}{% endif %}</td>
+                <td class="text-end text-nowrap">
+                    {% if d.pdf %}<a href="{% url 'open_dpi' d.id %}" class="btn btn-sm btn-secondary" target="_blank">Apri PDF</a>{% endif %}
+                    {% if d.status == 'pending' %}
+                    <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="delivery_id" value="{{ d.id }}"><button type="submit" name="action" value="cancel" class="btn btn-sm btn-outline-danger">Annulla</button></form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if page.has_other_pages %}
+    <nav class="mt-3 d-flex gap-2" aria-label="Pagine">
+        {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?stato={{ status_filter }}&page={{ page.previous_page_number }}">← Precedenti</a>{% endif %}
+        {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?stato={{ status_filter }}&page={{ page.next_page_number }}">Successive →</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <p class="text-muted mb-0">Nessuna consegna.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var form = document.getElementById('dpiForm');
+    var select = document.getElementById('employeeSelect');
+    var errBox = document.getElementById('dpiClientError');
+
+    document.getElementById('employeeSearch').addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase(), first = null;
+        Array.prototype.forEach.call(select.options, function (o, i) {
+            if (i === 0) return;
+            var show = !q || o.text.toLowerCase().indexOf(q) !== -1;
+            o.hidden = !show;
+            if (show && !first) first = o;
+        });
+        var cur = select.options[select.selectedIndex];
+        if (q && first && (!select.value || cur.hidden)) select.value = first.value;
+    });
+
+    function selectedItems() {
+        var out = [];
+        form.querySelectorAll('input[name=item]:checked').forEach(function (cb) {
+            var q = document.getElementById('qty_' + cb.value);
+            out.push((q ? q.value + ' ' : '') + cb.dataset.label.toLowerCase());
+        });
+        var labels = form.querySelectorAll('input[name=extra_label]');
+        var qtys = form.querySelectorAll('input[name=extra_qty]');
+        labels.forEach(function (l, i) {
+            if (l.value.trim()) out.push((qtys[i] ? qtys[i].value : '1') + ' ' + l.value.trim().toLowerCase());
+        });
+        return out;
+    }
+    function check() {
+        var msg = !select.value ? 'Scegli il dipendente.' : (!selectedItems().length ? 'Seleziona almeno un DPI.' : '');
+        if (msg) { errBox.textContent = msg; errBox.classList.remove('d-none'); errBox.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        else errBox.classList.add('d-none');
+        return !msg;
+    }
+    form.addEventListener('change', function () { errBox.classList.add('d-none'); });
+
+    document.getElementById('openSign').addEventListener('click', function () {
+        if (!check()) return;
+        window.dpiSign.open(selectedItems().join(', '), select.options[select.selectedIndex].text.trim());
+    });
+    form.addEventListener('submit', function (e) {
+        if (e.submitter && e.submitter.id === 'sendBtn' && !check()) e.preventDefault();
+    });
+
+    var extra = document.getElementById('extraRows');
+    document.getElementById('addExtra').addEventListener('click', function () {
+        var row = document.createElement('div');
+        row.className = 'dpi-row mb-2';
+        row.innerHTML = '<input type="text" class="form-control" name="extra_label" maxlength="80" placeholder="es. casco" aria-label="Voce DPI">' +
+            '<input type="number" inputmode="numeric" class="form-control dpi-qty" name="extra_qty" min="1" max="99" value="1" aria-label="Quantità">' +
+            '<button type="button" class="btn btn-outline-danger" aria-label="Rimuovi" style="min-width:44px;min-height:44px">&times;</button>';
+        row.querySelector('button').addEventListener('click', function () { row.remove(); });
+        extra.appendChild(row);
+        row.querySelector('input').focus();
+    });
+})();
+</script>
+{% endblock %}
