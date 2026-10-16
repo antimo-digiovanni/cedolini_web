@@ -115,3 +115,57 @@ def send_to_user(user, *, title, body, url, tag='portale'):
         sub.last_success_at = timezone.now()
         sub.save(update_fields=['last_success_at'])
     return delivered
+
+
+MONTHS_IT = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio',
+             'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+
+
+def notify_later(user_id, **message):
+    """Invia la notifica dopo il salvataggio, in background, per non rallentare i caricamenti massivi."""
+    from django.conf import settings
+    from django.db import connection, transaction as tx
+
+    def run():
+        from django.contrib.auth import get_user_model
+        try:
+            user = get_user_model().objects.filter(pk=user_id).first()
+            if user:
+                send_to_user(user, **message)
+        except Exception:
+            logger.exception('push: errore notifica user=%s', user_id)
+        finally:
+            if getattr(settings, 'PUSH_ASYNC', True):
+                connection.close()
+
+    def start():
+        if getattr(settings, 'PUSH_ASYNC', True):
+            import threading
+            threading.Thread(target=run, daemon=True).start()
+        else:
+            run()
+
+    tx.on_commit(start)
+
+
+def notify_payslip(payslip):
+    from django.urls import reverse
+    month = MONTHS_IT[payslip.month - 1] if 1 <= payslip.month <= 12 else str(payslip.month)
+    notify_later(
+        payslip.employee.user_id,
+        title='Nuovo cedolino disponibile',
+        body=f'È disponibile il tuo cedolino di {month} {payslip.year}. Tocca per aprirlo.',
+        url=reverse('open_payslip', args=[payslip.id]),
+        tag=f'cedolino-{payslip.year}-{payslip.month}',
+    )
+
+
+def notify_cud(cud):
+    from django.urls import reverse
+    notify_later(
+        cud.employee.user_id,
+        title='Nuovo CUD disponibile',
+        body=f'È disponibile il tuo CUD {cud.year}. Tocca per aprirlo.',
+        url=reverse('open_cud', args=[cud.id]),
+        tag=f'cud-{cud.year}',
+    )

@@ -178,6 +178,17 @@
         <div class="dashboard-date"><i class="bi bi-calendar3" aria-hidden="true"></i> <time datetime="{{ today|date:'Y-m-d' }}">{{ today|date:"l d F Y" }}</time></div>
     </header>
 
+    {% if user.employee %}
+    {# Admin che è anche dipendente: può attivare le notifiche e firmare le proprie consegne DPI. #}
+    {% include "portal/includes/push_prompt.html" %}
+    {% if dpi_pending_count %}
+    <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="alert">
+        <div><i class="bi bi-shield-check me-1" aria-hidden="true"></i> <strong>Hai {% if dpi_pending_count == 1 %}una consegna DPI{% else %}{{ dpi_pending_count }} consegne DPI{% endif %} da firmare.</strong></div>
+        <a href="{% url 'employee_dpi' %}" class="btn btn-warning fw-semibold">Firma consegna DPI</a>
+    </div>
+    {% endif %}
+    {% endif %}
+
     <div class="row g-4 dashboard-kpis">
         <div class="col-lg-3 col-md-6">
             <div class="card-modern kpi-card kpi-primary position-relative">

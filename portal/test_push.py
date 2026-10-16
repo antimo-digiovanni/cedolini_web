@@ -86,3 +86,57 @@ class PushTests(TestCase):
     def test_employee_dashboard_shows_prompt(self):
         self.client.login(username='mario', password='x')
         self.assertContains(self.client.get(reverse('employee_dpi')), 'Attiva notifiche')
+
+
+class PayslipCudPushTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('anna', password='x')
+        self.emp = Employee.objects.create(user=self.user, first_name='Anna', last_name='Bianchi', must_change_password=False)
+        p256dh, auth = _fake_browser_keys()
+        PushSubscription.objects.create(user=self.user, endpoint='https://web.push.apple.com/abc', p256dh=p256dh, auth=auth)
+
+    def _capture(self, fn):
+        from django.test import override_settings
+        with override_settings(PUSH_ASYNC=False), \
+                mock.patch('pywebpush.requests.post', return_value=FakeResponse(201)) as post, \
+                self.captureOnCommitCallbacks(execute=True):
+            fn()
+        return post
+
+    def test_payslip_notification(self):
+        from .models import Payslip
+        p = Payslip.objects.create(employee=self.emp, year=2026, month=9, pdf='payslips/x.pdf')
+        post = self._capture(lambda: push.notify_payslip(p))
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(post.call_args[0][0], 'https://web.push.apple.com/abc')
+
+    def test_cud_notification(self):
+        from .models import Cud
+        c = Cud.objects.create(employee=self.emp, year=2025, pdf='cud/x.pdf')
+        post = self._capture(lambda: push.notify_cud(c))
+        self.assertEqual(post.call_count, 1)
+
+    def test_payslip_message_text(self):
+        from .models import Payslip
+        p = Payslip.objects.create(employee=self.emp, year=2026, month=9, pdf='payslips/x.pdf')
+        with mock.patch('portal.push.notify_later') as later:
+            push.notify_payslip(p)
+        self.assertIn('settembre 2026', later.call_args.kwargs['body'])
+        self.assertEqual(later.call_args.kwargs['url'], reverse('open_payslip', args=[p.id]))
+
+
+class AdminEmployeePushTests(TestCase):
+    def test_admin_with_employee_profile_sees_prompt_and_pending(self):
+        u = User.objects.create_user('antimo', password='x', is_staff=True)
+        emp = Employee.objects.create(user=u, first_name='Antimo', last_name='Di Giovanni', must_change_password=False)
+        DpiDelivery.objects.create(employee=emp, items=[{'label': 'Scarpe', 'qty': 1, 'text': 'Scarpe'}], status='pending')
+        self.client.login(username='antimo', password='x')
+        r = self.client.get(reverse('admin_dashboard'))
+        self.assertContains(r, 'Attiva notifiche')
+        self.assertContains(r, 'una consegna DPI')
+        self.assertEqual(self.client.get(reverse('employee_dpi')).status_code, 200)
+
+    def test_admin_without_employee_profile_no_prompt(self):
+        User.objects.create_user('boss', password='x', is_staff=True)
+        self.client.login(username='boss', password='x')
+        self.assertNotContains(self.client.get(reverse('admin_dashboard')), 'Attiva notifiche')

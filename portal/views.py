@@ -91,6 +91,7 @@ from turni_app.pdf_export import (
 from turni_app.workbook import WeeklySectionData
 
 from .utils_import import parse_payslip_filename
+from .push import notify_cud as push_notify_cud, notify_payslip as push_notify_payslip
 from .access import (
     PATRIMONIO_GROUP_NAME,
     user_has_full_admin_access,
@@ -2777,6 +2778,7 @@ def _save_payslip_from_record(record, employee):
         with pending_storage.open(record['temp_path'], 'rb') as handle:
             payslip = Payslip(employee=employee, year=record['year'], month=record['month'])
             payslip.pdf.save(record['filename'], File(handle), save=True)
+        push_notify_payslip(payslip)
         return payslip.id
 
 
@@ -2796,6 +2798,7 @@ def _save_cud_from_record(record, employee):
         with pending_storage.open(record['temp_path'], 'rb') as handle:
             cud_obj = Cud(employee=employee, year=record['year'])
             cud_obj.pdf.save(record['filename'], File(handle), save=True)
+        push_notify_cud(cud_obj)
         return cud_obj.id, replaced
 
 
@@ -6700,6 +6703,7 @@ def admin_upload_cud(request):
 
                 cud_obj = Cud(employee=employee, year=year)
                 cud_obj.pdf.save(pdf_file.name, pdf_file, save=True)
+                push_notify_cud(cud_obj)
 
             _create_audit_event(
                 request,
