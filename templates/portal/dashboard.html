@@ -249,10 +249,13 @@
                     <div class="alert alert-danger py-2">Seleziona il giorno di ferie e, per più giorni, una data fine valida.</div>
                     {% elif vacation_status == 'invalid_range' %}
                     <div class="alert alert-danger py-2">La data fine non puo essere precedente alla data inizio.</div>
+                    {% elif vacation_status == 'blocked_day' %}
+                    <div class="alert alert-danger py-2">Per il 24 e il 31 dicembre al momento non è possibile richiedere ferie. Scegli altri giorni.</div>
                     {% elif vacation_status == 'invalid_reason' %}
                     <div class="alert alert-danger py-2">Inserisci una motivazione piu dettagliata per la richiesta ferie.</div>
                     {% endif %}
 
+                    <p class="small text-muted mb-2">Al momento non è possibile richiedere ferie per il 24 e il 31 dicembre.</p>
                     <form method="post" id="vacation-request-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="request_vacation">

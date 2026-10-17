@@ -3017,6 +3017,26 @@ def _send_out_of_zone_request_admin_notification(request_obj):
         )
 
 
+# Giorni (mese, giorno) per cui temporaneamente NON si possono richiedere ferie.
+# Per riattivarli basta svuotare la lista.
+VACATION_BLOCKED_DAYS = [(12, 24), (12, 31)]
+
+
+def _vacation_blocked_dates(start_date, end_date):
+    """Date del periodo richiesto che cadono in un giorno bloccato."""
+    if not VACATION_BLOCKED_DAYS or not start_date or not end_date or end_date < start_date:
+        return []
+    blocked = []
+    day = start_date
+    while day <= end_date and len(blocked) < 10:
+        if (day.month, day.day) in VACATION_BLOCKED_DAYS:
+            blocked.append(day)
+        day += timedelta(days=1)
+        if (day - start_date).days > 400:
+            break
+    return blocked
+
+
 def _send_vacation_request_admin_notification(request_obj):
     recipients = [email for email in getattr(settings, 'ADMIN_NOTIFICATION_EMAILS', []) if email]
     if not recipients:
@@ -3875,6 +3895,8 @@ def dashboard(request):
                 return redirect(f"{request.path}?vacation_status=invalid_range")
             if len(reason) < 8:
                 return redirect(f"{request.path}?vacation_status=invalid_reason")
+            if _vacation_blocked_dates(start_date, end_date):
+                return redirect(f"{request.path}?vacation_status=blocked_day")
 
             overlapping_pending = VacationRequest.objects.filter(
                 employee=employee,
