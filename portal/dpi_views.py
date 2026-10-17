@@ -178,7 +178,6 @@ def employee_dpi(request):
     return render(request, 'portal/employee_dpi.html', {
         'employee': employee,
         'pending': deliveries.filter(status=DPI_STATUS_PENDING),
-        'signed': deliveries.filter(status=DPI_STATUS_SIGNED),
     })
 
 
@@ -211,9 +210,10 @@ def employee_dpi_sign(request, dpi_id):
 
 @login_required
 def open_dpi(request, dpi_id):
-    delivery = get_object_or_404(DpiDelivery, id=dpi_id)
-    if not request.user.is_staff and delivery.employee.user != request.user:
+    # I PDF delle consegne DPI sono consultabili solo dall'amministrazione.
+    if not request.user.is_staff:
         return HttpResponse('Non autorizzato', status=403)
+    delivery = get_object_or_404(DpiDelivery, id=dpi_id)
     if not delivery.pdf:
         return HttpResponse('Documento non ancora firmato', status=404)
     try:

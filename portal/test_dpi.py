@@ -96,7 +96,14 @@ class DpiTests(TestCase):
         self.assertEqual(d.signed_ip, '10.0.0.7')
         self.assertIsNotNone(d.signed_at)
         self.assertEqual(self._pdf_head(d), b'%PDF-')
+        # Il dipendente non può aprire il PDF né vedere lo storico; l'admin sì.
+        self.assertEqual(self.client.get(reverse('open_dpi', args=[d.id])).status_code, 403)
+        page = self.client.get(reverse('employee_dpi'))
+        self.assertNotContains(page, 'Apri PDF')
+        self.assertNotContains(page, 'Firmate')
+        self.client.login(username='admin', password='x')
         self.assertEqual(self.client.get(reverse('open_dpi', args=[d.id])).status_code, 200)
+        self.client.login(username='mario', password='x')
 
         # Già firmata: non si può rifirmare.
         self.assertRedirects(self.client.get(sign_url), reverse('employee_dpi'), fetch_redirect_response=False)
