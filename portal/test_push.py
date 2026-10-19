@@ -201,3 +201,14 @@ class ServiceWorkerSyntaxTests(TestCase):
             fh.flush()
             result = subprocess.run([node, '--check', fh.name], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+
+class ServiceWorkerDocumentsTests(TestCase):
+    def test_documents_are_not_intercepted(self):
+        body = self.client.get(reverse('service_worker')).content.decode()
+        for prefix in ("'/portal/open/'", "'/portal/cud/'", "'/portal/dpi/'"):
+            self.assertIn(prefix, body)
+        # i prefissi devono corrispondere agli URL reali dei documenti
+        self.assertTrue(reverse('open_payslip', args=[1]).startswith('/portal/open/'))
+        self.assertTrue(reverse('open_cud', args=[1]).startswith('/portal/cud/'))
+        self.assertTrue(reverse('open_dpi', args=[1]).startswith('/portal/dpi/'))

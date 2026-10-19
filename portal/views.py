@@ -3521,7 +3521,7 @@ def service_worker(request):
                 static('portal/icons/apple-touch-icon.png'),
         ]
         script = f"""
-const CACHE_NAME = 'cedolini-portal-v1';
+const CACHE_NAME = 'cedolini-portal-v2';
 const STATIC_ASSETS = {json.dumps(static_assets)};
 
 self.addEventListener('install', (event) => {{
@@ -3552,6 +3552,13 @@ self.addEventListener('fetch', (event) => {{
     const url = new URL(request.url);
     const isSameOrigin = url.origin === self.location.origin;
     const isStaticAsset = isSameOrigin && url.pathname.startsWith('/static/');
+
+    // Documenti (cedolini, CUD, PDF DPI) e download: il service worker non li tocca,
+    // li gestisce direttamente il browser (su iPhone i PDF passati dal service worker non si aprono).
+    const DOCUMENT_PREFIXES = ['/portal/open/', '/portal/cud/', '/portal/dpi/', '/admin/'];
+    if (!isSameOrigin || DOCUMENT_PREFIXES.some((p) => url.pathname.startsWith(p))) {{
+        return;
+    }}
 
     if (request.mode === 'navigate') {{
         event.respondWith(
