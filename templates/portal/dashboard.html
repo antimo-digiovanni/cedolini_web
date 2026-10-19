@@ -355,7 +355,7 @@
         <div class="card-modern bg-white">
             {% if latest_payslip %}
                 <p class="mb-2">Apri velocemente l'ultimo cedolino caricato.</p>
-                <a href="{% url 'open_payslip' latest_payslip.id %}" class="btn btn-primary" target="_blank" rel="noopener">
+                <a href="{% url 'view_document' 'cedolino' latest_payslip.id %}" class="btn btn-primary">
                     Apri ultimo cedolino
                 </a>
             {% else %}
@@ -415,9 +415,8 @@
                             </td>
 
                             <td>
-                                <a href="{% url 'open_payslip' payslip.id %}"
-                                   class="btn btn-sm btn-primary"
-                                   target="_blank" rel="noopener">
+                                <a href="{% url 'view_document' 'cedolino' payslip.id %}"
+                                   class="btn btn-sm btn-primary">
                                    Apri PDF
                                 </a>
                             </td>
@@ -451,7 +450,7 @@
                                 {% endif %}
                             </div>
 
-                            <a href="{% url 'open_payslip' payslip.id %}" class="btn btn-primary btn-sm w-100 mt-2" target="_blank" rel="noopener">
+                            <a href="{% url 'view_document' 'cedolino' payslip.id %}" class="btn btn-primary btn-sm w-100 mt-2">
                                 Apri PDF
                             </a>
                         </div>
@@ -503,9 +502,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'open_cud' cud.id %}"
-                               class="btn btn-sm btn-secondary"
-                               target="_blank" rel="noopener">
+                            <a href="{% url 'view_document' 'cud' cud.id %}"
+                               class="btn btn-sm btn-secondary">
                                Apri CUD
                             </a>
                         </td>
@@ -536,7 +534,7 @@
                             {% endif %}
                         </div>
 
-                        <a href="{% url 'open_cud' cud.id %}" class="btn btn-secondary btn-sm w-100 mt-2" target="_blank" rel="noopener">
+                        <a href="{% url 'view_document' 'cud' cud.id %}" class="btn btn-secondary btn-sm w-100 mt-2">
                             Apri CUD
                         </a>
                     </div>

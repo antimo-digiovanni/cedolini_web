@@ -6231,11 +6231,27 @@ def admin_work_zones(request):
 # APERTURA CEDOLINO + EMAIL NOTIFICA LETTURA
 # =========================================================
 
-def _build_protected_file_response(field_file, *, download_name):
+def _build_protected_file_response(field_file, *, download_name, attachment=False):
     field_file.open('rb')
     response = FileResponse(field_file, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="{quote(download_name)}"'
+    disposition = 'attachment' if attachment else 'inline'
+    response['Content-Disposition'] = f'{disposition}; filename="{quote(download_name)}"'
     return _disable_response_cache(response)
+
+
+def track_payslip_open(request, payslip):
+    """Registra l'apertura del cedolino da parte del dipendente (prima apertura: email all'ufficio)."""
+    view, created = PayslipView.objects.get_or_create(payslip=payslip)
+    if created:
+        send_read_notification_email(payslip)
+    _create_audit_event(request, "payslip_opened", employee=payslip.employee, payslip=payslip,
+                        metadata={"first_view": created})
+
+
+def track_cud_open(request, cud):
+    view, created = CudView.objects.get_or_create(cud=cud)
+    _create_audit_event(request, "cud_opened", employee=cud.employee,
+                        metadata={"year": cud.year, "first_view": created})
 
 @login_required
 def open_payslip(request, payslip_id):
@@ -6244,25 +6260,14 @@ def open_payslip(request, payslip_id):
     if not request.user.is_staff and payslip.employee.user != request.user:
         return HttpResponse("Non autorizzato", status=403)
 
-    if not request.user.is_staff:
-        view, created = PayslipView.objects.get_or_create(payslip=payslip)
-
-        # Se è la prima visualizzazione invia email
-        if created:
-            send_read_notification_email(payslip)
-
-        # Audit: apertura cedolino da parte del dipendente
-        _create_audit_event(
-            request,
-            "payslip_opened",
-            employee=payslip.employee,
-            payslip=payslip,
-            metadata={"first_view": created},
-        )
+    # Le richieste dal visualizzatore (src=viewer) sono già tracciate dalla pagina del visualizzatore.
+    if not request.user.is_staff and request.GET.get('src') != 'viewer':
+        track_payslip_open(request, payslip)
 
     try:
         download_name = os.path.basename(payslip.pdf.name) or f'cedolino-{payslip.year}-{payslip.month:02d}.pdf'
-        return _build_protected_file_response(payslip.pdf, download_name=download_name)
+        return _build_protected_file_response(payslip.pdf, download_name=download_name,
+                                              attachment=request.GET.get('download') == '1')
     except Exception:
         logger.exception('open_payslip: failed to build payslip URL id=%s', payslip_id)
         return HttpResponse('Errore nel recupero del file', status=500)
@@ -6277,22 +6282,13 @@ def open_cud(request, cud_id):
         return HttpResponse("Non autorizzato", status=403)
 
     # Tracciamento apertura e audit (solo se non staff)
-    if not request.user.is_staff:
-        view, created = CudView.objects.get_or_create(cud=cud)
-
-        _create_audit_event(
-            request,
-            "cud_opened",
-            employee=cud.employee,
-            metadata={
-                "year": cud.year,
-                "first_view": created,
-            },
-        )
+    if not request.user.is_staff and request.GET.get('src') != 'viewer':
+        track_cud_open(request, cud)
 
     try:
         download_name = os.path.basename(cud.pdf.name) or f'cud-{cud.year}.pdf'
-        return _build_protected_file_response(cud.pdf, download_name=download_name)
+        return _build_protected_file_response(cud.pdf, download_name=download_name,
+                                              attachment=request.GET.get('download') == '1')
     except Exception:
         logger.exception('open_cud: failed to build CUD URL id=%s', cud_id)
         return HttpResponse('Errore nel recupero del file CUD', status=500)

@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dpi_views, push_views
+from . import views, dpi_views, push_views, document_views
 
 urlpatterns = [
 
@@ -46,4 +46,6 @@ urlpatterns = [
 
     path('open/<int:payslip_id>/', views.open_payslip, name='open_payslip'),
     path('cud/<int:cud_id>/', views.open_cud, name='open_cud'),
+    path('documento/<str:kind>/<int:doc_id>/', document_views.view_document, name='view_document'),
+    path('documento/<str:kind>/<int:doc_id>/pagina/<int:page>.png', document_views.document_page_image, name='document_page_image'),
 ]

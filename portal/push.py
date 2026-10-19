@@ -196,7 +196,7 @@ def notify_payslip(payslip):
         payslip.employee.user_id,
         title='Nuovo cedolino disponibile',
         body=f'È disponibile il tuo cedolino di {month} {payslip.year}. Tocca per aprirlo.',
-        url=reverse('open_payslip', args=[payslip.id]),
+        url=reverse('view_document', args=['cedolino', payslip.id]),
         tag=f'cedolino-{payslip.year}-{payslip.month}',
     )
 
@@ -207,6 +207,6 @@ def notify_cud(cud):
         cud.employee.user_id,
         title='Nuovo CUD disponibile',
         body=f'È disponibile il tuo CUD {cud.year}. Tocca per aprirlo.',
-        url=reverse('open_cud', args=[cud.id]),
+        url=reverse('view_document', args=['cud', cud.id]),
         tag=f'cud-{cud.year}',
     )

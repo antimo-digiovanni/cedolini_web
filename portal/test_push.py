@@ -122,7 +122,7 @@ class PayslipCudPushTests(TestCase):
         with mock.patch('portal.push.notify_later') as later:
             push.notify_payslip(p)
         self.assertIn('settembre 2026', later.call_args.kwargs['body'])
-        self.assertEqual(later.call_args.kwargs['url'], reverse('open_payslip', args=[p.id]))
+        self.assertEqual(later.call_args.kwargs['url'], reverse('view_document', args=['cedolino', p.id]))
 
 
 class AdminEmployeePushTests(TestCase):
@@ -212,3 +212,55 @@ class ServiceWorkerDocumentsTests(TestCase):
         self.assertTrue(reverse('open_payslip', args=[1]).startswith('/portal/open/'))
         self.assertTrue(reverse('open_cud', args=[1]).startswith('/portal/cud/'))
         self.assertTrue(reverse('open_dpi', args=[1]).startswith('/portal/dpi/'))
+
+
+class DocumentViewerTests(TestCase):
+    def setUp(self):
+        import tempfile, shutil
+        from django.core.files.base import ContentFile
+        from django.test import override_settings
+        from .models import Payslip, Cud
+        from . import dpi
+        self.media = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, self.media, True)
+        ov = override_settings(MEDIA_ROOT=self.media, STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage', 'OPTIONS': {'location': self.media}},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        }, EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+        ov.enable(); self.addCleanup(ov.disable)
+        self.user = User.objects.create_user('mario', password='x')
+        self.emp = Employee.objects.create(user=self.user, first_name='Mario', last_name='Rossi', must_change_password=False, privacy_accepted=True)
+        other = User.objects.create_user('luigi', password='x')
+        Employee.objects.create(user=other, first_name='Luigi', last_name='Verdi', must_change_password=False, privacy_accepted=True)
+        import datetime
+        from .test_dpi import _sig
+        pdf = dpi.build_pdf(employee_name='Mario Rossi', delivered_on=datetime.date(2026, 1, 1),
+                            items=[{'label': 'Scarpe', 'qty': 1, 'text': 'Scarpe'}], signature_png=dpi.decode_signature(_sig()))
+        self.p = Payslip(employee=self.emp, year=2026, month=1); self.p.pdf.save('ced.pdf', ContentFile(pdf))
+        self.c = Cud(employee=self.emp, year=2025); self.c.pdf.save('cud.pdf', ContentFile(pdf))
+
+    def test_viewer_has_buttons_pages_and_tracks_view(self):
+        from .models import PayslipView
+        self.client.login(username='mario', password='x')
+        r = self.client.get(reverse('view_document', args=['cedolino', self.p.id]))
+        self.assertContains(r, 'Cedolino Gennaio 2026')
+        self.assertContains(r, 'Indietro'); self.assertContains(r, 'Scarica'); self.assertContains(r, 'Condividi')
+        self.assertContains(r, reverse('document_page_image', args=['cedolino', self.p.id, 2]))
+        self.assertTrue(PayslipView.objects.filter(payslip=self.p).exists())
+        img = self.client.get(reverse('document_page_image', args=['cedolino', self.p.id, 1]))
+        self.assertEqual(img['Content-Type'], 'image/png')
+        self.assertTrue(img.content.startswith(b'\x89PNG'))
+        self.assertEqual(self.client.get(reverse('document_page_image', args=['cedolino', self.p.id, 9])).status_code, 404)
+        dl = self.client.get(reverse('open_payslip', args=[self.p.id]) + '?download=1&src=viewer')
+        self.assertTrue(dl['Content-Disposition'].startswith('attachment'))
+        self.assertContains(self.client.get(reverse('view_document', args=['cud', self.c.id])), 'CUD 2025')
+
+    def test_other_employee_forbidden(self):
+        self.client.login(username='luigi', password='x')
+        self.assertEqual(self.client.get(reverse('view_document', args=['cedolino', self.p.id])).status_code, 403)
+        self.assertEqual(self.client.get(reverse('document_page_image', args=['cud', self.c.id, 1])).status_code, 403)
+        self.assertEqual(self.client.get(reverse('view_document', args=['altro', self.p.id])).status_code, 404)
+
+    def test_dashboard_links_point_to_viewer(self):
+        self.client.login(username='mario', password='x')
+        r = self.client.get(reverse('dashboard'))
+        self.assertContains(r, reverse('view_document', args=['cedolino', self.p.id]))

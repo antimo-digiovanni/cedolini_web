@@ -1,0 +1,69 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .doc-toolbar { position: sticky; top: calc(var(--sv-topbar-h, 60px) + 4px); z-index: 20; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--sv-surface, #fff); border: 1px solid #e1e8f4; border-radius: 14px; padding: 10px; box-shadow: 0 6px 18px rgba(11,42,91,.08); }
+    .doc-toolbar .btn { min-height: 46px; display: inline-flex; align-items: center; gap: 6px; }
+    .doc-toolbar .doc-title { flex: 1 1 160px; font-weight: 700; color: #0b2a5b; min-width: 0; }
+    .doc-pages { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+    .doc-pages img { width: 100%; height: auto; background: #fff; border: 1px solid #d3dcec; border-radius: 8px; box-shadow: 0 4px 14px rgba(11,42,91,.08); }
+    @media (max-width: 575.98px) { .doc-toolbar .btn { flex: 1 1 0; justify-content: center; } .doc-toolbar .doc-title { flex-basis: 100%; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="doc-toolbar" role="toolbar" aria-label="Azioni documento">
+    <div class="doc-title">{{ title }}</div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary" id="docBack"><i class="bi bi-arrow-left" aria-hidden="true"></i> Indietro</a>
+    <a href="{{ raw_url }}?download=1&amp;src=viewer" class="btn btn-outline-primary" download="{{ filename }}"><i class="bi bi-download" aria-hidden="true"></i> Scarica</a>
+    <button type="button" class="btn btn-primary d-none" id="docShare"><i class="bi bi-share" aria-hidden="true"></i> Condividi</button>
+</div>
+
+<div class="alert alert-danger d-none mt-3" id="docShareError" role="alert"></div>
+
+<div class="doc-pages">
+    {% for n in pages %}
+    <img src="{% url 'document_page_image' kind doc.id n %}" alt="{{ title }}, pagina {{ n }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}">
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    // Indietro: torna alla pagina precedente del portale, altrimenti alla dashboard.
+    var back = document.getElementById('docBack');
+    back.addEventListener('click', function (e) {
+        if (document.referrer && document.referrer.indexOf(location.origin) === 0 && history.length > 1) {
+            e.preventDefault();
+            history.back();
+        }
+    });
+
+    // Condividi: apre il menu del telefono (Salva su File, WhatsApp, Stampa…).
+    var shareBtn = document.getElementById('docShare');
+    if (!navigator.canShare || !window.File) return;
+    var fileUrl = "{{ raw_url }}?src=viewer";
+    var fileName = "{{ filename|escapejs }}";
+    var file = null;
+    // Il file viene preparato subito, così il menu si apre al primo tocco (iPhone lo richiede).
+    fetch(fileUrl, { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+        .then(function (blob) {
+            var f = new File([blob], fileName, { type: 'application/pdf' });
+            if (navigator.canShare({ files: [f] })) { file = f; shareBtn.classList.remove('d-none'); }
+        })
+        .catch(function () {});
+
+    shareBtn.addEventListener('click', function () {
+        if (!file) return;
+        navigator.share({ files: [file], title: "{{ title|escapejs }}" }).catch(function (err) {
+            if (err && err.name === 'AbortError') return;
+            var box = document.getElementById('docShareError');
+            box.textContent = 'Condivisione non riuscita: usa «Scarica».';
+            box.classList.remove('d-none');
+        });
+    });
+})();
+</script>
+{% endblock %}
