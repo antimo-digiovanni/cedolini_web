@@ -15,7 +15,7 @@
 <div class="doc-toolbar" role="toolbar" aria-label="Azioni documento">
     <div class="doc-title">{{ title }}</div>
     <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary" id="docBack"><i class="bi bi-arrow-left" aria-hidden="true"></i> Indietro</a>
-    <a href="{{ raw_url }}?download=1&amp;src=viewer" class="btn btn-outline-primary" download="{{ filename }}"><i class="bi bi-download" aria-hidden="true"></i> Scarica</a>
+    <a href="{{ raw_url }}?download=1&amp;src=viewer" class="btn btn-outline-primary" download="{{ filename }}" id="docDownload"><i class="bi bi-download" aria-hidden="true"></i> Scarica</a>
     <button type="button" class="btn btn-primary d-none" id="docShare"><i class="bi bi-share" aria-hidden="true"></i> Condividi</button>
 </div>
 
@@ -40,29 +40,66 @@
         }
     });
 
-    // Condividi: apre il menu del telefono (Salva su File, WhatsApp, Stampa…).
+    // Scarica / Condividi.
+    // Nell'app installata su iPhone aprire il PDF lo mostra a tutto schermo senza via d'uscita:
+    // lì si usa sempre il menu di condivisione del telefono (che contiene «Salva su File»).
     var shareBtn = document.getElementById('docShare');
-    if (!navigator.canShare || !window.File) return;
+    var downloadBtn = document.getElementById('docDownload');
+    var errBox = document.getElementById('docShareError');
     var fileUrl = "{{ raw_url }}?src=viewer";
     var fileName = "{{ filename|escapejs }}";
+    var title = "{{ title|escapejs }}";
+    var isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    var canShareApi = !!(navigator.share && window.File);
     var file = null;
-    // Il file viene preparato subito, così il menu si apre al primo tocco (iPhone lo richiede).
-    fetch(fileUrl, { credentials: 'same-origin' })
-        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
-        .then(function (blob) {
-            var f = new File([blob], fileName, { type: 'application/pdf' });
-            if (navigator.canShare({ files: [f] })) { file = f; shareBtn.classList.remove('d-none'); }
-        })
-        .catch(function () {});
+    var filePromise = null;
 
-    shareBtn.addEventListener('click', function () {
-        if (!file) return;
-        navigator.share({ files: [file], title: "{{ title|escapejs }}" }).catch(function (err) {
-            if (err && err.name === 'AbortError') return;
-            var box = document.getElementById('docShareError');
-            box.textContent = 'Condivisione non riuscita: usa «Scarica».';
-            box.classList.remove('d-none');
+    function getFile() {
+        if (file) return Promise.resolve(file);
+        if (!filePromise) {
+            filePromise = fetch(fileUrl, { credentials: 'same-origin' })
+                .then(function (r) { if (!r.ok) throw new Error('il portale ha risposto ' + r.status); return r.blob(); })
+                .then(function (blob) { file = new File([blob], fileName, { type: 'application/pdf' }); return file; });
+            filePromise.catch(function () { filePromise = null; });
+        }
+        return filePromise;
+    }
+    function showError(msg) {
+        errBox.textContent = msg;
+        errBox.classList.remove('d-none');
+    }
+    function shareFile() {
+        errBox.classList.add('d-none');
+        if (!canShareApi) {
+            showError('Questo telefono non permette la condivisione dall\'app. Apri il portale da Safari per scaricare il documento.');
+            return;
+        }
+        var go = function (f) {
+            if (navigator.canShare && !navigator.canShare({ files: [f] })) {
+                showError('Questo telefono non permette di condividere il PDF dall\'app.');
+                return;
+            }
+            return navigator.share({ files: [f], title: title });
+        };
+        // File già pronto: il menu si apre subito (iPhone lo richiede al tocco).
+        var p = file ? Promise.resolve(go(file)) : getFile().then(go);
+        p.catch(function (err) {
+            if (err && err.name === 'AbortError') return;  // l'utente ha chiuso il menu
+            showError('Condivisione non riuscita (' + ((err && (err.name + ': ' + err.message)) || 'errore') + '). Riprova tra qualche secondo.');
         });
+    }
+
+    if (canShareApi) {
+        shareBtn.classList.remove('d-none');
+        getFile().catch(function () {});  // prepara il file in anticipo
+    }
+    shareBtn.addEventListener('click', shareFile);
+    downloadBtn.addEventListener('click', function (e) {
+        if (isIos || standalone) {
+            e.preventDefault();
+            shareFile();
+        }
     });
 })();
 </script>
