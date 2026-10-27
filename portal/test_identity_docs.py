@@ -146,6 +146,49 @@ class IdentityDocumentFlowTests(TestCase):
         doc.refresh_from_db()
         doc.front_image.open('rb')
         self.assertEqual(Image.open(doc.front_image).size, (doc_scan.OUT_H, doc_scan.OUT_W))
+        doc.front_image.close()
+        r = self.client.get(reverse('document_image', args=[doc.id, 'fronte']))
+        self.assertEqual(r.status_code, 200)
+
+    def test_rotate_with_overwriting_storage(self):
+        """Come lo storage online (Cloudflare R2): stesso nome = sovrascrive. La foto deve restare disponibile."""
+        from django.core.files.storage import FileSystemStorage
+
+        class OverwriteStorage(FileSystemStorage):
+            def get_available_name(self, name, max_length=None):
+                if self.exists(name):
+                    self.delete(name)
+                return name
+
+        self.client.login(username='mario', password='x')
+        self._upload()
+        doc = IdentityDocument.objects.get()
+        storage = OverwriteStorage(location=self.media)
+        IdentityDocument._meta.get_field('front_image').storage = storage
+        self.addCleanup(setattr, IdentityDocument._meta.get_field('front_image'), 'storage',
+                        IdentityDocument._meta.get_field('back_image').storage)
+        self.client.login(username='admin', password='x')
+        for _ in range(3):
+            self.client.post(reverse('admin_document_detail', args=[doc.id]), {'action': 'rotate', 'side': 'fronte', 'degrees': '90'})
+            doc.refresh_from_db()
+            self.assertTrue(storage.exists(doc.front_image.name), doc.front_image.name)
+            self.assertEqual(self.client.get(reverse('document_image', args=[doc.id, 'fronte'])).status_code, 200)
+
+    def test_crop_precision(self):
+        """Il ritaglio segue il bordo vero della tessera (errore sugli angoli sotto lo 0,5%)."""
+        import cv2
+        w, h = 1500, 2000
+        bg = np.full((h, w, 3), (90, 100, 110), np.uint8)
+        card = np.full((540, 856, 3), (235, 240, 250), np.uint8)
+        cv2.rectangle(card, (40, 60), (240, 320), (180, 195, 220), -1)
+        truth = np.float32([[250, 700], [1250, 640], [1300, 1330], [200, 1300]])
+        m = cv2.getPerspectiveTransform(np.float32([[0, 0], [856, 0], [856, 540], [0, 540]]), truth)
+        warped = cv2.warpPerspective(card, m, (w, h)); mask = cv2.warpPerspective(np.full((540, 856), 255, np.uint8), m, (w, h))
+        bg[mask > 0] = warped[mask > 0]
+        img = Image.fromarray(bg)
+        found = doc_scan.refine_corners(img, doc_scan.find_card(img))
+        err = np.max(np.linalg.norm(found - truth, axis=1)) / np.linalg.norm(truth[1] - truth[0])
+        self.assertLess(err, 0.005)
 
     def test_expiry_notification_once_and_dashboard_alert(self):
         self.client.login(username='mario', password='x')

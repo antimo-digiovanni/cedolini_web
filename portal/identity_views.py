@@ -7,7 +7,6 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
 
 from . import doc_scan, identity_docs, push
 from .models import Employee, IdentityDocument
@@ -220,11 +219,16 @@ def admin_document_detail(request, doc_id):
                 finally:
                     field.close()
                 old_name = field.name
-                field.save(old_name.rsplit('/', 1)[-1], ContentFile(data), save=True)
-                try:
-                    field.storage.delete(old_name)
-                except Exception:
-                    logger.exception('rotazione: impossibile eliminare la vecchia foto %s', old_name)
+                # Nome nuovo a ogni rotazione: sullo storage online un file con lo stesso nome
+                # verrebbe sovrascritto e poi cancellato insieme alla "vecchia" versione.
+                base = old_name.rsplit('/', 1)[-1].rsplit('.', 1)[0].split('-r', 1)[0]
+                new_name = f"{base}-r{timezone.now():%Y%m%d%H%M%S%f}.jpg"
+                field.save(new_name, ContentFile(data), save=True)
+                if field.name != old_name:
+                    try:
+                        field.storage.delete(old_name)
+                    except Exception:
+                        logger.exception('rotazione: impossibile eliminare la vecchia foto %s', old_name)
             return redirect('admin_document_detail', doc_id=doc.id)
 
     history = doc.employee.identity_documents.filter(kind=doc.kind).exclude(id=doc.id)[:10]

@@ -59,14 +59,22 @@ def find_card(img):
     small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) if scale < 1 else rgb.copy()
     if scale >= 1:
         scale = 1.0
-    gray = cv2.cvtColor(small, cv2.COLOR_RGB2GRAY)
-    gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-    gray = cv2.GaussianBlur(gray, (5, 5), 0)
     area_img = small.shape[0] * small.shape[1]
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray = cv2.GaussianBlur(clahe.apply(cv2.cvtColor(small, cv2.COLOR_RGB2GRAY)), (5, 5), 0)
+    # oltre alla luminosità usa anche i colori: una tessera scura su un tavolo scuro
+    # si distingue spesso solo per la tinta
+    lab = cv2.cvtColor(small, cv2.COLOR_RGB2LAB)
+    chans = [cv2.GaussianBlur(clahe.apply(lab[..., i]), (5, 5), 0) for i in (1, 2)]
+
+    def edge_maps():
+        for lo, hi in ((30, 100), (50, 150), (75, 200), (15, 60)):
+            yield cv2.Canny(gray, lo, hi)
+        for lo, hi in ((20, 60), (10, 40)):
+            yield np.maximum(cv2.Canny(chans[0], lo, hi), cv2.Canny(chans[1], lo, hi))
 
     best = None
-    for lo, hi in ((30, 100), (50, 150), (75, 200), (15, 60)):
-        edges = cv2.Canny(gray, lo, hi)
+    for edges in edge_maps():
         edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=2)
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -105,21 +113,94 @@ def find_card(img):
     return best[1] / scale
 
 
+def _line_through(a, b):
+    import numpy as np
+    d = b - a
+    n = np.linalg.norm(d)
+    return (float(a[0]), float(a[1]), float(d[0] / n), float(d[1] / n))
+
+
+def _intersect(l1, l2):
+    x1, y1, dx1, dy1 = l1
+    x2, y2, dx2, dy2 = l2
+    den = dx1 * dy2 - dy1 * dx2
+    if abs(den) < 1e-6:
+        return None
+    t = ((x2 - x1) * dy2 - (y2 - y1) * dx2) / den
+    return (x1 + t * dx1, y1 + t * dy1)
+
+
+def refine_corners(img, corners):
+    """Ricalcola i 4 bordi della tessera sulla foto a piena risoluzione.
+
+    Per ogni lato cerca i punti di bordo vicini al lato trovato (escludendo gli angoli
+    arrotondati) e ci adatta una retta; gli angoli sono le intersezioni delle rette.
+    Così il ritaglio segue il bordo vero: niente tavolo ai lati e niente documento tagliato.
+    """
+    import cv2
+    import numpy as np
+
+    gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    corners = np.array(corners, dtype='float32')
+    diag = float(np.hypot(*gray.shape))
+    lines = []
+    for i in range(4):
+        a, b = corners[i], corners[(i + 1) % 4]
+        length = float(np.linalg.norm(b - a))
+        band = int(max(6, 0.015 * length))
+        # zona attorno al lato, solo nel tratto centrale (gli angoli delle tessere sono arrotondati)
+        a2, b2 = a + (b - a) * 0.12, a + (b - a) * 0.88
+        x0, y0 = np.floor(np.minimum(a2, b2) - band - 2).astype(int)
+        x1, y1 = np.ceil(np.maximum(a2, b2) + band + 2).astype(int)
+        x0, y0 = max(x0, 0), max(y0, 0)
+        x1, y1 = min(x1, gray.shape[1]), min(y1, gray.shape[0])
+        roi = gray[y0:y1, x0:x1]
+        line = _line_through(a, b)
+        if roi.size:
+            mask = np.zeros_like(roi)
+            cv2.line(mask, tuple(int(v) for v in (a2 - (x0, y0))), tuple(int(v) for v in (b2 - (x0, y0))), 255, thickness=2 * band)
+            # bordo = gradiente forte perpendicolare al lato
+            gx = cv2.Sobel(roi, cv2.CV_32F, 1, 0, ksize=3)
+            gy = cv2.Sobel(roi, cv2.CV_32F, 0, 1, ksize=3)
+            d = (b - a) / max(length, 1e-6)
+            normal_grad = np.abs(gx * -d[1] + gy * d[0])
+            normal_grad[mask == 0] = 0
+            # per ogni posizione lungo il lato, il punto di gradiente massimo
+            thr = np.percentile(normal_grad[mask > 0], 90) if (mask > 0).any() else 0
+            ys, xs = np.nonzero((normal_grad >= max(thr, 20)) & (mask > 0))
+            if len(xs) >= 40:
+                pts = np.column_stack([xs + x0, ys + y0]).astype(np.float32)
+                vx, vy, cx, cy = cv2.fitLine(pts, cv2.DIST_HUBER, 0, 0.01, 0.01).ravel()
+                fitted = (float(cx), float(cy), float(vx), float(vy))
+                # accetta la retta solo se è quasi parallela e vicina al lato trovato
+                ang = abs(vx * d[0] + vy * d[1])
+                mid = (a + b) / 2
+                dist = abs((mid[0] - cx) * vy - (mid[1] - cy) * vx)
+                if ang > 0.995 and dist < band * 1.5:
+                    line = fitted
+        lines.append(line)
+    refined = []
+    for i in range(4):
+        p = _intersect(lines[i - 1], lines[i])  # angolo i = fine del lato i-1 e inizio del lato i
+        if p is None or np.hypot(p[0] - corners[i][0], p[1] - corners[i][1]) > 0.03 * diag:
+            p = tuple(corners[i])
+        refined.append(p)
+    return np.array(refined, dtype='float32')
+
+
 def warp_card(img, corners):
     import cv2
     import numpy as np
 
     rgb = np.array(img)
-    # stringe leggermente verso il centro per non lasciare il bordo del tavolo
-    corners = np.array(corners, dtype='float32')
-    center = corners.mean(axis=0)
-    corners = center + (corners - center) * 0.985
+    corners = refine_corners(img, corners)
     tl, tr, br, bl = corners
     width = (np.linalg.norm(tr - tl) + np.linalg.norm(br - bl)) / 2
     height = (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2
     if height > width:  # tessera fotografata in verticale: ruota di 90°
         corners = np.array([bl, tl, tr, br], dtype='float32')
-    dst = np.array([[0, 0], [OUT_W - 1, 0], [OUT_W - 1, OUT_H - 1], [0, OUT_H - 1]], dtype='float32')
+    dst = np.array([[0, 0], [OUT_W, 0], [OUT_W, OUT_H], [0, OUT_H]], dtype='float32')
     m = cv2.getPerspectiveTransform(np.array(corners, dtype='float32'), dst)
     out = cv2.warpPerspective(rgb, m, (OUT_W, OUT_H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
     return Image.fromarray(out)
