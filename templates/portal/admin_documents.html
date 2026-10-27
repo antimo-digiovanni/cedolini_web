@@ -1,0 +1,57 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .doc-chip { display:inline-block; font-size:.78rem; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap; text-decoration:none; }
+    a.doc-chip:hover { filter:brightness(.95); }
+    .tone-ok { background:#e3f4e8; color:#14532d; } .tone-info { background:#e5edff; color:#1e3a8a; }
+    .tone-warn { background:#fff1dc; color:#8a4b00; } .tone-danger { background:#fdecec; color:#8b1c1c; } .tone-muted { background:#eef1f6; color:#4a5568; }
+    .doc-sub { font-size:.78rem; color:#5b6f94; margin-top:3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Documenti dipendenti</h2>
+    <p class="mb-0 opacity-75">Carta d'identità e patente caricate dai dipendenti dal telefono.</p>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% for key, label in filters.items %}
+    <a href="?filtro={{ key }}&amp;q={{ q|urlencode }}" class="btn btn-sm {% if filtro == key %}btn-dark{% else %}btn-outline-dark{% endif %}">
+        {{ label }}{% if key == 'verificare' and counts.verificare %} ({{ counts.verificare }}){% elif key == 'scadenza' and counts.scadenza %} ({{ counts.scadenza }}){% elif key == 'mancanti' and counts.mancanti %} ({{ counts.mancanti }}){% endif %}
+    </a>
+    {% endfor %}
+    <form method="get" class="ms-md-auto d-flex gap-2" role="search">
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        <label for="q" class="visually-hidden">Cerca dipendente</label>
+        <input type="search" id="q" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Cerca dipendente…">
+    </form>
+</div>
+
+<div class="card-modern mb-4">
+    {% if rows %}
+    <div class="table-responsive">
+    <table class="table align-middle mb-0">
+        <thead><tr><th>Dipendente</th><th>Carta d'identità</th><th>Patente</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+        <tr>
+            <td class="fw-semibold"><a href="{% url 'admin_employee_detail' r.employee.id %}">{{ r.employee.full_name }}</a></td>
+            {% for c in r.cells %}
+            <td>
+                {% if c.doc %}<a class="doc-chip tone-{{ c.state.tone }}" href="{% url 'admin_document_detail' c.doc.id %}">{{ c.state.label }}</a>
+                {% else %}<span class="doc-chip tone-{{ c.state.tone }}">{{ c.state.label }}</span>{% endif %}
+                {% if c.doc %}<div class="doc-sub">{{ c.state.detail }}</div>{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Nessun dipendente con questo filtro.</p>
+    {% endif %}
+</div>
+{% endblock %}

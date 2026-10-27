@@ -1,0 +1,52 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .doc-card { display:flex; flex-direction:column; gap:14px; }
+    .doc-head { display:flex; align-items:center; gap:14px; }
+    .doc-icon { width:48px; height:48px; border-radius:12px; background:#eaf1fe; color:#1d4ed8; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1.4rem; }
+    .doc-chip { font-size:.78rem; font-weight:700; padding:5px 10px; border-radius:999px; white-space:nowrap; }
+    .tone-ok { background:#e3f4e8; color:#14532d; } .tone-info { background:#e5edff; color:#1e3a8a; }
+    .tone-warn { background:#fff1dc; color:#8a4b00; } .tone-danger { background:#fdecec; color:#8b1c1c; } .tone-muted { background:#eef1f6; color:#4a5568; }
+    .doc-thumbs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .doc-thumbs img { width:100%; aspect-ratio:1.585; object-fit:cover; border-radius:10px; border:1px solid #c9d6ef; background:#f3f6fb; }
+    .doc-btn { min-height:52px; font-size:1.05rem; font-weight:700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Documenti di identità e patente</h2>
+    <p class="mb-0 opacity-75">Fotografa fronte e retro con il telefono. Li vede solo l'ufficio del personale.</p>
+</div>
+
+{% if sent %}<div class="alert alert-success mb-3" role="status">Documento inviato. L'ufficio lo verificherà a breve.</div>{% endif %}
+
+<div class="row g-3 mb-4">
+{% for c in cards %}
+    <div class="col-lg-6">
+    <div class="card-modern doc-card h-100">
+        <div class="doc-head">
+            <div class="doc-icon"><i class="bi {% if c.kind == 'ci' %}bi-person-vcard{% else %}bi-car-front{% endif %}" aria-hidden="true"></i></div>
+            <div class="flex-grow-1" style="min-width:0">
+                <div class="fw-bold fs-5">{{ c.label }}</div>
+                <div class="small text-muted">{{ c.state.detail }}</div>
+            </div>
+            <span class="doc-chip tone-{{ c.state.tone }}">{{ c.state.label }}</span>
+        </div>
+        {% if c.doc and c.state.code != 'rejected' %}
+        <div class="doc-thumbs">
+            <img src="{% url 'document_image' c.doc.id 'fronte' %}" alt="{{ c.label }}, fronte" loading="lazy">
+            <img src="{% url 'document_image' c.doc.id 'retro' %}" alt="{{ c.label }}, retro" loading="lazy">
+        </div>
+        {% endif %}
+        <a href="{% url 'employee_document_upload' c.kind %}" class="btn doc-btn {% if not c.doc or c.state.code == 'rejected' or c.state.code == 'expired' or c.state.code == 'expiring' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-camera" aria-hidden="true"></i>
+            {% if not c.doc or c.state.code == 'rejected' %}Fotografa documento{% else %}Sostituisci con uno nuovo{% endif %}
+        </a>
+    </div>
+    </div>
+{% endfor %}
+</div>
+<p class="small text-muted">Quando un documento sta per scadere il portale ti avvisa e potrai caricare quello nuovo.</p>
+{% endblock %}

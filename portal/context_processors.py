@@ -14,7 +14,23 @@ def dpi_pending(request):
     if user is None or not user.is_authenticated:
         return {"dpi_pending_count": 0}
     from .models import DPI_STATUS_PENDING, DpiDelivery
-    return {"dpi_pending_count": DpiDelivery.objects.filter(employee__user=user, status=DPI_STATUS_PENDING).count()}
+    try:
+        from .identity_docs import maybe_run_daily_checks
+        maybe_run_daily_checks()
+    except Exception:
+        pass
+    ctx = {"dpi_pending_count": DpiDelivery.objects.filter(employee__user=user, status=DPI_STATUS_PENDING).count()}
+    # Avvisi documenti di identità: solo sulla dashboard dipendente, per non appesantire le altre pagine.
+    match = getattr(request, "resolver_match", None)
+    if match and match.url_name == "dashboard":
+        try:
+            from .identity_docs import needs_attention
+            from .models import Employee
+            emp = Employee.objects.filter(user=user).first()
+            ctx["doc_alerts"] = needs_attention(emp) if emp else []
+        except Exception:
+            ctx["doc_alerts"] = []
+    return ctx
 
 
 def portal_access(request):

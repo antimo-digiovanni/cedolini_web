@@ -1,0 +1,236 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .cam { position:fixed; inset:0; z-index:2147483000; background:#0c1322; color:#fff; display:none; flex-direction:column; }
+    .cam.open { display:flex; }
+    .cam-head { display:flex; align-items:center; gap:8px; padding:calc(10px + env(safe-area-inset-top)) 10px 6px; }
+    .cam-head .title { flex:1; text-align:center; font-weight:700; }
+    .cam-btn-icon { width:44px; height:44px; border-radius:12px; border:0; background:rgba(255,255,255,.12); color:#fff; font-size:1.3rem; }
+    .cam-steps { display:flex; justify-content:center; gap:8px; padding-bottom:8px; }
+    .cam-steps span { font-size:.8rem; font-weight:700; padding:6px 14px; border-radius:999px; background:rgba(255,255,255,.15); }
+    .cam-steps span.on { background:#fff; color:#0c1322; }
+    .cam-view { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#000; }
+    .cam-view video, .cam-view .shot { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    .cam-view .shot { object-fit:contain; background:#0c1322; display:none; }
+    .cam-guide { position:relative; width:min(88vw, 70vh * 1.585); aspect-ratio:1.585; border:3px solid rgba(255,255,255,.95); border-radius:18px; box-shadow:0 0 0 200vmax rgba(0,0,0,.42); pointer-events:none; }
+    .cam-hint { position:absolute; left:0; right:0; bottom:18px; text-align:center; font-weight:600; padding:0 20px; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+    .cam-foot { display:flex; align-items:center; justify-content:center; gap:24px; padding:16px 20px calc(18px + env(safe-area-inset-bottom)); min-height:120px; }
+    .shutter { width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#fff; box-shadow:inset 0 0 0 4px #0c1322; }
+    .cam-foot .btn { min-height:54px; font-weight:700; font-size:1.05rem; }
+    body.cam-locked { overflow:hidden; }
+    body.cam-locked .mobile-tabbar { display:none !important; }
+    .rev-thumb { width:100%; aspect-ratio:1.585; object-fit:cover; border-radius:12px; border:1px solid #c9d6ef; background:#f3f6fb; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">{{ label }}</h2>
+    <p class="mb-0 opacity-75">Fotografa prima il fronte, poi il retro. Il portale raddrizza e ritaglia le foto da solo.</p>
+</div>
+
+<div class="alert alert-danger d-none mb-3" id="upErr" role="alert"></div>
+
+<div class="card-modern mb-4" id="startCard">
+    <ol class="mb-3 ps-3">
+        <li class="mb-1">Appoggia il documento su un piano scuro, con buona luce e senza riflessi.</li>
+        <li class="mb-1">Inquadralo dentro il riquadro e scatta: fronte e poi retro.</li>
+        <li>Controlla che si legga tutto, inserisci la scadenza e invia.</li>
+    </ol>
+    <button type="button" class="btn btn-primary btn-lg w-100" id="startBtn" style="min-height:56px"><i class="bi bi-camera" aria-hidden="true"></i> Inizia: fotografa il fronte</button>
+    <a href="{% url 'employee_documents' %}" class="btn btn-outline-secondary w-100 mt-2">Annulla</a>
+</div>
+
+<div class="card-modern mb-4 d-none" id="reviewCard">
+    <h4 class="mb-3">Controlla e invia</h4>
+    <div class="row g-3 mb-3">
+        <div class="col-6">
+            <img class="rev-thumb" id="revFront" alt="Fronte">
+            <div class="d-flex justify-content-between align-items-center mt-2"><strong>Fronte</strong><button type="button" class="btn btn-sm btn-outline-primary" data-redo="front" style="min-height:40px">Rifai</button></div>
+        </div>
+        <div class="col-6">
+            <img class="rev-thumb" id="revBack" alt="Retro">
+            <div class="d-flex justify-content-between align-items-center mt-2"><strong>Retro</strong><button type="button" class="btn btn-sm btn-outline-primary" data-redo="back" style="min-height:40px">Rifai</button></div>
+        </div>
+    </div>
+    <label for="expiry" class="form-label fw-bold">Data di scadenza</label>
+    <input type="date" id="expiry" class="form-control form-control-lg" min="{{ today|date:'Y-m-d' }}" required>
+    <div class="form-text mb-3">La trovi scritta sul documento. Ti avvisiamo 30 giorni prima.</div>
+    <button type="button" class="btn btn-primary btn-lg w-100" id="sendBtn" style="min-height:56px">Invia documento</button>
+</div>
+
+<input type="file" accept="image/*" capture="environment" id="fileFallback" class="d-none">
+
+<div class="cam" id="cam" role="dialog" aria-modal="true" aria-label="Fotocamera">
+    <div class="cam-head">
+        <button type="button" class="cam-btn-icon" id="camClose" aria-label="Chiudi"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        <div class="title">{{ label }}</div>
+        <div style="width:44px"></div>
+    </div>
+    <div class="cam-steps"><span id="pillFront" class="on">1 · Fronte</span><span id="pillBack">2 · Retro</span></div>
+    <div class="cam-view">
+        <video id="video" playsinline muted autoplay></video>
+        <img class="shot" id="shot" alt="Foto scattata">
+        <div class="cam-guide" id="guide"></div>
+        <div class="cam-hint" id="hint"></div>
+    </div>
+    <div class="cam-foot" id="footShoot">
+        <button type="button" class="btn btn-outline-light" id="galleryBtn">Galleria</button>
+        <button type="button" class="shutter" id="shutter" aria-label="Scatta foto"></button>
+        <div style="width:96px"></div>
+    </div>
+    <div class="cam-foot d-none" id="footConfirm">
+        <button type="button" class="btn btn-outline-light flex-fill" id="retakeBtn">Rifai</button>
+        <button type="button" class="btn btn-primary flex-fill" id="useBtn" style="flex-grow:1.4">Usa foto</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var cam = document.getElementById('cam');
+    document.body.appendChild(cam);
+    var video = document.getElementById('video'), shot = document.getElementById('shot'), guide = document.getElementById('guide');
+    var hint = document.getElementById('hint'), errBox = document.getElementById('upErr');
+    var fileInput = document.getElementById('fileFallback');
+    var stream = null, step = 'front', current = null;
+    var photos = { front: null, back: null };
+    var uploadUrl = "{% url 'employee_document_upload' kind %}";
+    var csrf = "{{ csrf_token }}";
+
+    function setStep(s) {
+        step = s;
+        document.getElementById('pillFront').classList.toggle('on', s === 'front');
+        document.getElementById('pillBack').classList.toggle('on', s === 'back');
+        hint.textContent = s === 'front' ? 'Inquadra il FRONTE dentro il riquadro' : 'Ora gira il documento e inquadra il RETRO';
+        document.getElementById('useBtn').textContent = s === 'front' ? 'Usa foto · avanti' : 'Usa questa foto';
+    }
+    function showShootUI() {
+        current = null;
+        shot.style.display = 'none'; guide.style.display = ''; video.style.display = '';
+        document.getElementById('footShoot').classList.remove('d-none');
+        document.getElementById('footConfirm').classList.add('d-none');
+        setStep(step);
+    }
+    function showConfirmUI(blob) {
+        current = blob;
+        if (shot.src) URL.revokeObjectURL(shot.src);
+        shot.src = URL.createObjectURL(blob);
+        shot.style.display = 'block'; guide.style.display = 'none';
+        document.getElementById('footShoot').classList.add('d-none');
+        document.getElementById('footConfirm').classList.remove('d-none');
+        hint.textContent = 'Si legge bene? Se è sfocata o con riflessi, rifai la foto.';
+    }
+    async function startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false });
+            video.srcObject = stream;
+            await video.play().catch(function () {});
+            return true;
+        } catch (e) { return false; }
+    }
+    function stopCamera() {
+        if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+        video.srcObject = null;
+    }
+    async function openCamera(s) {
+        errBox.classList.add('d-none');
+        setStep(s);
+        cam.classList.add('open'); document.body.classList.add('cam-locked');
+        showShootUI();
+        var ok = stream ? true : await startCamera();
+        if (!ok) {
+            // Senza accesso alla fotocamera dal portale: usa l'app fotocamera del telefono.
+            closeCamera();
+            fileInput.click();
+        }
+    }
+    function closeCamera() {
+        stopCamera();
+        cam.classList.remove('open'); document.body.classList.remove('cam-locked');
+    }
+    function takePhoto() {
+        if (!video.videoWidth) return;
+        var c = document.createElement('canvas');
+        c.width = video.videoWidth; c.height = video.videoHeight;
+        c.getContext('2d').drawImage(video, 0, 0);
+        c.toBlob(function (b) { if (b) showConfirmUI(b); }, 'image/jpeg', 0.92);
+    }
+    function accept(blob) {
+        photos[step] = blob;
+        if (step === 'front' && !photos.back) { setStep('back'); showShootUI(); if (!stream) { closeCamera(); fileInput.click(); } return; }
+        closeCamera();
+        showReview();
+    }
+    function showReview() {
+        document.getElementById('startCard').classList.add('d-none');
+        document.getElementById('reviewCard').classList.remove('d-none');
+        ['front', 'back'].forEach(function (k) {
+            var img = document.getElementById(k === 'front' ? 'revFront' : 'revBack');
+            if (img.src) URL.revokeObjectURL(img.src);
+            img.src = URL.createObjectURL(photos[k]);
+        });
+    }
+
+    var waitingBack = false;  // modalità senza fotocamera nel portale: fronte fatto, manca il retro
+    document.getElementById('startBtn').addEventListener('click', function () {
+        if (waitingBack) { fileInput.click(); return; }
+        photos = { front: null, back: null };
+        openCamera('front');
+    });
+    document.getElementById('camClose').addEventListener('click', closeCamera);
+    document.getElementById('shutter').addEventListener('click', takePhoto);
+    document.getElementById('retakeBtn').addEventListener('click', showShootUI);
+    document.getElementById('useBtn').addEventListener('click', function () { if (current) accept(current); });
+    document.getElementById('galleryBtn').addEventListener('click', function () { fileInput.removeAttribute('capture'); fileInput.click(); });
+    fileInput.addEventListener('change', function () {
+        var f = fileInput.files && fileInput.files[0];
+        fileInput.setAttribute('capture', 'environment');
+        fileInput.value = '';
+        if (!f) return;
+        if (cam.classList.contains('open')) { showConfirmUI(f); return; }
+        // flusso senza fotocamera nel portale: ogni file scelto è il lato corrente
+        photos[step] = f;
+        if (step === 'front' && !photos.back) {
+            setStep('back'); waitingBack = true;
+            errBox.classList.replace('alert-danger', 'alert-info');
+            errBox.textContent = 'Fronte acquisito. Ora tocca il pulsante e fotografa il RETRO.';
+            errBox.classList.remove('d-none');
+            document.getElementById('startBtn').innerHTML = '<i class="bi bi-camera" aria-hidden="true"></i> Fotografa il retro';
+            return;
+        }
+        waitingBack = false;
+        errBox.classList.add('d-none');
+        showReview();
+    });
+    document.querySelectorAll('[data-redo]').forEach(function (b) {
+        b.addEventListener('click', function () { var s = b.getAttribute('data-redo'); photos[s] = null; openCamera(s); });
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', async function () {
+        var btn = this, expiry = document.getElementById('expiry').value;
+        errBox.classList.add('d-none'); errBox.classList.replace('alert-info', 'alert-danger');
+        if (!expiry) { errBox.textContent = 'Inserisci la data di scadenza del documento.'; errBox.classList.remove('d-none'); return; }
+        var fd = new FormData();
+        fd.append('front', photos.front, 'fronte.jpg');
+        fd.append('back', photos.back, 'retro.jpg');
+        fd.append('expiry_date', expiry);
+        btn.disabled = true; btn.textContent = 'Invio in corso…';
+        try {
+            var r = await fetch(uploadUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf } });
+            var data = await r.json().catch(function () { return {}; });
+            if (r.ok && data.ok) { window.location.href = data.redirect; return; }
+            throw new Error(data.error || ('errore ' + r.status));
+        } catch (e) {
+            errBox.textContent = 'Invio non riuscito: ' + e.message;
+            errBox.classList.remove('d-none');
+            btn.disabled = false; btn.textContent = 'Invia documento';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+})();
+</script>
+{% endblock %}

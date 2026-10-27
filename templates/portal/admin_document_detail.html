@@ -1,0 +1,71 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .doc-chip { display:inline-block; font-size:.8rem; font-weight:700; padding:5px 12px; border-radius:999px; }
+    .tone-ok { background:#e3f4e8; color:#14532d; } .tone-info { background:#e5edff; color:#1e3a8a; }
+    .tone-warn { background:#fff1dc; color:#8a4b00; } .tone-danger { background:#fdecec; color:#8b1c1c; } .tone-muted { background:#eef1f6; color:#4a5568; }
+    .doc-img { width:100%; border-radius:12px; border:1px solid #c9d6ef; background:#f3f6fb; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">{{ doc.get_kind_display }} · {{ doc.employee.full_name }}</h2>
+    <p class="mb-0 opacity-75">Caricato il {{ doc.uploaded_at|date:"d/m/Y H:i" }}</p>
+</div>
+
+<a href="{% url 'admin_documents' %}" class="btn btn-outline-secondary btn-sm mb-3"><i class="bi bi-arrow-left" aria-hidden="true"></i> Tutti i documenti</a>
+{% if esito %}<div class="alert alert-success mb-3">{{ esito }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card-modern">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Fronte</h5>
+                <form method="post" class="d-flex gap-1">{% csrf_token %}<input type="hidden" name="action" value="rotate"><input type="hidden" name="side" value="fronte">
+                    <button name="degrees" value="90" class="btn btn-sm btn-outline-secondary" aria-label="Ruota il fronte di 90 gradi"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> 90°</button>
+                    <button name="degrees" value="180" class="btn btn-sm btn-outline-secondary" aria-label="Capovolgi il fronte">180°</button></form>
+            </div>
+            <img class="doc-img mb-1" src="{% url 'document_image' doc.id 'fronte' %}?v={{ stamp }}" alt="Fronte del documento">
+            <div class="small text-muted mb-4">{% if doc.front_cropped %}Ritagliata automaticamente.{% else %}Bordo non trovato: foto originale.{% endif %}</div>
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Retro</h5>
+                <form method="post" class="d-flex gap-1">{% csrf_token %}<input type="hidden" name="action" value="rotate"><input type="hidden" name="side" value="retro">
+                    <button name="degrees" value="90" class="btn btn-sm btn-outline-secondary" aria-label="Ruota il retro di 90 gradi"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> 90°</button>
+                    <button name="degrees" value="180" class="btn btn-sm btn-outline-secondary" aria-label="Capovolgi il retro">180°</button></form>
+            </div>
+            <img class="doc-img mb-1" src="{% url 'document_image' doc.id 'retro' %}?v={{ stamp }}" alt="Retro del documento">
+            <div class="small text-muted">{% if doc.back_cropped %}Ritagliata automaticamente.{% else %}Bordo non trovato: foto originale.{% endif %}</div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card-modern mb-3">
+            <div class="mb-3"><span class="doc-chip tone-{{ state.tone }}">{{ doc.get_status_display }}</span> <span class="small text-muted ms-1">{{ state.detail }}</span></div>
+            {% if doc.reviewed_at %}<p class="small text-muted">{{ doc.get_status_display }} il {{ doc.reviewed_at|date:"d/m/Y H:i" }}{% if doc.reviewed_by %} da {{ doc.reviewed_by.get_full_name|default:doc.reviewed_by.username }}{% endif %}{% if doc.review_note %} · «{{ doc.review_note }}»{% endif %}</p>{% endif %}
+            <form method="post">
+                {% csrf_token %}
+                <label for="expiry" class="form-label fw-bold">Scadenza (correggi se serve)</label>
+                <input type="date" id="expiry" name="expiry_date" value="{{ doc.expiry_date|date:'Y-m-d' }}" class="form-control mb-3">
+                <label for="note" class="form-label fw-bold">Motivo, se rifiuti</label>
+                <input type="text" id="note" name="review_note" maxlength="255" class="form-control mb-3" placeholder="es. foto sfocata, si vede solo metà documento">
+                <div class="d-flex gap-2">
+                    <button name="action" value="reject" class="btn btn-outline-danger flex-fill" style="min-height:48px">Rifiuta · chiedi di rifare</button>
+                    <button name="action" value="approve" class="btn btn-primary flex-fill" style="min-height:48px">Approva</button>
+                </div>
+            </form>
+            <a href="{% url 'admin_document_pdf' doc.id %}" class="btn btn-outline-primary w-100 mt-3" style="min-height:46px"><i class="bi bi-download" aria-hidden="true"></i> Scarica PDF (fronte + retro)</a>
+        </div>
+        {% if history %}
+        <div class="card-modern">
+            <h6 class="mb-2">Caricamenti precedenti</h6>
+            <ul class="list-unstyled mb-0 small">
+                {% for h in history %}<li class="py-1"><a href="{% url 'admin_document_detail' h.id %}">{{ h.uploaded_at|date:"d/m/Y" }}</a> · {{ h.get_status_display }} · scad. {{ h.expiry_date|date:"d/m/Y" }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

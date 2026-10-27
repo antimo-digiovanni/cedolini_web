@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dpi_views, push_views, document_views
+from . import views, dpi_views, push_views, document_views, identity_views
 
 urlpatterns = [
 
@@ -34,6 +34,12 @@ urlpatterns = [
     path('push/chiave/', push_views.push_public_key, name='push_public_key'),
     path('push/iscrivi/', push_views.push_subscribe, name='push_subscribe'),
     path('push/disiscrivi/', push_views.push_unsubscribe, name='push_unsubscribe'),
+    path('documenti/', identity_views.employee_documents, name='employee_documents'),
+    path('documenti/<str:kind>/carica/', identity_views.employee_document_upload, name='employee_document_upload'),
+    path('documenti/foto/<int:doc_id>/<str:side>/', identity_views.document_image, name='document_image'),
+    path('admin-documenti/', identity_views.admin_documents, name='admin_documents'),
+    path('admin-documenti/<int:doc_id>/', identity_views.admin_document_detail, name='admin_document_detail'),
+    path('admin-documenti/<int:doc_id>/pdf/', identity_views.admin_document_pdf, name='admin_document_pdf'),
     path('admin-dpi/', dpi_views.admin_dpi, name='admin_dpi'),
     path('consegna-dpi/', dpi_views.employee_dpi, name='employee_dpi'),
     path('consegna-dpi/<int:dpi_id>/firma/', dpi_views.employee_dpi_sign, name='employee_dpi_sign'),

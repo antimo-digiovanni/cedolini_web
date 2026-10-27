@@ -767,3 +767,43 @@ class PushSubscription(models.Model):
 
     def __str__(self):
         return f"Push {self.user.get_username()}"
+
+
+class IdentityDocument(models.Model):
+    """Documento di identità o patente caricato dal dipendente (foto fronte e retro)."""
+
+    KIND_CI = 'ci'
+    KIND_PATENTE = 'patente'
+    KIND_CHOICES = [(KIND_CI, "Carta d'identità"), (KIND_PATENTE, 'Patente di guida')]
+
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [(STATUS_PENDING, 'Da verificare'), (STATUS_APPROVED, 'Approvato'), (STATUS_REJECTED, 'Rifiutato')]
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='identity_documents')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    front_image = models.FileField(upload_to='documenti_identita/')
+    back_image = models.FileField(upload_to='documenti_identita/')
+    front_cropped = models.BooleanField(default=False)
+    back_cropped = models.BooleanField(default=False)
+    expiry_date = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    review_note = models.CharField(max_length=255, blank=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    expiry_notified_on = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-uploaded_at', '-id']
+
+    def __str__(self):
+        return f"{self.get_kind_display()} - {self.employee.full_name} ({self.get_status_display()})"
+
+
+class DailyTaskRun(models.Model):
+    """Ultimo giorno in cui è stato eseguito un controllo giornaliero (es. scadenze documenti)."""
+
+    name = models.CharField(max_length=50, unique=True)
+    last_run = models.DateField()

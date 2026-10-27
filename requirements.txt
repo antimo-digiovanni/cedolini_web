@@ -21,3 +21,5 @@ django-storages
 boto3
 python-docx
 pywebpush
+opencv-python-headless
+numpy

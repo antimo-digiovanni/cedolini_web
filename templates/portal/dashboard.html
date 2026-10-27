@@ -160,6 +160,15 @@
 
     {% include "portal/includes/push_prompt.html" %}
 
+    {% if doc_alerts %}
+    <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="alert">
+        <div><i class="bi bi-person-vcard me-1" aria-hidden="true"></i>
+            {% for label, st in doc_alerts %}<strong>{{ label }}:</strong> {{ st.label|lower }}{% if st.code != 'missing' %} ({{ st.detail }}){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+        </div>
+        <a href="{% url 'employee_documents' %}" class="btn btn-warning fw-semibold">Vai ai documenti</a>
+    </div>
+    {% endif %}
+
     {% if dpi_pending_count %}
     <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="alert">
         <div><i class="bi bi-shield-check me-1" aria-hidden="true"></i> <strong>Hai {% if dpi_pending_count == 1 %}una consegna DPI{% else %}{{ dpi_pending_count }} consegne DPI{% endif %} da firmare.</strong></div>
