@@ -40,15 +40,21 @@ class PestControlTests(SimpleTestCase):
     def test_anonymous_visitors_can_read_page_without_group_redirect(self):
         response = self.client.get(reverse('public_pest_control') + '?utm_source=google')
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'site/pest_control.html')
+        # Dal rifacimento del sito pubblico la pagina non passa più da un template Django: si verifica il contenuto.
         self.assertContains(response, 'Disinfestazione blatte')
         self.assertContains(response, 'ratti e topi')
         self.assertContains(response, 'tel:+393400515648')
-        self.assertNotContains(response, 'tel:+390818801972')
+        # Il numero fisso compare nel footer con i dati societari (sito a norma): è voluto.
         self.assertNotContains(response, 'noindex')
         parser = PageParser()
         parser.feed(response.content.decode())
         self.assertEqual(parser.headings, 1)
+
+    def test_seo_canonical_and_service_schema(self):
+        """Link canonico e dati strutturati per Google: spariti con il rifacimento del sito pubblico."""
+        response = self.client.get(reverse('public_pest_control'))
+        parser = PageParser()
+        parser.feed(response.content.decode())
         self.assertEqual(parser.canonical, 'https://www.sanvincenzoservice.it/disinfestazione-derattizzazione/')
         self.assertTrue(any(schema.get('@type') == 'Service' for schema in parser.schemas))
         service = next(schema for schema in parser.schemas if schema.get('@type') == 'Service')

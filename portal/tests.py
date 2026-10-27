@@ -1331,6 +1331,7 @@ class VacationRequestFlowTests(TestCase):
 				"action": "request_vacation",
 				"start_date": start_date.isoformat(),
 				"end_date": end_date.isoformat(),
+				"multiple_days": "on",
 				"vacation_reason": "Ferie programmate con la famiglia.",
 			},
 		)
