@@ -212,3 +212,13 @@ class IdentityDocumentFlowTests(TestCase):
     def test_missing_ci_shown_on_dashboard(self):
         self.client.login(username='mario', password='x')
         self.assertContains(self.client.get(reverse('dashboard')), 'Vai ai documenti')
+
+
+class CornerTests(TestCase):
+    def test_corners_are_white_and_center_untouched(self):
+        img = Image.new('RGB', (1712, 1080), (20, 20, 20))
+        out = doc_scan.round_corners(img)
+        self.assertEqual(out.getpixel((0, 0)), (255, 255, 255))
+        self.assertEqual(out.getpixel((1711, 1079)), (255, 255, 255))
+        self.assertEqual(out.getpixel((856, 540)), (20, 20, 20))
+        self.assertEqual(out.getpixel((856, 10)), (20, 20, 20))

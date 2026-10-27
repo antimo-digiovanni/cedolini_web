@@ -99,6 +99,10 @@ def build_pdf(doc):
             img = Image.open(io.BytesIO(field.read())).convert('RGB')
         finally:
             field.close()
+        cropped = doc.front_cropped if label == 'FRONTE' else doc.back_cropped
+        if cropped:
+            from .doc_scan import round_corners
+            img = round_corners(img)  # vale anche per i documenti caricati prima di questa correzione
         k = min(max_w / img.width, max_h / img.height)
         w, h = img.width * k, img.height * k
         pdf.setFont('Helvetica-Bold', 9)
@@ -110,7 +114,10 @@ def build_pdf(doc):
         out.seek(0)
         pdf.drawImage(ImageReader(out), 20 * mm, top - h - 3 * mm, width=w, height=h)
         pdf.setStrokeGray(0.75)
-        pdf.rect(20 * mm, top - h - 3 * mm, w, h)
+        if cropped:
+            pdf.roundRect(20 * mm, top - h - 3 * mm, w, h, radius=max(w, h) * 0.045)
+        else:
+            pdf.rect(20 * mm, top - h - 3 * mm, w, h)
         top = top - h - 16 * mm
 
     pdf.setFont('Helvetica', 7.5)

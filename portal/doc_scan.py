@@ -203,7 +203,30 @@ def warp_card(img, corners):
     dst = np.array([[0, 0], [OUT_W, 0], [OUT_W, OUT_H], [0, OUT_H]], dtype='float32')
     m = cv2.getPerspectiveTransform(np.array(corners, dtype='float32'), dst)
     out = cv2.warpPerspective(rgb, m, (OUT_W, OUT_H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-    return Image.fromarray(out)
+    return round_corners(Image.fromarray(out))
+
+
+# Raggio degli angoli: le tessere ID-1 hanno angoli di circa 3,2 mm su 85,6 mm (3,7%).
+# Un pelo più largo, così copre anche lo sfondo che resta negli angoli arrotondati.
+CORNER_RADIUS_RATIO = 0.045
+
+
+def round_corners(img, ratio=CORNER_RADIUS_RATIO, fill=(255, 255, 255)):
+    """Colora di bianco gli angoli esterni alla tessera (lo sfondo della foto) con bordo arrotondato morbido."""
+    from PIL import ImageDraw
+
+    img = img.convert('RGB')
+    w, h = img.size
+    r = int(round(max(w, h) * ratio))
+    if r < 2:
+        return img
+    scale = 3  # disegno ingrandito e poi ridotto: bordo dell'arrotondamento senza scalini
+    mask = Image.new('L', (w * scale, h * scale), 0)
+    edge = 2 * scale  # 2 px di bordo: elimina l'eventuale riga di sfondo lungo i lati
+    ImageDraw.Draw(mask).rounded_rectangle([edge, edge, w * scale - 1 - edge, h * scale - 1 - edge], radius=r * scale, fill=255)
+    mask = mask.resize((w, h), Image.LANCZOS)
+    background = Image.new('RGB', (w, h), fill)
+    return Image.composite(img, background, mask)
 
 
 def rotate_jpeg(data, degrees):
