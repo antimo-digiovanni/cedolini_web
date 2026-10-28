@@ -222,3 +222,43 @@ class CornerTests(TestCase):
         self.assertEqual(out.getpixel((1711, 1079)), (255, 255, 255))
         self.assertEqual(out.getpixel((856, 540)), (20, 20, 20))
         self.assertEqual(out.getpixel((856, 10)), (20, 20, 20))
+
+
+@override_settings(PUSH_ASYNC=False)
+class UnrecognizedPhotoTests(TestCase):
+    """Foto in cui il documento non si riconosce (lontano, fuori riquadro): il caricamento viene rifiutato."""
+
+    def setUp(self):
+        self.media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media, True)
+        ov = override_settings(MEDIA_ROOT=self.media, STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage', 'OPTIONS': {'location': self.media}},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        })
+        ov.enable()
+        self.addCleanup(ov.disable)
+        user = User.objects.create_user('mario', password='x')
+        Employee.objects.create(user=user, first_name='Mario', last_name='Rossi', must_change_password=False, privacy_accepted=True)
+        self.client.login(username='mario', password='x')
+
+    def _far_card_photo(self):
+        import cv2
+        w, h = 1500, 2000
+        bg = np.full((h, w, 3), (90, 100, 110), np.uint8)
+        card = np.full((540, 856, 3), (235, 240, 250), np.uint8)
+        dst = np.float32([[650, 900], [1000, 890], [1005, 1110], [645, 1115]])  # tessera piccola e lontana
+        m = cv2.getPerspectiveTransform(np.float32([[0, 0], [856, 0], [856, 540], [0, 540]]), dst)
+        warped = cv2.warpPerspective(card, m, (w, h)); mask = cv2.warpPerspective(np.full((540, 856), 255, np.uint8), m, (w, h))
+        bg[mask > 0] = warped[mask > 0]
+        buf = io.BytesIO(); Image.fromarray(bg).save(buf, 'JPEG'); return buf.getvalue()
+
+    def test_far_or_missing_card_is_refused(self):
+        expiry = (timezone.localdate() + timedelta(days=900)).isoformat()
+        for front in (self._far_card_photo(), phone_photo(with_card=False)):
+            r = self.client.post(reverse('employee_document_upload', args=['ci']), {
+                'front': SimpleUploadedFile('f.jpg', front, 'image/jpeg'),
+                'back': SimpleUploadedFile('b.jpg', phone_photo(), 'image/jpeg'),
+                'expiry_date': expiry})
+            self.assertFalse(r.json()['ok'])
+            self.assertIn('del fronte', r.json()['error'])
+        self.assertFalse(IdentityDocument.objects.exists())

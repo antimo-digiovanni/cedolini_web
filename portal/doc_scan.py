@@ -237,13 +237,25 @@ def rotate_jpeg(data, degrees):
     return out.getvalue()
 
 
+# Sotto questa misura (lato lungo della tessera nella foto, in pixel) il documento è troppo
+# lontano per essere leggibile: la foto va rifatta più da vicino.
+MIN_CARD_LONG_SIDE = 550
+
+
+def _long_side(corners):
+    import numpy as np
+    c = _order_corners(corners)
+    return max(np.linalg.norm(c[1] - c[0]), np.linalg.norm(c[2] - c[3]),
+               np.linalg.norm(c[3] - c[0]), np.linalg.norm(c[2] - c[1]))
+
+
 def process_photo(data):
     """Foto caricata -> (jpeg_bytes, ritagliata: bool)."""
     img = load_image(data)
     cropped = False
     try:
         corners = find_card(img)
-        if corners is not None:
+        if corners is not None and _long_side(corners) >= MIN_CARD_LONG_SIDE:
             img = warp_card(img, corners)
             cropped = True
     except Exception:

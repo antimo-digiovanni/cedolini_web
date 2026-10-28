@@ -73,6 +73,12 @@ def employee_document_upload(request, kind):
             back_jpg, back_cropped = doc_scan.process_photo(back.read())
         except doc_scan.ScanError as exc:
             return fail(str(exc))
+        if not front_cropped or not back_cropped:
+            side = 'del fronte' if not front_cropped else 'del retro'
+            if not front_cropped and not back_cropped:
+                side = 'di fronte e retro'
+            return fail(f'Nella foto {side} il documento non si riconosce bene: rifalla più da vicino, '
+                        'con il documento intero dentro il riquadro, su un piano scuro e con buona luce.')
 
         stamp = timezone.now().strftime('%Y%m%d%H%M%S')
         doc = IdentityDocument(employee=employee, kind=kind, expiry_date=expiry,

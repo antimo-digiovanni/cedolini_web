@@ -16,7 +16,11 @@
     .cam-guide { position:relative; width:min(88vw, 70vh * 1.585); aspect-ratio:1.585; border:3px solid rgba(255,255,255,.95); border-radius:18px; box-shadow:0 0 0 200vmax rgba(0,0,0,.42); pointer-events:none; }
     .cam-hint { position:absolute; left:0; right:0; bottom:18px; text-align:center; font-weight:600; padding:0 20px; text-shadow:0 1px 3px rgba(0,0,0,.6); }
     .cam-foot { display:flex; align-items:center; justify-content:center; gap:24px; padding:16px 20px calc(18px + env(safe-area-inset-bottom)); min-height:120px; }
-    .shutter { width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#fff; box-shadow:inset 0 0 0 4px #0c1322; }
+    .shutter { width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#fff; box-shadow:inset 0 0 0 4px #0c1322; transition:opacity .15s, background .15s; }
+    .shutter:disabled { opacity:.35; cursor:not-allowed; }
+    .shutter.ready { background:#22c55e; border-color:#22c55e; }
+    .cam-guide { transition:border-color .15s; }
+    .cam-guide.ok { border-color:#22c55e; border-width:5px; }
     .cam-foot .btn { min-height:54px; font-weight:700; font-size:1.05rem; }
     body.cam-locked { overflow:hidden; }
     body.cam-locked .mobile-tabbar { display:none !important; }
@@ -77,7 +81,7 @@
     </div>
     <div class="cam-foot" id="footShoot">
         <button type="button" class="btn btn-outline-light" id="galleryBtn">Galleria</button>
-        <button type="button" class="shutter" id="shutter" aria-label="Scatta foto"></button>
+        <button type="button" class="shutter" id="shutter" aria-label="Scatta foto" disabled></button>
         <div style="width:96px"></div>
     </div>
     <div class="cam-foot d-none" id="footConfirm">
@@ -113,8 +117,10 @@
         document.getElementById('footShoot').classList.remove('d-none');
         document.getElementById('footConfirm').classList.add('d-none');
         setStep(step);
+        startDetect();
     }
     function showConfirmUI(blob) {
+        stopDetect();
         current = blob;
         if (shot.src) URL.revokeObjectURL(shot.src);
         shot.src = URL.createObjectURL(blob);
@@ -133,6 +139,7 @@
         } catch (e) { return false; }
     }
     function stopCamera() {
+        stopDetect();
         if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
         video.srcObject = null;
     }
@@ -152,7 +159,68 @@
         stopCamera();
         cam.classList.remove('open'); document.body.classList.remove('cam-locked');
     }
+    // ---- Controllo dell'inquadratura in tempo reale ----
+    // Il pulsante si attiva solo quando i 4 bordi del documento coincidono con il riquadro.
+    var detectTimer = null, okFrames = 0, shutter = document.getElementById('shutter');
+    var probe = document.createElement('canvas'), probeCtx = probe.getContext('2d', { willReadFrequently: true });
+    function setReady(ready, msg) {
+        guide.classList.toggle('ok', ready);
+        shutter.disabled = !ready;
+        shutter.classList.toggle('ready', ready);
+        if (msg) hint.textContent = msg;
+    }
+    function edgeLine(gray, w, h, horizontal, pos, from, to, band, T) {
+        // cerca una linea di bordo (orizzontale o verticale) vicino a "pos", tra "from" e "to"
+        var hits = [], lo = Math.max(1, Math.round(pos - band)), hi = Math.min((horizontal ? h : w) - 2, Math.round(pos + band));
+        for (var t = Math.round(from); t <= Math.round(to); t++) {
+            var best = 0, bestAt = -1;
+            for (var q = lo; q <= hi; q++) {
+                var g = horizontal ? Math.abs(gray[(q + 1) * w + t] - gray[(q - 1) * w + t])
+                                   : Math.abs(gray[t * w + q + 1] - gray[t * w + q - 1]);
+                if (g > best) { best = g; bestAt = q; }
+            }
+            if (best >= T) hits.push(bestAt);
+        }
+        var n = Math.round(to) - Math.round(from) + 1;
+        if (hits.length < n * 0.55) return false;
+        hits.sort(function (a, b) { return a - b; });
+        var med = hits[hits.length >> 1], straight = 0;
+        hits.forEach(function (v) { if (Math.abs(v - med) <= 3) straight++; });
+        return straight >= n * 0.45;  // i punti stanno su una linea dritta
+    }
+    function checkFrame() {
+        if (!video.videoWidth || current) return;
+        var vr = video.getBoundingClientRect(), gr = guide.getBoundingClientRect();
+        var vw = video.videoWidth, vh = video.videoHeight;
+        var sc = Math.max(vr.width / vw, vr.height / vh);
+        var offX = (vr.width - vw * sc) / 2, offY = (vr.height - vh * sc) / 2;
+        var gx = (gr.left - vr.left - offX) / sc, gy = (gr.top - vr.top - offY) / sc;
+        var gw = gr.width / sc, gh = gr.height / sc;
+        var mx = gw * 0.2, my = gh * 0.2;
+        var sx = Math.max(0, gx - mx), sy = Math.max(0, gy - my);
+        var sw = Math.min(vw - sx, gw + 2 * mx), sh = Math.min(vh - sy, gh + 2 * my);
+        var W = 220, H = Math.round(W * sh / sw);
+        probe.width = W; probe.height = H;
+        probeCtx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
+        var px = probeCtx.getImageData(0, 0, W, H).data, gray = new Float32Array(W * H), sum = 0;
+        for (var i = 0; i < W * H; i++) { gray[i] = px[i * 4] * 0.299 + px[i * 4 + 1] * 0.587 + px[i * 4 + 2] * 0.114; }
+        for (var j = W + 1; j < W * H - W - 1; j += 7) sum += Math.abs(gray[j + 1] - gray[j - 1]);
+        var T = Math.max(14, (sum / ((W * H) / 7)) * 4);
+        var k = W / sw, x0 = (gx - sx) * k, y0 = (gy - sy) * k, x1 = x0 + gw * k, y1 = y0 + gh * k;
+        var bandY = (y1 - y0) * 0.13, bandX = (x1 - x0) * 0.09;
+        var ix0 = x0 + (x1 - x0) * 0.15, ix1 = x1 - (x1 - x0) * 0.15, iy0 = y0 + (y1 - y0) * 0.18, iy1 = y1 - (y1 - y0) * 0.18;
+        var ok = edgeLine(gray, W, H, true, y0, ix0, ix1, bandY, T) && edgeLine(gray, W, H, true, y1, ix0, ix1, bandY, T)
+              && edgeLine(gray, W, H, false, x0, iy0, iy1, bandX, T) && edgeLine(gray, W, H, false, x1, iy0, iy1, bandX, T);
+        okFrames = ok ? okFrames + 1 : 0;
+        if (okFrames >= 3) setReady(true, 'Perfetto, scatta!');
+        else setReady(false, step === 'front' ? 'Metti il FRONTE del documento dentro il riquadro: avvicina o allontana il telefono finché diventa verde'
+                                              : 'Gira il documento e metti il RETRO dentro il riquadro, finché diventa verde');
+    }
+    function startDetect() { stopDetect(); okFrames = 0; setReady(false); detectTimer = setInterval(checkFrame, 150); }
+    function stopDetect() { if (detectTimer) { clearInterval(detectTimer); detectTimer = null; } }
+
     function takePhoto() {
+        if (shutter.disabled) return;
         if (!video.videoWidth) return;
         var c = document.createElement('canvas');
         c.width = video.videoWidth; c.height = video.videoHeight;
