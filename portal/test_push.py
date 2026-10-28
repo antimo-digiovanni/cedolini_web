@@ -275,3 +275,36 @@ class NotifySheetTests(TestCase):
         resp = self.client.get(reverse('dashboard'))
         self.assertContains(resp, 'id="notifySheet"')
         self.assertContains(resp, 'Vuoi attivare le notifiche?')
+
+
+class AdminNotificationsPageTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('capo', password='x', is_staff=True)
+        u1 = User.objects.create_user('anna', password='x')
+        u2 = User.objects.create_user('bruno', password='x')
+        self.e1 = Employee.objects.create(user=u1, first_name='Anna', last_name='Bianchi', must_change_password=False)
+        self.e2 = Employee.objects.create(user=u2, first_name='Bruno', last_name='Neri', must_change_password=False)
+        p256dh, auth = _fake_browser_keys()
+        PushSubscription.objects.create(user=u1, endpoint='https://web.push.apple.com/x', p256dh=p256dh, auth=auth)
+
+    def test_staff_only(self):
+        self.client.force_login(self.e1.user)
+        self.assertEqual(self.client.get(reverse('admin_notifications')).status_code, 302)
+
+    def test_lists_active_and_inactive(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse('admin_notifications'))
+        self.assertContains(r, 'Anna Bianchi')
+        self.assertContains(r, 'Bruno Neri')
+        self.assertContains(r, 'iPhone/Safari')
+        self.assertEqual(r.context['counts'], {'attive': 1, 'non_attive': 1, 'tutti': 2})
+        r = self.client.get(reverse('admin_notifications') + '?filtro=non_attive')
+        self.assertNotContains(r, 'Anna Bianchi')
+        self.assertContains(r, 'Bruno Neri')
+
+    def test_send_test_notification(self):
+        self.client.force_login(self.admin)
+        with mock.patch.object(push, 'send_to_user', return_value=1) as send:
+            r = self.client.post(reverse('admin_notifications'), {'action': 'test', 'employee': self.e1.id})
+        send.assert_called_once()
+        self.assertContains(r, 'Notifica di prova inviata')

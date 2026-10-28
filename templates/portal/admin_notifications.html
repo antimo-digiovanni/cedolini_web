@@ -1,0 +1,73 @@
+{% extends "portal/base.html" %}
+
+{% block extra_css %}
+<style>
+    .doc-chip { display:inline-block; font-size:.78rem; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+    .tone-ok { background:#e3f4e8; color:#14532d; } .tone-warn { background:#fff1dc; color:#8a4b00; } .tone-danger { background:#fdecec; color:#8b1c1c; }
+    .doc-sub { font-size:.78rem; color:#5b6f94; margin-top:3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Notifiche</h2>
+    <p class="mb-0 opacity-75">Chi ha attivato le notifiche sul telefono e chi no.</p>
+</div>
+
+{% if feedback %}
+<div class="alert {% if feedback.0 == 'ok' %}alert-success{% else %}alert-warning{% endif %}" role="status">
+    {% if feedback.0 == 'ok' %}Notifica di prova inviata a <strong>{{ feedback.1 }}</strong> ({{ feedback.2 }} dispositiv{{ feedback.2|pluralize:"o,i" }}).
+    {% else %}Invio a <strong>{{ feedback.1 }}</strong> non riuscito: il dispositivo potrebbe aver disattivato le notifiche.{% endif %}
+</div>
+{% endif %}
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% for key, label in filters.items %}
+    <a href="?filtro={{ key }}&amp;q={{ q|urlencode }}" class="btn btn-sm {% if filtro == key %}btn-dark{% else %}btn-outline-dark{% endif %}">
+        {{ label }} ({% if key == 'tutti' %}{{ counts.tutti }}{% elif key == 'attive' %}{{ counts.attive }}{% else %}{{ counts.non_attive }}{% endif %})
+    </a>
+    {% endfor %}
+    <form method="get" class="ms-md-auto d-flex gap-2" role="search">
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        <label for="q" class="visually-hidden">Cerca dipendente</label>
+        <input type="search" id="q" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Cerca dipendente…">
+    </form>
+</div>
+
+<div class="card-modern mb-4">
+    {% if rows %}
+    <div class="table-responsive">
+    <table class="table align-middle mb-0">
+        <thead><tr><th>Dipendente</th><th>Notifiche</th><th>Dispositivi</th><th class="text-end">Prova</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+        <tr>
+            <td class="fw-semibold"><a href="{% url 'admin_employee_detail' r.employee.id %}">{{ r.employee.full_name }}</a></td>
+            <td>
+                {% if r.active %}<span class="doc-chip {% if r.has_error %}tone-danger{% else %}tone-ok{% endif %}">{% if r.has_error %}Attive, con errori{% else %}Attive{% endif %}</span>
+                {% else %}<span class="doc-chip tone-warn">Non attive</span>{% endif %}
+            </td>
+            <td>
+                {% for d in r.devices %}
+                <div class="small">{{ d.kind }} <span class="doc-sub">· dal {{ d.created_at|date:"d/m/Y" }}{% if d.last_success_at %} · ultima ricevuta {{ d.last_success_at|date:"d/m H:i" }}{% endif %}</span></div>
+                {% if d.last_error %}<div class="doc-sub text-danger">Errore {{ d.last_error_at|date:"d/m H:i" }}: {{ d.last_error|truncatechars:80 }}</div>{% endif %}
+                {% empty %}<span class="doc-sub">—</span>{% endfor %}
+            </td>
+            <td class="text-end">
+                {% if r.active %}
+                <form method="post" class="d-inline">{% csrf_token %}
+                    <input type="hidden" name="employee" value="{{ r.employee.id }}">
+                    <button type="submit" name="action" value="test" class="btn btn-sm btn-outline-secondary"><i class="bi bi-bell" aria-hidden="true"></i> Prova</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Nessun dipendente con questo filtro.</p>
+    {% endif %}
+</div>
+{% endblock %}

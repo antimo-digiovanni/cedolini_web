@@ -34,6 +34,7 @@ urlpatterns = [
     path('push/chiave/', push_views.push_public_key, name='push_public_key'),
     path('push/iscrivi/', push_views.push_subscribe, name='push_subscribe'),
     path('push/disiscrivi/', push_views.push_unsubscribe, name='push_unsubscribe'),
+    path('admin-notifiche/', push_views.admin_notifications, name='admin_notifications'),
     path('documenti/', identity_views.employee_documents, name='employee_documents'),
     path('documenti/<str:kind>/carica/', identity_views.employee_document_upload, name='employee_document_upload'),
     path('documenti/anteprima/', identity_views.employee_document_preview, name='employee_document_preview'),
