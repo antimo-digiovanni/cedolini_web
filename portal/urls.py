@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dpi_views, push_views, document_views, identity_views, announcement_views, vacations, deadlines
+from . import views, dpi_views, push_views, document_views, identity_views, announcement_views, vacations, deadlines, profile_views, archive_views
 
 urlpatterns = [
 
@@ -33,6 +33,8 @@ urlpatterns = [
     path('admin-employee/<int:emp_id>/scadenze/aggiungi/', deadlines.admin_add_deadline, name='admin_add_deadline'),
     path('admin-employee/<int:emp_id>/dpi-archivio.pdf', dpi_views.admin_employee_dpi_archive, name='admin_employee_dpi_archive'),
     path('admin-scadenze/', deadlines.admin_deadlines, name='admin_deadlines'),
+    path('admin-archivio/', archive_views.admin_archive, name='admin_archive'),
+    path('admin-archivio/<int:emp_id>/zip/', archive_views.admin_archive_zip, name='admin_archive_zip'),
     path('admin-scadenze/<int:dl_id>/', deadlines.admin_update_deadline, name='admin_update_deadline'),
     path('admin-employee/<int:emp_id>/dpi/', dpi_views.admin_employee_dpi, name='admin_employee_dpi'),
     path('dpi/<int:dpi_id>/', dpi_views.open_dpi, name='open_dpi'),
@@ -40,6 +42,8 @@ urlpatterns = [
     path('push/iscrivi/', push_views.push_subscribe, name='push_subscribe'),
     path('push/disiscrivi/', push_views.push_unsubscribe, name='push_unsubscribe'),
     path('admin-notifiche/', push_views.admin_notifications, name='admin_notifications'),
+    path('profilo/', profile_views.employee_profile, name='employee_profile'),
+    path('foto-profilo/<int:emp_id>/', profile_views.profile_photo, name='profile_photo'),
     path('documenti/', identity_views.employee_documents, name='employee_documents'),
     path('documenti/<str:kind>/carica/', identity_views.employee_document_upload, name='employee_document_upload'),
     path('documenti/anteprima/', identity_views.employee_document_preview, name='employee_document_preview'),

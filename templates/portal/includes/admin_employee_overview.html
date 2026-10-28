@@ -1,0 +1,116 @@
+{% if o %}
+<style>
+    .eo-hero { display:flex; flex-wrap:wrap; gap:22px; align-items:center; }
+    .eo-ring { padding:4px; border-radius:50%; background:conic-gradient(#2F6BFF,#7c4ddb,#9BE7C4,#2F6BFF); flex-shrink:0; }
+    .eo-ring > * { border:4px solid #fff; box-sizing:content-box; }
+    .eo-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .eo-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+    .eo-tile { border:1px solid var(--sv-border,#e3e9f3); border-radius:18px; padding:14px 16px; background:#fff; animation:eo-up .55s cubic-bezier(.16,1,.3,1) both; transition:transform .18s ease, box-shadow .2s ease; }
+    .eo-tile:hover { transform:translateY(-2px); box-shadow:0 12px 26px rgba(11,23,51,.08); }
+    .eo-k { font-size:.75rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#5b6f94; }
+    .eo-v { font-size:1.75rem; font-weight:800; line-height:1.1; margin-top:4px; font-variant-numeric:tabular-nums; }
+    .eo-s { font-size:.8rem; color:#5b6f94; margin-top:2px; }
+    .eo-bar-track { height:6px; border-radius:3px; background:#eef2f8; overflow:hidden; margin-top:8px; }
+    .eo-bar-fill { height:100%; border-radius:3px; background:#2F6BFF; transform-origin:left; animation:eo-grow .9s cubic-bezier(.16,1,.3,1) .3s both; }
+    .eo-chart { display:grid; grid-template-columns:repeat(28,minmax(0,1fr)); gap:4px; align-items:end; height:120px; }
+    .eo-col { display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; }
+    .eo-b { width:100%; border-radius:5px 5px 2px 2px; background:#2F6BFF; transform-origin:bottom; animation:eo-rise .8s cubic-bezier(.16,1,.3,1) both; min-height:3px; }
+    .eo-b.is-empty { background:#e6ecf6; }
+    .eo-b.is-open { background:#f59e0b; }
+    .eo-b.is-weekend.is-empty { background:#f3f5f9; }
+    .eo-lbl { font-size:.62rem; color:#8a97b1; font-weight:700; }
+    @keyframes eo-up { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+    @keyframes eo-grow { from { transform:scaleX(0); } to { transform:none; } }
+    @keyframes eo-rise { from { transform:scaleY(0); } to { transform:none; } }
+    @media (prefers-reduced-motion: reduce) { .eo-tile, .eo-bar-fill, .eo-b { animation:none; } }
+</style>
+
+<div class="card-modern mb-4">
+    <div class="eo-hero">
+        <div class="eo-ring">{% include "portal/includes/avatar.html" with emp=employee size=96 %}</div>
+        <div class="flex-grow-1" style="min-width:220px">
+            <h3 class="fw-bold mb-0">{{ employee.full_name }}</h3>
+            <div class="text-muted small">{{ employee.user.username }}{% if employee.email_invio or employee.user.email %} · {{ employee.email_invio|default:employee.user.email }}{% endif %}</div>
+            <div class="eo-meta">
+                {% if employee.user.is_active %}<span class="doc-chip tone-ok">Account attivo</span>{% else %}<span class="doc-chip tone-muted">Account disattivato</span>{% endif %}
+                {% if o.devices %}<span class="doc-chip tone-info"><i class="bi bi-bell-fill" aria-hidden="true"></i> Notifiche attive</span>{% else %}<span class="doc-chip tone-warn">Notifiche non attive</span>{% endif %}
+                {% if employee.privacy_accepted %}<span class="doc-chip tone-muted">Privacy accettata{% if employee.privacy_accepted_at %} il {{ employee.privacy_accepted_at|date:"d/m/Y" }}{% endif %}</span>{% endif %}
+                {% if not employee.photo %}<span class="doc-chip tone-muted">Senza foto</span>{% endif %}
+            </div>
+            <div class="small text-muted mt-2">Ultimo accesso: {% if o.last_login %}{{ o.last_login|date:"d/m/Y H:i" }}{% else %}mai{% endif %} · Nel portale dal {{ o.joined|date:"d/m/Y" }}</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'admin_archive' %}?dipendente={{ employee.id }}" class="btn btn-outline-primary"><i class="bi bi-archive" aria-hidden="true"></i> Tutti i documenti</a>
+            <a href="{% url 'admin_archive_zip' employee.id %}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP</a>
+            <a href="{% url 'admin_dpi' %}?employee={{ employee.id }}" class="btn btn-outline-secondary"><i class="bi bi-shield-check" aria-hidden="true"></i> Consegna DPI</a>
+        </div>
+    </div>
+</div>
+
+<div class="eo-grid mb-4">
+    <div class="eo-tile" style="animation-delay:.02s"><div class="eo-k">Giorni lavorati</div><div class="eo-v" data-count="{{ o.worked_days }}">{{ o.worked_days }}</div><div class="eo-s">questo mese</div></div>
+    <div class="eo-tile" style="animation-delay:.06s"><div class="eo-k">Ore lavorate</div><div class="eo-v">{{ o.hours }}</div><div class="eo-s">questo mese (marcature complete)</div></div>
+    <div class="eo-tile" style="animation-delay:.10s"><div class="eo-k">Entrata media</div><div class="eo-v">{{ o.avg_start|default:"—" }}</div><div class="eo-s">questo mese</div></div>
+    <div class="eo-tile" style="animation-delay:.14s"><div class="eo-k">Uscite mancanti</div><div class="eo-v {% if o.missing_exit %}text-danger{% endif %}" data-count="{{ o.missing_exit }}">{{ o.missing_exit }}</div><div class="eo-s">giorni con entrata senza uscita</div></div>
+    <div class="eo-tile" style="animation-delay:.18s"><div class="eo-k">Ferie residue {{ o.today.year }}</div>
+        {% if o.vacation %}<div class="eo-v {% if o.vacation.left_negative %}text-danger{% endif %}">{{ o.vacation.left }}</div><div class="eo-s">su {{ o.vacation.total }} · approvate {{ o.vacation.approved }}{% if o.vacation.pending != '0' %} · in attesa {{ o.vacation.pending }}{% endif %}</div>
+        {% else %}<div class="eo-v">—</div><div class="eo-s"><a href="#ferie-spettanti">Inserisci i giorni spettanti</a></div>{% endif %}</div>
+    <div class="eo-tile" style="animation-delay:.22s"><div class="eo-k">Cedolini aperti</div><div class="eo-v">{{ o.payslip_opened }}<span class="fs-6 text-muted">/{{ o.payslip_total }}</span></div>
+        {% if o.payslip_pct is not None %}<div class="eo-bar-track"><div class="eo-bar-fill" style="width:{{ o.payslip_pct }}%"></div></div>{% endif %}
+        <div class="eo-s">CUD aperti {{ o.cud_opened }}/{{ o.cud_total }}</div></div>
+    <div class="eo-tile" style="animation-delay:.26s"><div class="eo-k">Comunicazioni lette</div><div class="eo-v">{{ o.ann_read }}<span class="fs-6 text-muted">/{{ o.ann_total }}</span></div>
+        {% if o.ann_pct is not None %}<div class="eo-bar-track"><div class="eo-bar-fill" style="width:{{ o.ann_pct }}%;background:#7c4ddb"></div></div>{% endif %}
+        <div class="eo-s">ultimi 12 mesi</div></div>
+    <div class="eo-tile" style="animation-delay:.30s"><div class="eo-k">Consegne DPI</div><div class="eo-v" data-count="{{ o.dpi_count }}">{{ o.dpi_count }}</div><div class="eo-s">{% if o.last_dpi %}ultima il {{ o.last_dpi.delivered_on|date:"d/m/Y" }}{% else %}nessuna firmata{% endif %}{% if o.dpi_pending %} · {{ o.dpi_pending }} da firmare{% endif %}</div></div>
+    <div class="eo-tile" style="animation-delay:.34s"><div class="eo-k">Richieste fuori zona</div><div class="eo-v" data-count="{{ o.out_of_zone }}">{{ o.out_of_zone }}</div><div class="eo-s">da inizio anno</div></div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card-modern h-100">
+            <div class="d-flex justify-content-between align-items-baseline mb-3">
+                <h4 class="mb-0">Presenze ultimi 28 giorni</h4>
+                <span class="small text-muted"><span class="d-inline-block rounded-1 me-1" style="width:10px;height:10px;background:#2F6BFF"></span>ore · <span class="d-inline-block rounded-1 mx-1" style="width:10px;height:10px;background:#f59e0b"></span>senza uscita</span>
+            </div>
+            <div class="eo-chart" role="img" aria-label="Ore lavorate per giorno negli ultimi 28 giorni">
+                {% for d in o.chart %}
+                <div class="eo-col" title="{{ d.title }}">
+                    <div class="eo-b{% if not d.marked %} is-empty{% elif d.pct == 0 %} is-open{% endif %}{% if d.weekend %} is-weekend{% endif %}" style="height:{% if d.marked and d.pct == 0 %}12{% elif d.pct %}{{ d.pct }}{% else %}3{% endif %}%;animation-delay:{% widthratio forloop.counter0 1 18 %}ms"></div>
+                    <span class="eo-lbl">{{ d.label }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card-modern h-100">
+            <h4 class="mb-3">Documenti e scadenze</h4>
+            {% for d in o.docs %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span class="fw-semibold">{{ d.label }}</span>
+                {% if d.doc %}<a class="doc-chip tone-{{ d.state.tone }}" href="{% url 'admin_document_detail' d.doc.id %}">{{ d.state.label }}</a>{% else %}<span class="doc-chip tone-{{ d.state.tone }}">{{ d.state.label }}</span>{% endif %}
+            </div>
+            {% endfor %}
+            {% for dl, st in o.deadline_alerts %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span class="fw-semibold text-truncate me-2">{{ dl.title }}</span><span class="doc-chip tone-{{ st.tone }}">{{ st.label }}</span>
+            </div>
+            {% empty %}
+            <div class="small text-muted pt-2">Nessuna scadenza nei prossimi 30 giorni.</div>
+            {% endfor %}
+            {% if o.last_payslip %}<div class="small text-muted mt-3">Ultimo cedolino caricato: {{ o.last_payslip.month|stringformat:"02d" }}/{{ o.last_payslip.year }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('.eo-v[data-count]').forEach(function (el) {
+        var target = parseInt(el.dataset.count, 10); if (!target) return;
+        var t0 = null;
+        function step(ts) { if (!t0) t0 = ts; var k = Math.min(1, (ts - t0) / 900); el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); }
+        requestAnimationFrame(step);
+    });
+})();
+</script>
+{% endif %}

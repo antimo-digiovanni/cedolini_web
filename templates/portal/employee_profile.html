@@ -1,0 +1,117 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Il mio profilo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pf-card { display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; padding:32px 20px; }
+    .pf-ring { position:relative; display:block; width:168px; height:168px; border-radius:50%; cursor:pointer; }
+    .pf-ring::before { content:""; position:absolute; inset:0; border-radius:50%; background:conic-gradient(#2F6BFF, #7c4ddb, #9BE7C4, #2F6BFF); animation: pf-spin 6s linear infinite; }
+    .pf-ring-inner { position:absolute; inset:5px; display:block; border-radius:50%; background:#fff; padding:4px; box-sizing:border-box; }
+    .pf-ring-inner img, .pf-ring-inner .pf-init { width:100%; height:100%; border-radius:50%; object-fit:cover; display:flex; align-items:center; justify-content:center; }
+    .pf-ring-inner img[hidden], .pf-ring-inner .pf-init[hidden] { display:none; }
+    .pf-init { background:linear-gradient(135deg,#2c6cf0 0%,#7c4ddb 100%); color:#fff; font-size:3.2rem; font-weight:800; }
+    .pf-cam { position:absolute; right:6px; bottom:6px; width:46px; height:46px; border-radius:50%; background:#0B1733; color:#fff; border:3px solid #fff; display:flex; align-items:center; justify-content:center; font-size:1.2rem; cursor:pointer; }
+    .pf-btn { min-height:52px; font-weight:700; font-size:1.02rem; }
+    @keyframes pf-spin { to { transform: rotate(360deg); } }
+    @keyframes pf-pop { 0% { transform: scale(.85); opacity:0 } 70% { transform: scale(1.04) } 100% { transform:none; opacity:1 } }
+    .pf-pop { animation: pf-pop .5s cubic-bezier(.16,1,.3,1) both; }
+    @media (prefers-reduced-motion: reduce) { .pf-ring::before { animation:none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Il mio profilo</h2>
+    <p class="mb-0 opacity-75">La tua foto la vede solo l'ufficio del personale.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card-modern pf-card">
+            <label class="pf-ring" for="pfInput" title="Cambia foto">
+                <span class="pf-ring-inner">
+                    {% if employee.photo %}<img id="pfImg" src="{% url 'profile_photo' employee.id %}?v={{ employee.photo_updated_at|date:'U' }}" alt="La tua foto profilo">
+                    {% else %}<img id="pfImg" alt="Anteprima della foto" hidden><span class="pf-init" id="pfInit">{{ employee.initials }}</span>{% endif %}
+                </span>
+                <span class="pf-cam" aria-hidden="true"><i class="bi bi-camera-fill"></i></span>
+            </label>
+            <input type="file" id="pfInput" accept="image/*" class="visually-hidden" aria-label="Scegli o scatta una foto">
+            <div>
+                <div class="fs-4 fw-bold">{{ employee.full_name }}</div>
+                <div class="text-muted small">{{ request.user.username }}</div>
+            </div>
+            <div class="d-grid gap-2 w-100" style="max-width:340px">
+                <label for="pfInput" class="btn btn-primary pf-btn d-flex align-items-center justify-content-center gap-2" id="pfPick"><i class="bi bi-camera" aria-hidden="true"></i> {% if employee.photo %}Cambia foto{% else %}Aggiungi una foto{% endif %}</label>
+                <button type="button" class="btn btn-success pf-btn d-none" id="pfSave"><i class="bi bi-check2-circle" aria-hidden="true"></i> Salva foto</button>
+                <button type="button" class="btn btn-outline-secondary d-none" id="pfCancel">Annulla</button>
+                {% if employee.photo %}<button type="button" class="btn btn-link text-danger" id="pfRemove">Togli la foto</button>{% endif %}
+            </div>
+            <div class="alert alert-danger d-none w-100 mb-0" id="pfError" role="alert"></div>
+            <div class="alert alert-success d-none w-100 mb-0" id="pfOk" role="status">Foto salvata.</div>
+            <p class="small text-muted mb-0">Usa una foto del viso, ben illuminata. Verrà ritagliata in un cerchio.</p>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card-modern">
+            <h5 class="fw-bold mb-3">Account</h5>
+            <dl class="row mb-0">
+                <dt class="col-5 text-muted fw-semibold">Nome</dt><dd class="col-7">{{ employee.full_name }}</dd>
+                <dt class="col-5 text-muted fw-semibold">Username</dt><dd class="col-7">{{ request.user.username }}</dd>
+                <dt class="col-5 text-muted fw-semibold">Email</dt><dd class="col-7">{{ employee.email_invio|default:request.user.email|default:"—" }}</dd>
+            </dl>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="{% url 'password_change' %}" class="btn btn-outline-primary"><i class="bi bi-key" aria-hidden="true"></i> Cambia password</a>
+                <a href="{% url 'portal_tutorial' %}" class="btn btn-outline-secondary"><i class="bi bi-journal-text" aria-hidden="true"></i> Guida</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var input = document.getElementById('pfInput');
+    var img = document.getElementById('pfImg');
+    var init = document.getElementById('pfInit');
+    var save = document.getElementById('pfSave');
+    var cancel = document.getElementById('pfCancel');
+    var pick = document.getElementById('pfPick');
+    var err = document.getElementById('pfError');
+    var ok = document.getElementById('pfOk');
+    var remove = document.getElementById('pfRemove');
+    var originalSrc = img.getAttribute('src');
+    var file = null;
+    function post(body) {
+        return fetch("{% url 'employee_profile' %}", { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': '{{ csrf_token }}' }, body: body })
+            .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.ok) throw new Error(j.error || 'errore'); return j; }); });
+    }
+    input.addEventListener('change', function () {
+        file = input.files && input.files[0];
+        if (!file) return;
+        err.classList.add('d-none'); ok.classList.add('d-none');
+        img.src = URL.createObjectURL(file); img.hidden = false; if (init) init.hidden = true;
+        img.classList.remove('pf-pop'); void img.offsetWidth; img.classList.add('pf-pop');
+        save.classList.remove('d-none'); cancel.classList.remove('d-none'); pick.classList.add('d-none');
+    });
+    cancel.addEventListener('click', function () {
+        file = null; input.value = '';
+        if (originalSrc) { img.src = originalSrc; } else { img.hidden = true; if (init) init.hidden = false; }
+        save.classList.add('d-none'); cancel.classList.add('d-none'); pick.classList.remove('d-none');
+    });
+    save.addEventListener('click', function () {
+        if (!file) return;
+        save.disabled = true; save.textContent = 'Salvataggio…';
+        var fd = new FormData(); fd.append('photo', file);
+        post(fd).then(function () { location.href = "{% url 'employee_profile' %}?salvata=1"; })
+            .catch(function (e) { err.textContent = e.message; err.classList.remove('d-none'); save.disabled = false; save.textContent = 'Salva foto'; });
+    });
+    if (remove) remove.addEventListener('click', function () {
+        var fd = new FormData(); fd.append('action', 'remove');
+        post(fd).then(function () { location.reload(); });
+    });
+    if (location.search.indexOf('salvata=1') !== -1) ok.classList.remove('d-none');
+})();
+</script>
+{% endblock %}

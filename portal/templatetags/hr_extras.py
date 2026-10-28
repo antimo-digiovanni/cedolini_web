@@ -27,3 +27,16 @@ def employee_hr_cards(context, employee):
         'ferie_errore': bool(request and request.GET.get('ferie_errore')),
         'scadenza_errore': bool(request and request.GET.get('scadenza_errore')),
     }
+
+
+@register.inclusion_tag('portal/includes/admin_employee_overview.html', takes_context=True)
+def employee_overview(context, employee):
+    from ..employee_stats import overview
+
+    try:
+        data = overview(employee)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('statistiche dipendente non disponibili')
+        data = None
+    return {'employee': employee, 'o': data, 'request': context.get('request')}

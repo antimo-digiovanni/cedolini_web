@@ -204,7 +204,7 @@
         </a>
         {% endwith %}
         <a class="home-tile{% if announcements_unread %} has-todo{% endif %}" href="{% url 'employee_announcements' %}">
-            <i class="bi bi-megaphone" aria-hidden="true"></i>Comunicazioni
+            <i class="bi bi-megaphone" aria-hidden="true"></i><span style="font-size:.62rem;letter-spacing:-.02em;white-space:nowrap">Comunicazioni</span>
             {% if announcements_unread %}<span class="tile-badge" aria-label="da leggere">{{ announcements_unread }}</span>{% endif %}
         </a>
         <a class="home-tile{% if dpi_pending_count %} has-todo{% endif %}" href="{% url 'employee_dpi' %}">

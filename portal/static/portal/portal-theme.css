@@ -1559,3 +1559,42 @@ a.doc-chip:hover { filter:brightness(.95); }
 .doc-sub { font-size:.78rem; color:#5b6f94; margin-top:3px; }
 .admin-todo-row { background:var(--sv-surface, #fff); transition:background .15s ease; }
 .admin-todo-row:hover { background:#f6f9ff; }
+
+/* ---------------------------------------------------------------
+   Benvenuto dopo il login (una volta al giorno): cerchio blu che si
+   apre dal basso, logo con onda e scintille, saluto e barra.
+---------------------------------------------------------------- */
+.sv-wl { position: fixed; inset: 0; z-index: 400000; color: #fff; text-align: center; font-family: inherit; cursor: pointer;
+    transition: opacity 550ms cubic-bezier(.16,1,.3,1), transform 650ms cubic-bezier(.16,1,.3,1); }
+.sv-wl.is-leaving { opacity: 0; transform: scale(1.04); pointer-events: none; }
+.sv-wl-blue, .sv-wl-navy { position: absolute; inset: 0; }
+.sv-wl-blue { background: #2F6BFF; animation: sv-wl-open 900ms cubic-bezier(.7,0,.2,1) both; }
+.sv-wl-navy { background: #08132B; animation: sv-wl-open2 1000ms cubic-bezier(.7,0,.2,1) 200ms both; }
+@keyframes sv-wl-open { from { clip-path: circle(0 at 50% 92%); } to { clip-path: circle(150vmax at 50% 92%); } }
+@keyframes sv-wl-open2 { from { clip-path: circle(0 at 50% 40%); } to { clip-path: circle(150vmax at 50% 40%); } }
+.sv-wl-content { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+.sv-wl-mark { position: relative; width: 112px; height: 112px; }
+.sv-wl-logo { position: absolute; inset: 0; border-radius: 34px; background: #fff; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 24px 60px rgba(47,107,255,.45); animation: sv-wl-pop 700ms cubic-bezier(.16,1,.3,1) 500ms both; }
+.sv-wl-logo img { width: 78px; height: 78px; object-fit: contain; }
+.sv-wl-burst { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(110,160,255,.7); animation: sv-wl-burst 1s ease-out 560ms both; }
+.sv-wl-spark { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+    animation: sv-wl-spark 900ms cubic-bezier(.16,1,.3,1) 580ms both; }
+.sv-wl-hi, .sv-wl-name { font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.sv-wl-hi { margin-top: 40px; font-size: 1.75rem; color: #9FB4E0; animation: sv-wl-word 800ms cubic-bezier(.16,1,.3,1) 780ms both; }
+.sv-wl-name { margin-top: 6px; font-size: 3.1rem; animation: sv-wl-word 800ms cubic-bezier(.16,1,.3,1) 920ms both; }
+.sv-wl-date { margin-top: 14px; font-size: .95rem; font-weight: 600; color: #B9C7E6; text-transform: capitalize; animation: sv-wl-up 600ms ease 1150ms both; }
+.sv-wl-track { margin-top: 30px; width: 180px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.14); overflow: hidden; animation: sv-wl-up 500ms ease 1250ms both; }
+.sv-wl-bar { height: 100%; border-radius: 2px; background: #6EA0FF; transform-origin: left; animation: sv-wl-bar 1200ms cubic-bezier(.65,0,.35,1) 1350ms both; }
+@keyframes sv-wl-pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: none; } }
+@keyframes sv-wl-burst { from { transform: scale(.3); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+@keyframes sv-wl-spark { 0% { transform: translate(0,0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; } }
+@keyframes sv-wl-word { from { opacity: 0; transform: translateY(40px) rotate(4deg); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes sv-wl-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes sv-wl-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+    .sv-wl-blue, .sv-wl-navy { animation: none; }
+    .sv-wl-blue { display: none; }
+    .sv-wl-burst, .sv-wl-spark { display: none; }
+    .sv-wl-logo, .sv-wl-hi, .sv-wl-name, .sv-wl-date, .sv-wl-track, .sv-wl-bar { animation: sv-wl-up 300ms ease both; }
+}

@@ -69,6 +69,18 @@ class Employee(models.Model):
     must_change_password = models.BooleanField(default=True)
     privacy_accepted = models.BooleanField(default=False)
     privacy_accepted_at = models.DateTimeField(null=True, blank=True)
+    photo = models.FileField(upload_to='foto_profilo/', blank=True)
+    photo_updated_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def initials(self):
+        parts = [p for p in (self.first_name, self.last_name) if p]
+        if parts:
+            return ''.join(p[0] for p in parts).upper()[:2]
+        try:
+            return (self.user.username or '?')[0].upper()
+        except Exception:
+            return '?'
 
     @property
     def full_name(self):
