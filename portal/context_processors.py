@@ -40,6 +40,13 @@ def dpi_pending(request):
             ctx["doc_alerts"] = needs_attention(emp) if emp else []
         except Exception:
             ctx["doc_alerts"] = []
+        try:
+            from .deadlines import open_alerts
+            from .models import Employee
+            emp = Employee.objects.filter(user=user).first()
+            ctx["deadline_alerts"] = open_alerts(emp) if emp else []
+        except Exception:
+            ctx["deadline_alerts"] = []
     return ctx
 
 

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
+from portal.login_guard import GuardedAuthenticationForm
 from portal import views
 from portal import group_gateway
 from portal import public_site
@@ -41,7 +42,7 @@ urlpatterns = [
     path('robots.txt', views.robots_txt, name='robots_txt'),
 
     # Login / Logout
-    path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
+    path('login/', auth_views.LoginView.as_view(template_name='login.html', authentication_form=GuardedAuthenticationForm), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
 
     # Recupero password

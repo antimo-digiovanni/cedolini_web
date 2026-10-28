@@ -144,6 +144,38 @@
     .employee-doc-title { margin-bottom: 4px; font-weight: 700; }
     .employee-doc-meta { color: var(--sv-muted); font-size: 0.8125rem; }
 }
+
+    /* Riquadri di accesso rapido in cima alla pagina */
+    .home-tiles { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+    @media (min-width: 768px) { .home-tiles { grid-template-columns:repeat(8,minmax(0,1fr)); } }
+    .home-tile { position:relative; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-height:84px; padding:10px 4px; border:1px solid var(--sv-border); border-radius:16px; background:var(--sv-surface); color:var(--sv-ink-2); text-decoration:none; font-size:.74rem; font-weight:700; text-align:center; line-height:1.15; overflow-wrap:anywhere; hyphens:auto; box-shadow:var(--sv-shadow-xs); transition:transform .15s ease, box-shadow .15s ease; }
+    .home-tile:hover { transform:translateY(-1px); box-shadow:var(--sv-shadow-md); color:var(--sv-ink-2); }
+    .home-tile i { font-size:1.45rem; color:#1d4ed8; }
+    .home-tile .tile-badge { position:absolute; top:6px; right:6px; min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:#dc2626; color:#fff; font-size:.7rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+    .home-tile.has-todo { border-color:#f5c2c2; background:#fff7f7; }
+
+    /* Ferie: riepilogo giorni e calendario */
+    .vac-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+    .vac-summary div { border:1px solid var(--sv-border); border-radius:12px; padding:8px 6px; text-align:center; background:#f8faff; }
+    .vac-summary span { display:block; font-size:.72rem; color:var(--sv-muted); font-weight:600; }
+    .vac-summary strong { font-size:1.15rem; }
+    .vac-summary .is-left { background:#eaf1fe; border-color:#c9d6ef; } .vac-summary .is-left strong { color:#1d4ed8; }
+    .vac-summary .is-neg { background:#fdecec; border-color:#f5c2c2; } .vac-summary .is-neg strong { color:#8b1c1c; }
+    .vac-cal { border:1px solid var(--sv-border); border-radius:14px; padding:10px; background:#fff; max-width:420px; }
+    .vac-cal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .vac-cal-title { text-transform:capitalize; }
+    .vac-cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; }
+    .vac-cal-grid .dow { font-size:.7rem; color:var(--sv-muted); text-align:center; font-weight:700; padding:2px 0; }
+    .vac-cal-grid button { aspect-ratio:1; border:0; border-radius:9px; background:#f3f6fb; font-size:.85rem; font-weight:600; color:#10213f; padding:0; }
+    .vac-cal-grid button:disabled { background:transparent; color:#b6c0d4; }
+    .vac-cal-grid button.is-blocked { background:repeating-linear-gradient(45deg,#eef1f6,#eef1f6 4px,#e2e7ef 4px,#e2e7ef 8px); color:#9aa6bd; }
+    .vac-cal-grid button.is-ok { background:#e3f4e8; color:#14532d; }
+    .vac-cal-grid button.is-wait { background:#fff1dc; color:#8a4b00; }
+    .vac-cal-grid button.is-sel { background:#1d4ed8; color:#fff; }
+    .vac-cal-grid button.is-today { box-shadow:inset 0 0 0 2px #1d4ed8; }
+    .vac-cal-legend { display:flex; flex-wrap:wrap; gap:10px; font-size:.72rem; color:var(--sv-muted); margin-top:8px; }
+    .vac-cal-legend .lg { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+    .lg.sel { background:#1d4ed8; } .lg.ok { background:#bfe5c9; } .lg.wait { background:#ffd89e; } .lg.no { background:#d6dce7; }
 </style>
 {% endblock %}
 
@@ -157,6 +189,35 @@
         </div>
         <a class="btn btn-primary" href="{% url 'timekeeping' %}"><i class="bi bi-stopwatch" aria-hidden="true"></i> Marcatura</a>
     </header>
+
+    <nav class="home-tiles mb-4" aria-label="Accesso rapido">
+        <a class="home-tile{% if unviewed_payslips_count or unviewed_cuds_count %} has-todo{% endif %}" href="#payslip-section">
+            <i class="bi bi-file-earmark-text" aria-hidden="true"></i>Cedolini e CUD
+            {% if unviewed_payslips_count or unviewed_cuds_count %}<span class="tile-badge" aria-label="da aprire">{{ unviewed_payslips_count|add:unviewed_cuds_count }}</span>{% endif %}
+        </a>
+        <a class="home-tile" href="{% url 'timekeeping' %}"><i class="bi bi-stopwatch" aria-hidden="true"></i>Marcatura</a>
+        <a class="home-tile" href="#ferie-section"><i class="bi bi-airplane" aria-hidden="true"></i>Ferie</a>
+        {% with doc_todo=doc_alerts|length|add:deadline_alerts|length %}
+        <a class="home-tile{% if doc_todo %} has-todo{% endif %}" href="{% url 'employee_documents' %}">
+            <i class="bi bi-person-vcard" aria-hidden="true"></i>Documenti
+            {% if doc_todo %}<span class="tile-badge" aria-label="da sistemare">{{ doc_todo }}</span>{% endif %}
+        </a>
+        {% endwith %}
+        <a class="home-tile{% if announcements_unread %} has-todo{% endif %}" href="{% url 'employee_announcements' %}">
+            <i class="bi bi-megaphone" aria-hidden="true"></i>Comunicazioni
+            {% if announcements_unread %}<span class="tile-badge" aria-label="da leggere">{{ announcements_unread }}</span>{% endif %}
+        </a>
+        <a class="home-tile{% if dpi_pending_count %} has-todo{% endif %}" href="{% url 'employee_dpi' %}">
+            <i class="bi bi-shield-check" aria-hidden="true"></i>DPI
+            {% if dpi_pending_count %}<span class="tile-badge" aria-label="da firmare">{{ dpi_pending_count }}</span>{% endif %}
+        </a>
+        {% if published_turni_sections %}
+        <a class="home-tile" href="#turni-section"><i class="bi bi-calendar-week" aria-hidden="true"></i>Turni</a>
+        {% else %}
+        <a class="home-tile" href="#quick-start-section"><i class="bi bi-lightning" aria-hidden="true"></i>Ultimo cedolino</a>
+        {% endif %}
+        <a class="home-tile" href="{% url 'portal_tutorial' %}"><i class="bi bi-journal-text" aria-hidden="true"></i>Guida</a>
+    </nav>
 
     {% include "portal/includes/push_prompt.html" %}
 
@@ -173,6 +234,15 @@
             {% for label, st in doc_alerts %}<strong>{{ label }}:</strong> {{ st.label|lower }}{% if st.code != 'missing' %} ({{ st.detail }}){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}
         </div>
         <a href="{% url 'employee_documents' %}" class="btn btn-warning fw-semibold">Vai ai documenti</a>
+    </div>
+    {% endif %}
+
+    {% if deadline_alerts %}
+    <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="alert">
+        <div><i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
+            {% for dl, st in deadline_alerts %}<strong>{{ dl.title }}:</strong> {{ st.detail|lower }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+        </div>
+        <a href="{% url 'employee_documents' %}#scadenze" class="btn btn-warning fw-semibold">Vedi scadenze</a>
     </div>
     {% endif %}
 
@@ -251,7 +321,7 @@
     <h2 class="mb-3 mt-5">Marcature</h2>
     {% include "portal/includes/timekeeping_controls.html" %}
     <div class="row g-4 mb-4">
-        <div class="col-lg-8">
+        <div class="col-lg-8" id="ferie-section" style="scroll-margin-top:90px">
                 <div class="card-modern bg-white">
                     <h6 class="fw-semibold">Richiesta ferie</h6>
 
@@ -271,7 +341,28 @@
                     <div class="alert alert-danger py-2">Inserisci una motivazione piu dettagliata per la richiesta ferie.</div>
                     {% endif %}
 
+                    {% if vacation_summary %}
+                    <div class="vac-summary mb-3" aria-label="Le tue ferie {{ vacation_summary.year }}">
+                        <div><span>Spettanti</span><strong>{{ vacation_summary.total }}</strong></div>
+                        <div><span>Approvate</span><strong>{{ vacation_summary.approved }}</strong></div>
+                        <div><span>In attesa</span><strong>{{ vacation_summary.pending }}</strong></div>
+                        <div class="{% if vacation_summary.left_negative %}is-neg{% else %}is-left{% endif %}"><span>Residue {{ vacation_summary.year }}</span><strong>{{ vacation_summary.left }}</strong></div>
+                    </div>
+                    {% endif %}
                     <p class="small text-muted mb-2">Al momento non è possibile richiedere ferie per il 24 e il 31 dicembre.</p>
+                    <div id="vacCalendar" class="vac-cal mb-3" hidden>
+                        <div class="vac-cal-head">
+                            <button type="button" class="btn btn-sm btn-light" data-cal="prev" aria-label="Mese precedente"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+                            <strong class="vac-cal-title" aria-live="polite"></strong>
+                            <button type="button" class="btn btn-sm btn-light" data-cal="next" aria-label="Mese successivo"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                        </div>
+                        <div class="vac-cal-grid" role="grid"></div>
+                        <div class="vac-cal-legend">
+                            <span><i class="lg sel"></i>Scelti</span><span><i class="lg ok"></i>Approvate</span><span><i class="lg wait"></i>In attesa</span><span><i class="lg no"></i>Non disponibile</span>
+                        </div>
+                        <div class="small text-muted mt-1">Tocca il primo giorno e poi l'ultimo. Per un solo giorno tocca una volta.</div>
+                    </div>
+                    {{ vacation_calendar|json_script:"vacCalendarData" }}
                     <form method="post" id="vacation-request-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="request_vacation">
@@ -588,5 +679,78 @@
         window.addEventListener('pageshow', syncVacationDates);
         syncVacationDates();
     });
+</script>
+<script>
+/* Calendario ferie: compila i campi «Dal giorno» / «Fino al giorno» del modulo (che restano utilizzabili). */
+document.addEventListener('DOMContentLoaded', function () {
+    var box = document.getElementById('vacCalendar');
+    var dataEl = document.getElementById('vacCalendarData');
+    var form = document.getElementById('vacation-request-form');
+    if (!box || !dataEl || !form) return;
+    var data; try { data = JSON.parse(dataEl.textContent) || {}; } catch (e) { return; }
+    if (!data.today) return;
+    var startIn = form.querySelector('#vacation-start-date');
+    var endIn = form.querySelector('#vacation-end-date');
+    var multi = form.querySelector('#vacation-multiple-days');
+    var grid = box.querySelector('.vac-cal-grid');
+    var title = box.querySelector('.vac-cal-title');
+    var today = data.today;
+    var blocked = (data.blocked || []).map(function (p) { return p[0] * 100 + p[1]; });
+    var reqs = data.requests || [];
+    var view = new Date(today + 'T12:00:00'); view.setDate(1);
+
+    function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function statusOf(s) {
+        for (var i = 0; i < reqs.length; i++) { if (s >= reqs[i].start && s <= reqs[i].end) return reqs[i].status; }
+        return null;
+    }
+    function isBlocked(d) { return blocked.indexOf((d.getMonth() + 1) * 100 + d.getDate()) !== -1; }
+    function fire(el) { el.dispatchEvent(new Event('change', { bubbles: true })); }
+
+    function render() {
+        var months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+        title.textContent = months[view.getMonth()] + ' ' + view.getFullYear();
+        grid.innerHTML = '';
+        ['L','M','M','G','V','S','D'].forEach(function (d) { var h = document.createElement('div'); h.className = 'dow'; h.textContent = d; grid.appendChild(h); });
+        var first = new Date(view); var pad = (first.getDay() + 6) % 7;
+        for (var i = 0; i < pad; i++) grid.appendChild(document.createElement('div'));
+        var s = startIn.value, e = multi.checked ? endIn.value : startIn.value;
+        var d = new Date(view);
+        while (d.getMonth() === view.getMonth()) {
+            var key = iso(d), b = document.createElement('button');
+            b.type = 'button'; b.textContent = d.getDate(); b.dataset.date = key;
+            var st = statusOf(key);
+            if (key < today) b.disabled = true;
+            else if (isBlocked(d)) { b.disabled = true; b.classList.add('is-blocked'); b.title = 'Non disponibile'; }
+            else if (st === 'approved') { b.disabled = true; b.classList.add('is-ok'); b.title = 'Ferie approvate'; }
+            else if (st === 'pending') { b.disabled = true; b.classList.add('is-wait'); b.title = 'Richiesta in attesa'; }
+            if (s && key >= s && key <= (e || s)) b.classList.add('is-sel');
+            if (key === today) b.classList.add('is-today');
+            grid.appendChild(b);
+            d.setDate(d.getDate() + 1);
+        }
+    }
+
+    grid.addEventListener('click', function (ev) {
+        var b = ev.target.closest('button[data-date]'); if (!b || b.disabled) return;
+        var key = b.dataset.date;
+        if (!startIn.value || multi.checked || key < startIn.value) {
+            startIn.value = key; if (multi.checked) { multi.checked = false; fire(multi); }
+        } else if (key === startIn.value) {
+            /* stesso giorno: resta un giorno solo */
+        } else {
+            multi.checked = true; fire(multi); endIn.value = key;
+        }
+        fire(startIn); render();
+    });
+    box.querySelector('[data-cal="prev"]').addEventListener('click', function () {
+        var p = new Date(view); p.setMonth(p.getMonth() - 1);
+        if (iso(p).slice(0, 7) >= today.slice(0, 7)) { view = p; render(); }
+    });
+    box.querySelector('[data-cal="next"]').addEventListener('click', function () { view.setMonth(view.getMonth() + 1); render(); });
+    [startIn, endIn, multi].forEach(function (el) { el.addEventListener('change', function () { setTimeout(render, 0); }); });
+    box.hidden = false;
+    render();
+});
 </script>
 {% endblock %}

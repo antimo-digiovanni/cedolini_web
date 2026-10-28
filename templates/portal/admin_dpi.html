@@ -113,9 +113,9 @@
             <tr>
                 <td><a href="{% url 'admin_employee_detail' d.employee_id %}">{{ d.employee.full_name }}</a></td>
                 <td>
-                    {% if d.status == 'signed' %}<span class="badge bg-success">Firmato</span>
+                    {% if d.status == 'signed' %}<span class="doc-chip tone-ok">Firmato</span>
                     <div class="small text-muted">{% if d.mode == 'remote' %}dal suo account{% else %}in presenza{% endif %}</div>
-                    {% else %}<span class="badge bg-warning text-dark">In attesa di firma</span>
+                    {% else %}<span class="doc-chip tone-warn">In attesa di firma</span>
                     <div class="small text-muted">{% if d.notified_devices %}notifica inviata{% else %}senza notifica{% endif %}</div>{% endif %}
                 </td>
                 <td>{{ d.items_text }}</td>

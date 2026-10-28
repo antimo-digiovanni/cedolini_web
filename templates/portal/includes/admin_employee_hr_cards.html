@@ -1,0 +1,82 @@
+<div class="card-modern mb-4" id="ferie-spettanti" style="scroll-margin-top:90px">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
+        <div>
+            <h4 class="mb-1">Ferie {{ year }}</h4>
+            <p class="text-muted mb-0 small">Giorni spettanti nell'anno: il dipendente vede quanti gliene restano. I giorni si contano come nelle richieste (di calendario, estremi inclusi).</p>
+        </div>
+        <form method="post" action="{% url 'admin_set_vacation_allowance' employee.id %}" class="d-flex gap-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="year" value="{{ year }}">
+            <div>
+                <label for="allowanceDays" class="form-label small mb-1">Giorni spettanti</label>
+                <input type="text" inputmode="decimal" id="allowanceDays" name="days" class="form-control" style="width:110px" value="{% if vacation %}{{ vacation.total }}{% endif %}" placeholder="es. 26">
+            </div>
+            <button class="btn btn-outline-primary">Salva</button>
+        </form>
+    </div>
+    {% if ferie_errore %}<div class="alert alert-danger mt-3 mb-0 py-2">Numero di giorni non valido.</div>{% endif %}
+    {% if vacation %}
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        <span class="doc-chip tone-muted">Spettanti {{ vacation.total }}</span>
+        <span class="doc-chip tone-ok">Approvate {{ vacation.approved }}</span>
+        {% if vacation.pending != '0' %}<span class="doc-chip tone-warn">In attesa {{ vacation.pending }}</span>{% endif %}
+        <span class="doc-chip {% if vacation.left_negative %}tone-danger{% else %}tone-info{% endif %}">Residue {{ vacation.left }}</span>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card-modern mb-4" id="scadenze" style="scroll-margin-top:90px">
+    <h4 class="mb-1">Scadenze formazione e visite</h4>
+    <p class="text-muted small mb-3">Un mese prima della scadenza arriva una notifica al dipendente e all'amministrazione.</p>
+    {% if scadenza_errore %}<div class="alert alert-danger py-2">Scrivi la descrizione e scegli la data di scadenza.</div>{% endif %}
+    {% if deadlines %}
+    <div class="table-responsive mb-3">
+    <table class="table align-middle mb-0">
+        <thead><tr><th>Scadenza</th><th>Stato</th><th class="text-end">Azioni</th></tr></thead>
+        <tbody>
+        {% for r in deadlines %}
+        <tr>
+            <td><div class="fw-semibold">{{ r.d.title }}</div><div class="doc-sub">{{ r.d.get_kind_display }}{% if r.d.note %} · {{ r.d.note }}{% endif %}</div></td>
+            <td><span class="doc-chip tone-{{ r.state.tone }}">{{ r.state.label }}</span><div class="doc-sub">{{ r.state.detail }}</div></td>
+            <td class="text-end">
+                <form method="post" action="{% url 'admin_update_deadline' r.d.id %}" class="d-inline-flex flex-wrap gap-1 justify-content-end align-items-end">
+                    {% csrf_token %}
+                    {% if r.d.done_on %}
+                    <button name="action" value="reopen" class="btn btn-sm btn-outline-secondary">Riapri</button>
+                    {% else %}
+                    <span class="d-inline-flex flex-column text-start">
+                        <label class="doc-sub mt-0 mb-1" for="next-{{ r.d.id }}">Prossima scadenza (se si ripete)</label>
+                        <input type="date" id="next-{{ r.d.id }}" name="next_due" class="form-control form-control-sm" style="width:160px">
+                    </span>
+                    <button name="action" value="done" class="btn btn-sm btn-outline-success">Segna fatto</button>
+                    {% endif %}
+                    <button name="action" value="delete" class="btn btn-sm btn-outline-danger" aria-label="Elimina scadenza" onclick="return confirm('Eliminare questa scadenza?')"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% endif %}
+    <form method="post" action="{% url 'admin_add_deadline' employee.id %}" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-3">
+            <label class="form-label small mb-1" for="dlKind">Tipo</label>
+            <select id="dlKind" name="kind" class="form-select">{% for k, l in kinds %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small mb-1" for="dlTitle">Descrizione</label>
+            <input id="dlTitle" name="title" class="form-control" maxlength="150" placeholder="es. Corso sicurezza aggiornamento" required>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small mb-1" for="dlDate">Scade il</label>
+            <input id="dlDate" type="date" name="due_date" class="form-control" required>
+        </div>
+        <div class="col-md-2 d-grid"><button class="btn btn-primary">Aggiungi</button></div>
+        <div class="col-12">
+            <label class="visually-hidden" for="dlNote">Nota</label>
+            <input id="dlNote" name="note" class="form-control form-control-sm" maxlength="255" placeholder="Nota (facoltativa)">
+        </div>
+    </form>
+</div>

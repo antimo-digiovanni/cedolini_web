@@ -11,8 +11,8 @@
             <div class="{% if not it.read_at %}fw-bold{% endif %}">{{ it.a.title }}</div>
             <div class="small text-muted">{{ it.a.created_at|date:"d/m/Y H:i" }}</div>
         </div>
-        {% if it.read_at %}<span class="badge bg-success-subtle text-success-emphasis">Letta</span>
-        {% else %}<span class="badge bg-danger">Da leggere</span>{% endif %}
+        {% if it.read_at %}<span class="doc-chip tone-ok">Letta</span>
+        {% else %}<span class="doc-chip tone-danger">Da leggere</span>{% endif %}
     </a>
     {% empty %}
     <p class="text-muted mb-0">Nessuna comunicazione.</p>

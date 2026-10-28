@@ -3713,101 +3713,6 @@ def register_with_token(request, token):
 
 @login_required
 def dashboard(request):
-    logger.info("dashboard START user=%s", getattr(request.user, "username", None))
-
-    # Se uno staff arriva direttamente su /portal/, portalo alla dashboard admin.
-    if request.user.is_staff:
-        return redirect('admin_dashboard')
-
-    employee = Employee.objects.filter(user=request.user).first()
-    if not employee:
-        logger.warning("dashboard: employee profile missing for user=%s", request.user.id)
-        return HttpResponse(
-            "Profilo dipendente non trovato. Contatta l'amministratore.",
-            status=403,
-        )
-
-    logger.info("dashboard employee_id=%s", getattr(employee, "id", None))
-
-    logger.info("constructing payslips queryset")
-    payslips = (
-        Payslip.objects
-        .filter(employee=employee)
-        .prefetch_related("payslipview_set")
-        .order_by('-year', '-month')
-    )
-
-    logger.info("queryset constructed — forcing evaluation with .count()")
-    try:
-        count = payslips.count()
-        logger.info("payslips.count=%d", count)
-    except Exception:
-        logger.exception("Error while evaluating payslips queryset")
-
-    grouped = {}
-    logger.info("entering loop over payslips")
-    for idx, p in enumerate(payslips):
-        if idx < 5:
-            logger.info("processing payslip id=%s year=%s month=%s", getattr(p, "id", None), getattr(p, "year", None), getattr(p, "month", None))
-
-        first_view = None
-        if p.payslipview_set.all():
-            first_view = p.payslipview_set.order_by('viewed_at').first()
-
-        p.is_viewed = bool(first_view)
-        p.viewed_at = first_view.viewed_at if first_view else None
-
-        if p.year not in grouped:
-            grouped[p.year] = []
-
-        grouped[p.year].append(p)
-
-    # CUD annuali del dipendente
-    cuds = (
-        Cud.objects
-        .filter(employee=employee)
-        .prefetch_related('cudview_set')
-        .order_by('-year')
-    )
-
-    # Aggiunge info di visualizzazione CUD
-    for c in cuds:
-        first_view = c.cudview_set.order_by('viewed_at').first() if c.cudview_set.all() else None
-        c.is_viewed = bool(first_view)
-        c.viewed_at = first_view.viewed_at if first_view else None
-
-        logger.info("about to render template")
-    # --- Marcatura ---
-    today = timezone.localdate()
-    session, _ = WorkSession.objects.get_or_create(employee=employee, work_date=today)
-    session.worked_display = session.worked_hours_display()
-    active_assignments = _active_assignments_for_employee(employee, today)
-    has_active_zone = bool(active_assignments)
-    today_requests_qs = WorkMarkRequest.objects.filter(employee=employee, work_date=today).order_by('-created_at')
-    today_mark_request_start = (
-        today_requests_qs
-        .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_BOTH])
-        .first()
-    )
-    today_mark_request_end = (
-        today_requests_qs
-        .filter(mark_type__in=[WorkMarkRequest.MARK_TYPE_END, WorkMarkRequest.MARK_TYPE_BOTH])
-        .first()
-    )
-    # --- Fine Marcatura ---
-    return render(request, 'portal/dashboard.html', {
-        'employee': employee,
-        'grouped_payslips': grouped,
-        'cuds': cuds,
-        'today_session': session,
-        'has_active_zone': has_active_zone,
-        'today_mark_request_start': today_mark_request_start,
-        'today_mark_request_end': today_mark_request_end,
-    })
-
-
-@login_required
-def dashboard(request):
     if user_has_full_admin_access(request.user):
         return redirect('admin_dashboard')
     if user_has_today_markings_only_access(request.user):
@@ -3952,7 +3857,8 @@ def dashboard(request):
 
     payslip_items = []
     for p in payslips:
-        first_view = p.payslipview_set.order_by('viewed_at').first() if p.payslipview_set.all() else None
+        # Usa le visualizzazioni già caricate (prefetch): niente query in più per ogni cedolino.
+        first_view = min(p.payslipview_set.all(), key=lambda v: v.viewed_at, default=None)
         p.is_viewed = bool(first_view)
         p.viewed_at = first_view.viewed_at if first_view else None
         payslip_items.append(_attach_payslip_display_period(p))
@@ -3971,9 +3877,11 @@ def dashboard(request):
         .order_by('-year')
     )
     for c in cuds:
-        first_view = c.cudview_set.order_by('viewed_at').first() if c.cudview_set.all() else None
+        first_view = min(c.cudview_set.all(), key=lambda v: v.viewed_at, default=None)
         c.is_viewed = bool(first_view)
         c.viewed_at = first_view.viewed_at if first_view else None
+    unviewed_payslips_count = sum(1 for p in payslip_items if not p.is_viewed)
+    unviewed_cuds_count = sum(1 for c in cuds if not c.is_viewed)
 
     recent_vacation_requests = list(
         VacationRequest.objects
@@ -3990,8 +3898,20 @@ def dashboard(request):
     if _user_can_view_published_turni(request.user, employee=employee):
         published_turni_sections = _turni_planner_employee_sections(published_turni_state, include_portineria=True)
 
+    try:
+        from .vacations import calendar_data, summary as vacation_summary_for
+        vacation_summary = vacation_summary_for(employee)
+        vacation_calendar = calendar_data(employee)
+    except Exception:
+        logger.exception('riepilogo ferie non disponibile')
+        vacation_summary, vacation_calendar = None, {}
+
     response = render(request, 'portal/dashboard.html', {
         'employee': employee,
+        'vacation_summary': vacation_summary,
+        'vacation_calendar': vacation_calendar,
+        'unviewed_payslips_count': unviewed_payslips_count,
+        'unviewed_cuds_count': unviewed_cuds_count,
         'grouped_payslips': grouped,
         'latest_payslip': latest_payslip,
         'cuds': cuds,
@@ -6429,7 +6349,14 @@ def admin_dashboard(request):
     ).count()
     employee_count = Employee.objects.count()
 
+    try:
+        from .admin_todo import admin_todo_items
+        todo_items = admin_todo_items()
+    except Exception:
+        logger.exception('riepilogo da fare non disponibile')
+        todo_items = []
     return render(request, "portal/admin_dashboard.html", {
+        "todo_items": todo_items,
         "entered_today_count": entered_today_count,
         "completed_today_count": completed_today_count,
         "incomplete_today_count": incomplete_today_count,

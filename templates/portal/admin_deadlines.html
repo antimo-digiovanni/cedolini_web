@@ -1,0 +1,45 @@
+{% extends "portal/base.html" %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Scadenze</h2>
+    <p class="mb-0 opacity-75">Corsi di formazione, visite mediche e altre scadenze dei dipendenti. Si aggiungono dalla scheda del dipendente.</p>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% for key, label in filters.items %}
+    <a href="?filtro={{ key }}" class="btn btn-sm {% if filtro == key %}btn-dark{% else %}btn-outline-dark{% endif %}">
+        {{ label }} ({% if key == 'prossime' %}{{ counts.prossime }}{% elif key == 'scadenza' %}{{ counts.scadenza }}{% elif key == 'fatte' %}{{ counts.fatte }}{% else %}{{ counts.tutte }}{% endif %})
+    </a>
+    {% endfor %}
+</div>
+
+<div class="card-modern mb-4">
+    {% if rows %}
+    <div class="table-responsive">
+    <table class="table align-middle mb-0">
+        <thead><tr><th>Dipendente</th><th>Scadenza</th><th>Stato</th><th class="text-end"></th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+        <tr>
+            <td class="fw-semibold"><a href="{% url 'admin_employee_detail' r.d.employee.id %}#scadenze">{{ r.d.employee.full_name }}</a></td>
+            <td><div>{{ r.d.title }}</div><div class="doc-sub">{{ r.d.get_kind_display }}{% if r.d.note %} · {{ r.d.note }}{% endif %}</div></td>
+            <td><span class="doc-chip tone-{{ r.state.tone }}">{{ r.state.label }}</span><div class="doc-sub">{{ r.state.detail }}</div></td>
+            <td class="text-end">
+                {% if not r.d.done_on %}
+                <form method="post" action="{% url 'admin_update_deadline' r.d.id %}" class="d-inline">{% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button name="action" value="done" class="btn btn-sm btn-outline-success">Segna fatto</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Nessuna scadenza con questo filtro. Per aggiungerne una apri la scheda del dipendente da «Gestione Dipendenti».</p>
+    {% endif %}
+</div>
+{% endblock %}

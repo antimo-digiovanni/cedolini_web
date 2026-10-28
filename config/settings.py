@@ -109,7 +109,15 @@ else:
 # PASSWORD VALIDATION
 # ==============================
 
-AUTH_PASSWORD_VALIDATORS = []
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+]
+
+# Cookie solo su HTTPS in produzione (Render termina HTTPS e passa X-Forwarded-Proto).
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # ==============================
 # INTERNATIONALIZATION

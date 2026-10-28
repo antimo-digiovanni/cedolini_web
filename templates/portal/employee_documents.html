@@ -6,8 +6,6 @@
     .doc-head { display:flex; align-items:center; gap:14px; }
     .doc-icon { width:48px; height:48px; border-radius:12px; background:#eaf1fe; color:#1d4ed8; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1.4rem; }
     .doc-chip { font-size:.78rem; font-weight:700; padding:5px 10px; border-radius:999px; white-space:nowrap; }
-    .tone-ok { background:#e3f4e8; color:#14532d; } .tone-info { background:#e5edff; color:#1e3a8a; }
-    .tone-warn { background:#fff1dc; color:#8a4b00; } .tone-danger { background:#fdecec; color:#8b1c1c; } .tone-muted { background:#eef1f6; color:#4a5568; }
     .doc-thumbs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
     .doc-thumbs img { width:100%; aspect-ratio:1.585; object-fit:cover; border-radius:10px; border:1px solid #c9d6ef; background:#f3f6fb; }
     .doc-btn { min-height:52px; font-size:1.05rem; font-weight:700; }
@@ -81,5 +79,20 @@
 {% endfor %}
 </div>
 <div class="alert alert-danger d-none" id="docDlError" role="alert"></div>
+{% if deadlines %}
+<div class="card-modern mb-4" id="scadenze" style="scroll-margin-top:90px">
+    <h4 class="fw-bold mb-1">Formazione e visite mediche</h4>
+    <p class="small text-muted mb-3">Le scadenze registrate dall'ufficio del personale. Un mese prima ti arriva un avviso.</p>
+    {% for r in deadlines %}
+    <div class="d-flex align-items-center gap-3 py-2 {% if not forloop.last %}border-bottom{% endif %}">
+        <div class="flex-grow-1" style="min-width:0">
+            <div class="fw-semibold">{{ r.d.title }}</div>
+            <div class="small text-muted">{{ r.d.get_kind_display }} · {{ r.state.detail }}</div>
+        </div>
+        <span class="doc-chip tone-{{ r.state.tone }}">{{ r.state.label }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 <p class="small text-muted">Quando un documento sta per scadere il portale ti avvisa e potrai caricare quello nuovo.</p>
 {% endblock %}

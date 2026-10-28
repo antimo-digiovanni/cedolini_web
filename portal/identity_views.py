@@ -39,8 +39,19 @@ def employee_documents(request):
     for kind, label in identity_docs.KINDS:
         doc = latest[kind]
         cards.append({'kind': kind, 'label': label, 'doc': doc, 'state': identity_docs.describe(doc, kind)})
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from .deadlines import describe as describe_deadline
+    from .models import EmployeeDeadline
+
+    recent = timezone.localdate() - timedelta(days=60)
+    deadlines = [{'d': d, 'state': describe_deadline(d)} for d in
+                 EmployeeDeadline.objects.filter(employee=employee).exclude(done_on__lt=recent)
+                 .order_by('done_on', 'due_date')[:30]]
     return render(request, 'portal/employee_documents.html', {
-        'employee': employee, 'cards': cards, 'sent': request.GET.get('inviato') == '1',
+        'employee': employee, 'cards': cards, 'sent': request.GET.get('inviato') == '1', 'deadlines': deadlines,
     })
 
 

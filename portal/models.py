@@ -853,3 +853,60 @@ class AnnouncementRead(models.Model):
 
     class Meta:
         unique_together = [('announcement', 'employee')]
+
+
+class LoginThrottle(models.Model):
+    """Tentativi di accesso falliti per account o indirizzo IP (blocco temporaneo dopo troppi errori)."""
+
+    key = models.CharField(max_length=200, unique=True)
+    failures = models.PositiveIntegerField(default=0)
+    window_start = models.DateTimeField()
+    locked_until = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.key}: {self.failures}"
+
+
+class VacationAllowance(models.Model):
+    """Giorni di ferie spettanti a un dipendente in un anno (inseriti dall'amministrazione)."""
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='vacation_allowances')
+    year = models.PositiveIntegerField()
+    days = models.DecimalField(max_digits=5, decimal_places=1)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('employee', 'year')
+
+    def __str__(self):
+        return f"{self.employee.full_name} {self.year}: {self.days}"
+
+
+class EmployeeDeadline(models.Model):
+    """Scadenza di un dipendente: corso di formazione, visita medica o altro."""
+
+    KIND_TRAINING = 'formazione'
+    KIND_MEDICAL = 'visita'
+    KIND_OTHER = 'altro'
+    KIND_CHOICES = [
+        (KIND_TRAINING, 'Formazione'),
+        (KIND_MEDICAL, 'Visita medica'),
+        (KIND_OTHER, 'Altro'),
+    ]
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='deadlines')
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default=KIND_TRAINING)
+    title = models.CharField(max_length=150)
+    due_date = models.DateField()
+    note = models.CharField(max_length=255, blank=True)
+    done_on = models.DateField(null=True, blank=True)
+    notified_on = models.DateField(null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['due_date']
+
+    def __str__(self):
+        return f"{self.employee.full_name}: {self.title} {self.due_date}"

@@ -62,6 +62,9 @@
     var flag = null;
     try { flag = sessionStorage.getItem('sv-welcome'); sessionStorage.removeItem('sv-welcome'); } catch (e) {}
     if (flag !== '1') { return; }
+    // Al massimo una volta al giorno per dispositivo, così non rallenta chi entra più volte.
+    var today = new Date().toISOString().slice(0, 10);
+    try { if (localStorage.getItem('sv-welcome-day') === today) { return; } localStorage.setItem('sv-welcome-day', today); } catch (e) {}
     var name = "{% if user.first_name %}{{ user.first_name|escapejs }}{% else %}{{ user.username|escapejs }}{% endif %}";
     var el = document.createElement('div');
     el.className = 'sv-welcome';
@@ -70,11 +73,16 @@
     el.querySelector('.sv-welcome-title').textContent = 'Bentornato, ' + name;
     document.body.appendChild(el);
     document.body.classList.add('sv-welcoming');
-    setTimeout(function () {
+    var gone = false;
+    function leave() {
+        if (gone) { return; }
+        gone = true;
         el.classList.add('is-leaving');
         document.body.classList.remove('sv-welcoming');
         setTimeout(function () { el.remove(); }, 700);
-    }, 1100);
+    }
+    el.addEventListener('click', leave);  // un tocco lo chiude subito
+    setTimeout(leave, 800);
 })();
 </script>
 {% with un=request.resolver_match.url_name %}
@@ -149,6 +157,9 @@
             </a>
             <a href="{% url 'admin_notifications' %}" class="{% if un == 'admin_notifications' %}active{% endif %}">
                 <i class="bi bi-bell" aria-hidden="true"></i> Notifiche
+            </a>
+            <a href="{% url 'admin_deadlines' %}" class="{% if un == 'admin_deadlines' %}active{% endif %}">
+                <i class="bi bi-calendar-check" aria-hidden="true"></i> Scadenze
             </a>
 
             <div class="sidebar-title">Cedolini</div>
@@ -228,7 +239,7 @@
                 <img class="topbar-logo d-lg-none" src="{% static 'portal/logo.png' %}" alt="" width="32" height="32">
                 <div class="topbar-title">
                     <span class="d-lg-none">San Vincenzo</span>
-                    <span class="d-none d-lg-inline">San Vincenzo S.r.l. <span class="topbar-sep" aria-hidden="true">/</span> <span class="topbar-context">{% if un == 'admin_dashboard' or un == 'dashboard' %}Dashboard{% elif un == 'admin_employees' or un == 'admin_employee_detail' or un == 'admin_employee_payslips' %}Gestione dipendenti{% elif un == 'turni_planner_home' %}Turni Planner{% elif un == 'admin_documents' or un == 'admin_document_detail' %}Documenti dipendenti{% elif un == 'employee_documents' or un == 'employee_document_upload' %}Documenti{% elif un == 'admin_announcements' or un == 'admin_announcement_detail' or un == 'employee_announcements' or un == 'employee_announcement_detail' %}Comunicazioni{% elif un == 'admin_notifications' %}Notifiche{% elif un == 'admin_dpi' %}Consegna DPI{% elif un == 'employee_dpi' or un == 'employee_dpi_sign' %}Consegna DPI{% elif un == 'admin_all_payslips' %}Archivio cedolini{% elif un == 'admin_report' %}Report cedolini{% elif un == 'admin_payslip_integrity' %}Controllo cedolini{% elif un == 'admin_import_jobs' or un == 'admin_import_job_payslips' %}Storico caricamenti{% elif un == 'admin_upload_period_folder' %}Carica cedolini{% elif un == 'admin_upload_cud' %}Carica CUD{% elif un == 'admin_timekeeping' %}Report marcature{% elif un == 'admin_out_of_zone_requests' %}Richieste fuori zona{% elif un == 'admin_vacation_requests' %}Richieste ferie{% elif un == 'admin_work_zones' %}Zone di lavoro{% elif un == 'personal_asset_dashboard' %}Gestione patrimonio{% elif un == 'admin_audit_events' %}Storico azioni{% elif un == 'timekeeping' %}Marcatura{% elif un == 'portal_tutorial' %}Tutorial{% elif un == 'today_markings_dashboard' %}Chi ha marcato oggi{% elif un == 'password_change' or un == 'password_change_done' %}Cambia password{% elif has_full_admin_access %}Amministrazione{% else %}Area personale{% endif %}</span></span>
+                    <span class="d-none d-lg-inline">San Vincenzo S.r.l. <span class="topbar-sep" aria-hidden="true">/</span> <span class="topbar-context">{% if un == 'admin_dashboard' or un == 'dashboard' %}Dashboard{% elif un == 'admin_employees' or un == 'admin_employee_detail' or un == 'admin_employee_payslips' %}Gestione dipendenti{% elif un == 'turni_planner_home' %}Turni Planner{% elif un == 'admin_documents' or un == 'admin_document_detail' %}Documenti dipendenti{% elif un == 'employee_documents' or un == 'employee_document_upload' %}Documenti{% elif un == 'admin_announcements' or un == 'admin_announcement_detail' or un == 'employee_announcements' or un == 'employee_announcement_detail' %}Comunicazioni{% elif un == 'admin_notifications' %}Notifiche{% elif un == 'admin_deadlines' %}Scadenze{% elif un == 'admin_dpi' %}Consegna DPI{% elif un == 'employee_dpi' or un == 'employee_dpi_sign' %}Consegna DPI{% elif un == 'admin_all_payslips' %}Archivio cedolini{% elif un == 'admin_report' %}Report cedolini{% elif un == 'admin_payslip_integrity' %}Controllo cedolini{% elif un == 'admin_import_jobs' or un == 'admin_import_job_payslips' %}Storico caricamenti{% elif un == 'admin_upload_period_folder' %}Carica cedolini{% elif un == 'admin_upload_cud' %}Carica CUD{% elif un == 'admin_timekeeping' %}Report marcature{% elif un == 'admin_out_of_zone_requests' %}Richieste fuori zona{% elif un == 'admin_vacation_requests' %}Richieste ferie{% elif un == 'admin_work_zones' %}Zone di lavoro{% elif un == 'personal_asset_dashboard' %}Gestione patrimonio{% elif un == 'admin_audit_events' %}Storico azioni{% elif un == 'timekeeping' %}Marcatura{% elif un == 'portal_tutorial' %}Tutorial{% elif un == 'today_markings_dashboard' %}Chi ha marcato oggi{% elif un == 'password_change' or un == 'password_change_done' %}Cambia password{% elif has_full_admin_access %}Amministrazione{% else %}Area personale{% endif %}</span></span>
                 </div>
             </div>
 

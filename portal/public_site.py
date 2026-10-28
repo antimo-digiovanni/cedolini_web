@@ -96,6 +96,47 @@ def home(request):
         return employee_home(request)
     return page(request, 'index')
 
+CANONICAL_ORIGIN = 'https://www.sanvincenzoservice.it'
+
+PEST_CONTROL_SCHEMA = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    'name': 'Disinfestazione e derattizzazione per aziende',
+    'serviceType': 'Pest control',
+    'areaServed': 'Campania',
+    'url': CANONICAL_ORIGIN + '/disinfestazione-derattizzazione/',
+    'provider': {
+        '@type': 'LocalBusiness',
+        'name': 'San Vincenzo SRL',
+        'telephone': '+393400515648',
+        'url': CANONICAL_ORIGIN + '/',
+        'address': {
+            '@type': 'PostalAddress',
+            'streetAddress': 'Via B. Cellini, 154',
+            'postalCode': '80028',
+            'addressLocality': 'Grumo Nevano',
+            'addressRegion': 'NA',
+            'addressCountry': 'IT',
+        },
+    },
+}
+
+
+def _add_seo_tags(content, path, page):
+    """Link canonico su ogni pagina pubblica e dati strutturati per la pagina disinfestazione."""
+    import json
+
+    html = content.decode('utf-8')
+    tags = ''
+    if 'rel="canonical"' not in html:
+        tags += f'<link rel="canonical" href="{CANONICAL_ORIGIN}{path}">'
+    if page == 'disinfestazione-derattizzazione' and 'application/ld+json' not in html:
+        tags += '<script type="application/ld+json">' + json.dumps(PEST_CONTROL_SCHEMA, ensure_ascii=False) + '</script>'
+    if tags:
+        html = html.replace('</head>', tags + '</head>', 1)
+    return html.encode('utf-8')
+
+
 def page(request, page='index'):
     if page not in PAGES:
         raise Http404
@@ -115,6 +156,8 @@ def page(request, page='index'):
         canonical_tag = f'<link rel="canonical" href="{canonical_url}">'
         html = html.replace('</head>', canonical_tag + '</head>', 1)
         content = html.encode('utf-8')
+    else:
+        content = _add_seo_tags(content, request.path, page)
     response=HttpResponse(content,content_type='text/html; charset=utf-8')
     response['Cache-Control']='no-cache'
     return response

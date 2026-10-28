@@ -237,3 +237,12 @@ class PersonalAssetEntryAdmin(admin.ModelAdmin):
     list_display = ('user', 'occurred_on', 'operation_type', 'category', 'amount', 'reimbursement_amount', 'created_at')
     list_filter = ('operation_type', 'occurred_on')
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'category', 'description')
+
+from .models import LoginThrottle  # noqa: E402
+
+
+@admin.register(LoginThrottle)
+class LoginThrottleAdmin(admin.ModelAdmin):
+    """Per sbloccare subito un account: eliminare la riga corrispondente."""
+    list_display = ('key', 'failures', 'window_start', 'locked_until')
+    search_fields = ('key',)

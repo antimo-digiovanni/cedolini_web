@@ -221,3 +221,38 @@ def open_dpi(request, dpi_id):
         return _build_protected_file_response(delivery.pdf, download_name=name)
     except Exception:
         return HttpResponse('Errore nel recupero del file', status=500)
+
+
+@login_required
+def admin_employee_dpi_archive(request, emp_id):
+    """Tutte le consegne DPI firmate di un dipendente in un unico PDF (dalla più recente)."""
+    import fitz
+
+    from .models import Employee
+
+    if not request.user.is_staff:
+        return HttpResponse('Non autorizzato', status=403)
+    employee = get_object_or_404(Employee, id=emp_id)
+    deliveries = [d for d in DpiDelivery.objects.filter(employee=employee, status=DPI_STATUS_SIGNED)
+                  .order_by('-delivered_on', '-id') if d.pdf]
+    if not deliveries:
+        return HttpResponse('Nessuna consegna DPI firmata per questo dipendente.', status=404)
+    out = fitz.open()
+    try:
+        for d in deliveries:
+            d.pdf.open('rb')
+            try:
+                data = d.pdf.read()
+            finally:
+                d.pdf.close()
+            with fitz.open(stream=data, filetype='pdf') as src:
+                out.insert_pdf(src)
+        pdf = out.tobytes(garbage=3, deflate=True)
+    finally:
+        out.close()
+    name = f'consegne-dpi-{(employee.last_name or "")}-{(employee.first_name or "")}'.strip('-').replace(' ', '_')
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{name or "consegne-dpi"}.pdf"'
+    response['Cache-Control'] = 'no-store'
+    _create_audit_event(request, 'dpi_archive_downloaded', employee=employee, metadata={'count': len(deliveries)})
+    return response

@@ -249,7 +249,11 @@
             </div>
             {% if form.errors %}
             <div class="login-error" id="login-error" role="alert" tabindex="-1">
+                {% if form.locked_for %}
+                <p><strong>Troppi tentativi non riusciti.</strong> Per sicurezza l'accesso è bloccato: riprova tra {{ form.locked_for }} minut{{ form.locked_for|pluralize:"o,i" }} oppure usa «Password dimenticata?».</p>
+                {% else %}
                 <p><strong>Accesso non riuscito.</strong> Verifica username o email e password, poi riprova.</p>
+                {% endif %}
             </div>
             {% endif %}
             <form method="post" id="loginForm"{% if form.errors %} aria-describedby="login-error"{% endif %}>

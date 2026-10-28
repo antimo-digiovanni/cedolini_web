@@ -200,6 +200,16 @@ def maybe_run_daily_checks():
             run_expiry_notifications()
         except Exception:
             logger.exception('controlli giornalieri: errore notifiche scadenze')
+        try:
+            from .deadlines import run_notifications
+            run_notifications()
+        except Exception:
+            logger.exception('controlli giornalieri: errore notifiche formazione e visite')
+        try:
+            from .backup import run_backup
+            run_backup()
+        except Exception:
+            logger.exception('controlli giornalieri: backup del database non riuscito')
         finally:
             if getattr(settings, 'PUSH_ASYNC', True):
                 connection.close()

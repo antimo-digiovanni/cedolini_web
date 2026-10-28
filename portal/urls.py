@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dpi_views, push_views, document_views, identity_views, announcement_views
+from . import views, dpi_views, push_views, document_views, identity_views, announcement_views, vacations, deadlines
 
 urlpatterns = [
 
@@ -29,6 +29,11 @@ urlpatterns = [
     path('admin-send-invite/', views.admin_send_invite, name='admin_send_invite'),
     path('admin-create-invite-link/', views.admin_create_invite_link, name='admin_create_invite_link'),
     path('admin-employee/<int:emp_id>/', views.admin_employee_detail, name='admin_employee_detail'),
+    path('admin-employee/<int:emp_id>/ferie-spettanti/', vacations.admin_set_vacation_allowance, name='admin_set_vacation_allowance'),
+    path('admin-employee/<int:emp_id>/scadenze/aggiungi/', deadlines.admin_add_deadline, name='admin_add_deadline'),
+    path('admin-employee/<int:emp_id>/dpi-archivio.pdf', dpi_views.admin_employee_dpi_archive, name='admin_employee_dpi_archive'),
+    path('admin-scadenze/', deadlines.admin_deadlines, name='admin_deadlines'),
+    path('admin-scadenze/<int:dl_id>/', deadlines.admin_update_deadline, name='admin_update_deadline'),
     path('admin-employee/<int:emp_id>/dpi/', dpi_views.admin_employee_dpi, name='admin_employee_dpi'),
     path('dpi/<int:dpi_id>/', dpi_views.open_dpi, name='open_dpi'),
     path('push/chiave/', push_views.push_public_key, name='push_public_key'),

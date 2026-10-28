@@ -303,7 +303,43 @@
                     <a href="{% url 'admin_dpi' %}" class="btn btn-outline-dark">
                         <i class="bi bi-shield-check"></i> Consegna DPI
                     </a>
+
+                    <a href="{% url 'admin_documents' %}" class="btn btn-outline-dark">
+                        <i class="bi bi-person-vcard"></i> Documenti
+                    </a>
+
+                    <a href="{% url 'admin_announcements' %}" class="btn btn-outline-dark">
+                        <i class="bi bi-megaphone"></i> Comunicazioni
+                    </a>
+
+                    <a href="{% url 'admin_notifications' %}" class="btn btn-outline-dark">
+                        <i class="bi bi-bell"></i> Notifiche
+                    </a>
             </nav>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-12">
+            <div class="dashboard-section">
+                <div class="dashboard-section-heading">
+                    <h2 class="fw-semibold mb-0">Da fare</h2>
+                </div>
+                {% if todo_items %}
+                <div class="d-flex flex-column gap-2">
+                    {% for t in todo_items %}
+                    <a href="{{ t.url }}" class="d-flex align-items-center gap-3 p-3 rounded-3 border text-decoration-none text-reset admin-todo-row">
+                        <i class="bi {{ t.icon }} fs-4 text-primary" aria-hidden="true"></i>
+                        <span class="flex-grow-1 fw-semibold">{{ t.label }}</span>
+                        <span class="badge rounded-pill text-bg-primary fs-6">{{ t.count }}</span>
+                        <i class="bi bi-chevron-right text-muted" aria-hidden="true"></i>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0"><i class="bi bi-check-circle text-success me-1" aria-hidden="true"></i> Tutto in ordine: niente in sospeso.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 
