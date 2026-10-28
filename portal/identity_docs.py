@@ -65,12 +65,25 @@ def build_pdf(doc):
     pdf = canvas.Canvas(buf, pagesize=A4)
     wp, hp = A4
     pdf.setTitle(f'{doc.get_kind_display()} - {doc.employee.full_name}')
-    pdf.setFont('Helvetica-Bold', 11)
-    pdf.drawString(20 * mm, hp - 18 * mm, 'SAN VINCENZO S.R.L.')
-    pdf.setFont('Helvetica', 9)
-    pdf.drawString(20 * mm, hp - 23 * mm, 'VIA B. CELLINI 154 GRUMO NEVANO (NAPOLI)')
+    from .dpi import LETTERHEAD_ASPECT, LETTERHEAD_PATH
+
+    top_y = hp - 12 * mm
+    if LETTERHEAD_PATH.exists():
+        lh_w = 150 * mm
+        lh_h = lh_w / LETTERHEAD_ASPECT
+        pdf.drawImage(str(LETTERHEAD_PATH), (wp - lh_w) / 2, top_y - lh_h, width=lh_w, height=lh_h, mask='auto')
+        top_y -= lh_h + 3 * mm
+        pdf.setStrokeGray(0.75)
+        pdf.setLineWidth(0.6)
+        pdf.line(20 * mm, top_y, wp - 20 * mm, top_y)
+    else:
+        pdf.setFont('Helvetica-Bold', 11)
+        pdf.drawString(20 * mm, top_y - 6 * mm, 'SAN VINCENZO S.R.L.')
+        pdf.setFont('Helvetica', 9)
+        pdf.drawString(20 * mm, top_y - 11 * mm, 'VIA B. CELLINI 154 GRUMO NEVANO (NAPOLI)')
+        top_y -= 14 * mm
     pdf.setFont('Helvetica-Bold', 15)
-    pdf.drawString(20 * mm, hp - 36 * mm, doc.get_kind_display())
+    pdf.drawString(20 * mm, top_y - 9 * mm, doc.get_kind_display())
 
     uploaded = timezone.localtime(doc.uploaded_at)
     if doc.status == doc.STATUS_APPROVED and doc.reviewed_at:
@@ -82,7 +95,7 @@ def build_pdf(doc):
             ('Caricato il', f'{uploaded:%d/%m/%Y alle %H:%M}, dal portale dipendenti'),
             ('Scadenza', f'{doc.expiry_date:%d/%m/%Y}'),
             ('Stato', state)]
-    y = hp - 45 * mm
+    y = top_y - 17 * mm
     for k, v in rows:
         pdf.setFont('Helvetica-Bold', 10)
         pdf.drawString(20 * mm, y, k)
@@ -90,9 +103,9 @@ def build_pdf(doc):
         pdf.drawString(58 * mm, y, v)
         y -= 6 * mm
 
-    max_w = 85.6 * 1.6 * mm
-    max_h = (y - 30 * mm) / 2 - 14 * mm
-    top = y - 8 * mm
+    max_w = 85.6 * 1.2 * mm  # poco più grande del vero: leggibile e tutto in un foglio
+    max_h = (y - 24 * mm) / 2 - 12 * mm
+    top = y - 6 * mm
     for label, field in (('FRONTE', doc.front_image), ('RETRO', doc.back_image)):
         field.open('rb')
         try:
@@ -105,20 +118,21 @@ def build_pdf(doc):
             img = round_corners(img)  # vale anche per i documenti caricati prima di questa correzione
         k = min(max_w / img.width, max_h / img.height)
         w, h = img.width * k, img.height * k
+        x0 = (wp - w) / 2
         pdf.setFont('Helvetica-Bold', 9)
         pdf.setFillGray(0.35)
-        pdf.drawString(20 * mm, top, label)
+        pdf.drawString(x0, top, label)
         pdf.setFillGray(0)
         out = io.BytesIO()
         img.save(out, 'JPEG', quality=85)
         out.seek(0)
-        pdf.drawImage(ImageReader(out), 20 * mm, top - h - 3 * mm, width=w, height=h)
+        pdf.drawImage(ImageReader(out), x0, top - h - 3 * mm, width=w, height=h)
         pdf.setStrokeGray(0.75)
         if cropped:
-            pdf.roundRect(20 * mm, top - h - 3 * mm, w, h, radius=max(w, h) * 0.045)
+            pdf.roundRect(x0, top - h - 3 * mm, w, h, radius=max(w, h) * 0.045)
         else:
-            pdf.rect(20 * mm, top - h - 3 * mm, w, h)
-        top = top - h - 16 * mm
+            pdf.rect(x0, top - h - 3 * mm, w, h)
+        top = top - h - 12 * mm
 
     pdf.setFont('Helvetica', 7.5)
     pdf.setFillGray(0.4)

@@ -11,6 +11,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
+    HRFlowable,
     Image as RLImage,
     KeepTogether,
     PageBreak,
@@ -37,6 +38,9 @@ STANDARD_ITEMS = [
 
 MAX_SIGNATURE_BYTES = 1500 * 1024
 COMPANY_STAMP_PATH = Path(__file__).resolve().parent / 'dpi_assets' / 'timbro_firma_azienda.png'
+LETTERHEAD_PATH = Path(__file__).resolve().parent / 'dpi_assets' / 'carta_intestata.png'
+LETTERHEAD_ASPECT = 1948 / 694  # larghezza / altezza dell'intestazione
+
 
 INFORMATIVA = [
     ('Articolo 20 D.Lgs. 81/2008 - Obbligo di uso', [
@@ -176,9 +180,15 @@ def build_pdf(*, employee_name, delivered_on, items, signature_png):
     def esc(text):
         return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
+    if LETTERHEAD_PATH.exists():
+        lh_w = 166 * mm
+        intestazione = [RLImage(str(LETTERHEAD_PATH), width=lh_w, height=lh_w / LETTERHEAD_ASPECT),
+                        HRFlowable(width='100%', thickness=0.6, color=(0.75, 0.75, 0.75), spaceBefore=2 * mm,
+                                   spaceAfter=6 * mm)]
+    else:
+        intestazione = [Paragraph(f'{COMPANY_NAME}<br/>{COMPANY_ADDRESS}', base), Spacer(1, 10 * mm)]
     story = [
-        Paragraph(f'{COMPANY_NAME}<br/>{COMPANY_ADDRESS}', base),
-        Spacer(1, 10 * mm),
+        *intestazione,
         Paragraph('MODULO DI CONSEGNA<br/>DISPOSITIVI DI PROTEZIONE INDIVIDUALE (D.P.I.)', head),
         Paragraph('ai sensi del D.Lgs. 81/2008', sub),
         Spacer(1, 9 * mm),

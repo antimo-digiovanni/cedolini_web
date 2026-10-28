@@ -1,80 +1,142 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Tutorial Portale{% endblock %}
+{% block title %}Guida al portale{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tut-toc { display:flex; flex-wrap:wrap; gap:8px; }
+    .tut-toc a { font-size:.85rem; font-weight:600; padding:6px 12px; border-radius:999px; background:#eef3fc; color:#1e3a8a; text-decoration:none; }
+    .tut-toc a:hover { background:#dfe8fb; }
+    .tut-sec { scroll-margin-top:90px; }
+    .tut-sec + .tut-sec { border-top:1px solid #edf1f8; padding-top:22px; margin-top:22px; }
+    .tut-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+    .tut-ico { width:42px; height:42px; border-radius:12px; background:#e5edff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1.25rem; }
+    .tut-head h5 { margin:0; font-weight:800; }
+    .tut-new { font-size:.7rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:#e3f4e8; color:#14532d; margin-left:6px; vertical-align:middle; }
+    .tut-sec ol, .tut-sec ul { padding-left:1.2rem; margin-bottom:0; }
+    .tut-sec li { margin-bottom:4px; }
+    .tut-tip { font-size:.88rem; background:#f6f9ff; border:1px solid #dbe3f0; border-radius:10px; padding:10px 12px; margin-top:10px; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-hero mb-4">
-    <h2 class="fw-bold mb-1">Tutorial Portale Dipendenti</h2>
-    <p class="mb-0 opacity-75">Guida rapida aggiornata per accesso, recupero password, cedolini e marcature.</p>
+    <h2 class="fw-bold mb-1">Guida al portale</h2>
+    <p class="mb-0 opacity-75">Tutto quello che puoi fare dal telefono: cedolini, marcature, ferie, DPI, documenti e comunicazioni.</p>
 </div>
 
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="card-modern mb-4">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
-                <div>
-                    <span class="badge bg-primary-subtle text-primary-emphasis mb-2">Aggiornato</span>
-                    <h4 class="mb-1">Come usare il portale</h4>
-                    <p class="text-muted mb-0">Questa guida sostituisce il vecchio tutorial PDF e include le funzioni aggiunte di recente.</p>
-                </div>
-            </div>
+            <nav class="tut-toc mb-4" aria-label="Argomenti della guida">
+                <a href="#app">App e notifiche</a>
+                <a href="#accesso">Accesso</a>
+                <a href="#cedolini">Cedolini e CUD</a>
+                <a href="#marcatura">Marcatura</a>
+                <a href="#ferie">Ferie</a>
+                <a href="#dpi">Consegna DPI</a>
+                <a href="#documenti">Documenti</a>
+                <a href="#comunicazioni">Comunicazioni</a>
+            </nav>
 
-            <div class="mb-4">
-                <h5>1. Accesso</h5>
-                <p class="mb-2">Accedi dall'Area Dipendenti con username oppure email e la password del tuo account.</p>
-                <ul class="mb-0">
-                    <li>Se è il primo accesso, usa le credenziali ricevute dall'azienda.</li>
-                    <li>Dopo il login trovi i tuoi cedolini, i CUD e la sezione marcatura.</li>
-                </ul>
-            </div>
+            <section class="tut-sec" id="app">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-phone" aria-hidden="true"></i></span>
+                    <h5>1. Installa l'app e attiva le notifiche <span class="tut-new">Nuovo</span></h5></div>
+                <p class="mb-2">Con le notifiche attive il telefono ti avvisa quando c'è qualcosa per te: nuovo cedolino o CUD, consegna DPI da firmare, comunicazioni dell'azienda e promemoria per marcare l'uscita.</p>
+                <ol>
+                    <li><strong>iPhone:</strong> apri il portale con Safari, tocca <strong>Condividi</strong> e poi <strong>Aggiungi alla schermata Home</strong>. Da quel momento apri il portale dall'icona.</li>
+                    <li><strong>Android:</strong> apri il portale con Chrome e tocca <strong>Installa app</strong> nel menu del portale (oppure dal menu di Chrome, «Aggiungi a schermata Home»).</li>
+                    <li>All'apertura compare la richiesta <strong>Vuoi attivare le notifiche?</strong>: tocca <strong>Attiva notifiche</strong> e poi <strong>Consenti</strong>.</li>
+                </ol>
+                <div class="tut-tip">Se scegli «Non adesso» la richiesta torna fra qualche giorno. Se hai bloccato le notifiche, riattivale dalle impostazioni del telefono per questo sito o app.</div>
+            </section>
 
-            <div class="mb-4">
-                <h5>2. Password dimenticata</h5>
-                <p class="mb-2">Nella schermata di login è disponibile il link Password dimenticata?.</p>
-                <ul class="mb-0">
-                    <li>Inserisci la tua email aziendale associata all'account.</li>
-                    <li>Riceverai un link per impostare una nuova password.</li>
-                    <li>Se il link scade, puoi richiederne uno nuovo dalla stessa pagina.</li>
+            <section class="tut-sec" id="accesso">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-person-lock" aria-hidden="true"></i></span>
+                    <h5>2. Accesso e password</h5></div>
+                <ul>
+                    <li>Entra con username oppure email e la tua password. Al primo accesso usa le credenziali ricevute dall'azienda.</li>
+                    <li>Se hai dimenticato la password tocca <strong>Password dimenticata?</strong> nella pagina di accesso: riceverai via email un link per impostarne una nuova.</li>
                 </ul>
-            </div>
+            </section>
 
-            <div class="mb-4">
-                <h5>3. Cedolini</h5>
-                <p class="mb-2">Nella dashboard trovi i cedolini raggruppati per anno.</p>
-                <ul class="mb-0">
-                    <li>Apri un anno per vedere i mesi disponibili.</li>
-                    <li>Usa il pulsante Apri PDF per consultare o scaricare il documento.</li>
-                    <li>Il sistema mostra se il cedolino risulta gia visualizzato.</li>
+            <section class="tut-sec" id="cedolini">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
+                    <h5>3. Cedolini e CUD</h5></div>
+                <ul>
+                    <li>Nella pagina iniziale trovi i cedolini divisi per anno e i CUD disponibili.</li>
+                    <li>Toccando un documento si apre dentro il portale, con i pulsanti <strong>Indietro</strong>, <strong>Scarica</strong> e <strong>Condividi</strong>.</li>
+                    <li>Su iPhone «Scarica» apre il menu di condivisione: scegli <strong>Salva su File</strong> per conservarlo, oppure invialo su WhatsApp o email.</li>
+                    <li>Quando l'azienda carica un nuovo cedolino o CUD ricevi una notifica.</li>
                 </ul>
-            </div>
+            </section>
 
-            <div class="mb-4">
-                <h5>4. CUD</h5>
-                <p class="mb-2">Nella stessa dashboard trovi anche i CUD disponibili.</p>
-                <ul class="mb-0">
-                    <li>Ogni CUD viene mostrato con l'anno di riferimento.</li>
-                    <li>Puoi aprirlo direttamente dal pulsante dedicato.</li>
+            <section class="tut-sec" id="marcatura">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-stopwatch" aria-hidden="true"></i></span>
+                    <h5>4. Marcatura entrata e uscita</h5></div>
+                <ul>
+                    <li>Dalla sezione <strong>Marcatura</strong> registri ingresso e uscita. Consenti l'accesso alla posizione quando il telefono lo chiede.</li>
+                    <li>Se sei fuori da una zona di lavoro puoi inviare una richiesta motivata: l'esito compare nel portale.</li>
+                    <li><strong>Promemoria uscita</strong> <span class="tut-new">Nuovo</span>: se hai marcato l'entrata e dimentichi l'uscita, ti arriva una notifica (entrata tra le 5 e le 8 → avviso tra le 17 e le 18; entrata verso le 12 → tra le 22 e le 23; entrata verso le 22 → tra le 6 e le 7 del giorno dopo).</li>
                 </ul>
-            </div>
+            </section>
 
-            <div class="mb-0">
-                <h5>5. Marcatura entrata e uscita</h5>
-                <p class="mb-2">Dalla sezione Marcatura puoi registrare ingresso e uscita della giornata.</p>
-                <ul class="mb-0">
-                    <li>Se sei dentro una zona lavoro valida, il sistema registra la posizione.</li>
-                    <li>Se sei fuori zona, puoi inviare una richiesta motivata all'amministrazione.</li>
-                    <li>Lo stato della richiesta viene mostrato direttamente nel portale.</li>
+            <section class="tut-sec" id="ferie">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-airplane" aria-hidden="true"></i></span>
+                    <h5>5. Richiesta ferie</h5></div>
+                <ul>
+                    <li>Nella pagina iniziale scegli il giorno (o il periodo) e scrivi una breve motivazione, poi tocca <strong>Invia richiesta ferie</strong>.</li>
+                    <li>Lo stato della richiesta (in attesa, approvata o rifiutata) è visibile nel portale.</li>
+                    <li>Al momento non è possibile chiedere ferie per il 24 e il 31 dicembre.</li>
                 </ul>
-            </div>
+            </section>
+
+            <section class="tut-sec" id="dpi">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+                    <h5>6. Consegna DPI <span class="tut-new">Nuovo</span></h5></div>
+                <p class="mb-2">Quando ricevi i dispositivi di protezione (guanti, scarpe, indumenti…) l'azienda registra la consegna e tu firmi dal telefono.</p>
+                <ol>
+                    <li>Ti arriva la notifica: apri <strong>Firma consegna DPI</strong> dal menu.</li>
+                    <li>Tocca <strong>Firma consegna DPI</strong>, controlla l'elenco e tocca <strong>Firma per avvenuta ricezione</strong>.</li>
+                    <li>Firma con il dito nel riquadro e conferma.</li>
+                </ol>
+                <div class="tut-tip">La consegna può anche essere firmata in ufficio, sul tablet o sul telefono dell'azienda.</div>
+            </section>
+
+            <section class="tut-sec" id="documenti">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-person-vcard" aria-hidden="true"></i></span>
+                    <h5>7. Carta d'identità e patente <span class="tut-new">Nuovo</span></h5></div>
+                <p class="mb-2">Dalla sezione <strong>Documenti</strong> carichi i tuoi documenti senza portarli in ufficio. Li vede solo l'ufficio del personale.</p>
+                <ol>
+                    <li>Tocca <strong>Fotografa documento</strong>.</li>
+                    <li>Appoggia il documento su un piano scuro e inquadralo nel riquadro: quando diventa <strong>verde</strong> puoi scattare. Fai fronte e retro.</li>
+                    <li>Controlla l'anteprima già ritagliata, scegli la data di scadenza con le rotelle giorno, mese e anno e invia.</li>
+                </ol>
+                <ul class="mt-2">
+                    <li>L'ufficio verifica il documento: se le foto non vanno bene ti chiede di rifarle.</li>
+                    <li>Con <strong>Scarica PDF</strong> ottieni in ogni momento la copia del tuo documento.</li>
+                    <li>Un mese prima della scadenza ti arriva una notifica per caricare quello nuovo.</li>
+                </ul>
+            </section>
+
+            <section class="tut-sec" id="comunicazioni">
+                <div class="tut-head"><span class="tut-ico"><i class="bi bi-megaphone" aria-hidden="true"></i></span>
+                    <h5>8. Comunicazioni <span class="tut-new">Nuovo</span></h5></div>
+                <ul>
+                    <li>Gli avvisi dell'azienda arrivano con una notifica e restano nella sezione <strong>Comunicazioni</strong>.</li>
+                    <li>Apri ogni comunicazione e tocca <strong>Ho letto</strong>: così l'ufficio sa che l'hai ricevuta.</li>
+                    <li>Quelle ancora da leggere sono segnate in rosso.</li>
+                </ul>
+            </section>
         </div>
 
         <div class="card-modern">
-            <h4 class="mb-3">Assistenza rapida</h4>
-            <p class="mb-3">Se non riesci ad accedere, non trovi un documento o hai problemi con la marcatura, contatta l'amministrazione aziendale indicando:</p>
+            <h4 class="mb-3">Assistenza</h4>
+            <p class="mb-2">Se non riesci ad accedere, non trovi un documento o hai problemi con la marcatura, contatta l'amministrazione indicando:</p>
             <ul class="mb-0">
                 <li>nome e cognome;</li>
-                <li>problema riscontrato;</li>
-                <li>giorno e orario del problema, se riguarda la marcatura.</li>
+                <li>il problema e, se possibile, una foto dello schermo;</li>
+                <li>giorno e orario, se riguarda la marcatura.</li>
             </ul>
         </div>
     </div>
@@ -83,8 +145,11 @@
         <div class="card-modern mb-4">
             <h5 class="mb-3">Scorciatoie</h5>
             <div class="d-grid gap-2">
-                <a href="{% url 'dashboard' %}" class="btn btn-primary">Vai alla dashboard</a>
-                <a href="{% url 'timekeeping' %}" class="btn btn-outline-primary">Apri marcatura</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-primary">Pagina iniziale</a>
+                <a href="{% url 'timekeeping' %}" class="btn btn-outline-primary">Marcatura</a>
+                <a href="{% url 'employee_documents' %}" class="btn btn-outline-primary">Documenti</a>
+                <a href="{% url 'employee_announcements' %}" class="btn btn-outline-primary">Comunicazioni</a>
+                <a href="{% url 'employee_dpi' %}" class="btn btn-outline-primary">Consegna DPI</a>
                 <a href="{% url 'password_reset' %}" class="btn btn-outline-secondary">Recupera password</a>
             </div>
         </div>

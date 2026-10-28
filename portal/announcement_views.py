@@ -47,11 +47,27 @@ def employee_announcement_detail(request, ann_id):
 
 # ------------------------------------------------------------------ amministrazione
 
+def _preview(text, limit=110):
+    """Prime parole del testo, su una riga, per l'anteprima nella notifica."""
+    text = ' '.join((text or '').split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(' ', 1)[0].rstrip('.,;:') + '…'
+
+
+def notification_text(ann, again=False):
+    """Titolo e testo della notifica push di una comunicazione."""
+    if again:
+        return (f'Da leggere: {ann.title[:80]}',
+                'Non hai ancora confermato la lettura di questa comunicazione. Tocca per aprirla.')
+    return (f'San Vincenzo · {ann.title[:80]}',
+            f'{_preview(ann.body)}\nTocca per leggerla e conferma con «Ho letto».')
+
+
 def _notify(ann, employees, again=False):
+    title, body = notification_text(ann, again)
     push.notify_many_later(
-        [e.user_id for e in employees],
-        title=('Promemoria: ' if again else 'Nuova comunicazione: ') + ann.title[:80],
-        body='Apri la comunicazione e conferma di averla letta.',
+        [e.user_id for e in employees], title=title, body=body,
         url=reverse('employee_announcement_detail', args=[ann.id]), tag=f'comunicazione-{ann.id}')
 
 

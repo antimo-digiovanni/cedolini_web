@@ -57,3 +57,17 @@ class AnnouncementTests(TestCase):
         self.assertContains(r, 'almeno un destinatario')
         self.client.force_login(self.u1)
         self.assertEqual(self.client.get(reverse('admin_announcements')).status_code, 302)
+
+
+class AnnouncementNotificationTextTests(TestCase):
+    def test_preview_and_reminder(self):
+        from .announcement_views import notification_text
+        from .models import Announcement
+        ann = Announcement(title='Chiusura uffici', body='Venerdì gli uffici resteranno chiusi per inventario. ' * 5)
+        title, body = notification_text(ann)
+        self.assertEqual(title, 'San Vincenzo · Chiusura uffici')
+        self.assertTrue(body.split('\n')[0].endswith('…'))
+        self.assertLessEqual(len(body.split('\n')[0]), 111)
+        self.assertIn('Ho letto', body)
+        title, body = notification_text(ann, again=True)
+        self.assertEqual(title, 'Da leggere: Chiusura uffici')
