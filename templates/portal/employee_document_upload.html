@@ -58,8 +58,17 @@
             <div class="d-flex justify-content-between align-items-center mt-2"><strong>Retro</strong><button type="button" class="btn btn-sm btn-outline-primary" data-redo="back" style="min-height:40px">Rifai</button></div>
         </div>
     </div>
-    <label for="expiry" class="form-label fw-bold">Data di scadenza</label>
-    <input type="date" id="expiry" class="form-control form-control-lg" min="{{ today|date:'Y-m-d' }}" required>
+    <fieldset class="mb-0">
+        <legend class="form-label fw-bold fs-6 mb-2">Data di scadenza</legend>
+        <div class="d-flex gap-2">
+            <label class="visually-hidden" for="expDay">Giorno</label>
+            <select id="expDay" class="form-select form-select-lg" style="flex:0 0 26%"><option value="">Giorno</option>{% for d in days %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+            <label class="visually-hidden" for="expMonth">Mese</label>
+            <select id="expMonth" class="form-select form-select-lg" style="flex:1 1 auto"><option value="">Mese</option>{% for n, m in months %}<option value="{{ n }}">{{ m }}</option>{% endfor %}</select>
+            <label class="visually-hidden" for="expYear">Anno</label>
+            <select id="expYear" class="form-select form-select-lg" style="flex:0 0 30%"><option value="">Anno</option>{% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select>
+        </div>
+    </fieldset>
     <div class="form-text mb-3">La trovi scritta sul documento. Ti avvisiamo 30 giorni prima.</div>
     <button type="button" class="btn btn-primary btn-lg w-100" id="sendBtn" style="min-height:56px">Invia documento</button>
 </div>
@@ -112,18 +121,48 @@
         document.getElementById('useBtn').textContent = s === 'front' ? 'Usa foto · avanti' : 'Usa questa foto';
     }
     function showShootUI() {
-        current = null;
+        current = null; shotSeq++;
         shot.style.display = 'none'; guide.style.display = ''; video.style.display = '';
         document.getElementById('footShoot').classList.remove('d-none');
         document.getElementById('footConfirm').classList.add('d-none');
         setStep(step);
         startDetect();
     }
-    function showConfirmUI(blob) {
+    var previewUrl = "{% url 'employee_document_preview' %}", shotSeq = 0;
+    async function showConfirmUI(item) {
         stopDetect();
-        current = blob;
+        var seq = ++shotSeq;
+        if (item instanceof Blob) item = { file: item, preview: item, rect: null };  // foto dalla Galleria
+        current = null;
         if (shot.src) URL.revokeObjectURL(shot.src);
-        shot.src = URL.createObjectURL(blob);
+        shot.src = URL.createObjectURL(item.preview);
+        shot.style.display = 'block'; guide.style.display = 'none';
+        document.getElementById('footShoot').classList.add('d-none');
+        document.getElementById('footConfirm').classList.remove('d-none');
+        var useBtn = document.getElementById('useBtn');
+        useBtn.disabled = true; hint.textContent = 'Sto raddrizzando e ritagliando la foto…';
+        // anteprima esatta: la foto come verrà salvata (raddrizzata, ritagliata, angoli puliti)
+        try {
+            var fd = new FormData();
+            fd.append('photo', item.file, 'foto.jpg');
+            if (item.rect) fd.append('rect', JSON.stringify(item.rect));
+            var r = await fetch(previewUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf } });
+            if (seq !== shotSeq) return;  // nel frattempo ha premuto "Rifai"
+            if (!r.ok) {
+                var d = await r.json().catch(function () { return {}; });
+                hint.textContent = d.error || 'Foto non valida: rifalla.';
+                return;  // "Usa foto" resta spento: si può solo rifare
+            }
+            item.preview = await r.blob();
+            if (seq !== shotSeq) return;
+            URL.revokeObjectURL(shot.src);
+            shot.src = URL.createObjectURL(item.preview);
+        } catch (e) {
+            // senza rete per l'anteprima si può comunque proseguire: il controllo vero avviene all'invio
+        }
+        if (seq !== shotSeq) return;
+        current = item;
+        useBtn.disabled = false;
         shot.style.display = 'block'; guide.style.display = 'none';
         document.getElementById('footShoot').classList.add('d-none');
         document.getElementById('footConfirm').classList.remove('d-none');
@@ -222,13 +261,30 @@
     function takePhoto() {
         if (shutter.disabled) return;
         if (!video.videoWidth) return;
-        var c = document.createElement('canvas');
-        c.width = video.videoWidth; c.height = video.videoHeight;
-        c.getContext('2d').drawImage(video, 0, 0);
-        c.toBlob(function (b) { if (b) showConfirmUI(b); }, 'image/jpeg', 0.92);
+        // posizione del riquadro nell'immagine della fotocamera
+        var vr = video.getBoundingClientRect(), gr = guide.getBoundingClientRect();
+        var vw = video.videoWidth, vh = video.videoHeight;
+        var sc = Math.max(vr.width / vw, vr.height / vh);
+        var offX = (vr.width - vw * sc) / 2, offY = (vr.height - vh * sc) / 2;
+        var gx = (gr.left - vr.left - offX) / sc, gy = (gr.top - vr.top - offY) / sc, gw = gr.width / sc, gh = gr.height / sc;
+        // foto da inviare: il riquadro più un margine, così il portale trova i bordi esatti
+        var mx = gw * 0.08, my = gh * 0.08;
+        var sx = Math.max(0, Math.round(gx - mx)), sy = Math.max(0, Math.round(gy - my));
+        var ex = Math.min(vw, Math.round(gx + gw + mx)), ey = Math.min(vh, Math.round(gy + gh + my));
+        var up = document.createElement('canvas'); up.width = ex - sx; up.height = ey - sy;
+        up.getContext('2d').drawImage(video, sx, sy, up.width, up.height, 0, 0, up.width, up.height);
+        var rect = [gx - sx, gy - sy, gx - sx + gw, gy - sy + gh].map(function (v) { return Math.round(v); });
+        // anteprima: solo il riquadro, già ritagliata
+        var pv = document.createElement('canvas'); pv.width = Math.round(gw); pv.height = Math.round(gh);
+        pv.getContext('2d').drawImage(video, gx, gy, gw, gh, 0, 0, pv.width, pv.height);
+        up.toBlob(function (file) {
+            pv.toBlob(function (preview) {
+                if (file && preview) showConfirmUI({ file: file, preview: preview, rect: rect });
+            }, 'image/jpeg', 0.9);
+        }, 'image/jpeg', 0.95);
     }
-    function accept(blob) {
-        photos[step] = blob;
+    function accept(item) {
+        photos[step] = item;
         if (step === 'front' && !photos.back) { setStep('back'); showShootUI(); if (!stream) { closeCamera(); fileInput.click(); } return; }
         closeCamera();
         showReview();
@@ -239,7 +295,7 @@
         ['front', 'back'].forEach(function (k) {
             var img = document.getElementById(k === 'front' ? 'revFront' : 'revBack');
             if (img.src) URL.revokeObjectURL(img.src);
-            img.src = URL.createObjectURL(photos[k]);
+            img.src = URL.createObjectURL(photos[k].preview);
         });
     }
 
@@ -261,7 +317,7 @@
         if (!f) return;
         if (cam.classList.contains('open')) { showConfirmUI(f); return; }
         // flusso senza fotocamera nel portale: ogni file scelto è il lato corrente
-        photos[step] = f;
+        photos[step] = { file: f, preview: f, rect: null };
         if (step === 'front' && !photos.back) {
             setStep('back'); waitingBack = true;
             errBox.classList.replace('alert-danger', 'alert-info');
@@ -279,12 +335,20 @@
     });
 
     document.getElementById('sendBtn').addEventListener('click', async function () {
-        var btn = this, expiry = document.getElementById('expiry').value;
+        var btn = this;
+        var dd = document.getElementById('expDay').value, mm = document.getElementById('expMonth').value, yy = document.getElementById('expYear').value;
+        var expiry = (dd && mm && yy) ? (yy + '-' + ('0' + mm).slice(-2) + '-' + ('0' + dd).slice(-2)) : '';
+        if (expiry) {
+            var chk = new Date(+yy, +mm - 1, +dd);
+            if (chk.getMonth() !== +mm - 1) { errBox.textContent = 'La data di scadenza non esiste: controlla giorno e mese.'; errBox.classList.remove('d-none'); return; }
+        }
         errBox.classList.add('d-none'); errBox.classList.replace('alert-info', 'alert-danger');
         if (!expiry) { errBox.textContent = 'Inserisci la data di scadenza del documento.'; errBox.classList.remove('d-none'); return; }
         var fd = new FormData();
-        fd.append('front', photos.front, 'fronte.jpg');
-        fd.append('back', photos.back, 'retro.jpg');
+        fd.append('front', photos.front.file, 'fronte.jpg');
+        fd.append('back', photos.back.file, 'retro.jpg');
+        if (photos.front.rect) fd.append('front_rect', JSON.stringify(photos.front.rect));
+        if (photos.back.rect) fd.append('back_rect', JSON.stringify(photos.back.rect));
         fd.append('expiry_date', expiry);
         btn.disabled = true; btn.textContent = 'Invio in corso…';
         try {

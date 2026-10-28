@@ -265,3 +265,117 @@ def process_photo(data):
     out = io.BytesIO()
     img.save(out, format='JPEG', quality=88, optimize=True)
     return out.getvalue(), cropped
+
+
+def refine_from_guide(img, rect):
+    """Bordi esatti della tessera quando sappiamo già dov'è (il riquadro della fotocamera).
+
+    rect = (x0, y0, x1, y1): il riquadro dentro la foto. Per ogni lato cerca, dall'esterno
+    verso l'interno, il primo bordo netto (sfondo -> tessera): così non si confonde con
+    scritte o righe stampate dentro il documento. Poi adatta una retta e interseca i lati.
+    """
+    import cv2
+    import numpy as np
+
+    gray = cv2.GaussianBlur(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY), (5, 5), 0).astype(np.float32)
+    H, W = gray.shape
+    x0, y0, x1, y1 = [float(v) for v in rect]
+    gw, gh = x1 - x0, y1 - y0
+    by, bx = 0.14 * gh, 0.10 * gw  # tolleranza: il documento può essere un po' più grande o più piccolo del riquadro
+
+    def side_points(kind):
+        pts = []
+        if kind in ('top', 'bottom'):
+            edge = y0 if kind == 'top' else y1
+            lo, hi = int(max(0, edge - by)), int(min(H - 1, edge + by))
+            cols = np.linspace(x0 + 0.15 * gw, x1 - 0.15 * gw, 80).astype(int)
+            cols = cols[(cols >= 0) & (cols < W)]
+            strip = gray[lo:hi + 1, cols]
+            grad = np.abs(np.diff(strip, axis=0))
+            if kind == 'bottom':
+                grad = grad[::-1]
+            if grad.size == 0:
+                return pts
+            thr = 0.45 * np.percentile(grad.max(axis=0), 75)
+            for j, col in enumerate(cols):
+                idx = np.nonzero(grad[:, j] >= max(thr, 8))[0]
+                if idx.size:
+                    k = idx[0]
+                    y = lo + k + 0.5 if kind == 'top' else hi - k - 0.5
+                    pts.append((col, y))
+        else:
+            edge = x0 if kind == 'left' else x1
+            lo, hi = int(max(0, edge - bx)), int(min(W - 1, edge + bx))
+            rows = np.linspace(y0 + 0.18 * gh, y1 - 0.18 * gh, 60).astype(int)
+            rows = rows[(rows >= 0) & (rows < H)]
+            strip = gray[rows, lo:hi + 1]
+            grad = np.abs(np.diff(strip, axis=1))
+            if kind == 'right':
+                grad = grad[:, ::-1]
+            if grad.size == 0:
+                return pts
+            thr = 0.45 * np.percentile(grad.max(axis=1), 75)
+            for j, row in enumerate(rows):
+                idx = np.nonzero(grad[j, :] >= max(thr, 8))[0]
+                if idx.size:
+                    k = idx[0]
+                    x = lo + k + 0.5 if kind == 'left' else hi - k - 0.5
+                    pts.append((x, row))
+        return pts
+
+    guide_lines = {
+        'top': (x0, y0, 1.0, 0.0), 'bottom': (x0, y1, 1.0, 0.0),
+        'left': (x0, y0, 0.0, 1.0), 'right': (x1, y0, 0.0, 1.0),
+    }
+    lines, found = {}, 0
+    for kind in ('top', 'right', 'bottom', 'left'):
+        pts = side_points(kind)
+        line = guide_lines[kind]
+        if len(pts) >= 15:
+            arr = np.array(pts, dtype=np.float32)
+            # scarta i punti lontani dalla mediana (riflessi, dita, ombre)
+            coord = arr[:, 1] if kind in ('top', 'bottom') else arr[:, 0]
+            med = np.median(coord)
+            mad = np.median(np.abs(coord - med)) + 1.0
+            keep = arr[np.abs(coord - med) <= 4 * mad + 3]
+            if len(keep) >= 12:
+                vx, vy, cx, cy = cv2.fitLine(keep, cv2.DIST_HUBER, 0, 0.01, 0.01).ravel()
+                horiz = kind in ('top', 'bottom')
+                if (abs(vx) if horiz else abs(vy)) > 0.985:  # al massimo ~10° di inclinazione
+                    line = (float(cx), float(cy), float(vx), float(vy))
+                    found += 1
+        lines[kind] = line
+    order = ['top', 'right', 'bottom', 'left']
+    corners = []
+    for i, kind in enumerate(order):  # angolo tra lato precedente e lato corrente: tl, tr, br, bl
+        p = _intersect(lines[order[i - 1]], lines[kind])
+        corners.append(p)
+    # ordine: top-left (left∩top), top-right (top∩right), bottom-right, bottom-left
+    tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
+    if any(c is None for c in (tl, tr, br, bl)):
+        return np.array([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], dtype='float32'), 0
+    return np.array([tl, tr, br, bl], dtype='float32'), found
+
+
+def warp_to_card(img, corners):
+    """Raddrizza i 4 angoli dati sul formato ID-1 con angoli arrotondati (senza ricerca dei bordi)."""
+    import cv2
+    import numpy as np
+
+    dst = np.array([[0, 0], [OUT_W, 0], [OUT_W, OUT_H], [0, OUT_H]], dtype='float32')
+    m = cv2.getPerspectiveTransform(np.array(corners, dtype='float32'), dst)
+    out = cv2.warpPerspective(np.array(img), m, (OUT_W, OUT_H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    return round_corners(Image.fromarray(out))
+
+
+def process_guided_photo(data, rect):
+    """Foto dalla fotocamera del portale con la posizione del riquadro: (jpeg, ritagliata=True)."""
+    img = load_image(data)
+    x0, y0, x1, y1 = rect
+    if not (0 <= x0 < x1 <= img.width and 0 <= y0 < y1 <= img.height) or (x1 - x0) < 200:
+        raise ScanError('Foto non valida: rifalla dalla fotocamera del portale.')
+    corners, _found = refine_from_guide(img, rect)
+    out_img = warp_to_card(img, corners)
+    out = io.BytesIO()
+    out_img.save(out, format='JPEG', quality=90, optimize=True)
+    return out.getvalue(), True

@@ -277,3 +277,76 @@ class UploadedFilterTests(TestCase):
         self.assertContains(r, 'Caricato')
         self.assertNotContains(r, 'Assente')
         self.assertContains(r, 'Hanno caricato (1)')
+
+
+@override_settings(PUSH_ASYNC=False)
+class GuidedUploadTests(TestCase):
+    """Foto dalla fotocamera del portale: arriva con la posizione del riquadro e viene ritagliata sui bordi veri."""
+
+    def setUp(self):
+        self.media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media, True)
+        ov = override_settings(MEDIA_ROOT=self.media, STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage', 'OPTIONS': {'location': self.media}},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        })
+        ov.enable()
+        self.addCleanup(ov.disable)
+        user = User.objects.create_user('mario', password='x')
+        Employee.objects.create(user=user, first_name='Mario', last_name='Rossi', must_change_password=False, privacy_accepted=True)
+        self.client.login(username='mario', password='x')
+
+    def _guided(self):
+        import cv2
+        gw, gh, m = 960, 606, 0.08
+        W, H = int(gw * (1 + 2 * m)), int(gh * (1 + 2 * m))
+        bg = np.full((H, W, 3), (45, 47, 50), np.uint8)
+        card = np.full((540, 856, 3), (225, 205, 225), np.uint8)
+        cv2.rectangle(card, (0, 0), (856, 40), (150, 120, 180), -1)  # fascia stampata vicino al bordo
+        x0, y0 = gw * m, gh * m
+        truth = np.float32([[x0 + 40, y0 + 30], [x0 + gw - 30, y0 + 20], [x0 + gw - 25, y0 + gh - 35], [x0 + 35, y0 + gh - 25]])
+        mm = cv2.getPerspectiveTransform(np.float32([[0, 0], [856, 0], [856, 540], [0, 540]]), truth)
+        warped = cv2.warpPerspective(card, mm, (W, H)); mask = cv2.warpPerspective(np.full((540, 856), 255, np.uint8), mm, (W, H))
+        bg[mask > 0] = warped[mask > 0]
+        buf = io.BytesIO(); Image.fromarray(bg).save(buf, 'JPEG', quality=92)
+        return buf.getvalue(), [round(x0), round(y0), round(x0 + gw), round(y0 + gh)], truth
+
+    def test_guided_crop_follows_card_edges(self):
+        data, rect, truth = self._guided()
+        corners, found = doc_scan.refine_from_guide(Image.open(io.BytesIO(data)).convert('RGB'), rect)
+        self.assertEqual(found, 4)
+        err = np.max(np.linalg.norm(corners - truth, axis=1)) / np.linalg.norm(truth[1] - truth[0])
+        self.assertLess(err, 0.005)
+
+    def test_guided_upload(self):
+        import json
+        data, rect, _ = self._guided()
+        r = self.client.post(reverse('employee_document_upload', args=['patente']), {
+            'front': SimpleUploadedFile('f.jpg', data, 'image/jpeg'), 'front_rect': json.dumps(rect),
+            'back': SimpleUploadedFile('b.jpg', data, 'image/jpeg'), 'back_rect': json.dumps(rect),
+            'expiry_date': (timezone.localdate() + timedelta(days=900)).isoformat()})
+        self.assertTrue(r.json()['ok'], r.content)
+        doc = IdentityDocument.objects.get()
+        doc.front_image.open('rb')
+        self.assertEqual(Image.open(doc.front_image).size, (doc_scan.OUT_W, doc_scan.OUT_H))
+        doc.front_image.close()
+        bad = self.client.post(reverse('employee_document_upload', args=['patente']), {
+            'front': SimpleUploadedFile('f.jpg', data, 'image/jpeg'), 'front_rect': '[1,2]',
+            'back': SimpleUploadedFile('b.jpg', data, 'image/jpeg'), 'back_rect': json.dumps(rect),
+            'expiry_date': (timezone.localdate() + timedelta(days=900)).isoformat()})
+        self.assertFalse(bad.json()['ok'])
+
+    def test_upload_page_has_date_wheels(self):
+        r = self.client.get(reverse('employee_document_upload', args=['ci']))
+        self.assertContains(r, 'id="expDay"'); self.assertContains(r, 'Dicembre'); self.assertContains(r, 'id="expYear"')
+
+
+class PreviewEndpointTests(GuidedUploadTests):
+    def test_preview_returns_cropped_image(self):
+        import json
+        data, rect, _ = self._guided()
+        r = self.client.post(reverse('employee_document_preview'), {'photo': SimpleUploadedFile('f.jpg', data, 'image/jpeg'), 'rect': json.dumps(rect)})
+        self.assertEqual(r['Content-Type'], 'image/jpeg')
+        self.assertEqual(Image.open(io.BytesIO(r.content)).size, (doc_scan.OUT_W, doc_scan.OUT_H))
+        r = self.client.post(reverse('employee_document_preview'), {'photo': SimpleUploadedFile('f.jpg', phone_photo(with_card=False), 'image/jpeg')})
+        self.assertEqual(r.status_code, 400)

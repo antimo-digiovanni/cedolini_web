@@ -69,8 +69,8 @@ def employee_document_upload(request, kind):
         if expiry > timezone.localdate() + timedelta(days=365 * 15):
             return fail('Controlla la data di scadenza.')
         try:
-            front_jpg, front_cropped = doc_scan.process_photo(front.read())
-            back_jpg, back_cropped = doc_scan.process_photo(back.read())
+            front_jpg, front_cropped = _process(front, request.POST.get('front_rect'))
+            back_jpg, back_cropped = _process(back, request.POST.get('back_rect'))
         except doc_scan.ScanError as exc:
             return fail(str(exc))
         if not front_cropped or not back_cropped:
@@ -92,10 +92,50 @@ def employee_document_upload(request, kind):
         _notify_admins(doc)
         return JsonResponse({'ok': True, 'redirect': reverse('employee_documents') + '?inviato=1'})
 
+    this_year = timezone.localdate().year
     return render(request, 'portal/employee_document_upload.html', {
         'employee': employee, 'kind': kind, 'label': identity_docs.KIND_LABELS[kind],
         'today': timezone.localdate(),
+        'days': range(1, 32), 'months': list(enumerate(MONTHS_IT, start=1)),
+        'years': range(this_year, this_year + 16),
     })
+
+
+MONTHS_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto',
+             'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
+
+
+def _process(upload, rect_json):
+    """Foto dalla fotocamera del portale (con il riquadro) o dalla Galleria (ricerca libera)."""
+    import json
+    data = upload.read()
+    if rect_json:
+        try:
+            rect = [float(v) for v in json.loads(rect_json)]
+            if len(rect) != 4:
+                raise ValueError
+        except (ValueError, TypeError):
+            raise doc_scan.ScanError('Foto non valida: rifalla dalla fotocamera del portale.')
+        return doc_scan.process_guided_photo(data, rect)
+    return doc_scan.process_photo(data)
+
+
+@login_required
+def employee_document_preview(request):
+    """Anteprima dopo lo scatto: restituisce la foto già raddrizzata e ritagliata come verrà salvata."""
+    if request.method != 'POST' or not _own_employee(request):
+        return HttpResponse(status=405 if request.method != 'POST' else 403)
+    photo = request.FILES.get('photo')
+    if not photo or photo.size > MAX_UPLOAD_BYTES:
+        return JsonResponse({'ok': False, 'error': 'Foto mancante o troppo grande.'}, status=400)
+    try:
+        jpg, cropped = _process(photo, request.POST.get('rect'))
+    except doc_scan.ScanError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    if not cropped:
+        return JsonResponse({'ok': False, 'error': 'Il documento non si riconosce bene: rifai la foto più da vicino, '
+                                                    'con il documento intero dentro il riquadro.'}, status=400)
+    return _disable_response_cache(HttpResponse(jpg, content_type='image/jpeg'))
 
 
 def _notify_admins(doc):

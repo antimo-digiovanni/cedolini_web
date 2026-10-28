@@ -36,6 +36,7 @@ urlpatterns = [
     path('push/disiscrivi/', push_views.push_unsubscribe, name='push_unsubscribe'),
     path('documenti/', identity_views.employee_documents, name='employee_documents'),
     path('documenti/<str:kind>/carica/', identity_views.employee_document_upload, name='employee_document_upload'),
+    path('documenti/anteprima/', identity_views.employee_document_preview, name='employee_document_preview'),
     path('documenti/foto/<int:doc_id>/<str:side>/', identity_views.document_image, name='document_image'),
     path('admin-documenti/', identity_views.admin_documents, name='admin_documents'),
     path('admin-documenti/<int:doc_id>/', identity_views.admin_document_detail, name='admin_document_detail'),
