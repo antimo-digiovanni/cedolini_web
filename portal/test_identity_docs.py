@@ -111,6 +111,21 @@ class IdentityDocumentFlowTests(TestCase):
         self.assertEqual(self.client.get(reverse('employee_document_upload', args=['passaporto'])).status_code, 404)
         self.assertFalse(IdentityDocument.objects.exists())
 
+    def test_admin_moves_document_to_other_kind(self):
+        self.client.login(username='mario', password='x')
+        self._upload()
+        doc = IdentityDocument.objects.get()
+        self.assertEqual(doc.kind, 'ci')
+        url = reverse('admin_document_detail', args=[doc.id])
+        self.client.post(url, {'action': 'change_kind'})  # il dipendente non può
+        doc.refresh_from_db()
+        self.assertEqual(doc.kind, 'ci')
+        self.client.force_login(User.objects.filter(is_staff=True).first())
+        r = self.client.post(url, {'action': 'change_kind'}, follow=True)
+        doc.refresh_from_db()
+        self.assertEqual(doc.kind, 'patente')
+        self.assertContains(r, 'Documento spostato in «Patente di guida»')
+
     def test_permissions(self):
         self.client.login(username='mario', password='x')
         self._upload()

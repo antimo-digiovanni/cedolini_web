@@ -268,6 +268,15 @@ def admin_document_detail(request, doc_id):
                                       body=f'La tua {doc.get_kind_display().lower()} non è stata accettata: {note}',
                                       url=reverse('employee_documents'), tag=f'doc-{doc.kind}')
                 return redirect(reverse('admin_document_detail', args=[doc.id]) + f'?esito={action}')
+        elif action == 'change_kind':
+            # Documento caricato nella sezione sbagliata (es. patente messa come carta d'identità).
+            old_kind = doc.kind
+            doc.kind = 'patente' if doc.kind == 'ci' else 'ci'
+            doc.expiry_notified_on = None
+            doc.save(update_fields=['kind', 'expiry_notified_on'])
+            _create_audit_event(request, 'identity_document_kind_changed', employee=doc.employee,
+                                metadata={'document_id': doc.id, 'from': old_kind, 'to': doc.kind})
+            return redirect(reverse('admin_document_detail', args=[doc.id]) + '?esito=spostato')
         elif action == 'rotate':
             side = request.POST.get('side')
             field = {'fronte': doc.front_image, 'retro': doc.back_image}.get(side)
@@ -292,7 +301,8 @@ def admin_document_detail(request, doc_id):
             return redirect('admin_document_detail', doc_id=doc.id)
 
     history = doc.employee.identity_documents.filter(kind=doc.kind).exclude(id=doc.id)[:10]
-    esito = {'approve': 'Documento approvato.', 'reject': 'Documento rifiutato: il dipendente è stato avvisato.'}.get(
+    esito = {'approve': 'Documento approvato.', 'reject': 'Documento rifiutato: il dipendente è stato avvisato.',
+             'spostato': f'Documento spostato in «{doc.get_kind_display()}».'}.get(
         request.GET.get('esito'))
     return render(request, 'portal/admin_document_detail.html', {
         'doc': doc, 'state': identity_docs.describe(doc, doc.kind), 'history': history,
