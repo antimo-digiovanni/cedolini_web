@@ -379,3 +379,33 @@ def process_guided_photo(data, rect):
     out = io.BytesIO()
     out_img.save(out, format='JPEG', quality=90, optimize=True)
     return out.getvalue(), True
+
+
+def crop_manual(data, points):
+    """Ritaglio a mano dall'amministrazione: 4 angoli toccati sulla foto (coordinate 0..1).
+
+    Gli angoli vengono rifiniti sul bordo vero solo se la correzione è piccola (entro il 3%):
+    così un tocco un po' impreciso viene aggiustato, ma il ritaglio non può «scappare».
+    """
+    import numpy as np
+
+    img = load_image(data)
+    if len(points) != 4:
+        raise ScanError('Tocca i 4 angoli del documento.')
+    pts = np.array([[float(x) * img.width, float(y) * img.height] for x, y in points], dtype='float32')
+    if not ((pts >= -1).all() and (pts[:, 0] <= img.width + 1).all() and (pts[:, 1] <= img.height + 1).all()):
+        raise ScanError('Angoli fuori dalla foto.')
+    corners = _order_corners(pts)
+    if _long_side(corners) < 120:
+        raise ScanError('Il riquadro scelto è troppo piccolo.')
+    try:
+        refined = refine_corners(img, corners)
+        limit = 0.03 * max(img.width, img.height)
+        if refined is not None and np.all(np.linalg.norm(refined - corners, axis=1) <= limit):
+            corners = refined
+    except Exception:
+        logger.exception('crop_manual: rifinitura non riuscita, uso gli angoli toccati')
+    out_img = warp_to_card(img, corners)
+    out = io.BytesIO()
+    out_img.save(out, format='JPEG', quality=90, optimize=True)
+    return out.getvalue()

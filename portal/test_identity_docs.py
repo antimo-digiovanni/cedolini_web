@@ -111,6 +111,41 @@ class IdentityDocumentFlowTests(TestCase):
         self.assertEqual(self.client.get(reverse('employee_document_upload', args=['passaporto'])).status_code, 404)
         self.assertFalse(IdentityDocument.objects.exists())
 
+    def test_admin_manual_crop_and_approved_button(self):
+        import io as _io
+        import json as _json
+
+        from PIL import Image as _Image
+        self.client.login(username='mario', password='x')
+        self._upload()
+        doc = IdentityDocument.objects.get()
+        # foto "non ritagliata": tessera chiara piccola su sfondo scuro
+        bg = _Image.new('RGB', (1600, 1200), (40, 40, 45))
+        bg.paste(_Image.new('RGB', (600, 380), (230, 225, 210)), (500, 400))
+        buf = _io.BytesIO(); bg.save(buf, 'JPEG')
+        from django.core.files.base import ContentFile
+        doc.front_image.save('orig.jpg', ContentFile(buf.getvalue()), save=False)
+        doc.front_cropped = False
+        doc.save()
+        self.client.force_login(self.admin)
+        url = reverse('admin_document_detail', args=[doc.id])
+        self.assertContains(self.client.get(url), 'Ritaglia a mano')
+        pts = [[1100 / 1600, 780 / 1200], [500 / 1600, 400 / 1200], [1100 / 1600, 400 / 1200], [500 / 1600, 780 / 1200]]
+        r = self.client.post(url, {'action': 'crop', 'side': 'fronte', 'points': _json.dumps(pts)}, follow=True)
+        self.assertContains(r, 'Foto ritagliata')
+        doc.refresh_from_db()
+        self.assertTrue(doc.front_cropped)
+        with doc.front_image.open('rb') as fh:
+            out = _Image.open(fh)
+            self.assertEqual(out.size, (1712, 1080))
+            self.assertGreater(out.getpixel((856, 540))[0], 200)  # dentro: la tessera, non lo sfondo
+        r = self.client.post(url, {'action': 'crop', 'side': 'fronte', 'points': '[[0,0]]'})
+        self.assertContains(r, 'Tocca i 4 angoli')
+        self.client.post(url, {'action': 'approve'})
+        r = self.client.get(url)
+        self.assertContains(r, 'Approvato')
+        self.assertContains(r, 'id="approveBtn"')
+
     def test_admin_moves_document_to_other_kind(self):
         self.client.login(username='mario', password='x')
         self._upload()

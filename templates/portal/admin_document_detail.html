@@ -3,7 +3,11 @@
 {% block extra_css %}
 <style>
     .doc-chip { display:inline-block; font-size:.8rem; font-weight:700; padding:5px 12px; border-radius:999px; }
-    .doc-img { width:100%; border-radius:12px; border:1px solid #c9d6ef; background:#f3f6fb; }
+    .doc-img { width:100%; border-radius:12px; border:1px solid #c9d6ef; background:#f3f6fb; display:block; }
+    #approveBtn:disabled { opacity:1; background:#e3f4e8; border-color:#bfe5c9; color:#14532d; }
+    .crop-wrap { position:relative; }
+    .crop-wrap canvas { position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; touch-action:none; border-radius:12px; }
+    .crop-bar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0 4px; }
 </style>
 {% endblock %}
 
@@ -26,8 +30,17 @@
                     <button name="degrees" value="90" class="btn btn-sm btn-outline-secondary" aria-label="Ruota il fronte di 90 gradi"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> 90°</button>
                     <button name="degrees" value="180" class="btn btn-sm btn-outline-secondary" aria-label="Capovolgi il fronte">180°</button></form>
             </div>
-            <img class="doc-img mb-1" src="{% url 'document_image' doc.id 'fronte' %}?v={{ stamp }}" alt="Fronte del documento">
-            <div class="small text-muted mb-4">{% if doc.front_cropped %}Ritagliata automaticamente.{% else %}Bordo non trovato: foto originale.{% endif %}</div>
+            <div class="crop-wrap mb-1" data-side="fronte">
+                <img class="doc-img" src="{% url 'document_image' doc.id 'fronte' %}?v={{ stamp }}" alt="Fronte del documento">
+            </div>
+            <div class="crop-bar" data-side="fronte">
+                <button type="button" class="btn btn-sm btn-outline-primary js-crop-start"><i class="bi bi-crop" aria-hidden="true"></i> Ritaglia a mano</button>
+                <span class="small text-muted js-crop-help" hidden>Tocca i 4 angoli del documento (<span class="js-crop-n">0</span>/4)</span>
+                <button type="button" class="btn btn-sm btn-primary js-crop-go" hidden disabled>Ritaglia</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary js-crop-reset" hidden>Ricomincia</button>
+                <button type="button" class="btn btn-sm btn-link js-crop-cancel" hidden>Annulla</button>
+            </div>
+            <div class="small text-muted mb-4">{% if doc.front_cropped %}Ritagliata.{% else %}Bordo non trovato: foto originale.{% endif %}</div>
 
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h5 class="mb-0">Retro</h5>
@@ -35,8 +48,17 @@
                     <button name="degrees" value="90" class="btn btn-sm btn-outline-secondary" aria-label="Ruota il retro di 90 gradi"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> 90°</button>
                     <button name="degrees" value="180" class="btn btn-sm btn-outline-secondary" aria-label="Capovolgi il retro">180°</button></form>
             </div>
-            <img class="doc-img mb-1" src="{% url 'document_image' doc.id 'retro' %}?v={{ stamp }}" alt="Retro del documento">
-            <div class="small text-muted">{% if doc.back_cropped %}Ritagliata automaticamente.{% else %}Bordo non trovato: foto originale.{% endif %}</div>
+            <div class="crop-wrap mb-1" data-side="retro">
+                <img class="doc-img" src="{% url 'document_image' doc.id 'retro' %}?v={{ stamp }}" alt="Retro del documento">
+            </div>
+            <div class="crop-bar" data-side="retro">
+                <button type="button" class="btn btn-sm btn-outline-primary js-crop-start"><i class="bi bi-crop" aria-hidden="true"></i> Ritaglia a mano</button>
+                <span class="small text-muted js-crop-help" hidden>Tocca i 4 angoli del documento (<span class="js-crop-n">0</span>/4)</span>
+                <button type="button" class="btn btn-sm btn-primary js-crop-go" hidden disabled>Ritaglia</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary js-crop-reset" hidden>Ricomincia</button>
+                <button type="button" class="btn btn-sm btn-link js-crop-cancel" hidden>Annulla</button>
+            </div>
+            <div class="small text-muted">{% if doc.back_cropped %}Ritagliata.{% else %}Bordo non trovato: foto originale.{% endif %}</div>
         </div>
     </div>
     <div class="col-lg-5">
@@ -51,7 +73,11 @@
                 <input type="text" id="note" name="review_note" maxlength="255" class="form-control mb-3" placeholder="es. foto sfocata, si vede solo metà documento">
                 <div class="d-flex gap-2">
                     <button name="action" value="reject" class="btn btn-outline-danger flex-fill" style="min-height:48px">Rifiuta · chiedi di rifare</button>
+                    {% if doc.status == 'approved' %}
+                    <button name="action" value="approve" id="approveBtn" class="btn btn-success flex-fill" style="min-height:48px" disabled data-save-label="Salva scadenza"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Approvato</button>
+                    {% else %}
                     <button name="action" value="approve" class="btn btn-primary flex-fill" style="min-height:48px">Approva</button>
+                    {% endif %}
                 </div>
             </form>
             <a href="{% url 'admin_document_pdf' doc.id %}" class="btn btn-outline-primary w-100 mt-3" style="min-height:46px"><i class="bi bi-download" aria-hidden="true"></i> Scarica PDF (fronte + retro)</a>
@@ -73,4 +99,76 @@
         {% endif %}
     </div>
 </div>
+<form method="post" id="cropForm" hidden>{% csrf_token %}<input type="hidden" name="action" value="crop"><input type="hidden" name="side"><input type="hidden" name="points"></form>
+<script>
+(function () {
+    // Documento già approvato: il pulsante «Approvato» si riattiva solo se si corregge la scadenza.
+    var approve = document.getElementById('approveBtn');
+    var expiry = document.getElementById('expiry');
+    if (approve && expiry) {
+        var initial = expiry.value;
+        expiry.addEventListener('input', function () {
+            var changed = expiry.value !== initial;
+            approve.disabled = !changed;
+            approve.className = 'btn flex-fill ' + (changed ? 'btn-primary' : 'btn-success');
+            approve.innerHTML = changed ? approve.dataset.saveLabel : '<i class="bi bi-check-circle-fill" aria-hidden="true"></i> Approvato';
+        });
+    }
+
+    // Ritaglio a mano: si toccano i 4 angoli del documento sulla foto.
+    var form = document.getElementById('cropForm');
+    document.querySelectorAll('.crop-bar').forEach(function (bar) {
+        var side = bar.dataset.side;
+        var wrap = document.querySelector('.crop-wrap[data-side="' + side + '"]');
+        var img = wrap.querySelector('img');
+        var q = function (c) { return bar.querySelector(c); };
+        var canvas = null, pts = [];
+
+        function draw() {
+            var r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+            canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+            var ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+            ctx.fillStyle = 'rgba(11,31,69,.25)'; ctx.fillRect(0, 0, r.width, r.height);
+            if (pts.length) {
+                ctx.beginPath();
+                pts.forEach(function (p, i) { var x = p[0] * r.width, y = p[1] * r.height; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+                if (pts.length === 4) ctx.closePath();
+                ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2.5; ctx.stroke();
+                pts.forEach(function (p) {
+                    ctx.beginPath(); ctx.arc(p[0] * r.width, p[1] * r.height, 7, 0, Math.PI * 2);
+                    ctx.fillStyle = '#22c55e'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+                });
+            }
+            q('.js-crop-n').textContent = pts.length;
+            q('.js-crop-go').disabled = pts.length !== 4;
+        }
+        function show(on) {
+            q('.js-crop-start').hidden = on;
+            ['.js-crop-help', '.js-crop-go', '.js-crop-reset', '.js-crop-cancel'].forEach(function (c) { q(c).hidden = !on; });
+        }
+        q('.js-crop-start').addEventListener('click', function () {
+            pts = [];
+            canvas = document.createElement('canvas');
+            wrap.appendChild(canvas);
+            canvas.addEventListener('pointerdown', function (ev) {
+                if (pts.length >= 4) return;
+                var r = canvas.getBoundingClientRect();
+                pts.push([(ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height]);
+                draw();
+            });
+            show(true); draw();
+        });
+        q('.js-crop-reset').addEventListener('click', function () { pts = []; draw(); });
+        q('.js-crop-cancel').addEventListener('click', function () { if (canvas) canvas.remove(); canvas = null; pts = []; show(false); });
+        q('.js-crop-go').addEventListener('click', function () {
+            if (pts.length !== 4) return;
+            form.side.value = side;
+            form.points.value = JSON.stringify(pts);
+            q('.js-crop-go').disabled = true;
+            q('.js-crop-go').textContent = 'Ritaglio…';
+            form.submit();
+        });
+    });
+})();
+</script>
 {% endblock %}

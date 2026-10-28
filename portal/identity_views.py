@@ -268,6 +268,34 @@ def admin_document_detail(request, doc_id):
                                       body=f'La tua {doc.get_kind_display().lower()} non è stata accettata: {note}',
                                       url=reverse('employee_documents'), tag=f'doc-{doc.kind}')
                 return redirect(reverse('admin_document_detail', args=[doc.id]) + f'?esito={action}')
+        elif action == 'crop':
+            import json as _json
+            side = request.POST.get('side')
+            field = {'fronte': doc.front_image, 'retro': doc.back_image}.get(side)
+            try:
+                points = _json.loads(request.POST.get('points') or '[]')
+                if field is None:
+                    raise doc_scan.ScanError('Lato non valido.')
+                field.open('rb')
+                try:
+                    data = doc_scan.crop_manual(field.read(), points)
+                finally:
+                    field.close()
+            except (ValueError, TypeError, doc_scan.ScanError) as exc:
+                error = str(exc) if isinstance(exc, doc_scan.ScanError) else 'Angoli non validi: riprova.'
+            else:
+                # La foto precedente resta nell'archivio (non viene cancellata): si può sempre recuperare.
+                base = field.name.rsplit('/', 1)[-1].rsplit('.', 1)[0].split('-r', 1)[0].split('-c', 1)[0]
+                field.save(f"{base}-c{timezone.now():%Y%m%d%H%M%S%f}.jpg", ContentFile(data), save=False)
+                if side == 'fronte':
+                    doc.front_cropped = True
+                    doc.save(update_fields=['front_image', 'front_cropped'])
+                else:
+                    doc.back_cropped = True
+                    doc.save(update_fields=['back_image', 'back_cropped'])
+                _create_audit_event(request, 'identity_document_cropped', employee=doc.employee,
+                                    metadata={'document_id': doc.id, 'side': side})
+                return redirect(reverse('admin_document_detail', args=[doc.id]) + '?esito=ritagliato')
         elif action == 'change_kind':
             # Documento caricato nella sezione sbagliata (es. patente messa come carta d'identità).
             old_kind = doc.kind
@@ -302,7 +330,8 @@ def admin_document_detail(request, doc_id):
 
     history = doc.employee.identity_documents.filter(kind=doc.kind).exclude(id=doc.id)[:10]
     esito = {'approve': 'Documento approvato.', 'reject': 'Documento rifiutato: il dipendente è stato avvisato.',
-             'spostato': f'Documento spostato in «{doc.get_kind_display()}».'}.get(
+             'spostato': f'Documento spostato in «{doc.get_kind_display()}».',
+             'ritagliato': 'Foto ritagliata.'}.get(
         request.GET.get('esito'))
     return render(request, 'portal/admin_document_detail.html', {
         'doc': doc, 'state': identity_docs.describe(doc, doc.kind), 'history': history,
