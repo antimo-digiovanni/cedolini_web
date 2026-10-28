@@ -647,6 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 })();
 </script>
+{% if user.is_authenticated and user.employee %}{% include "portal/includes/notify_sheet.html" %}{% endif %}
 {% block extra_js %}{% endblock %}
 
 </body>

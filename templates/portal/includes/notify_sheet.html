@@ -1,0 +1,136 @@
+{% comment %}Invito ad attivare le notifiche all'apertura dell'app: prima volta, poi dopo 3 giorni e ogni 7 se si sceglie «Non adesso».{% endcomment %}
+<style>
+.ns-dim{position:fixed;inset:0;background:rgba(10,20,40,.45);z-index:2000;opacity:0;transition:opacity .25s}
+.ns-sheet{box-sizing:border-box;position:fixed;left:0;right:0;bottom:0;z-index:2001;background:#fff;border-radius:24px 24px 0 0;padding:14px 22px calc(24px + env(safe-area-inset-bottom));text-align:center;max-width:520px;margin:0 auto;transform:translateY(100%);transition:transform .3s ease;box-shadow:0 -10px 30px rgba(0,0,0,.15);color:#10213f}
+.ns-open .ns-dim{opacity:1}.ns-open .ns-sheet{transform:none}
+.ns-grab{width:40px;height:5px;border-radius:3px;background:#d3dbe8;margin:0 auto 16px}
+.ns-ico{width:60px;height:60px;border-radius:18px;background:#e5edff;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#1d4ed8}
+.ns-sheet h2{margin:0 0 6px;font-size:20px;font-weight:800;color:#0b2a5b}
+.ns-sheet p{margin:0 0 12px;color:#4a5f87;font-size:14px;line-height:1.45}
+.ns-list{list-style:none;padding:0;margin:0 0 16px;text-align:left;font-size:14px}
+.ns-list li{padding:7px 0;border-bottom:1px solid #eef2f8;display:flex;gap:10px;align-items:center}
+.ns-list i{color:#1d4ed8}
+.ns-step{display:flex;gap:10px;align-items:center;text-align:left;font-size:14px;padding:7px 0}
+.ns-n{width:26px;height:26px;border-radius:50%;background:#0b2a5b;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+.ns-b1{display:block;width:100%;height:50px;border:0;border-radius:14px;background:#0b2a5b;color:#fff;font:inherit;font-weight:700;font-size:16px;margin:14px 0 6px}
+.ns-b2{display:block;width:100%;height:42px;border:0;background:none;color:#4a5f87;font:inherit;font-weight:600;font-size:15px}
+.ns-err{color:#8b1c1c;font-size:13px;margin-top:6px}
+</style>
+<div id="notifySheet" class="d-none" role="dialog" aria-modal="true" aria-labelledby="nsTitle">
+    <div class="ns-dim" data-ns-later></div>
+    <div class="ns-sheet">
+        <div class="ns-grab"></div>
+        <div class="ns-ico"><i class="bi bi-bell-fill" aria-hidden="true"></i></div>
+        <div id="nsAsk">
+            <h2 id="nsTitle">Vuoi attivare le notifiche?</h2>
+            <p>Così non ti perdi niente di importante dal portale.</p>
+            <ul class="ns-list">
+                <li><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Nuovo cedolino o CUD caricato</li>
+                <li><i class="bi bi-pen" aria-hidden="true"></i>Consegna DPI da firmare</li>
+                <li><i class="bi bi-megaphone" aria-hidden="true"></i>Nuove comunicazioni aziendali</li>
+                <li><i class="bi bi-alarm" aria-hidden="true"></i>Promemoria per marcare l'uscita</li>
+            </ul>
+            <button type="button" class="ns-b1" id="nsEnable">Attiva notifiche</button>
+            <div class="ns-err d-none" id="nsErr"></div>
+        </div>
+        <div id="nsIos" class="d-none">
+            <h2>Ricevi le notifiche su iPhone</h2>
+            <p>Prima aggiungi il portale alla schermata Home:</p>
+            <div class="ns-step"><span class="ns-n">1</span><span>Tocca <strong>Condividi</strong> <i class="bi bi-box-arrow-up" aria-hidden="true"></i> in basso</span></div>
+            <div class="ns-step"><span class="ns-n">2</span><span>Scegli <strong>Aggiungi alla schermata Home</strong></span></div>
+            <div class="ns-step"><span class="ns-n">3</span><span>Apri il portale dall'icona e tocca <strong>Attiva notifiche</strong></span></div>
+            <button type="button" class="ns-b1" data-ns-later>Ho capito</button>
+        </div>
+        <button type="button" class="ns-b2" data-ns-later>Non adesso</button>
+    </div>
+</div>
+<script>
+(function () {
+    var KEY = 'sv_notify_sheet';
+    var DAY = 86400000;
+    var root = document.getElementById('notifySheet');
+    if (!root) return;
+
+    function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+    function save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+
+    var isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    var supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    var iosInstall = !supported && isIos && !standalone;
+    if (!supported && !iosInstall) return;
+    if (supported && Notification.permission !== 'default') return;
+
+    var state = load();
+    if (state.next && Date.now() < state.next) return;
+
+    function open() {
+        if (iosInstall) {
+            document.getElementById('nsAsk').classList.add('d-none');
+            document.getElementById('nsIos').classList.remove('d-none');
+        }
+        root.classList.remove('d-none');
+        requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.add('ns-open'); }); });
+    }
+    function close() {
+        root.classList.remove('ns-open');
+        setTimeout(function () { root.classList.add('d-none'); }, 300);
+    }
+    function later() {
+        var s = load();
+        var n = (s.dismissed || 0) + 1;
+        save({ dismissed: n, next: Date.now() + (n === 1 ? 3 : 7) * DAY });
+        close();
+    }
+    root.querySelectorAll('[data-ns-later]').forEach(function (el) { el.addEventListener('click', later); });
+
+    function keyToBytes(b64) {
+        var pad = '='.repeat((4 - b64.length % 4) % 4);
+        var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+        var out = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+    }
+    async function subscribe() {
+        var reg = await navigator.serviceWorker.register("{% url 'service_worker' %}");
+        reg = await navigator.serviceWorker.ready;
+        var sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+            var key = (await (await fetch("{% url 'push_public_key' %}", { credentials: 'same-origin' })).json()).key;
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(key) });
+        }
+        var resp = await fetch("{% url 'push_subscribe' %}", {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': "{{ csrf_token }}" },
+            body: JSON.stringify(sub.toJSON())
+        });
+        if (!resp.ok) throw new Error('il portale ha risposto ' + resp.status);
+    }
+
+    var btn = document.getElementById('nsEnable');
+    btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+            var result = await Notification.requestPermission();
+            if (result === 'granted') {
+                await subscribe();
+                var banner = document.getElementById('pushPrompt');
+                if (banner) { banner.classList.add('d-none'); banner.classList.remove('d-flex'); }
+                document.getElementById('nsAsk').innerHTML = '<h2>Notifiche attivate</h2><p>Riceverai gli avvisi su questo dispositivo.</p>';
+                root.querySelector('.ns-b2').textContent = 'Chiudi';
+                root.querySelector('.ns-b2').onclick = function (e) { e.stopImmediatePropagation(); close(); };
+                setTimeout(close, 2500);
+            } else {
+                close();
+            }
+        } catch (e) {
+            var box = document.getElementById('nsErr');
+            box.textContent = 'Attivazione non riuscita: ' + ((e && (e.message || e.name)) || 'errore') + '. Riprova.';
+            box.classList.remove('d-none');
+            btn.disabled = false;
+        }
+    });
+
+    setTimeout(open, 900);
+})();
+</script>

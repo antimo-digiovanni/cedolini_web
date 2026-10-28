@@ -264,3 +264,14 @@ class DocumentViewerTests(TestCase):
         self.client.login(username='mario', password='x')
         r = self.client.get(reverse('dashboard'))
         self.assertContains(r, reverse('view_document', args=['cedolino', self.p.id]))
+
+
+class NotifySheetTests(TestCase):
+    def test_sheet_on_app_pages_for_logged_users_only(self):
+        user = User.objects.create_user('luigi', password='x')
+        Employee.objects.create(user=user, first_name='Luigi', last_name='Verdi', must_change_password=False)
+        self.assertNotContains(self.client.get(reverse('login')), 'id="notifySheet"')
+        self.client.force_login(user)
+        resp = self.client.get(reverse('dashboard'))
+        self.assertContains(resp, 'id="notifySheet"')
+        self.assertContains(resp, 'Vuoi attivare le notifiche?')
