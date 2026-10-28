@@ -148,6 +148,22 @@ class AdminTodoAndHomeTests(Base):
         self.assertContains(r, 'Consegne DPI non ancora firmate')
         self.assertContains(r, 'Letture mancanti')
 
+    def test_todo_ignores_superseded_pending_documents(self):
+        from datetime import timedelta as _td
+
+        from .admin_todo import admin_todo_items
+        exp = timezone.localdate() + _td(days=800)
+        old = IdentityDocument.objects.create(employee=self.emp, kind='ci', expiry_date=exp, status='pending',
+                                              front_image='a.jpg', back_image='b.jpg')
+        new = IdentityDocument.objects.create(employee=self.emp, kind='ci', expiry_date=exp, status='approved',
+                                              front_image='c.jpg', back_image='d.jpg')
+        IdentityDocument.objects.filter(id=old.id).update(uploaded_at=timezone.now() - _td(days=1))
+        self.assertFalse([t for t in admin_todo_items() if 'Documenti' in t['label']])
+        new.status = 'pending'
+        new.save()
+        item = next(t for t in admin_todo_items() if 'Documenti' in t['label'])
+        self.assertEqual(item['count'], 1)
+
     def test_employee_home_tiles(self):
         self.client.force_login(self.user)
         r = self.client.get(reverse('dashboard'))

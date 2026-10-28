@@ -11,7 +11,15 @@ def admin_todo_items():
     from .models import DPI_STATUS_PENDING, Announcement, DpiDelivery, IdentityDocument
 
     items = []
-    docs = IdentityDocument.objects.filter(status=IdentityDocument.STATUS_PENDING).count()
+    # Come il filtro «Da verificare» della pagina documenti: conta solo l'ultimo caricamento per tipo
+    # (un caricamento vecchio sostituito da uno nuovo non è più da verificare).
+    from .identity_docs import latest_by_kind
+    from .models import Employee
+
+    docs = 0
+    for emp in Employee.objects.prefetch_related('identity_documents'):
+        docs += sum(1 for d in latest_by_kind(emp).values()
+                    if d is not None and d.status == IdentityDocument.STATUS_PENDING)
     if docs:
         items.append({'label': 'Documenti da verificare', 'count': docs, 'icon': 'bi-person-vcard', 'tone': 'info',
                       'url': reverse('admin_documents') + '?filtro=verificare'})
