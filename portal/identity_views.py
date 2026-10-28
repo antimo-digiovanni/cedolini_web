@@ -142,6 +142,7 @@ def admin_document_pdf(request, doc_id):
 
 FILTERS = {
     '': 'Tutti',
+    'caricati': 'Hanno caricato',
     'verificare': 'Da verificare',
     'scadenza': 'In scadenza o scaduti',
     'mancanti': "Senza carta d'identità",
@@ -154,7 +155,7 @@ def admin_documents(request):
         return redirect('dashboard')
     employees = (Employee.objects.select_related('user').prefetch_related('identity_documents')
                  .order_by('last_name', 'first_name'))
-    rows, counts = [], {'verificare': 0, 'scadenza': 0, 'mancanti': 0}
+    rows, counts = [], {'caricati': 0, 'verificare': 0, 'scadenza': 0, 'mancanti': 0}
     q = (request.GET.get('q') or '').strip().lower()
     flt = request.GET.get('filtro', '')
     for emp in employees:
@@ -164,6 +165,8 @@ def admin_documents(request):
         for kind, label in identity_docs.KINDS:
             st = identity_docs.describe(latest[kind], kind)
             cells.append({'kind': kind, 'doc': latest[kind], 'state': st})
+            if latest[kind] is not None:
+                tags.add('caricati')
             if st['code'] == 'pending':
                 tags.add('verificare')
             if st['code'] in ('expiring', 'expired'):

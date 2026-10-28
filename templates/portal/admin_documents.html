@@ -19,7 +19,7 @@
 <div class="d-flex flex-wrap gap-2 mb-3">
     {% for key, label in filters.items %}
     <a href="?filtro={{ key }}&amp;q={{ q|urlencode }}" class="btn btn-sm {% if filtro == key %}btn-dark{% else %}btn-outline-dark{% endif %}">
-        {{ label }}{% if key == 'verificare' and counts.verificare %} ({{ counts.verificare }}){% elif key == 'scadenza' and counts.scadenza %} ({{ counts.scadenza }}){% elif key == 'mancanti' and counts.mancanti %} ({{ counts.mancanti }}){% endif %}
+        {{ label }}{% if key == 'caricati' %} ({{ counts.caricati }}){% elif key == 'verificare' and counts.verificare %} ({{ counts.verificare }}){% elif key == 'scadenza' and counts.scadenza %} ({{ counts.scadenza }}){% elif key == 'mancanti' and counts.mancanti %} ({{ counts.mancanti }}){% endif %}
     </a>
     {% endfor %}
     <form method="get" class="ms-md-auto d-flex gap-2" role="search">

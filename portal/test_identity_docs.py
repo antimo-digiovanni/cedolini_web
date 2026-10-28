@@ -262,3 +262,18 @@ class UnrecognizedPhotoTests(TestCase):
             self.assertFalse(r.json()['ok'])
             self.assertIn('del fronte', r.json()['error'])
         self.assertFalse(IdentityDocument.objects.exists())
+
+
+class UploadedFilterTests(TestCase):
+    def test_filter_shows_only_who_uploaded(self):
+        from django.core.files.base import ContentFile
+        admin = User.objects.create_user('admin', password='x', is_staff=True)
+        a = Employee.objects.create(user=User.objects.create_user('a'), first_name='Anna', last_name='Caricato')
+        Employee.objects.create(user=User.objects.create_user('b'), first_name='Bruno', last_name='Assente')
+        doc = IdentityDocument(employee=a, kind='ci', expiry_date=timezone.localdate() + timedelta(days=500))
+        doc.front_image.name = 'x.jpg'; doc.back_image.name = 'y.jpg'; doc.save()
+        self.client.force_login(admin)
+        r = self.client.get(reverse('admin_documents') + '?filtro=caricati')
+        self.assertContains(r, 'Caricato')
+        self.assertNotContains(r, 'Assente')
+        self.assertContains(r, 'Hanno caricato (1)')
