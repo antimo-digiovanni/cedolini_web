@@ -17,9 +17,19 @@ def dpi_pending(request):
     try:
         from .identity_docs import maybe_run_daily_checks
         maybe_run_daily_checks()
+        from .reminders import maybe_run_from_request
+        maybe_run_from_request()
     except Exception:
         pass
     ctx = {"dpi_pending_count": DpiDelivery.objects.filter(employee__user=user, status=DPI_STATUS_PENDING).count()}
+    if not user.is_staff:
+        try:
+            from .announcement_views import unread_count
+            from .models import Employee
+            emp_obj = Employee.objects.filter(user=user).first()
+            ctx["announcements_unread"] = unread_count(emp_obj) if emp_obj else 0
+        except Exception:
+            ctx["announcements_unread"] = 0
     # Avvisi documenti di identità: solo sulla dashboard dipendente, per non appesantire le altre pagine.
     match = getattr(request, "resolver_match", None)
     if match and match.url_name == "dashboard":

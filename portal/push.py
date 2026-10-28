@@ -210,3 +210,32 @@ def notify_cud(cud):
         url=reverse('view_document', args=['cud', cud.id]),
         tag=f'cud-{cud.year}',
     )
+
+
+def notify_many_later(user_ids, **message):
+    """Come notify_later ma per molti utenti, in un solo processo in background (in sequenza)."""
+    from django.conf import settings
+    from django.db import connection, transaction as tx
+
+    user_ids = list(dict.fromkeys(user_ids))
+
+    def run():
+        from django.contrib.auth import get_user_model
+        try:
+            for user in get_user_model().objects.filter(pk__in=user_ids):
+                try:
+                    send_to_user(user, **message)
+                except Exception:
+                    logger.exception('push: errore notifica user=%s', user.pk)
+        finally:
+            if getattr(settings, 'PUSH_ASYNC', True):
+                connection.close()
+
+    def start():
+        if getattr(settings, 'PUSH_ASYNC', True):
+            import threading
+            threading.Thread(target=run, daemon=True).start()
+        else:
+            run()
+
+    tx.on_commit(start)

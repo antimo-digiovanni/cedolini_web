@@ -1,0 +1,21 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Comunicazioni</h2>
+    <p class="mb-0 opacity-75">Avvisi dell'azienda. Apri ogni comunicazione e conferma di averla letta.</p>
+</div>
+<div class="card-modern mb-4">
+    {% for it in items %}
+    <a href="{% url 'employee_announcement_detail' it.a.id %}" class="d-flex align-items-center gap-3 py-3 text-decoration-none text-reset {% if not forloop.last %}border-bottom{% endif %}">
+        <div class="flex-grow-1" style="min-width:0">
+            <div class="{% if not it.read_at %}fw-bold{% endif %}">{{ it.a.title }}</div>
+            <div class="small text-muted">{{ it.a.created_at|date:"d/m/Y H:i" }}</div>
+        </div>
+        {% if it.read_at %}<span class="badge bg-success-subtle text-success-emphasis">Letta</span>
+        {% else %}<span class="badge bg-danger">Da leggere</span>{% endif %}
+    </a>
+    {% empty %}
+    <p class="text-muted mb-0">Nessuna comunicazione.</p>
+    {% endfor %}
+</div>
+{% endblock %}

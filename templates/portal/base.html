@@ -109,6 +109,9 @@
             <a href="{% url 'employee_documents' %}" class="{% if un == 'employee_documents' or un == 'employee_document_upload' %}active{% endif %}">
                 <i class="bi bi-person-vcard" aria-hidden="true"></i> Documenti
             </a>
+            <a href="{% url 'employee_announcements' %}" class="{% if un == 'employee_announcements' or un == 'employee_announcement_detail' %}active{% endif %}">
+                <i class="bi bi-megaphone" aria-hidden="true"></i> Comunicazioni{% if announcements_unread %} <span class="badge rounded-pill bg-danger ms-1">{{ announcements_unread }}</span>{% endif %}
+            </a>
             {% if has_patrimonio_access %}
             <a href="{% url 'personal_asset_dashboard' %}" class="{% if un == 'personal_asset_dashboard' %}active{% endif %}">
                 <i class="bi bi-wallet2" aria-hidden="true"></i> Gestione Patrimonio
@@ -140,6 +143,9 @@
             </a>
             <a href="{% url 'admin_documents' %}" class="{% if un == 'admin_documents' or un == 'admin_document_detail' %}active{% endif %}">
                 <i class="bi bi-person-vcard" aria-hidden="true"></i> Documenti dipendenti
+            </a>
+            <a href="{% url 'admin_announcements' %}" class="{% if un == 'admin_announcements' or un == 'admin_announcement_detail' %}active{% endif %}">
+                <i class="bi bi-megaphone" aria-hidden="true"></i> Comunicazioni
             </a>
 
             <div class="sidebar-title">Cedolini</div>
@@ -219,7 +225,7 @@
                 <img class="topbar-logo d-lg-none" src="{% static 'portal/logo.png' %}" alt="" width="32" height="32">
                 <div class="topbar-title">
                     <span class="d-lg-none">San Vincenzo</span>
-                    <span class="d-none d-lg-inline">San Vincenzo S.r.l. <span class="topbar-sep" aria-hidden="true">/</span> <span class="topbar-context">{% if un == 'admin_dashboard' or un == 'dashboard' %}Dashboard{% elif un == 'admin_employees' or un == 'admin_employee_detail' or un == 'admin_employee_payslips' %}Gestione dipendenti{% elif un == 'turni_planner_home' %}Turni Planner{% elif un == 'admin_documents' or un == 'admin_document_detail' %}Documenti dipendenti{% elif un == 'employee_documents' or un == 'employee_document_upload' %}Documenti{% elif un == 'admin_dpi' %}Consegna DPI{% elif un == 'employee_dpi' or un == 'employee_dpi_sign' %}Consegna DPI{% elif un == 'admin_all_payslips' %}Archivio cedolini{% elif un == 'admin_report' %}Report cedolini{% elif un == 'admin_payslip_integrity' %}Controllo cedolini{% elif un == 'admin_import_jobs' or un == 'admin_import_job_payslips' %}Storico caricamenti{% elif un == 'admin_upload_period_folder' %}Carica cedolini{% elif un == 'admin_upload_cud' %}Carica CUD{% elif un == 'admin_timekeeping' %}Report marcature{% elif un == 'admin_out_of_zone_requests' %}Richieste fuori zona{% elif un == 'admin_vacation_requests' %}Richieste ferie{% elif un == 'admin_work_zones' %}Zone di lavoro{% elif un == 'personal_asset_dashboard' %}Gestione patrimonio{% elif un == 'admin_audit_events' %}Storico azioni{% elif un == 'timekeeping' %}Marcatura{% elif un == 'portal_tutorial' %}Tutorial{% elif un == 'today_markings_dashboard' %}Chi ha marcato oggi{% elif un == 'password_change' or un == 'password_change_done' %}Cambia password{% elif has_full_admin_access %}Amministrazione{% else %}Area personale{% endif %}</span></span>
+                    <span class="d-none d-lg-inline">San Vincenzo S.r.l. <span class="topbar-sep" aria-hidden="true">/</span> <span class="topbar-context">{% if un == 'admin_dashboard' or un == 'dashboard' %}Dashboard{% elif un == 'admin_employees' or un == 'admin_employee_detail' or un == 'admin_employee_payslips' %}Gestione dipendenti{% elif un == 'turni_planner_home' %}Turni Planner{% elif un == 'admin_documents' or un == 'admin_document_detail' %}Documenti dipendenti{% elif un == 'employee_documents' or un == 'employee_document_upload' %}Documenti{% elif un == 'admin_announcements' or un == 'admin_announcement_detail' or un == 'employee_announcements' or un == 'employee_announcement_detail' %}Comunicazioni{% elif un == 'admin_dpi' %}Consegna DPI{% elif un == 'employee_dpi' or un == 'employee_dpi_sign' %}Consegna DPI{% elif un == 'admin_all_payslips' %}Archivio cedolini{% elif un == 'admin_report' %}Report cedolini{% elif un == 'admin_payslip_integrity' %}Controllo cedolini{% elif un == 'admin_import_jobs' or un == 'admin_import_job_payslips' %}Storico caricamenti{% elif un == 'admin_upload_period_folder' %}Carica cedolini{% elif un == 'admin_upload_cud' %}Carica CUD{% elif un == 'admin_timekeeping' %}Report marcature{% elif un == 'admin_out_of_zone_requests' %}Richieste fuori zona{% elif un == 'admin_vacation_requests' %}Richieste ferie{% elif un == 'admin_work_zones' %}Zone di lavoro{% elif un == 'personal_asset_dashboard' %}Gestione patrimonio{% elif un == 'admin_audit_events' %}Storico azioni{% elif un == 'timekeeping' %}Marcatura{% elif un == 'portal_tutorial' %}Tutorial{% elif un == 'today_markings_dashboard' %}Chi ha marcato oggi{% elif un == 'password_change' or un == 'password_change_done' %}Cambia password{% elif has_full_admin_access %}Amministrazione{% else %}Area personale{% endif %}</span></span>
                 </div>
             </div>
 

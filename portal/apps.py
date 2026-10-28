@@ -6,3 +6,5 @@ class PortalConfig(AppConfig):
 
     def ready(self):
         import portal.signals
+        from .reminders import start_scheduler
+        start_scheduler()

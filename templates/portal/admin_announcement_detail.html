@@ -1,0 +1,25 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<a href="{% url 'admin_announcements' %}" class="btn btn-outline-secondary btn-sm mb-3"><i class="bi bi-arrow-left" aria-hidden="true"></i> Tutte le comunicazioni</a>
+{% if feedback %}<div class="alert alert-success">{{ feedback }}</div>{% endif %}
+<div class="card-modern mb-4">
+    <div class="small text-muted mb-1">{{ a.created_at|date:"d/m/Y H:i" }} · {% if a.all_employees %}a tutti i dipendenti{% else %}a {{ total }} dipendent{{ total|pluralize:"e,i" }}{% endif %}</div>
+    <h3 class="fw-bold mb-3">{{ a.title }}</h3>
+    <div style="line-height:1.6">{{ a.body|urlize|linebreaksbr }}</div>
+</div>
+<div class="d-flex align-items-center gap-3 mb-3">
+    <div class="progress flex-grow-1" style="height:12px" role="progressbar" aria-label="Lettura" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width:{{ pct }}%"></div></div>
+    <strong class="text-nowrap">Letta da {{ read_list|length }} su {{ total }}</strong>
+</div>
+<div class="row g-4">
+    <div class="col-md-6"><div class="card-modern h-100">
+        <div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0">Non ancora letta ({{ unread_list|length }})</h5>
+        {% if unread_list %}<form method="post">{% csrf_token %}<button name="action" value="remind" class="btn btn-sm btn-outline-primary">Invia promemoria</button></form>{% endif %}</div>
+        <ul class="list-unstyled mb-0">{% for e in unread_list %}<li class="py-1">{{ e.full_name }}</li>{% empty %}<li class="text-muted">L'hanno letta tutti.</li>{% endfor %}</ul>
+    </div></div>
+    <div class="col-md-6"><div class="card-modern h-100">
+        <h5 class="mb-2">Letta ({{ read_list|length }})</h5>
+        <ul class="list-unstyled mb-0">{% for e, when in read_list %}<li class="py-1 d-flex justify-content-between gap-2"><span>{{ e.full_name }}</span><span class="small text-muted">{{ when|date:"d/m H:i" }}</span></li>{% empty %}<li class="text-muted">Nessuno per ora.</li>{% endfor %}</ul>
+    </div></div>
+</div>
+{% endblock %}

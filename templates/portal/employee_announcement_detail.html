@@ -1,0 +1,16 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<a href="{% url 'employee_announcements' %}" class="btn btn-outline-secondary btn-sm mb-3"><i class="bi bi-arrow-left" aria-hidden="true"></i> Comunicazioni</a>
+<div class="card-modern mb-4">
+    <div class="small text-muted mb-1">{{ a.created_at|date:"d/m/Y H:i" }}</div>
+    <h3 class="fw-bold mb-3">{{ a.title }}</h3>
+    <div class="fs-6" style="line-height:1.6">{{ a.body|urlize|linebreaksbr }}</div>
+</div>
+{% if read %}
+<div class="alert alert-success">Hai confermato la lettura il {{ read.read_at|date:"d/m/Y" }} alle {{ read.read_at|date:"H:i" }}.</div>
+{% else %}
+<form method="post">{% csrf_token %}
+    <button class="btn btn-primary btn-lg w-100" style="min-height:56px">Ho letto</button>
+</form>
+{% endif %}
+{% endblock %}

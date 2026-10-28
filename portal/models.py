@@ -807,3 +807,49 @@ class DailyTaskRun(models.Model):
 
     name = models.CharField(max_length=50, unique=True)
     last_run = models.DateField()
+
+
+class ExitReminder(models.Model):
+    """Promemoria di uscita già inviato per una marcatura (uno solo per marcatura)."""
+
+    session = models.OneToOneField(WorkSession, on_delete=models.CASCADE, related_name='exit_reminder')
+    sent_at = models.DateTimeField(auto_now_add=True)
+    delivered_devices = models.PositiveSmallIntegerField(default=0)
+
+
+class PeriodicTaskRun(models.Model):
+    """Ultima esecuzione di un controllo periodico (es. promemoria di uscita ogni 5 minuti)."""
+
+    name = models.CharField(max_length=50, unique=True)
+    last_run = models.DateTimeField()
+
+
+class Announcement(models.Model):
+    """Comunicazione aziendale in bacheca, con conferma di lettura dei dipendenti."""
+
+    title = models.CharField(max_length=150)
+    body = models.TextField()
+    all_employees = models.BooleanField(default=True)
+    recipients = models.ManyToManyField(Employee, blank=True, related_name='targeted_announcements')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def recipient_employees(self):
+        if self.all_employees:
+            return Employee.objects.select_related('user').filter(user__is_active=True)
+        return self.recipients.select_related('user').filter(user__is_active=True)
+
+    def __str__(self):
+        return self.title
+
+
+class AnnouncementRead(models.Model):
+    announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE, related_name='reads')
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='announcement_reads')
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('announcement', 'employee')]

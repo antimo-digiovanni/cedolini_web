@@ -1,0 +1,62 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Comunicazioni</h2>
+    <p class="mb-0 opacity-75">Pubblica un avviso ai dipendenti e vedi chi l'ha letto.</p>
+</div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<div class="row g-4">
+    <div class="col-lg-5">
+        <form method="post" class="card-modern" id="annForm">{% csrf_token %}
+            <h4 class="mb-3">Nuova comunicazione</h4>
+            <label for="title" class="form-label fw-bold">Titolo</label>
+            <input id="title" name="title" maxlength="150" class="form-control mb-3" value="{{ posted.title|default:'' }}" placeholder="es. Chiusura per festività" required>
+            <label for="body" class="form-label fw-bold">Testo</label>
+            <textarea id="body" name="body" rows="7" class="form-control mb-3" required>{{ posted.body|default:'' }}</textarea>
+            <fieldset class="mb-3">
+                <legend class="form-label fw-bold fs-6">Destinatari</legend>
+                <div class="form-check"><input class="form-check-input" type="radio" name="audience" id="audAll" value="all" checked><label class="form-check-label" for="audAll">Tutti i dipendenti</label></div>
+                <div class="form-check"><input class="form-check-input" type="radio" name="audience" id="audSome" value="some"><label class="form-check-label" for="audSome">Solo alcuni</label></div>
+                <div id="recipientsBox" class="mt-2 d-none">
+                    <label for="recSearch" class="visually-hidden">Cerca</label>
+                    <input id="recSearch" type="search" class="form-control form-control-sm mb-2" placeholder="Cerca dipendente…">
+                    <div style="max-height:220px;overflow:auto" class="border rounded p-2">
+                        {% for e in employees %}
+                        <div class="form-check rec-item"><input class="form-check-input" type="checkbox" name="recipients" value="{{ e.id }}" id="r{{ e.id }}"><label class="form-check-label" for="r{{ e.id }}">{{ e.last_name|default:"" }} {{ e.first_name|default:"" }}</label></div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </fieldset>
+            <button class="btn btn-primary w-100" style="min-height:48px">Pubblica e invia notifica</button>
+        </form>
+    </div>
+    <div class="col-lg-7">
+        <div class="card-modern">
+            <h4 class="mb-3">Pubblicate</h4>
+            {% for r in rows %}
+            <a href="{% url 'admin_announcement_detail' r.a.id %}" class="d-block py-2 text-decoration-none text-reset {% if not forloop.last %}border-bottom{% endif %}">
+                <div class="d-flex justify-content-between gap-2"><strong>{{ r.a.title }}</strong><span class="small text-muted text-nowrap">{{ r.a.created_at|date:"d/m/Y" }}</span></div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    <div class="progress flex-grow-1" style="height:8px" role="progressbar" aria-label="Lettura" aria-valuenow="{{ r.pct }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width:{{ r.pct }}%"></div></div>
+                    <span class="small text-nowrap">letta da {{ r.read }}/{{ r.total }}</span>
+                </div>
+            </a>
+            {% empty %}<p class="text-muted mb-0">Nessuna comunicazione pubblicata.</p>{% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var box = document.getElementById('recipientsBox');
+    document.querySelectorAll('input[name=audience]').forEach(function (r) {
+        r.addEventListener('change', function () { box.classList.toggle('d-none', document.getElementById('audAll').checked); });
+    });
+    document.getElementById('recSearch').addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('.rec-item').forEach(function (it) { it.style.display = !q || it.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none'; });
+    });
+})();
+</script>
+{% endblock %}
