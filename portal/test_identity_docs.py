@@ -115,10 +115,14 @@ class IdentityDocumentFlowTests(TestCase):
         self.client.login(username='mario', password='x')
         self._upload()
         doc = IdentityDocument.objects.get()
-        self.assertEqual(self.client.get(reverse('admin_document_pdf', args=[doc.id])).status_code, 403)
+        own = self.client.get(reverse('admin_document_pdf', args=[doc.id]))  # il proprio documento si può scaricare
+        self.assertEqual(own.status_code, 200)
+        self.assertEqual(own['Content-Type'], 'application/pdf')
+        self.assertContains(self.client.get(reverse('employee_documents')), 'Scarica PDF')
         self.assertEqual(self.client.get(reverse('admin_documents')).status_code, 302)
         self.client.login(username='luigi', password='x')
         self.assertEqual(self.client.get(reverse('document_image', args=[doc.id, 'fronte'])).status_code, 403)
+        self.assertEqual(self.client.get(reverse('admin_document_pdf', args=[doc.id])).status_code, 403)
 
     def test_reject_requires_note_and_notifies(self):
         self.client.login(username='mario', password='x')

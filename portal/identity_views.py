@@ -167,9 +167,9 @@ def document_image(request, doc_id, side):
 
 @login_required
 def admin_document_pdf(request, doc_id):
-    if not request.user.is_staff:
-        return HttpResponse('Non autorizzato', status=403)
     doc = get_object_or_404(IdentityDocument.objects.select_related('employee', 'reviewed_by'), id=doc_id)
+    if not request.user.is_staff and doc.employee.user_id != request.user.id:
+        return HttpResponse('Non autorizzato', status=403)
     pdf = identity_docs.build_pdf(doc)
     name = f'{doc.kind}-{(doc.employee.last_name or "")}-{(doc.employee.first_name or "")}'.strip('-').replace(' ', '_')
     response = HttpResponse(pdf, content_type='application/pdf')

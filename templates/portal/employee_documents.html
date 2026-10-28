@@ -14,6 +14,35 @@
 </style>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+(function () {
+    // Nell'app su iPhone aprire un PDF blocca a tutto schermo: lì si usa il menu Condividi (con «Salva su File»).
+    var isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!(isIos || standalone) || !(navigator.share && window.File)) return;
+    var errBox = document.getElementById('docDlError');
+    document.querySelectorAll('.js-doc-download').forEach(function (a) {
+        var file = null;
+        var ready = fetch(a.href, { credentials: 'same-origin' })
+            .then(function (r) { if (!r.ok) throw new Error('il portale ha risposto ' + r.status); return r.blob(); })
+            .then(function (b) { file = new File([b], a.dataset.name, { type: 'application/pdf' }); return file; });
+        ready.catch(function () {});
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            errBox.classList.add('d-none');
+            var go = function (f) { return navigator.share({ files: [f], title: a.dataset.title }); };
+            (file ? go(file) : ready.then(go)).catch(function (err) {
+                if (err && err.name === 'AbortError') return;
+                errBox.textContent = 'Download non riuscito (' + ((err && err.message) || 'errore') + '). Riprova tra qualche secondo.';
+                errBox.classList.remove('d-none');
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="page-hero mb-4">
     <h2 class="fw-bold mb-1">Documenti di identità e patente</h2>
@@ -39,6 +68,9 @@
             <img src="{% url 'document_image' c.doc.id 'fronte' %}" alt="{{ c.label }}, fronte" loading="lazy">
             <img src="{% url 'document_image' c.doc.id 'retro' %}" alt="{{ c.label }}, retro" loading="lazy">
         </div>
+        <a href="{% url 'admin_document_pdf' c.doc.id %}" class="btn doc-btn btn-outline-secondary js-doc-download" download="{{ c.kind }}.pdf" data-name="{% if c.kind == 'ci' %}Carta_identita{% else %}Patente{% endif %}.pdf" data-title="{{ c.label }}">
+            <i class="bi bi-download" aria-hidden="true"></i> Scarica PDF
+        </a>
         {% endif %}
         <a href="{% url 'employee_document_upload' c.kind %}" class="btn doc-btn {% if not c.doc or c.state.code == 'rejected' or c.state.code == 'expired' or c.state.code == 'expiring' %}btn-primary{% else %}btn-outline-primary{% endif %}">
             <i class="bi bi-camera" aria-hidden="true"></i>
@@ -48,5 +80,6 @@
     </div>
 {% endfor %}
 </div>
+<div class="alert alert-danger d-none" id="docDlError" role="alert"></div>
 <p class="small text-muted">Quando un documento sta per scadere il portale ti avvisa e potrai caricare quello nuovo.</p>
 {% endblock %}
