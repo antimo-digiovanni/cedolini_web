@@ -184,8 +184,9 @@
 <div class="fade-in">
     <header class="page-hero employee-heading mb-4">
         <div>
-            <h1 class="fw-bold">La tua area personale</h1>
-            <p>{{ user.get_full_name|default:user.username }}</p>
+            <p class="sv26-date" id="sv26Date">La tua area personale</p>
+            <h1 class="fw-bold">Ciao{% if employee.first_name %}, {{ employee.first_name }}{% endif %}</h1>
+            <p><span class="sv26-clock" id="sv26Clock" aria-hidden="true"></span></p>
         </div>
         <a class="btn btn-primary" href="{% url 'timekeeping' %}"><i class="bi bi-stopwatch" aria-hidden="true"></i> Marcatura</a>
     </header>
@@ -752,5 +753,19 @@ document.addEventListener('DOMContentLoaded', function () {
     box.hidden = false;
     render();
 });
+</script>
+<script>
+(function () {
+    var d = document.getElementById('sv26Date'), c = document.getElementById('sv26Clock');
+    if (!d || !c) return;
+    var days = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+    var months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+    function tick() {
+        var n = new Date();
+        d.textContent = days[n.getDay()] + ' ' + n.getDate() + ' ' + months[n.getMonth()];
+        c.textContent = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+    }
+    tick(); setInterval(tick, 15000);
+})();
 </script>
 {% endblock %}
