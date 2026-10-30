@@ -1,0 +1,57 @@
+{% comment %}Barra di caricamento quando si cambia pagina o si invia un modulo, avviso di connessione lenta e di assenza di rete.{% endcomment %}
+<div class="sv-load" id="svLoad" aria-hidden="true"></div>
+<div class="sv-net" id="svSlow" role="status" aria-live="polite"><span class="sv-net-ring" aria-hidden="true"></span><span id="svSlowText">Caricamento…</span></div>
+<div class="sv-net sv-net-off" id="svOffline" role="alert"><i class="bi bi-wifi-off" aria-hidden="true"></i><span>Sei senza connessione: appena torna la linea riprova.</span></div>
+<script>
+(function () {
+    var bar = document.getElementById('svLoad'), slow = document.getElementById('svSlow'), slowText = document.getElementById('svSlowText');
+    var off = document.getElementById('svOffline');
+    var t1, t2, t3;
+    function start() {
+        clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+        bar.classList.remove('done'); bar.classList.add('on');
+        t1 = setTimeout(function () { slowText.textContent = 'Caricamento…'; slow.classList.add('on'); }, 900);
+        t2 = setTimeout(function () { slowText.textContent = 'La connessione è lenta, attendi ancora un attimo…'; }, 6000);
+        t3 = setTimeout(stop, 30000);  // es. un download che non cambia pagina
+    }
+    function stop() {
+        clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+        slow.classList.remove('on');
+        if (bar.classList.contains('on')) { bar.classList.add('done'); setTimeout(function () { bar.classList.remove('on', 'done'); }, 350); }
+    }
+    window.svLoading = { start: start, stop: stop };
+
+    function isNavLink(a, e) {
+        if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
+        var href = a.getAttribute('href');
+        if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0 || href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0) return false;
+        if (a.target && a.target !== '_self') return false;
+        if (a.hasAttribute('download') || a.hasAttribute('data-bs-toggle') || a.hasAttribute('data-no-loading')) return false;
+        if (a.origin !== location.origin) return false;
+        if (a.pathname === location.pathname && a.search === location.search && a.hash) return false;
+        if (/download=1|\.pdf$|\/pdf\/?$|\/zip\/?$|archivio\.pdf/.test(a.pathname + a.search)) return false;
+        return true;
+    }
+    document.addEventListener('click', function (e) {
+        var a = e.target.closest ? e.target.closest('a') : null;
+        if (isNavLink(a, e)) {
+            if (navigator.onLine === false) { e.preventDefault(); showOffline(true); return; }
+            start();
+        }
+    });
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        setTimeout(function () {
+            if (e.defaultPrevented || form.hasAttribute('data-no-loading') || (form.target && form.target !== '_self')) return;
+            if (navigator.onLine === false) return;
+            start();
+        }, 0);
+    });
+    window.addEventListener('pageshow', stop);
+
+    function showOffline(on) { off.classList.toggle('on', !!on); }
+    window.addEventListener('offline', function () { showOffline(true); stop(); });
+    window.addEventListener('online', function () { showOffline(false); });
+    if (navigator.onLine === false) showOffline(true);
+})();
+</script>

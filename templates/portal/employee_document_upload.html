@@ -13,6 +13,16 @@
     .cam-view { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#000; }
     .cam-view video, .cam-view .shot { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
     .cam-view .shot { object-fit:contain; background:#0c1322; display:none; }
+    .cam-flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; }
+    .cam-flash.go { animation: camFlash .35s ease-out; }
+    @keyframes camFlash { 0% { opacity:.85; } 100% { opacity:0; } }
+    .cam-busy { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:none; flex-direction:column; align-items:center; gap:12px; padding:18px 22px; border-radius:18px; background:rgba(8,19,43,.78); color:#fff; font-weight:700; text-align:center; max-width:80%; }
+    .cam-busy.on { display:flex; }
+    .cam-busy .ring { width:38px; height:38px; border-radius:50%; border:4px solid rgba(255,255,255,.25); border-top-color:#fff; animation: camSpin .8s linear infinite; }
+    @keyframes camSpin { to { transform: rotate(360deg); } }
+    .up-progress { height:6px; border-radius:3px; background:#e6ecf6; overflow:hidden; margin-top:10px; display:none; }
+    .up-progress.on { display:block; }
+    .up-progress > div { height:100%; width:0; background:#2F6BFF; transition: width .2s ease; }
     .cam-guide { position:relative; width:min(88vw, 70vh * 1.585); aspect-ratio:1.585; border:3px solid rgba(255,255,255,.95); border-radius:18px; box-shadow:0 0 0 200vmax rgba(0,0,0,.42); pointer-events:none; }
     .cam-hint { position:absolute; left:0; right:0; bottom:18px; text-align:center; font-weight:600; padding:0 20px; text-shadow:0 1px 3px rgba(0,0,0,.6); }
     .cam-foot { display:flex; align-items:center; justify-content:center; gap:24px; padding:16px 20px calc(18px + env(safe-area-inset-bottom)); min-height:120px; }
@@ -71,6 +81,7 @@
     </fieldset>
     <div class="form-text mb-3">La trovi scritta sul documento. Ti avvisiamo 30 giorni prima.</div>
     <button type="button" class="btn btn-primary btn-lg w-100" id="sendBtn" style="min-height:56px">Invia documento</button>
+    <div class="up-progress" id="upProgress" aria-hidden="true"><div></div></div>
 </div>
 
 <input type="file" accept="image/*" capture="environment" id="fileFallback" class="d-none">
@@ -87,6 +98,8 @@
         <img class="shot" id="shot" alt="Foto scattata">
         <div class="cam-guide" id="guide"></div>
         <div class="cam-hint" id="hint"></div>
+        <div class="cam-flash" id="camFlash" aria-hidden="true"></div>
+        <div class="cam-busy" id="camBusy" role="status"><span class="ring" aria-hidden="true"></span><span id="camBusyText">Elaboro la foto…</span></div>
     </div>
     <div class="cam-foot" id="footShoot">
         <button type="button" class="btn btn-outline-light" id="galleryBtn">Galleria</button>
@@ -120,8 +133,14 @@
         hint.textContent = s === 'front' ? 'Inquadra il FRONTE dentro il riquadro' : 'Ora gira il documento e inquadra il RETRO';
         document.getElementById('useBtn').textContent = s === 'front' ? 'Usa foto · avanti' : 'Usa questa foto';
     }
+    var busy = document.getElementById('camBusy'), busyText = document.getElementById('camBusyText');
+    function setBusy(on, text) {
+        busy.classList.toggle('on', !!on);
+        if (text) busyText.textContent = text;
+    }
     function showShootUI() {
-        current = null; shotSeq++;
+        current = null; shotSeq++; setBusy(false);
+        if (video.paused && stream) { video.play().catch(function () {}); }
         shot.style.display = 'none'; guide.style.display = ''; video.style.display = '';
         document.getElementById('footShoot').classList.remove('d-none');
         document.getElementById('footConfirm').classList.add('d-none');
@@ -140,33 +159,47 @@
         document.getElementById('footShoot').classList.add('d-none');
         document.getElementById('footConfirm').classList.remove('d-none');
         var useBtn = document.getElementById('useBtn');
-        useBtn.disabled = true; hint.textContent = 'Sto raddrizzando e ritagliando la foto…';
+        useBtn.disabled = true; hint.textContent = '';
+        var offlineNote = '';
         // anteprima esatta: la foto come verrà salvata (raddrizzata, ritagliata, angoli puliti)
-        try {
-            var fd = new FormData();
-            fd.append('photo', item.file, 'foto.jpg');
-            if (item.rect) fd.append('rect', JSON.stringify(item.rect));
-            var r = await fetch(previewUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf } });
-            if (seq !== shotSeq) return;  // nel frattempo ha premuto "Rifai"
-            if (!r.ok) {
-                var d = await r.json().catch(function () { return {}; });
-                hint.textContent = d.error || 'Foto non valida: rifalla.';
-                return;  // "Usa foto" resta spento: si può solo rifare
+        if (navigator.onLine === false) {
+            offlineNote = 'Sei senza connessione: la foto verrà controllata quando la invii.';
+        } else {
+            setBusy(true, 'Raddrizzo e ritaglio la foto…');
+            var ctrl = window.AbortController ? new AbortController() : null;
+            var slowTimer = setTimeout(function () { if (seq === shotSeq) setBusy(true, 'La connessione è lenta, ancora un attimo…'); }, 4000);
+            var stopTimer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 10000);
+            try {
+                var fd = new FormData();
+                fd.append('photo', item.file, 'foto.jpg');
+                if (item.rect) fd.append('rect', JSON.stringify(item.rect));
+                var r = await fetch(previewUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf }, signal: ctrl ? ctrl.signal : undefined });
+                if (seq !== shotSeq) return;  // nel frattempo ha premuto "Rifai"
+                if (!r.ok) {
+                    var d = await r.json().catch(function () { return {}; });
+                    setBusy(false);
+                    hint.textContent = d.error || 'Foto non valida: rifalla.';
+                    return;  // "Usa foto" resta spento: si può solo rifare
+                }
+                item.preview = await r.blob();
+                if (seq !== shotSeq) return;
+                URL.revokeObjectURL(shot.src);
+                shot.src = URL.createObjectURL(item.preview);
+            } catch (e) {
+                // rete assente o troppo lenta: si prosegue con la foto scattata, il controllo vero avviene all'invio
+                offlineNote = 'Connessione lenta: la foto verrà controllata quando la invii.';
+            } finally {
+                clearTimeout(slowTimer); clearTimeout(stopTimer);
             }
-            item.preview = await r.blob();
-            if (seq !== shotSeq) return;
-            URL.revokeObjectURL(shot.src);
-            shot.src = URL.createObjectURL(item.preview);
-        } catch (e) {
-            // senza rete per l'anteprima si può comunque proseguire: il controllo vero avviene all'invio
         }
         if (seq !== shotSeq) return;
+        setBusy(false);
         current = item;
         useBtn.disabled = false;
         shot.style.display = 'block'; guide.style.display = 'none';
         document.getElementById('footShoot').classList.add('d-none');
         document.getElementById('footConfirm').classList.remove('d-none');
-        hint.textContent = 'Si legge bene? Se è sfocata o con riflessi, rifai la foto.';
+        hint.textContent = offlineNote || 'Si legge bene? Se è sfocata o con riflessi, rifai la foto.';
     }
     async function startCamera() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
@@ -261,6 +294,12 @@
     function takePhoto() {
         if (shutter.disabled) return;
         if (!video.videoWidth) return;
+        // risposta immediata al tocco: lampo, scatto bloccato e rotellina subito
+        shutter.disabled = true;
+        stopDetect();
+        try { video.pause(); } catch (e) {}  // l'immagine si ferma subito su quello che è stato scattato
+        var fl = document.getElementById('camFlash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+        if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) {} }
         // posizione del riquadro nell'immagine della fotocamera
         var vr = video.getBoundingClientRect(), gr = guide.getBoundingClientRect();
         var vw = video.videoWidth, vh = video.videoHeight;
@@ -271,17 +310,23 @@
         var mx = gw * 0.08, my = gh * 0.08;
         var sx = Math.max(0, Math.round(gx - mx)), sy = Math.max(0, Math.round(gy - my));
         var ex = Math.min(vw, Math.round(gx + gw + mx)), ey = Math.min(vh, Math.round(gy + gh + my));
-        var up = document.createElement('canvas'); up.width = ex - sx; up.height = ey - sy;
-        up.getContext('2d').drawImage(video, sx, sy, up.width, up.height, 0, 0, up.width, up.height);
-        var rect = [gx - sx, gy - sy, gx - sx + gw, gy - sy + gh].map(function (v) { return Math.round(v); });
-        // anteprima: solo il riquadro, già ritagliata
+        // foto da inviare al massimo 2000 px sul lato lungo: più leggera da caricare con poca linea
+        var k = Math.min(1, 2000 / Math.max(ex - sx, ey - sy));
+        var up = document.createElement('canvas'); up.width = Math.round((ex - sx) * k); up.height = Math.round((ey - sy) * k);
+        up.getContext('2d').drawImage(video, sx, sy, ex - sx, ey - sy, 0, 0, up.width, up.height);
+        var rect = [gx - sx, gy - sy, gx - sx + gw, gy - sy + gh].map(function (v) { return Math.round(v * k); });
+        // anteprima: solo il riquadro, già ritagliata — mostrata subito
         var pv = document.createElement('canvas'); pv.width = Math.round(gw); pv.height = Math.round(gh);
         pv.getContext('2d').drawImage(video, gx, gy, gw, gh, 0, 0, pv.width, pv.height);
+        shot.src = pv.toDataURL('image/jpeg', 0.7);
+        shot.style.display = 'block'; guide.style.display = 'none';
+        setBusy(true, 'Elaboro la foto…');
         up.toBlob(function (file) {
             pv.toBlob(function (preview) {
                 if (file && preview) showConfirmUI({ file: file, preview: preview, rect: rect });
-            }, 'image/jpeg', 0.9);
-        }, 'image/jpeg', 0.95);
+                else { setBusy(false); showShootUI(); }
+            }, 'image/jpeg', 0.85);
+        }, 'image/jpeg', 0.88);
     }
     function accept(item) {
         photos[step] = item;
@@ -350,13 +395,39 @@
         if (photos.front.rect) fd.append('front_rect', JSON.stringify(photos.front.rect));
         if (photos.back.rect) fd.append('back_rect', JSON.stringify(photos.back.rect));
         fd.append('expiry_date', expiry);
+        if (navigator.onLine === false) {
+            errBox.textContent = 'Sei senza connessione. Le foto restano qui: riprova appena hai linea.';
+            errBox.classList.remove('d-none');
+            return;
+        }
         btn.disabled = true; btn.textContent = 'Invio in corso…';
+        var prog = document.getElementById('upProgress'), bar = prog.firstElementChild;
+        prog.classList.add('on'); bar.style.width = '2%';
         try {
-            var r = await fetch(uploadUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf } });
-            var data = await r.json().catch(function () { return {}; });
-            if (r.ok && data.ok) { window.location.href = data.redirect; return; }
-            throw new Error(data.error || ('errore ' + r.status));
+            var data = await new Promise(function (resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', uploadUrl);
+                xhr.setRequestHeader('X-CSRFToken', csrf);
+                xhr.timeout = 120000;
+                xhr.upload.onprogress = function (ev) {
+                    if (!ev.lengthComputable) return;
+                    var pct = Math.round(95 * ev.loaded / ev.total);
+                    bar.style.width = pct + '%';
+                    btn.textContent = pct < 95 ? 'Invio in corso… ' + pct + '%' : 'Controllo il documento…';
+                };
+                xhr.onload = function () {
+                    var d = {}; try { d = JSON.parse(xhr.responseText); } catch (e) {}
+                    if (xhr.status >= 200 && xhr.status < 300 && d.ok) resolve(d);
+                    else reject(new Error(d.error || ('errore ' + xhr.status)));
+                };
+                xhr.onerror = function () { reject(new Error('connessione assente o interrotta. Le foto restano qui: riprova.')); };
+                xhr.ontimeout = function () { reject(new Error('la connessione è troppo lenta. Le foto restano qui: riprova tra poco.')); };
+                xhr.send(fd);
+            });
+            bar.style.width = '100%';
+            window.location.href = data.redirect;
         } catch (e) {
+            prog.classList.remove('on');
             errBox.textContent = 'Invio non riuscito: ' + e.message;
             errBox.classList.remove('d-none');
             btn.disabled = false; btn.textContent = 'Invia documento';
