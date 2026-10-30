@@ -153,7 +153,16 @@ def _admin_dpi_context(request, selected_id, error, feedback, push_test=None):
         'status_filter': status_filter,
         'pending_count': DpiDelivery.objects.filter(status=DPI_STATUS_PENDING).count(),
         'push_user_ids': set(PushSubscription.objects.values_list('user_id', flat=True)),
+        'dpi_rules': _rules_for_form(),
+        'rules_saved': request.GET.get('durate') == '1',
     }
+
+
+def _rules_for_form():
+    from . import dpi_stats
+    current = dpi_stats.rules()
+    return [{'label': label, 'name': 'days_' + label.lower().replace(' ', '_'), 'days': current.get(label)}
+            for label in dpi_stats.DEFAULT_DAYS]
 
 
 @login_required
@@ -256,3 +265,35 @@ def admin_employee_dpi_archive(request, emp_id):
     response['Cache-Control'] = 'no-store'
     _create_audit_event(request, 'dpi_archive_downloaded', employee=employee, metadata={'count': len(deliveries)})
     return response
+
+
+@login_required
+def admin_dpi_summary(request, emp_id):
+    """Riquadro «Situazione DPI» di un dipendente (caricato nella pagina Consegna DPI quando lo scegli)."""
+    from . import dpi_stats
+
+    if not request.user.is_staff:
+        return HttpResponse('Non autorizzato', status=403)
+    employee = get_object_or_404(Employee, id=emp_id)
+    response = render(request, 'portal/includes/dpi_summary.html',
+                      {'employee': employee, 'items': dpi_stats.summary(employee)})
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@login_required
+def admin_dpi_rules(request):
+    """Salva ogni quanti giorni si può ridare ciascun DPI."""
+    from . import dpi_stats
+    from .models import DpiReplacementRule
+
+    if not request.user.is_staff or request.method != 'POST':
+        return redirect('admin_dpi')
+    for label in dpi_stats.DEFAULT_DAYS:
+        raw = (request.POST.get('days_' + label.lower().replace(' ', '_')) or '').strip()
+        if not raw.isdigit():
+            continue
+        days = max(1, min(int(raw), 3650))
+        DpiReplacementRule.objects.update_or_create(label=label, defaults={'days': days})
+    _create_audit_event(request, 'dpi_rules_updated', metadata={})
+    return redirect(reverse('admin_dpi') + '?durate=1#durate')

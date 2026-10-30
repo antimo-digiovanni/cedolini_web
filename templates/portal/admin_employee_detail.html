@@ -208,7 +208,9 @@
             <a href="{% url 'admin_dpi' %}?employee={{ employee.id }}" class="btn btn-outline-primary">Nuova consegna DPI</a>
         </div>
     </div>
+    <div class="my-3">{% employee_dpi_summary employee %}</div>
     {% if dpi_deliveries %}
+    <h6 class="fw-bold mt-4 mb-2">Tutte le consegne</h6>
     <table class="table align-middle mb-0">
         <thead><tr><th>Stato</th><th>Data firma</th><th>DPI</th><th></th></tr></thead>
         <tbody>

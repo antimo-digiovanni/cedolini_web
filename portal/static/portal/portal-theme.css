@@ -1739,3 +1739,42 @@ a.card-modern:hover, .card-modern.is-link:hover { transform: translateY(-2px); b
 @media (prefers-reduced-motion: reduce) {
     .page-hero.employee-heading::before, .page-hero.employee-heading::after, .home-tile, .home-tile .tile-badge { animation: none !important; }
 }
+
+/* Situazione DPI per dipendente */
+.dpis-kicker { font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #5b6f94; }
+.dpis-title { font-family: var(--sv-display, inherit); font-weight: 800; letter-spacing: -.02em; }
+.dpis-leg { display: inline-flex; align-items: center; gap: 6px; color: #5b6f94; font-weight: 600; }
+.dpis-leg i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dpis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.dpis-tile { position: relative; border: 1px solid #e6ebf3; border-radius: 20px; padding: 16px; background: #fff; overflow: hidden;
+    animation: dpis-in .55s var(--sv-ease-out, ease) both; transition: transform .18s ease, box-shadow .2s ease; }
+.dpis-tile:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(11, 23, 51, .08); }
+.dpis-tile::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #cbd5e1; }
+.dpis-tile.is-ok::before { background: #16a34a; }
+.dpis-tile.is-early::before { background: #dc2626; }
+.dpis-tile.is-never::before { background: #2f6bff; }
+.dpis-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.dpis-ico { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
+.dpis-label { flex: 1; min-width: 0; font-weight: 800; font-size: .95rem; line-height: 1.2; }
+.dpis-ago { font-family: var(--sv-display, inherit); font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.dpis-sub { font-size: .8rem; color: #5b6f94; margin-top: 2px; }
+.dpis-track { position: relative; height: 8px; border-radius: 4px; background: #eef2f8; margin-top: 12px; overflow: hidden; }
+.dpis-fill { height: 100%; border-radius: 4px; transform-origin: left; animation: dpis-grow 1s var(--sv-ease-out, ease) .25s both;
+    background: #f59e0b; }
+.dpis-tile.t-danger .dpis-fill { background: #dc2626; }
+.dpis-tile.is-ok .dpis-fill { background: #16a34a; }
+.dpis-detail { margin-top: 8px; font-size: .82rem; font-weight: 700; color: #334155; }
+.dpis-tile.is-early .dpis-detail { color: #b91c1c; }
+.dpis-foot { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e3e9f3; font-size: .78rem; color: #5b6f94; }
+.dpis-pending { margin-top: 8px; font-size: .78rem; font-weight: 700; color: #8a4b00; background: #fff1dc; border-radius: 10px; padding: 6px 10px; }
+.dpis-hist { margin-top: 8px; font-size: .8rem; }
+.dpis-hist summary { cursor: pointer; color: #2f6bff; font-weight: 700; }
+.dpis-hist ol { list-style: none; padding: 0; margin: 8px 0 0; }
+.dpis-hist li { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid #f1f4f9; }
+.dpis-hist li span:first-child { color: #5b6f94; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.dpi-warn { display: none; margin: -2px 0 8px 40px; padding: 8px 12px; border-radius: 12px; font-size: .85rem; font-weight: 700; animation: dpis-in .35s ease both; }
+.dpi-warn.is-early { display: block; background: #fdecec; color: #8b1c1c; }
+.dpi-warn.is-ok, .dpi-warn.is-never, .dpi-warn.is-info { display: block; background: #eef6ff; color: #1e3a8a; }
+@keyframes dpis-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes dpis-grow { from { transform: scaleX(0); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dpis-tile, .dpis-fill, .dpi-warn { animation: none; } }

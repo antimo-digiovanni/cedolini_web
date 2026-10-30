@@ -1,0 +1,50 @@
+{% comment %}Situazione DPI di un dipendente: ultimo ritiro di ogni dispositivo e se è troppo presto per ridarlo.{% endcomment %}
+<div class="dpis" data-employee="{{ employee.id }}">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+        <div>
+            <div class="dpis-kicker">Situazione DPI</div>
+            <h4 class="mb-0 dpis-title">{{ employee.full_name }}</h4>
+        </div>
+        <div class="d-flex flex-wrap gap-2 small">
+            <span class="dpis-leg"><i style="background:#16a34a"></i>Si può ridare</span>
+            <span class="dpis-leg"><i style="background:#f59e0b"></i>Quasi</span>
+            <span class="dpis-leg"><i style="background:#dc2626"></i>Troppo presto</span>
+        </div>
+    </div>
+    <div class="dpis-grid">
+        {% for it in items %}
+        <div class="dpis-tile is-{{ it.state }} t-{{ it.tone }}" style="animation-delay: {% widthratio forloop.counter0 1 45 %}ms" data-dpi-label="{{ it.label|lower }}" data-state="{{ it.state }}" data-msg="{% if it.last %}Ultima consegna {{ it.ago }} ({{ it.last|date:'d/m/Y' }}){% if it.state == 'early' %}: {{ it.state_detail }}{% endif %}{% else %}Mai consegnato prima{% endif %}">
+            <div class="dpis-head">
+                <span class="dpis-ico" style="background:{{ it.bg }};color:{{ it.fg }}"><i class="bi {{ it.icon }}" aria-hidden="true"></i></span>
+                <span class="dpis-label">{{ it.label }}</span>
+            </div>
+            <span class="doc-chip tone-{{ it.tone }} mb-2">{{ it.state_label }}</span>
+            {% if it.last %}
+            <div class="dpis-ago">{{ it.ago }}</div>
+            <div class="dpis-sub">il {{ it.last|date:"d/m/Y" }}{% if it.last_qty > 1 %} · {{ it.last_qty }} pezzi{% endif %}</div>
+            {% if it.pct is not None %}
+            <div class="dpis-track" role="img" aria-label="{{ it.pct }}% della durata di {{ it.rule }} giorni">
+                <div class="dpis-fill" style="width: {{ it.pct }}%"></div>
+                <span class="dpis-mark"></span>
+            </div>
+            <div class="dpis-sub d-flex justify-content-between"><span>{{ it.days }} / {{ it.rule }} giorni</span><span>{{ it.pct }}%</span></div>
+            {% endif %}
+            {% if it.state_detail %}<div class="dpis-detail">{{ it.state_detail|capfirst }}</div>{% endif %}
+            {% else %}
+            <div class="dpis-ago text-muted">—</div>
+            <div class="dpis-sub">Nessuna consegna firmata</div>
+            {% endif %}
+            <div class="dpis-foot">
+                <span><strong>{{ it.year_times }}</strong> consegn{{ it.year_times|pluralize:"a,e" }} · <strong>{{ it.year_pieces }}</strong> pezz{{ it.year_pieces|pluralize:"o,i" }} negli ultimi 12 mesi</span>
+            </div>
+            {% if it.pending_since %}<div class="dpis-pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i> In attesa di firma dal {{ it.pending_since|date:"d/m" }}</div>{% endif %}
+            {% if it.history|length > 1 %}
+            <details class="dpis-hist">
+                <summary>Storico ({{ it.count }})</summary>
+                <ol>{% for h in it.history %}<li><span>{{ h.date|date:"d/m/Y" }}</span><span>{{ h.text }}</span></li>{% endfor %}</ol>
+            </details>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>

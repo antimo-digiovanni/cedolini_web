@@ -66,6 +66,8 @@
         {% endif %}
     </div>
 
+    <div class="card-modern mb-4" id="dpiSummaryBox" hidden aria-live="polite"></div>
+
     <div class="card-modern mb-4">
         <h4 class="mb-3">2 · Dispositivi consegnati</h4>
         {% for key, label, has_qty in standard_items %}
@@ -76,6 +78,7 @@
             <input type="number" inputmode="numeric" class="form-control dpi-qty" name="qty_{{ key }}" id="qty_{{ key }}" min="1" max="99" value="2" aria-label="Quantità {{ label }}">
             {% endif %}
         </div>
+        <div class="dpi-warn" id="warn_{{ key }}" role="status"></div>
         {% endfor %}
         <hr>
         <div id="extraRows"></div>
@@ -94,6 +97,24 @@
 </form>
 
 {% include "portal/includes/dpi_sign.html" with form_id="dpiForm" signer="" confirm_name="action" confirm_value="sign_now" %}
+
+<div class="card-modern mb-4" id="durate">
+    <details {% if rules_saved %}open{% endif %}>
+        <summary class="fw-bold" style="cursor:pointer">Ogni quanto si può ridare un DPI</summary>
+        <p class="small text-muted mt-2 mb-3">Prima di questi giorni, nella situazione del dipendente il DPI appare come «Troppo presto». È solo un promemoria: puoi sempre consegnarlo lo stesso.</p>
+        {% if rules_saved %}<div class="alert alert-success py-2">Durate salvate.</div>{% endif %}
+        <form method="post" action="{% url 'admin_dpi_rules' %}" class="row g-2 align-items-end">
+            {% csrf_token %}
+            {% for r in dpi_rules %}
+            <div class="col-6 col-md-4 col-lg-2">
+                <label class="form-label small mb-1" for="r_{{ r.name }}">{{ r.label }}</label>
+                <div class="input-group"><input type="number" min="1" max="3650" class="form-control" id="r_{{ r.name }}" name="{{ r.name }}" value="{{ r.days }}"><span class="input-group-text">gg</span></div>
+            </div>
+            {% endfor %}
+            <div class="col-12"><button class="btn btn-outline-primary">Salva durate</button></div>
+        </form>
+    </details>
+</div>
 
 <div class="card-modern mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -159,7 +180,7 @@
             if (show && !first) first = o;
         });
         var cur = select.options[select.selectedIndex];
-        if (q && first && (!select.value || cur.hidden)) select.value = first.value;
+        if (q && first && (!select.value || cur.hidden)) { select.value = first.value; clearTimeout(window.__dpiT); window.__dpiT = setTimeout(loadSummary, 300); }
     });
 
     function selectedItems() {
@@ -182,6 +203,32 @@
         return !msg;
     }
     form.addEventListener('change', function () { errBox.classList.add('d-none'); });
+
+    // Situazione DPI del dipendente scelto + avviso accanto a ogni voce spuntata
+    var box = document.getElementById('dpiSummaryBox');
+    var summaryUrl = "{% url 'admin_dpi_summary' 0 %}";
+    function refreshWarnings() {
+        form.querySelectorAll('input[name=item]').forEach(function (cb) {
+            var w = document.getElementById('warn_' + cb.value);
+            if (!w) return;
+            var tile = box.querySelector('[data-dpi-label="' + cb.dataset.label.toLowerCase() + '"]');
+            w.className = 'dpi-warn';
+            if (cb.checked && tile && select.value) {
+                w.textContent = (tile.dataset.state === 'early' ? 'Attenzione: ' : '') + tile.dataset.msg + '.';
+                w.classList.add('is-' + tile.dataset.state);
+            }
+        });
+    }
+    function loadSummary() {
+        if (!select.value) { box.hidden = true; box.innerHTML = ''; refreshWarnings(); return; }
+        fetch(summaryUrl.replace('/0/', '/' + select.value + '/'), { credentials: 'same-origin' })
+            .then(function (r) { if (!r.ok) throw new Error(); return r.text(); })
+            .then(function (html) { box.innerHTML = html; box.hidden = false; refreshWarnings(); })
+            .catch(function () { box.hidden = true; });
+    }
+    select.addEventListener('change', loadSummary);
+    form.querySelectorAll('input[name=item]').forEach(function (cb) { cb.addEventListener('change', refreshWarnings); });
+    loadSummary();
 
     document.getElementById('openSign').addEventListener('click', function () {
         if (!check()) return;

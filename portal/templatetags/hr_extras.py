@@ -40,3 +40,9 @@ def employee_overview(context, employee):
         logging.getLogger(__name__).exception('statistiche dipendente non disponibili')
         data = None
     return {'employee': employee, 'o': data, 'request': context.get('request')}
+
+
+@register.inclusion_tag('portal/includes/dpi_summary.html')
+def employee_dpi_summary(employee):
+    from ..dpi_stats import summary
+    return {'employee': employee, 'items': summary(employee)}

@@ -922,3 +922,14 @@ class EmployeeDeadline(models.Model):
 
     def __str__(self):
         return f"{self.employee.full_name}: {self.title} {self.due_date}"
+
+
+class DpiReplacementRule(models.Model):
+    """Ogni quanti giorni, di norma, si può ridare un DPI (per l'avviso «troppo presto»)."""
+
+    label = models.CharField(max_length=80, unique=True)
+    days = models.PositiveIntegerField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.label}: {self.days} giorni"
