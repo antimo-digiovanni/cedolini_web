@@ -6355,7 +6355,14 @@ def admin_dashboard(request):
     except Exception:
         logger.exception('riepilogo da fare non disponibile')
         todo_items = []
+    try:
+        from .liquid_stats import admin_overview
+        lq = admin_overview()
+    except Exception:
+        logger.exception('panoramica vetro non disponibile')
+        lq = None
     return render(request, "portal/admin_dashboard.html", {
+        "lq": lq,
         "todo_items": todo_items,
         "entered_today_count": entered_today_count,
         "completed_today_count": completed_today_count,

@@ -1,6 +1,6 @@
 {% extends "portal/base.html" %}
 {% block title %}Dashboard Admin{% endblock %}
-{% block body_data_attrs %}class="admin-dashboard-page"{% endblock %}
+{% block body_data_attrs %}class="admin-dashboard-page sv-liquid"{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -173,10 +173,14 @@
 
 <div class="container admin-dashboard">
 
+    {% if lq %}
+    {% include "portal/includes/admin_liquid_hero.html" %}
+    {% else %}
     <header class="dashboard-header mb-4">
         <h1 class="fw-bold mb-0">Dashboard Admin</h1>
         <div class="dashboard-date"><i class="bi bi-calendar3" aria-hidden="true"></i> <time datetime="{{ today|date:'Y-m-d' }}">{{ today|date:"l d F Y" }}</time></div>
     </header>
+    {% endif %}
 
     {% if user.employee %}
     {# Admin che è anche dipendente: può attivare le notifiche e firmare le proprie consegne DPI. #}
@@ -189,6 +193,7 @@
     {% endif %}
     {% endif %}
 
+    {% if not lq %}
     <div class="row g-4 dashboard-kpis">
         <div class="col-lg-3 col-md-6">
             <div class="card-modern kpi-card kpi-primary position-relative">
@@ -276,6 +281,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <div class="row g-4 mt-1">
         <div class="col-12">

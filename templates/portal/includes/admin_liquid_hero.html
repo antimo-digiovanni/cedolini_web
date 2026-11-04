@@ -1,0 +1,101 @@
+{% comment %}Dashboard amministrazione «vetro liquido»: saluto, ore per mese, chi è in servizio per zona, indicatori.{% endcomment %}
+<section class="lq-hero lq-glass lq-rise" aria-label="Panoramica">
+    <div class="lq-hero-head">
+        <div>
+            <h1 class="lq-title" id="lqGreeting">Buongiorno, {{ user.first_name|default:user.username }}</h1>
+            <div class="lq-sub"><span class="lq-date">{{ today|date:"l j F" }}</span>{% if lq.attention %} · {{ lq.attention }} cos{{ lq.attention|pluralize:"a richiede,e richiedono" }} la tua attenzione{% else %} · tutto in ordine{% endif %}</div>
+        </div>
+        <div class="lq-actions">
+            <a href="{% url 'admin_audit_events' %}" class="lq-pill">Storico azioni</a>
+            <a href="{% url 'admin_announcements' %}" class="lq-pill lq-pill-white">+ Nuova comunicazione</a>
+        </div>
+    </div>
+
+    <div class="lq-row">
+        <div class="lq-card lq-chart">
+            <div class="lq-card-head">
+                <div>
+                    <h2>Ore lavorate</h2>
+                    <div class="lq-muted"><span id="lqHoursTot">0</span> ore negli ultimi <span id="lqRange">6</span> mesi · marcature complete</div>
+                </div>
+                <div class="lq-card-tools">
+                    <div class="lq-seg" role="group" aria-label="Periodo">
+                        <button type="button" data-range="3">3 mesi</button>
+                        <button type="button" data-range="6" class="on">6 mesi</button>
+                        <button type="button" data-range="12">12 mesi</button>
+                    </div>
+                    <a href="{% url 'admin_upload_period_folder' %}" class="lq-pill lq-pill-blue">+ Carica cedolini</a>
+                </div>
+            </div>
+            <div class="lq-bars" id="lqBars">
+                {% for m in lq.months %}
+                <div class="lq-bar-col{% if forloop.last %} is-now{% endif %}" data-h="{{ m.hours }}">
+                    <span class="lq-bar-v">{{ m.hours }}</span>
+                    <div class="lq-bar"></div>
+                    <span class="lq-bar-l">{{ m.label }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="lq-card lq-donut">
+            <h2>Chi è in servizio, per zona</h2>
+            <div class="lq-muted">adesso</div>
+            <div class="lq-donut-box">
+                <svg width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Dipendenti in servizio per zona">
+                    <circle cx="85" cy="85" r="62" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="18"></circle>
+                    {% for z in lq.zones %}<circle class="lq-arc" cx="85" cy="85" r="62" fill="none" stroke="{{ z.color }}" stroke-width="18" stroke-dasharray="{{ z.dash }}" stroke-dashoffset="{{ z.offset }}" transform="rotate(-90 85 85)"></circle>{% endfor %}
+                </svg>
+                <div class="lq-donut-c"><div class="lq-num" data-count="{{ lq.on_duty }}">{{ lq.on_duty }}</div><div class="lq-muted">in servizio</div></div>
+            </div>
+            <div class="lq-legend">
+                {% for z in lq.zones %}<div><i style="background:{{ z.color }}"></i><span>{{ z.label }}</span><strong>{{ z.n }}</strong></div>
+                {% empty %}<div class="lq-muted">Nessuno in servizio in questo momento.</div>{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="lq-kpis">
+        {% for k in lq.kpis %}
+        <a href="{{ k.url }}" class="lq-card lq-kpi lq-rise" style="animation-delay: {% widthratio forloop.counter0 1 50 %}ms">
+            <div class="lq-kpi-top">
+                <span class="lq-dot"><i style="background:{{ k.color }}"></i></span>
+                {% if k.tag %}<span class="lq-tag lq-tag-{{ k.tone }}">{{ k.tag }}</span>{% endif %}
+            </div>
+            <div class="lq-kpi-v">{% if k.na %}—{% else %}<span class="lq-num" data-count="{{ k.value }}">{{ k.value }}</span>{{ k.suffix }}{% endif %}</div>
+            <div class="lq-kpi-l">{{ k.label }}</div>
+            <div class="lq-kpi-s">{{ k.sub }}</div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+<script>
+(function () {
+    var h = new Date().getHours(), g = document.getElementById('lqGreeting');
+    if (g) g.textContent = g.textContent.replace(/^[^,]+/, h < 13 ? 'Buongiorno' : (h < 18 ? 'Buon pomeriggio' : 'Buonasera'));
+    var cols = Array.prototype.slice.call(document.querySelectorAll('#lqBars .lq-bar-col'));
+    function show(n) {
+        var vis = cols.slice(-n), max = 1, tot = 0;
+        cols.forEach(function (c) { c.hidden = vis.indexOf(c) === -1; });
+        vis.forEach(function (c) { var v = +c.dataset.h; max = Math.max(max, v); tot += v; });
+        vis.forEach(function (c, i) {
+            var bar = c.querySelector('.lq-bar');
+            bar.style.height = Math.max(4, Math.round(Math.max(150, c.parentNode.clientHeight - 60) * (+c.dataset.h) / max)) + 'px';
+            bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; bar.style.animationDelay = (i * 50) + 'ms';
+            var v = +c.dataset.h; c.querySelector('.lq-bar-v').textContent = v >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + 'k' : v;
+        });
+        document.getElementById('lqHoursTot').textContent = tot.toLocaleString('it-IT');
+        document.getElementById('lqRange').textContent = n;
+        document.querySelectorAll('.lq-seg button').forEach(function (b) { b.classList.toggle('on', +b.dataset.range === n); });
+    }
+    document.querySelectorAll('.lq-seg button').forEach(function (b) { b.addEventListener('click', function () { show(+b.dataset.range); }); });
+    show(6);
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.querySelectorAll('.lq-num[data-count]').forEach(function (el) {
+            var target = +el.dataset.count; if (!target) return; var t0 = null;
+            function step(ts) { if (!t0) t0 = ts; var k = Math.min(1, (ts - t0) / 1000); el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); }
+            requestAnimationFrame(step);
+        });
+    }
+})();
+</script>
