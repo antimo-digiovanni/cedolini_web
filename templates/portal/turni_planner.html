@@ -1752,12 +1752,18 @@
                                     <div class="fw-semibold">Foglio settimanale</div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                                    <button type="button" class="btn btn-warning btn-sm fw-semibold" id="turniRotateBtn" title="Prime 3 colonne: i nomi del 1° turno vanno al 3°, quelli del 3° al 2°, quelli del 2° al 1°"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Ruota turni</button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm turni-extra-columns-toggle" data-turni-extra-columns-toggle aria-expanded="false" aria-controls="turni-weekly-table">Mostra colonne 9–10</button>
                                     <div class="btn-group" role="group" aria-label="Scorrimento foglio settimanale">
                                         <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-left="weekly-sheet" title="Scorri a sinistra" aria-label="Scorri a sinistra"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
                                         <button type="button" class="btn btn-outline-dark btn-sm" data-sheet-scroll-right="weekly-sheet" title="Scorri a destra" aria-label="Scorri a destra"><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div id="turniRotateNotice" class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 py-2 mb-2" role="status" hidden>
+                                <span><strong>Turni ruotati</strong> nelle prime 3 colonne (1° → 3°, 3° → 2°, 2° → 1°). Premi <strong>Salva</strong> per confermare.</span>
+                                <button type="button" class="btn btn-sm btn-outline-dark" id="turniRotateUndo">Annulla rotazione</button>
                             </div>
 
                             <div class="turni-scrollbar mb-2" data-sheet-scrollbar="weekly-sheet" aria-label="Barra scorrimento foglio settimanale">
@@ -3648,5 +3654,40 @@
 
         activatePanel('dashboard');
     });
+
+(() => {
+    // Ruota turni: nelle prime 3 colonne del foglio settimanale i nomi del 1° turno passano al 3°,
+    // quelli del 3° al 2° e quelli del 2° al 1°. Gli orari restano dove sono. Si conferma con Salva.
+    const btn = document.getElementById('turniRotateBtn');
+    if (!btn) return;
+    const notice = document.getElementById('turniRotateNotice');
+    const COLS = 3, ROWS = 2;  // la 3ª riga del 3° turno è occupata dalla fascia reparti nel PDF
+    const cell = (s, r, c) => document.querySelectorAll(`input[name="weekly_row_${s}_${r}"]`)[c];
+    let undo = null;
+    function snapshot() {
+        const out = [];
+        for (let s = 0; s < 3; s++) for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+            const el = cell(s, r, c); if (el) out.push([el, el.value]);
+        }
+        return out;
+    }
+    function flash(el) { el.style.transition = 'background-color .2s'; el.style.backgroundColor = '#fff3c4'; setTimeout(() => { el.style.backgroundColor = ''; }, 1600); }
+    btn.addEventListener('click', () => {
+        undo = snapshot();
+        for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+            const a = cell(0, r, c), b = cell(1, r, c), d = cell(2, r, c);
+            if (!a || !b || !d) continue;
+            const v1 = a.value, v2 = b.value, v3 = d.value;
+            a.value = v2; b.value = v3; d.value = v1;  // 2°→1°, 3°→2°, 1°→3°
+            [a, b, d].forEach(el => { el.dispatchEvent(new Event('input', { bubbles: true })); flash(el); });
+        }
+        notice.hidden = false;
+    });
+    document.getElementById('turniRotateUndo').addEventListener('click', () => {
+        if (undo) undo.forEach(([el, v]) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); flash(el); });
+        undo = null;
+        notice.hidden = true;
+    });
+})();
 </script>
 {% endblock %}
