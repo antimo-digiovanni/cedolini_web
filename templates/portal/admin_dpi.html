@@ -18,7 +18,7 @@
     <p class="mb-0 opacity-75">Scegli il dipendente e i dispositivi: fallo firmare subito o invialo sul suo account.</p>
 </div>
 
-{% if feedback %}<div class="alert alert-success mb-3">{{ feedback }}</div>{% endif %}
+{% if feedback %}<div class="alert alert-success mb-3" role="status">{{ feedback }}</div>{% endif %}
 {% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
 <div class="alert alert-warning mb-3 d-none" id="dpiClientError"></div>
 
@@ -125,6 +125,18 @@
             <a href="?stato=signed" class="btn btn-sm {% if status_filter == 'signed' %}btn-dark{% else %}btn-outline-dark{% endif %}">Firmate</a>
         </div>
     </div>
+    {% if pending_count %}
+    <form method="post" class="dpi-remind d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"
+          data-confirm-title="Invia promemoria"
+          data-confirm-message="Mando una notifica a tutti i dipendenti che hanno consegne DPI ancora da firmare."
+          data-confirm-button="Invia promemoria">
+        {% csrf_token %}
+        <input type="hidden" name="back" value="{{ status_filter }}">
+        <input type="hidden" name="action" value="remind">
+        <div><i class="bi bi-bell me-1" aria-hidden="true"></i> <strong>{{ pending_count }} consegn{{ pending_count|pluralize:"a,e" }} in attesa di firma.</strong> <span class="text-muted small">Ricorda ai dipendenti di firmarle.</span></div>
+        <button type="submit" class="btn btn-warning fw-semibold"><i class="bi bi-send" aria-hidden="true"></i> Invia promemoria a tutti</button>
+    </form>
+    {% endif %}
     {% if page.object_list %}
     <div class="table-responsive">
     <table class="table dpi-history mb-0">
@@ -144,6 +156,7 @@
                 <td class="text-end text-nowrap">
                     {% if d.pdf %}<a href="{% url 'open_dpi' d.id %}" class="btn btn-sm btn-secondary" target="_blank">Apri PDF</a>{% endif %}
                     {% if d.status == 'pending' %}
+                    <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="delivery_id" value="{{ d.id }}"><input type="hidden" name="back" value="{{ status_filter }}"><button type="submit" name="action" value="remind" class="btn btn-sm btn-outline-warning" title="Manda di nuovo la notifica a {{ d.employee.full_name }}"><i class="bi bi-bell" aria-hidden="true"></i> Ricorda</button></form>
                     <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="delivery_id" value="{{ d.id }}"><button type="submit" name="action" value="cancel" class="btn btn-sm btn-outline-danger">Annulla</button></form>
                     {% endif %}
                 </td>
