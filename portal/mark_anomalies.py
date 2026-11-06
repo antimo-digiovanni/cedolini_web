@@ -79,21 +79,42 @@ def correct_session(session, start_t, end_t, user):
     from datetime import datetime
     tz = timezone.get_current_timezone()
     orig_a, orig_b = session.started_at, session.ended_at
+
+    def same_time(dt, t):
+        return dt is not None and timezone.localtime(dt).strftime('%H:%M') == t.strftime('%H:%M')
+
+    # L'orario lasciato uguale a quello marcato fa da riferimento per il giorno.
+    if same_time(orig_a, start_t):
+        day = timezone.localtime(orig_a).date()
+        start_dt = timezone.make_aware(datetime.combine(day, start_t), tz)
+        end_dt = timezone.make_aware(datetime.combine(day + timedelta(days=1) if end_t <= start_t else day, end_t), tz)
+        return _save_correction(session, start_dt, end_dt, user)
+    if same_time(orig_b, end_t):
+        day = timezone.localtime(orig_b).date()
+        end_dt = timezone.make_aware(datetime.combine(day, end_t), tz)
+        start_dt = timezone.make_aware(datetime.combine(day - timedelta(days=1) if start_t >= end_t else day, start_t), tz)
+        return _save_correction(session, start_dt, end_dt, user)
+
     best = None
     for shift in (-1, 0, 1):
         day = session.work_date + timedelta(days=shift)
         start_dt = timezone.make_aware(datetime.combine(day, start_t), tz)
         end_day = day + timedelta(days=1) if end_t <= start_t else day
         end_dt = timezone.make_aware(datetime.combine(end_day, end_t), tz)
-        if orig_b:
-            score = abs((end_dt - orig_b).total_seconds())
-        elif orig_a:
+        if orig_a:
             score = abs((start_dt - orig_a).total_seconds())
+        elif orig_b:
+            score = abs((end_dt - orig_b).total_seconds())
         else:
             score = abs(shift)
         if best is None or score < best[0]:
             best = (score, start_dt, end_dt)
     _, start_dt, end_dt = best
+    return _save_correction(session, start_dt, end_dt, user)
+
+
+def _save_correction(session, start_dt, end_dt, user):
+    orig_a, orig_b = session.started_at, session.ended_at
     session.day_type = session.DAY_TYPE_WORK
     session.corrected_started_at = start_dt if start_dt != orig_a else None
     session.corrected_ended_at = end_dt if end_dt != orig_b else None

@@ -128,9 +128,10 @@ class CorrectAnomaliesTests(TestCase):
         self.assertEqual(a.worked_minutes(), 480)
         self.assertIsNone(a.corrected_started_at)
         b = WorkSession.objects.create(employee=self.employee, work_date=self.day, sequence=1, started_at=self.at(self.day, 14, 52), ended_at=self.at(self.day + timedelta(days=1), 8, 15))
-        self.fix(b, "14:52", "22:00")
+        self.fix(b, "14:52", "17:00")
         b.refresh_from_db()
-        self.assertEqual(b.effective_ended_at(), self.at(self.day, 22, 0))
+        self.assertEqual(b.effective_started_at(), self.at(self.day, 14, 52))
+        self.assertEqual(b.effective_ended_at(), self.at(self.day, 17, 0))
 
     def test_missing_entry_night(self):
         s = WorkSession.objects.create(employee=self.employee, work_date=self.day, ended_at=self.at(self.day, 6, 10))
@@ -138,3 +139,10 @@ class CorrectAnomaliesTests(TestCase):
         s.refresh_from_db()
         self.assertEqual(s.effective_started_at(), self.at(self.day - timedelta(days=1), 22, 0))
         self.assertEqual(s.worked_minutes(), 8 * 60 + 10)
+
+    def test_short_day_shift_keeps_exit_day(self):
+        s = WorkSession.objects.create(employee=self.employee, work_date=self.day, started_at=self.at(self.day, 15, 3), ended_at=self.at(self.day, 15, 3))
+        self.fix(s, "06:31", "15:03")
+        s.refresh_from_db()
+        self.assertEqual(s.effective_started_at(), self.at(self.day, 6, 31))
+        self.assertEqual(s.effective_ended_at(), self.at(self.day, 15, 3))
