@@ -3689,5 +3689,48 @@
         notice.hidden = true;
     });
 })();
+
+(() => {
+    // Sabato, Domenica e Jolly: cambiando la data della 1ª riga cambiano le date di tutte le righe compilate
+    // (le righe vuote restano vuote); scrivendo in una riga senza data, la data si mette da sola.
+    const PREFIXES = ['saturday', 'sunday', 'jolly_weekend'];
+    let busy = false;
+    function flash(el) { el.style.transition = 'background-color .2s'; el.style.backgroundColor = '#fff3c4'; setTimeout(() => { el.style.backgroundColor = ''; }, 1400); }
+    function setValue(el, v) {
+        if (el.value === v) return;
+        busy = true;
+        try { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
+        finally { busy = false; }
+        flash(el);
+    }
+    PREFIXES.forEach((prefix) => {
+        const section = document.querySelector(`[data-weekend-row-prefix="${prefix}"]`);
+        if (!section) return;
+        const baseInput = section.querySelector(`input[name="${prefix}_base_date"]`);
+        const rows = () => Array.from(section.querySelectorAll('tbody tr'))
+            .map((tr) => Array.from(tr.querySelectorAll(`input[name^="${prefix}_row_"]`)))
+            .filter((cells) => cells.length);
+        const filled = (cells) => cells.slice(1).some((c) => c.value.trim());
+        section.addEventListener('input', (event) => {
+            if (busy) return;
+            const el = event.target;
+            if (!el.name || !el.name.startsWith(prefix + '_row_')) return;
+            const all = rows();
+            const r = all.findIndex((cells) => cells.includes(el));
+            if (r < 0) return;
+            const c = all[r].indexOf(el);
+            if (r === 0 && c === 0) {
+                const d = el.value.trim();
+                if (!d) return;
+                all.slice(1).forEach((cells) => { if (filled(cells)) setValue(cells[0], d); });
+                return;
+            }
+            if (c > 0 && el.value.trim() && !all[r][0].value.trim()) {
+                const ref = (all[0][0].value || '').trim() || (baseInput ? baseInput.value.trim() : '');
+                if (ref) setValue(all[r][0], ref);
+            }
+        });
+    });
+})();
 </script>
 {% endblock %}
