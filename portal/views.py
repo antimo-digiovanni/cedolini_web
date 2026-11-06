@@ -121,6 +121,7 @@ MONTH_LABELS_IT = {
 }
 
 MAX_SHIFT_DURATION_HOURS = 18
+MIN_SHIFT_MINUTES = 5  # uscita rifiutata se arriva entro pochi minuti dall'entrata (doppio tocco / entrata dimenticata)
 
 
 def _turni_planner_allowed_or_403(request):
@@ -4671,6 +4672,22 @@ def _get_open_shift_session(employee, reference_ts=None):
     return None
 
 
+def _parse_forgotten_entry_time(raw, now=None):
+    """Orario «HH:MM» dell'entrata dimenticata: oggi, oppure ieri se l'orario è ancora da venire."""
+    try:
+        parsed = datetime.strptime((raw or '').strip(), '%H:%M').time()
+    except ValueError:
+        return None
+    now = timezone.localtime(now or timezone.now())
+    tz = timezone.get_current_timezone()
+    candidate = timezone.make_aware(datetime.combine(now.date(), parsed), tz)
+    if candidate > now:
+        candidate = timezone.make_aware(datetime.combine(now.date() - timedelta(days=1), parsed), tz)
+    if not timedelta(0) < now - candidate <= timedelta(hours=MAX_SHIFT_DURATION_HOURS):
+        return None
+    return candidate
+
+
 def _get_timekeeping_session(employee, reference_ts=None):
     reference_ts = timezone.localtime(reference_ts or timezone.now())
     open_session = _get_open_shift_session(employee, reference_ts)
@@ -4752,7 +4769,7 @@ def _apply_approved_mark_request_to_session(request_obj):
     if request_obj.applied_at or request_obj.status != WorkMarkRequest.STATUS_APPROVED:
         return request_obj.applied_session
 
-    mark_ts = request_obj.created_at
+    mark_ts = request_obj.requested_at or request_obj.created_at
     day_sessions = WorkSession.objects.filter(
         employee=request_obj.employee, work_date=request_obj.work_date,
     ).order_by('-sequence')
@@ -4967,7 +4984,7 @@ def timekeeping(request):
                 status=400,
             )
 
-        if action not in {'start', 'end'}:
+        if action not in {'start', 'end', 'end_forgot'}:
             return JsonResponse({'ok': False, 'error': 'Azione non valida.'}, status=400)
 
         if request.POST.get('session_id') and request.POST['session_id'] != str(session.pk):
@@ -4978,6 +4995,25 @@ def timekeeping(request):
 
         if action == 'end' and not session.effective_started_at():
             return JsonResponse({'ok': False, 'error': 'Devi marcare prima l\'ingresso.'}, status=400)
+
+        if action == 'end':
+            started = session.effective_started_at()
+            if started and timezone.now() - started < timedelta(minutes=MIN_SHIFT_MINUTES):
+                return JsonResponse({'ok': False, 'error': (
+                    f"Hai marcato l'entrata alle {timezone.localtime(started):%H:%M}, meno di {MIN_SHIFT_MINUTES} minuti fa: "
+                    "l'uscita non viene registrata. Se hai premuto Entrata solo perché avevi dimenticato di marcarla "
+                    "a inizio turno, chiedi all'ufficio di correggere la giornata."
+                )}, status=400)
+
+        forgot_entry_ts = None
+        if action == 'end_forgot':
+            if session.effective_started_at() and not session.effective_ended_at():
+                return JsonResponse({'ok': False, 'error': 'Hai già un turno aperto: marca semplicemente l\'uscita.'}, status=400)
+            forgot_entry_ts = _parse_forgotten_entry_time(request.POST.get('entry_time'))
+            if forgot_entry_ts is None:
+                return JsonResponse({'ok': False, 'error': (
+                    f"Indica l'orario in cui sei entrato (nelle ultime {MAX_SHIFT_DURATION_HOURS} ore)."
+                )}, status=400)
 
         if action == 'end' and session.effective_ended_at():
             return JsonResponse({'ok': False, 'error': 'Uscita gia marcata oggi.'}, status=400)
@@ -5020,6 +5056,45 @@ def timekeeping(request):
                     'within_zone': zone_check['within'],
                     'distance_meters': zone_check['distance_meters'],
                 },
+            )
+
+        if action == 'end_forgot':
+            if session.effective_started_at() or session.effective_ended_at():
+                session = WorkSession.objects.create(
+                    employee=employee, work_date=today, sequence=session.sequence + 1,
+                )
+            session.ended_at = now_ts
+            session.end_latitude = latitude
+            session.end_longitude = longitude
+            session.end_zone = zone_check['zone']
+            session.end_within_zone = zone_check['within']
+            session.save()
+            entry_local = timezone.localtime(forgot_entry_ts)
+            request_obj = WorkMarkRequest.objects.create(
+                employee=employee,
+                work_date=entry_local.date(),
+                mark_type=WorkMarkRequest.MARK_TYPE_START,
+                requested_at=forgot_entry_ts,
+                reason=f"Entrata dimenticata: dichiara di essere entrato {'ieri' if entry_local.date() < today else 'oggi'} alle {entry_local:%H:%M} (uscita marcata alle {timezone.localtime(now_ts):%H:%M}).",
+            )
+            _send_out_of_zone_request_admin_notification(request_obj)
+            _create_audit_event(
+                request,
+                'timekeeping_end',
+                employee=employee,
+                metadata={
+                    'work_date': str(today),
+                    'zone': zone_check['zone'].name if zone_check['zone'] else None,
+                    'within_zone': zone_check['within'],
+                    'distance_meters': zone_check['distance_meters'],
+                    'forgot_entry': True,
+                },
+            )
+            _create_audit_event(
+                request,
+                'timekeeping_forgot_entry_requested',
+                employee=employee,
+                metadata={'work_date': str(entry_local.date()), 'entry_time': entry_local.strftime('%H:%M'), 'request_id': request_obj.pk},
             )
 
         if action == 'end':

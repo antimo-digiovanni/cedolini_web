@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dpi_views, push_views, document_views, identity_views, announcement_views, vacations, deadlines, profile_views, archive_views
+from . import views, dpi_views, push_views, document_views, identity_views, announcement_views, vacations, deadlines, profile_views, archive_views, mark_anomalies
 
 urlpatterns = [
 
@@ -22,6 +22,7 @@ urlpatterns = [
     path('admin-import-jobs/<int:job_id>/payslips/', views.admin_import_job_payslips, name='admin_import_job_payslips'),
     path('admin-employees/', views.admin_employees, name='admin_employees'),
     path('admin-marcature/', views.admin_timekeeping, name='admin_timekeeping'),
+    path('admin-marcature-da-sistemare/', mark_anomalies.admin_mark_anomalies, name='admin_mark_anomalies'),
     path('admin-richieste-fuori-zona/', views.admin_out_of_zone_requests, name='admin_out_of_zone_requests'),
     path('admin-richieste-ferie/', views.admin_vacation_requests, name='admin_vacation_requests'),
     path('admin-zone-lavoro/', views.admin_work_zones, name='admin_work_zones'),

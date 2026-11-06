@@ -499,6 +499,8 @@ class WorkMarkRequest(models.Model):
     work_date = models.DateField(default=timezone.localdate)
     mark_type = models.CharField(max_length=10, choices=MARK_TYPE_CHOICES, default=MARK_TYPE_BOTH)
     reason = models.TextField()
+    # Orario dichiarato dal dipendente (entrata dimenticata); se vuoto vale l'orario di invio.
+    requested_at = models.DateTimeField(blank=True, null=True)
     applied_at = models.DateTimeField(blank=True, null=True)
     applied_session = models.ForeignKey(
         WorkSession, on_delete=models.SET_NULL, blank=True, null=True, related_name='mark_requests',

@@ -20,10 +20,21 @@
                     </button>
                 </div>
                 <div class="col-6">
-                    <button id="btnEnd" type="button" class="btn btn-danger w-100" {% if not entry or exit or not has_active_zone or is_vacation_today %}disabled{% endif %}>
+                    <button id="btnEnd" type="button" class="btn btn-danger w-100" {% if not entry and not exit %}data-no-entry="1"{% endif %} {% if exit or not has_active_zone or is_vacation_today %}disabled{% endif %}>
                         <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Uscita
                     </button>
                 </div>
+            </div>
+            <div id="forgotEntryPanel" class="alert alert-warning mt-3 mb-0" hidden>
+                <p class="fw-semibold mb-1">Non hai marcato l'entrata.</p>
+                <p class="small mb-2">Se stai <strong>iniziando</strong> il turno, premi <strong>Entrata</strong>. Se hai <strong>finito</strong> il turno e avevi dimenticato l'entrata, scrivi a che ora sei entrato: l'uscita viene registrata adesso e l'ufficio approva l'orario di entrata.</p>
+                <label class="form-label small fw-semibold mb-1" for="forgotEntryTime">Ora di entrata</label>
+                <div class="d-flex gap-2 align-items-start">
+                    <input type="time" id="forgotEntryTime" class="form-control" style="max-width:140px" required>
+                    <button type="button" id="forgotEntrySend" class="btn btn-danger flex-grow-1"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Registra uscita</button>
+                </div>
+                <div id="forgotEntryHint" class="small mt-1 text-muted"></div>
+                <button type="button" id="forgotEntryCancel" class="btn btn-link btn-sm px-0 mt-1">Annulla</button>
             </div>
             {% endwith %}
             <div id="timekeepingFeedback" class="alert mt-3 d-none" role="status" aria-live="polite"></div>
@@ -100,7 +111,7 @@
         feedback.className = `alert mt-3 alert-${level}`;
         feedback.textContent = text;
     }
-    async function mark(action) {
+    async function mark(action, extra) {
         if (busy) return;
         busy = true;
         const startDisabled = startButton.disabled;
@@ -115,7 +126,7 @@
                     enableHighAccuracy: true, timeout: 8000, maximumAge: 0,
                 });
             });
-            const payload = new URLSearchParams({action, session_id: '{{ today_session.pk }}'});
+            const payload = new URLSearchParams(Object.assign({action, session_id: '{{ today_session.pk }}'}, extra || {}));
             if (position) {
                 payload.set('latitude', position.coords.latitude);
                 payload.set('longitude', position.coords.longitude);
@@ -132,7 +143,7 @@
             }
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || 'Marcatura non registrata.');
-            showFeedback('success', action === 'start' ? 'Entrata registrata.' : 'Uscita registrata.');
+            showFeedback('success', action === 'start' ? 'Entrata registrata.' : (action === 'end_forgot' ? 'Uscita registrata. L\'orario di entrata è stato inviato all\'ufficio.' : 'Uscita registrata.'));
             window.location.reload();
         } catch (error) {
             showFeedback('danger', error instanceof TypeError ? 'Connessione interrotta. Ricarica la pagina per verificare la marcatura prima di riprovare.' : error.message);
@@ -141,7 +152,26 @@
             busy = false;
         }
     }
-    startButton.addEventListener('click', () => mark('start'));
-    endButton.addEventListener('click', () => mark('end'));
+    const forgotPanel = document.getElementById('forgotEntryPanel');
+    const forgotTime = document.getElementById('forgotEntryTime');
+    const forgotHint = document.getElementById('forgotEntryHint');
+    function forgotWhen() {
+        if (!forgotTime.value) return '';
+        const [h, m] = forgotTime.value.split(':').map(Number);
+        const now = new Date();
+        const yesterday = h * 60 + m > now.getHours() * 60 + now.getMinutes();
+        return (yesterday ? 'Entrata di ieri' : 'Entrata di oggi') + ' alle ' + forgotTime.value;
+    }
+    forgotTime.addEventListener('input', () => { forgotHint.textContent = forgotWhen(); });
+    document.getElementById('forgotEntryCancel').addEventListener('click', () => { forgotPanel.hidden = true; });
+    document.getElementById('forgotEntrySend').addEventListener('click', () => {
+        if (!forgotTime.value) { forgotTime.focus(); forgotHint.textContent = 'Indica l\'ora in cui sei entrato.'; return; }
+        mark('end_forgot', {entry_time: forgotTime.value});
+    });
+    startButton.addEventListener('click', () => { forgotPanel.hidden = true; mark('start'); });
+    endButton.addEventListener('click', () => {
+        if (endButton.dataset.noEntry) { forgotPanel.hidden = false; forgotTime.focus(); return; }
+        mark('end');
+    });
 })();
 </script>

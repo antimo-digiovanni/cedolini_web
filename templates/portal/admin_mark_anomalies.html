@@ -1,0 +1,33 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Marcature da sistemare{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Marcature da sistemare</h2>
+    <p class="mb-0 opacity-75">Ultimi {{ days }} giorni: uscite o entrate mancanti, entrata e uscita nello stesso momento, turni oltre {{ long_hours }} ore. Correggile ogni mattina da «Report marcature»: una volta corrette spariscono da qui.</p>
+</div>
+
+<div class="card-modern mb-4">
+    {% if rows %}
+    <div class="table-responsive">
+    <table class="table align-middle mb-0">
+        <thead><tr><th>Dipendente</th><th>Giorno</th><th>Problema</th><th class="text-end"></th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+        <tr>
+            <td class="fw-semibold">{{ r.employee.full_name }}</td>
+            <td class="text-nowrap">{{ r.date|date:"D d/m" }}</td>
+            <td><span class="doc-chip {% if r.kind == 'short' or r.kind == 'long' %}tone-warn{% else %}tone-danger{% endif %}">{{ r.label }}</span><div class="small text-muted mt-1">{{ r.detail }}</div></td>
+            <td class="text-end"><a href="{{ r.url }}" class="btn btn-sm btn-outline-primary text-nowrap">Correggi</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="mb-0"><i class="bi bi-check-circle text-success me-1" aria-hidden="true"></i> Nessuna marcatura da sistemare negli ultimi {{ days }} giorni.</p>
+    {% endif %}
+</div>
+<p class="small text-muted">Le entrate dimenticate dichiarate dai dipendenti con l'orario arrivano invece tra le richieste da approvare: approvandole, l'entrata viene inserita con l'orario indicato.</p>
+{% endblock %}

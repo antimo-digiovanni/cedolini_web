@@ -27,6 +27,14 @@ def admin_todo_items():
     if dpi:
         items.append({'label': 'Consegne DPI non ancora firmate', 'count': dpi, 'icon': 'bi-shield-check',
                       'tone': 'warn', 'url': reverse('admin_dpi')})
+    try:
+        from .mark_anomalies import find as mark_anomalies
+        marks = len(mark_anomalies())
+    except Exception:
+        marks = 0
+    if marks:
+        items.append({'label': 'Marcature da sistemare (ultimi 7 giorni)', 'count': marks, 'icon': 'bi-stopwatch',
+                      'tone': 'warn', 'url': reverse('admin_mark_anomalies')})
     since = timezone.now() - timedelta(days=30)
     unread = 0
     for ann in Announcement.objects.filter(created_at__gte=since):
