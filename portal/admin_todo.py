@@ -33,7 +33,7 @@ def admin_todo_items():
     except Exception:
         marks = 0
     if marks:
-        items.append({'label': 'Marcature da sistemare (ultimi 7 giorni)', 'count': marks, 'icon': 'bi-stopwatch',
+        items.append({'label': 'Marcature da correggere (ultimi 7 giorni)', 'count': marks, 'icon': 'bi-stopwatch',
                       'tone': 'warn', 'url': reverse('admin_mark_anomalies')})
     since = timezone.now() - timedelta(days=30)
     unread = 0

@@ -1,33 +1,65 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Marcature da sistemare{% endblock %}
+{% block title %}Marcature da correggere{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mfix-row { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1.6fr) auto; gap:14px; align-items:center; padding:14px 0; border-top:1px solid var(--sv-border); }
+    .mfix-row:first-child { border-top:0; padding-top:0; }
+    .mfix-name { font-weight:750; }
+    .mfix-day { font-size:.82rem; color:var(--sv-muted); text-transform:capitalize; }
+    .mfix-detail { font-size:.8rem; color:var(--sv-muted); margin-top:4px; }
+    .mfix-form { display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; }
+    .mfix-form label { display:flex; flex-direction:column; gap:3px; font-size:.72rem; font-weight:700; color:var(--sv-muted); text-transform:uppercase; letter-spacing:.03em; }
+    .mfix-form input[type=time] { width:118px; }
+    .mfix-form input.is-missing { border-color:#f59e0b; background:#fff8eb; }
+    @media (max-width: 767.98px) {
+        .mfix-row { grid-template-columns:1fr; gap:8px; }
+        .mfix-form input[type=time] { width:auto; flex:1 1 0; }
+        .mfix-form label { flex:1 1 0; }
+        .mfix-form .btn { flex:1 1 100%; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-hero mb-4">
-    <h2 class="fw-bold mb-1">Marcature da sistemare</h2>
-    <p class="mb-0 opacity-75">Ultimi {{ days }} giorni: uscite o entrate mancanti, entrata e uscita nello stesso momento, turni oltre {{ long_hours }} ore. Correggile ogni mattina da «Report marcature»: una volta corrette spariscono da qui.</p>
+    <h2 class="fw-bold mb-1">Marcature da correggere</h2>
+    <p class="mb-0 opacity-75">Ultimi {{ days }} giorni. Scrivi l'orario giusto di entrata e uscita e premi Salva: il turno si corregge e sparisce dalla lista. Per il turno di notte metti pure 22:00 e 06:00, il giorno dopo lo calcola da solo.</p>
 </div>
 
+{% for m in messages %}
+<div class="alert {% if m.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}" role="status">{{ m }}</div>
+{% endfor %}
+
 <div class="card-modern mb-4">
-    {% if rows %}
-    <div class="table-responsive">
-    <table class="table align-middle mb-0">
-        <thead><tr><th>Dipendente</th><th>Giorno</th><th>Problema</th><th class="text-end"></th></tr></thead>
-        <tbody>
-        {% for r in rows %}
-        <tr>
-            <td class="fw-semibold">{{ r.employee.full_name }}</td>
-            <td class="text-nowrap">{{ r.date|date:"D d/m" }}</td>
-            <td><span class="doc-chip {% if r.kind == 'short' or r.kind == 'long' %}tone-warn{% else %}tone-danger{% endif %}">{{ r.label }}</span><div class="small text-muted mt-1">{{ r.detail }}</div></td>
-            <td class="text-end"><a href="{{ r.url }}" class="btn btn-sm btn-outline-primary text-nowrap">Correggi</a></td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    {% for r in rows %}
+    <div class="mfix-row">
+        <div>
+            <div class="mfix-name">{{ r.employee.full_name }}</div>
+            <div class="mfix-day">{{ r.date|date:"l d/m" }}</div>
+        </div>
+        <div>
+            <span class="doc-chip {% if r.kind == 'short' or r.kind == 'long' %}tone-warn{% else %}tone-danger{% endif %}">{{ r.label }}</span>
+            <div class="mfix-detail">{{ r.detail }}</div>
+        </div>
+        <form method="post" class="mfix-form">
+            {% csrf_token %}
+            <input type="hidden" name="session_id" value="{{ r.session.pk }}">
+            {% with a=r.session.effective_started_at b=r.session.effective_ended_at %}
+            <label>Entrata
+                <input type="time" name="start_time" class="form-control form-control-sm{% if not a %} is-missing{% endif %}" value="{% if a and r.kind != 'short' %}{{ a|time:'H:i' }}{% endif %}" required>
+            </label>
+            <label>Uscita
+                <input type="time" name="end_time" class="form-control form-control-sm{% if not b or r.kind == 'long' %} is-missing{% endif %}" value="{% if b and r.kind != 'long' %}{{ b|time:'H:i' }}{% endif %}" required>
+            </label>
+            {% endwith %}
+            <button type="submit" class="btn btn-sm btn-primary">Salva</button>
+        </form>
     </div>
-    {% else %}
-    <p class="mb-0"><i class="bi bi-check-circle text-success me-1" aria-hidden="true"></i> Nessuna marcatura da sistemare negli ultimi {{ days }} giorni.</p>
-    {% endif %}
+    {% empty %}
+    <p class="mb-0"><i class="bi bi-check-circle text-success me-1" aria-hidden="true"></i> Nessuna marcatura da correggere negli ultimi {{ days }} giorni.</p>
+    {% endfor %}
 </div>
-<p class="small text-muted">Le entrate dimenticate dichiarate dai dipendenti con l'orario arrivano invece tra le richieste da approvare: approvandole, l'entrata viene inserita con l'orario indicato.</p>
+<p class="small text-muted">Le entrate dimenticate dichiarate dai dipendenti con l'orario arrivano tra le richieste da approvare: approvandole, l'entrata viene inserita con l'orario indicato.</p>
 {% endblock %}

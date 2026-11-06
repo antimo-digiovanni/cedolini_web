@@ -85,7 +85,7 @@ class ForgotEntryTests(TestCase):
         self.assertContains(page, "Entrata e uscita nello stesso momento")
         self.assertContains(page, "Uscita mancante")
         from .admin_todo import admin_todo_items
-        self.assertTrue(any(t["label"].startswith("Marcature da sistemare") and t["count"] == 2 for t in admin_todo_items()))
+        self.assertTrue(any(t["label"].startswith("Marcature da correggere") and t["count"] == 2 for t in admin_todo_items()))
 
     def test_exit_button_opens_forgot_panel_without_entry(self):
         page = self.client.get(reverse("timekeeping")).content.decode()
@@ -93,3 +93,48 @@ class ForgotEntryTests(TestCase):
         self.assertIn('data-no-entry="1"', button)
         self.assertNotIn("disabled", button)
         self.assertIn("forgotEntryPanel", page)
+
+
+class CorrectAnomaliesTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(username="capo2", is_staff=True)
+        u = get_user_model().objects.create_user(username="notte")
+        self.employee = Employee.objects.create(user=u, first_name="Notte", last_name="Prova")
+        self.client.force_login(self.admin)
+        self.day = timezone.localdate() - timedelta(days=1)
+
+    def at(self, day, hour, minute=0):
+        return timezone.make_aware(datetime.combine(day, datetime.min.time())) + timedelta(hours=hour, minutes=minute)
+
+    def fix(self, session, start, end):
+        return self.client.post(reverse("admin_mark_anomalies"), {"session_id": session.pk, "start_time": start, "end_time": end})
+
+    def test_short_night_shift_fixed_inline(self):
+        s = WorkSession.objects.create(employee=self.employee, work_date=self.day, started_at=self.at(self.day, 6, 17), ended_at=self.at(self.day, 6, 17))
+        page = self.client.get(reverse("admin_mark_anomalies"))
+        self.assertContains(page, "Marcature da correggere")
+        self.assertRedirects(self.fix(s, "22:05", "06:17"), reverse("admin_mark_anomalies"))
+        s.refresh_from_db()
+        self.assertEqual(s.effective_started_at(), self.at(self.day - timedelta(days=1), 22, 5))
+        self.assertEqual(s.effective_ended_at(), self.at(self.day, 6, 17))
+        self.assertEqual(s.worked_minutes(), 8 * 60 + 12)
+        self.assertEqual([r for r in find() if r["employee"] == self.employee], [])
+
+    def test_missing_exit_and_long_shift(self):
+        two = self.day - timedelta(days=1)
+        a = WorkSession.objects.create(employee=self.employee, work_date=two, started_at=self.at(two, 6, 0))
+        self.fix(a, "06:00", "14:00")
+        a.refresh_from_db()
+        self.assertEqual(a.worked_minutes(), 480)
+        self.assertIsNone(a.corrected_started_at)
+        b = WorkSession.objects.create(employee=self.employee, work_date=self.day, sequence=1, started_at=self.at(self.day, 14, 52), ended_at=self.at(self.day + timedelta(days=1), 8, 15))
+        self.fix(b, "14:52", "22:00")
+        b.refresh_from_db()
+        self.assertEqual(b.effective_ended_at(), self.at(self.day, 22, 0))
+
+    def test_missing_entry_night(self):
+        s = WorkSession.objects.create(employee=self.employee, work_date=self.day, ended_at=self.at(self.day, 6, 10))
+        self.fix(s, "22:00", "06:10")
+        s.refresh_from_db()
+        self.assertEqual(s.effective_started_at(), self.at(self.day - timedelta(days=1), 22, 0))
+        self.assertEqual(s.worked_minutes(), 8 * 60 + 10)

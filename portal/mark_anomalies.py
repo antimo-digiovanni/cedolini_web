@@ -61,6 +61,48 @@ def find(days=DAYS_BACK):
     return out
 
 
+def _parse_hhmm(raw):
+    from datetime import datetime
+    try:
+        return datetime.strptime((raw or '').strip(), '%H:%M').time()
+    except ValueError:
+        return None
+
+
+def correct_session(session, start_t, end_t, user):
+    """Imposta gli orari corretti di un turno (entrata e uscita obbligatorie).
+
+    Il giorno si sceglie da solo: fra «ieri, oggi, domani» rispetto al giorno del turno vince quello
+    che lascia l'uscita più vicina all'uscita marcata (o l'entrata più vicina all'entrata marcata).
+    Un'uscita che non viene dopo l'entrata passa al giorno dopo (turno di notte).
+    """
+    from datetime import datetime
+    tz = timezone.get_current_timezone()
+    orig_a, orig_b = session.started_at, session.ended_at
+    best = None
+    for shift in (-1, 0, 1):
+        day = session.work_date + timedelta(days=shift)
+        start_dt = timezone.make_aware(datetime.combine(day, start_t), tz)
+        end_day = day + timedelta(days=1) if end_t <= start_t else day
+        end_dt = timezone.make_aware(datetime.combine(end_day, end_t), tz)
+        if orig_b:
+            score = abs((end_dt - orig_b).total_seconds())
+        elif orig_a:
+            score = abs((start_dt - orig_a).total_seconds())
+        else:
+            score = abs(shift)
+        if best is None or score < best[0]:
+            best = (score, start_dt, end_dt)
+    _, start_dt, end_dt = best
+    session.day_type = session.DAY_TYPE_WORK
+    session.corrected_started_at = start_dt if start_dt != orig_a else None
+    session.corrected_ended_at = end_dt if end_dt != orig_b else None
+    session.corrected_by = user
+    session.corrected_at = timezone.now()
+    session.save()
+    return start_dt, end_dt
+
+
 def admin_mark_anomalies(request):
     from django.contrib.auth.views import redirect_to_login
     from django.shortcuts import redirect, render
@@ -70,6 +112,25 @@ def admin_mark_anomalies(request):
         return redirect_to_login(request.get_full_path())
     if not user_has_full_admin_access(request.user):
         return redirect('dashboard')
+    from django.contrib import messages
+    from django.shortcuts import get_object_or_404
+
+    from .models import WorkSession
+    from .views import _create_audit_event
+    if request.method == 'POST':
+        session = get_object_or_404(WorkSession.objects.select_related('employee'), pk=request.POST.get('session_id'))
+        start_t, end_t = _parse_hhmm(request.POST.get('start_time')), _parse_hhmm(request.POST.get('end_time'))
+        if not start_t or not end_t:
+            messages.error(request, f"{session.employee.full_name}: inserisci sia l'entrata sia l'uscita.")
+        else:
+            start_dt, end_dt = correct_session(session, start_t, end_t, request.user)
+            _create_audit_event(request, 'timekeeping_corrected', employee=session.employee, metadata={
+                'work_date': str(session.work_date), 'via': 'marcature_da_correggere',
+                'corrected_started_at': start_dt.isoformat(), 'corrected_ended_at': end_dt.isoformat(), 'note': None,
+            })
+            messages.success(request, f"{session.employee.full_name}: turno corretto "
+                                      f"{timezone.localtime(start_dt):%d/%m %H:%M} → {timezone.localtime(end_dt):%d/%m %H:%M}.")
+        return redirect('admin_mark_anomalies')
     rows = find()
     return render(request, 'portal/admin_mark_anomalies.html', {
         'rows': rows, 'days': DAYS_BACK, 'short_minutes': SHORT_MINUTES, 'long_hours': LONG_HOURS,
