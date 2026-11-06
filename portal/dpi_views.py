@@ -69,6 +69,31 @@ def admin_dpi(request):
                                 metadata={'dpi_delivery_id': delivery.id})
             return redirect(f"{reverse('admin_dpi')}?outcome=cancelled")
 
+        if action == 'remind':
+            pending = DpiDelivery.objects.select_related('employee__user').filter(status=DPI_STATUS_PENDING)
+            if str(request.POST.get('delivery_id') or '').isdigit():
+                pending = pending.filter(id=request.POST['delivery_id'])
+            by_employee = {}
+            for d in pending.order_by('created_at'):
+                by_employee.setdefault(d.employee, []).append(d)
+            reached = 0
+            for employee, deliveries in by_employee.items():
+                n = len(deliveries)
+                devices = push.send_to_user(
+                    employee.user,
+                    title='Promemoria: DPI da firmare',
+                    body=('Hai una consegna di dispositivi di protezione ancora da firmare: tocca per firmarla.' if n == 1
+                          else f'Hai {n} consegne di dispositivi di protezione ancora da firmare: tocca per firmarle.'),
+                    url=reverse('employee_dpi_sign', args=[deliveries[0].id]) if n == 1 else reverse('employee_dpi'),
+                    tag='dpi-promemoria',
+                )
+                reached += 1 if devices else 0
+                _create_audit_event(request, 'dpi_reminder_sent', employee=employee,
+                                    metadata={'dpi_delivery_ids': [d.id for d in deliveries], 'notified_devices': devices})
+            total = len(by_employee)
+            return redirect(f"{reverse('admin_dpi')}?outcome=reminded&n={total}&ok={reached}"
+                            + ('&stato=pending' if request.POST.get('back') == 'pending' else ''))
+
         if action == 'test_push':
             employee = Employee.objects.select_related('user').filter(id=selected_id).first() if str(selected_id).isdigit() else None
             if not employee:
@@ -128,6 +153,14 @@ def admin_dpi(request):
         'sent_push_failed': 'Consegna inviata, ma la notifica non è partita. Scegli il dipendente e usa «Prova notifica» per vedere l\'errore.',
         'cancelled': 'Richiesta di firma annullata.',
     }.get(outcome)
+    if outcome == 'reminded':
+        n = int(request.GET.get('n') or 0) if (request.GET.get('n') or '').isdigit() else 0
+        ok = int(request.GET.get('ok') or 0) if (request.GET.get('ok') or '').isdigit() else 0
+        if not n:
+            feedback = 'Nessuna consegna in attesa di firma: nessun promemoria da inviare.'
+        else:
+            feedback = (f'Promemoria inviato: la notifica è arrivata a {ok} dipendent{"e" if ok == 1 else "i"} su {n}.'
+                        + (f' Gli altri {n - ok} non hanno le notifiche attive: vedranno la consegna da firmare al prossimo accesso.' if n - ok else ''))
 
     return render(request, 'portal/admin_dpi.html', _admin_dpi_context(request, selected_id, error, feedback))
 
