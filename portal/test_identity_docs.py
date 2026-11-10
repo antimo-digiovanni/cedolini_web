@@ -280,7 +280,7 @@ class CornerTests(TestCase):
 
 @override_settings(PUSH_ASYNC=False)
 class UnrecognizedPhotoTests(TestCase):
-    """Foto in cui il documento non si riconosce (lontano, fuori riquadro): il caricamento viene rifiutato."""
+    """Foto in cui il documento non si riconosce: si accetta intera (da ritagliare in ufficio), segnata come non ritagliata."""
 
     def setUp(self):
         self.media = tempfile.mkdtemp()
@@ -306,16 +306,16 @@ class UnrecognizedPhotoTests(TestCase):
         bg[mask > 0] = warped[mask > 0]
         buf = io.BytesIO(); Image.fromarray(bg).save(buf, 'JPEG'); return buf.getvalue()
 
-    def test_far_or_missing_card_is_refused(self):
+    def test_unrecognized_card_is_accepted_uncropped(self):
         expiry = (timezone.localdate() + timedelta(days=900)).isoformat()
-        for front in (self._far_card_photo(), phone_photo(with_card=False)):
-            r = self.client.post(reverse('employee_document_upload', args=['ci']), {
-                'front': SimpleUploadedFile('f.jpg', front, 'image/jpeg'),
-                'back': SimpleUploadedFile('b.jpg', phone_photo(), 'image/jpeg'),
-                'expiry_date': expiry})
-            self.assertFalse(r.json()['ok'])
-            self.assertIn('del fronte', r.json()['error'])
-        self.assertFalse(IdentityDocument.objects.exists())
+        r = self.client.post(reverse('employee_document_upload', args=['ci']), {
+            'front': SimpleUploadedFile('f.jpg', self._far_card_photo(), 'image/jpeg'),
+            'back': SimpleUploadedFile('b.jpg', phone_photo(), 'image/jpeg'),
+            'expiry_date': expiry})
+        self.assertTrue(r.json()['ok'])
+        doc = IdentityDocument.objects.get()
+        self.assertFalse(doc.front_cropped)
+        self.assertTrue(doc.back_cropped)
 
 
 class UploadedFilterTests(TestCase):
@@ -402,5 +402,7 @@ class PreviewEndpointTests(GuidedUploadTests):
         r = self.client.post(reverse('employee_document_preview'), {'photo': SimpleUploadedFile('f.jpg', data, 'image/jpeg'), 'rect': json.dumps(rect)})
         self.assertEqual(r['Content-Type'], 'image/jpeg')
         self.assertEqual(Image.open(io.BytesIO(r.content)).size, (doc_scan.OUT_W, doc_scan.OUT_H))
+        self.assertEqual(r['X-Doc-Cropped'], '1')
         r = self.client.post(reverse('employee_document_preview'), {'photo': SimpleUploadedFile('f.jpg', phone_photo(with_card=False), 'image/jpeg')})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['X-Doc-Cropped'], '0')

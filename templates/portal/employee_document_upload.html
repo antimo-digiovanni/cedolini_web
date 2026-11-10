@@ -29,6 +29,7 @@
     .shutter { width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#fff; box-shadow:inset 0 0 0 4px #0c1322; transition:opacity .15s, background .15s; }
     .shutter:disabled { opacity:.35; cursor:not-allowed; }
     .shutter.ready { background:#22c55e; border-color:#22c55e; }
+    .shutter.fallback { background:#f59e0b; border-color:#f59e0b; }
     .cam-guide { transition:border-color .15s; }
     .cam-guide.ok { border-color:#22c55e; border-width:5px; }
     .cam-foot .btn { min-height:54px; font-weight:700; font-size:1.05rem; }
@@ -181,6 +182,7 @@
                     hint.textContent = d.error || 'Foto non valida: rifalla.';
                     return;  // "Usa foto" resta spento: si può solo rifare
                 }
+                if (r.headers.get('X-Doc-Cropped') === '0') offlineNote = 'Non trovo bene i bordi del documento: se si legge bene usala pure, la ritaglia l\'ufficio.';
                 item.preview = await r.blob();
                 if (seq !== shotSeq) return;
                 URL.revokeObjectURL(shot.src);
@@ -235,10 +237,16 @@
     // Il pulsante si attiva solo quando i 4 bordi del documento coincidono con il riquadro.
     var detectTimer = null, okFrames = 0, shutter = document.getElementById('shutter');
     var probe = document.createElement('canvas'), probeCtx = probe.getContext('2d', { willReadFrequently: true });
+    var detectStart = 0, FALLBACK_MS = 5000;
     function setReady(ready, msg) {
+        // dopo qualche secondo senza verde si può scattare lo stesso (pulsante arancione): alcuni telefoni,
+        // piani chiari o riflessi non fanno vedere bene i bordi
+        var fallback = !ready && detectStart && (Date.now() - detectStart > FALLBACK_MS);
         guide.classList.toggle('ok', ready);
-        shutter.disabled = !ready;
+        shutter.disabled = !(ready || fallback);
         shutter.classList.toggle('ready', ready);
+        shutter.classList.toggle('fallback', !!fallback);
+        if (fallback && !ready) msg = 'Non vedo bene i bordi: tieni il documento dentro il riquadro e scatta lo stesso (pulsante arancione)';
         if (msg) hint.textContent = msg;
     }
     function edgeLine(gray, w, h, horizontal, pos, from, to, band, T) {
@@ -288,7 +296,7 @@
         else setReady(false, step === 'front' ? 'Metti il FRONTE del documento dentro il riquadro: avvicina o allontana il telefono finché diventa verde'
                                               : 'Gira il documento e metti il RETRO dentro il riquadro, finché diventa verde');
     }
-    function startDetect() { stopDetect(); okFrames = 0; setReady(false); detectTimer = setInterval(checkFrame, 150); }
+    function startDetect() { stopDetect(); okFrames = 0; detectStart = Date.now(); setReady(false); detectTimer = setInterval(checkFrame, 150); }
     function stopDetect() { if (detectTimer) { clearInterval(detectTimer); detectTimer = null; } }
 
     function takePhoto() {

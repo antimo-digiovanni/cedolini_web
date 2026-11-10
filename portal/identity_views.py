@@ -84,13 +84,8 @@ def employee_document_upload(request, kind):
             back_jpg, back_cropped = _process(back, request.POST.get('back_rect'))
         except doc_scan.ScanError as exc:
             return fail(str(exc))
-        if not front_cropped or not back_cropped:
-            side = 'del fronte' if not front_cropped else 'del retro'
-            if not front_cropped and not back_cropped:
-                side = 'di fronte e retro'
-            return fail(f'Nella foto {side} il documento non si riconosce bene: rifalla più da vicino, '
-                        'con il documento intero dentro il riquadro, su un piano scuro e con buona luce.')
-
+        # Se i bordi non si trovano (foto dalla Galleria, piano chiaro, riflessi) la foto si accetta lo stesso
+        # intera: l'ufficio la ritaglia a mano dalla pagina di verifica.
         stamp = timezone.now().strftime('%Y%m%d%H%M%S')
         doc = IdentityDocument(employee=employee, kind=kind, expiry_date=expiry,
                                front_cropped=front_cropped, back_cropped=back_cropped)
@@ -143,10 +138,9 @@ def employee_document_preview(request):
         jpg, cropped = _process(photo, request.POST.get('rect'))
     except doc_scan.ScanError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
-    if not cropped:
-        return JsonResponse({'ok': False, 'error': 'Il documento non si riconosce bene: rifai la foto più da vicino, '
-                                                    'con il documento intero dentro il riquadro.'}, status=400)
-    return _disable_response_cache(HttpResponse(jpg, content_type='image/jpeg'))
+    response = HttpResponse(jpg, content_type='image/jpeg')
+    response['X-Doc-Cropped'] = '1' if cropped else '0'
+    return _disable_response_cache(response)
 
 
 def _notify_admins(doc):
