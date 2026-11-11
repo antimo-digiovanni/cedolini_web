@@ -1,0 +1,101 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Cedolini dal file del consulente{% endblock %}
+
+{% block extra_css %}
+<style>
+    .lul-row-blocked td { background:#fff5f5; }
+    .lul-row-confirm td { background:#fffaf0; }
+    .lul-cf { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.8rem; color:var(--sv-muted); }
+    .lul-sum { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+    .lul-sum div { border:1px solid var(--sv-border); border-radius:12px; padding:10px 12px; background:var(--sv-surface); }
+    .lul-sum strong { display:block; font-size:1.4rem; }
+    .lul-sum span { font-size:.8rem; color:var(--sv-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Cedolini dal file del consulente</h2>
+    <p class="mb-0 opacity-75">Carichi il PDF unico con tutti i cedolini del mese: il portale lo divide e assegna ogni cedolino al dipendente con lo stesso codice fiscale. Quello che non è certo resta fuori e te lo segnala.</p>
+</div>
+
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+
+{% if done %}
+<div class="card-modern mb-4">
+    <h4 class="mb-3"><i class="bi bi-check-circle text-success me-1" aria-hidden="true"></i> Caricamento completato</h4>
+    <div class="lul-sum mb-3">
+        <div><strong>{{ done.saved }}</strong><span>cedolini caricati</span></div>
+        <div><strong>{{ done.existing }}</strong><span>già presenti, non toccati</span></div>
+        <div><strong>{{ done.left_out }}</strong><span>lasciati fuori</span></div>
+    </div>
+    {% for e in done.errors %}<div class="alert alert-warning py-2 mb-2">{{ e }}</div>{% endfor %}
+    {% if done.loose %}<div class="alert alert-warning py-2 mb-2">Pagine non assegnate: {% for p in done.loose %}{{ p.page }}{% if not forloop.last %}, {% endif %}{% endfor %}.</div>{% endif %}
+    <a href="{% url 'admin_all_payslips' %}" class="btn btn-primary">Archivio cedolini</a>
+    <a href="{% url 'admin_lul_import' %}" class="btn btn-outline-secondary">Carica un altro file</a>
+</div>
+
+{% elif rows is not None %}
+<div class="card-modern mb-4">
+    <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+        <div><h4 class="mb-1">Controlla prima di caricare</h4><div class="text-muted small">{{ file_name }} · {{ pages }} pagine · {{ period_label }}</div></div>
+        <form method="post">{% csrf_token %}<button type="submit" name="action" value="cancel" class="btn btn-outline-secondary btn-sm">Annulla e cambia file</button></form>
+    </div>
+    <div class="lul-sum mb-3">
+        <div><strong>{{ counts.sure }}</strong><span>abbinati con certezza (codice fiscale)</span></div>
+        <div><strong>{{ counts.confirm }}</strong><span>da confermare da te</span></div>
+        <div><strong>{{ counts.blocked }}</strong><span>bloccati</span></div>
+        <div><strong>{{ loose|length }}</strong><span>pagine non riconosciute</span></div>
+    </div>
+    {% if loose %}<div class="alert alert-warning py-2">Pagine senza codice fiscale leggibile, non verranno caricate: {% for p in loose %}pag. {{ p.page }} ({{ p.problem }}){% if not forloop.last %}, {% endif %}{% endfor %}.</div>{% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="confirm">
+        <div class="table-responsive">
+        <table class="table align-middle mb-3">
+            <thead><tr><th>Sul cedolino</th><th>Pagine</th><th>Dipendente nel portale</th><th>Nota</th></tr></thead>
+            <tbody>
+            {% for r in rows %}
+            <tr class="lul-row-{{ r.status }}">
+                <td><div class="fw-semibold">{{ r.name|default:"(nome non letto)" }}</div><div class="lul-cf">{{ r.cf }}</div></td>
+                <td class="text-nowrap">{{ r.pages|join:", " }}</td>
+                <td>
+                    {% if r.status == 'sure' %}
+                        <span class="doc-chip tone-ok">{{ r.employee.full_name }}</span>
+                    {% elif r.status == 'confirm' %}
+                        <select name="emp_{{ r.cf }}" class="form-select form-select-sm" aria-label="Dipendente per {{ r.name }}">
+                            <option value="">Lascia fuori</option>
+                            {% for e in employees %}{% if not e.fiscal_code %}<option value="{{ e.id }}" {% if r.proposal and r.proposal.id == e.id %}selected{% endif %}>{{ e.full_name }}</option>{% endif %}{% endfor %}
+                        </select>
+                    {% else %}
+                        <span class="doc-chip tone-danger">Non caricato</span>
+                    {% endif %}
+                </td>
+                <td class="small">
+                    {{ r.note }}
+                    {% if r.exists %}<div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="replace_{{ r.cf }}" value="1" id="rep{{ forloop.counter }}"><label class="form-check-label" for="rep{{ forloop.counter }}">Ha già il cedolino di questo mese: sostituiscilo</label></div>{% endif %}
+                    {% if r.status == 'sure' %}<div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="skip_{{ r.cf }}" value="1" id="skip{{ forloop.counter }}"><label class="form-check-label text-muted" for="skip{{ forloop.counter }}">Non caricare</label></div>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <p class="small text-muted">Confermando un dipendente «da confermare», il suo codice fiscale viene salvato nella scheda: dal mese prossimo sarà abbinato da solo. Chi ha già il cedolino del mese non viene toccato, salvo che spunti «sostituiscilo». A ogni cedolino caricato parte la notifica al dipendente.</p>
+        <button type="submit" class="btn btn-primary btn-lg"
+                data-confirm-title="Carica i cedolini" data-confirm-message="Carico i cedolini abbinati e mando la notifica ai dipendenti." data-confirm-button="Carica">Carica i cedolini</button>
+    </form>
+</div>
+
+{% else %}
+<form method="post" enctype="multipart/form-data" class="card-modern mb-4" style="max-width:640px">
+    {% csrf_token %}
+    <label class="form-label fw-semibold" for="lulPdf">File PDF del consulente</label>
+    <input type="file" id="lulPdf" name="pdf" accept="application/pdf" class="form-control mb-3" required>
+    <button type="submit" name="action" value="upload" class="btn btn-primary"><i class="bi bi-search" aria-hidden="true"></i> Analizza il file</button>
+    <p class="small text-muted mt-3 mb-0">In questo passaggio non viene caricato nulla: vedi prima l'elenco e confermi tu.</p>
+</form>
+{% endif %}
+{% endblock %}

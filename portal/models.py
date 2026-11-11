@@ -66,6 +66,8 @@ class Employee(models.Model):
     show_published_turni = models.BooleanField(default=True)
     invito_inviato = models.BooleanField(default=False)
     external_code = models.CharField(max_length=10, blank=True, null=True)
+    # Codice fiscale: serve ad abbinare i cedolini del file del consulente senza errori.
+    fiscal_code = models.CharField(max_length=16, blank=True, default='', db_index=True)
     must_change_password = models.BooleanField(default=True)
     privacy_accepted = models.BooleanField(default=False)
     privacy_accepted_at = models.DateTimeField(null=True, blank=True)

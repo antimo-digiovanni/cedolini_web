@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dpi_views, push_views, document_views, identity_views, announcement_views, vacations, deadlines, profile_views, archive_views, mark_anomalies
+from . import views, dpi_views, push_views, document_views, identity_views, announcement_views, vacations, deadlines, profile_views, archive_views, mark_anomalies, lul_import
 
 urlpatterns = [
 
@@ -66,6 +66,7 @@ urlpatterns = [
     path('admin-reset-payslip-view/<int:payslip_id>/', views.admin_reset_payslip_view, name='admin_reset_payslip_view'),
 
     # Admin upload folder/zip: ripristinato
+    path('admin-cedolini-consulente/', lul_import.admin_lul_import, name='admin_lul_import'),
     path('admin-upload-folder-period/', views.admin_upload_period_folder, name='admin_upload_period_folder'),
     path('admin-cancel-import/', views.admin_cancel_import, name='admin_cancel_import'),
 
