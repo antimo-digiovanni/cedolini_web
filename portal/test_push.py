@@ -294,13 +294,13 @@ class AdminNotificationsPageTests(TestCase):
     def test_lists_active_and_inactive(self):
         self.client.force_login(self.admin)
         r = self.client.get(reverse('admin_notifications'))
-        self.assertContains(r, 'Anna Bianchi')
-        self.assertContains(r, 'Bruno Neri')
+        self.assertContains(r, 'Bianchi Anna')
+        self.assertContains(r, 'Neri Bruno')
         self.assertContains(r, 'iPhone/Safari')
         self.assertEqual(r.context['counts'], {'attive': 1, 'non_attive': 1, 'tutti': 2})
         r = self.client.get(reverse('admin_notifications') + '?filtro=non_attive')
-        self.assertNotContains(r, 'Anna Bianchi')
-        self.assertContains(r, 'Bruno Neri')
+        self.assertNotContains(r, 'Bianchi Anna')
+        self.assertContains(r, 'Neri Bruno')
 
     def test_send_test_notification(self):
         self.client.force_login(self.admin)

@@ -84,7 +84,8 @@ class Employee(models.Model):
 
     @property
     def full_name(self):
-        parts = [p for p in (self.first_name, self.last_name) if p]
+        # In tutto il portale i dipendenti si mostrano come «Cognome Nome».
+        parts = [p for p in (self.last_name, self.first_name) if p]
         if parts:
             return " ".join(parts)
         # fallback to username if names missing

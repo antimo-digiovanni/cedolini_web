@@ -37,7 +37,7 @@ class AnnouncementTests(TestCase):
         self.client.force_login(self.admin)
         page = self.client.get(reverse('admin_announcement_detail', args=[ann.id]))
         self.assertContains(page, 'Letta da 1 su 2')
-        self.assertContains(page, 'Luigi Verdi')
+        self.assertContains(page, 'Verdi Luigi')
         with mock.patch('portal.push.send_to_user') as send, self.captureOnCommitCallbacks(execute=True):
             self.client.post(reverse('admin_announcement_detail', args=[ann.id]), {'action': 'remind'})
         self.assertEqual(send.call_count, 1)

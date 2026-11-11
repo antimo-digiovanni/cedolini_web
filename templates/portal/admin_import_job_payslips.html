@@ -31,7 +31,7 @@
                 <tr>
                     <td>
                         {% if p.employee.user.first_name or p.employee.user.last_name %}
-                            {{ p.employee.user.first_name }} {{ p.employee.user.last_name }}
+                            {{ p.employee.user.last_name }} {{ p.employee.user.first_name }}
                         {% else %}
                             {{ p.employee.user.username }}
                         {% endif %}

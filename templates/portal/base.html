@@ -272,7 +272,7 @@
                 {% endif %}
                 <span class="topbar-name">
                 {% if user.first_name or user.last_name %}
-                    {{ user.first_name }} {{ user.last_name }}
+                    {{ user.last_name }} {{ user.first_name }}
                 {% else %}
                     {{ user.username }}
                 {% endif %}

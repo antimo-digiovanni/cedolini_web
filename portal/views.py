@@ -936,7 +936,9 @@ def _build_personal_asset_reimbursement_report_image(user):
     x_desc = x_date + date_col_width
     x_amount = x_desc + desc_col_width
 
-    title_text = f'Rimborso spese {display_name.split()[0] if display_name else ""}'.strip()
+    _emp = getattr(user, 'employee', None)
+    _first = ((_emp.first_name if _emp else '') or user.first_name or (display_name.split()[0] if display_name else '')).strip()
+    title_text = f'Rimborso spese {_first}'.strip()
     draw.rectangle((margin, table_top, width - margin, table_top + title_row_height), outline=grid_color, width=2)
     if logo_image is not None:
         logo_y = table_top + max(0, (title_row_height - logo_image.height) // 2)
@@ -2482,7 +2484,7 @@ def _turni_planner_weekend_mail_response(state, *, recipient_text='', subject_te
 
 
 def _employee_admin_display_name(employee):
-    parts = [part.strip() for part in (employee.first_name, employee.last_name) if part and part.strip()]
+    parts = [part.strip() for part in (employee.last_name, employee.first_name) if part and part.strip()]
     if parts:
         return ' '.join(parts)
     return getattr(getattr(employee, 'user', None), 'username', '') or ''
@@ -7341,7 +7343,7 @@ def admin_send_invite(request):
 
     subject = "Attivazione account - Portale Cedolini"
     text_content = (
-        f"Gentile {employee.first_name or ''} {employee.last_name or ''},\n\n"
+        f"Gentile {employee.last_name or ''} {employee.first_name or ''},\n\n"
         f"è stato creato il tuo accesso al Portale Cedolini.\n\n"
         f"USERNAME: {username}\n\n"
         f"EMAIL: {employee.email_invio}\n\n"
@@ -7375,7 +7377,7 @@ def admin_send_invite(request):
     </tr>
     <tr>
         <td style="font-size:14px;color:#374151;padding-bottom:20px;line-height:1.6;">
-            Gentile <strong>{employee.first_name or ''} {employee.last_name or ''}</strong>,<br><br>
+            Gentile <strong>{employee.last_name or ''} {employee.first_name or ''}</strong>,<br><br>
             è stato creato il tuo accesso al <strong>Portale Cedolini</strong>.<br><br>
             Il tuo <strong style="color:#111827;">USERNAME</strong> per accedere è:<br>
             <span style="display:inline-block;margin-top:10px;padding:10px 14px;background:#eff6ff;border-radius:6px;font-family:monospace;font-size:15px;color:#111827;border:1px solid #bfdbfe;">
@@ -7530,7 +7532,7 @@ def send_read_notification_email(payslip):
     subject = "Cedolino visualizzato - Portale Cedolini"
 
     text_content = f"""
-Il cedolino di {employee.first_name} {employee.last_name}
+Il cedolino di {employee.last_name} {employee.first_name}
 ({payslip.month}/{payslip.year})
 è stato visualizzato in data {timezone.now().strftime("%d/%m/%Y %H:%M")}.
 """
@@ -7558,7 +7560,7 @@ Il cedolino di {employee.first_name} {employee.last_name}
 
     <tr>
         <td style="font-size:14px;color:#374151;padding-bottom:20px;">
-            Il dipendente <strong>{employee.first_name} {employee.last_name}</strong><br>
+            Il dipendente <strong>{employee.last_name} {employee.first_name}</strong><br>
             ha visualizzato il cedolino di <strong>{payslip.month}/{payslip.year}</strong>.
         </td>
     </tr>

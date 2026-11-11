@@ -220,7 +220,7 @@ def admin_documents(request):
                 tags.add('mancanti')
         for t in tags:
             counts[t] += 1
-        if q and q not in emp.full_name.lower():
+        if q and q not in f'{emp.last_name} {emp.first_name} {emp.first_name} {emp.last_name}'.lower():
             continue
         if flt and flt not in tags:
             continue

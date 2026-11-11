@@ -142,14 +142,14 @@ class TodayMarkingsAccessTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Chi ha marcato oggi")
 		self.assertContains(response, "Ingresso")
-		self.assertContains(response, "Luca Verdi")
+		self.assertContains(response, "Verdi Luca")
 
 	def test_limited_user_can_view_today_markings_page(self):
 		self.client.force_login(self.owner_user)
 		response = self.client.get(reverse("today_markings_dashboard"))
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Chi ha marcato oggi")
-		self.assertContains(response, "Luca Verdi")
+		self.assertContains(response, "Verdi Luca")
 
 	def test_limited_user_does_not_see_mark_coordinates(self):
 		session = WorkSession.objects.filter(employee=self.employee, work_date=timezone.localdate()).first()
@@ -224,7 +224,7 @@ class TodayMarkingsAccessTests(TestCase):
 		response = self.client.get(reverse("today_markings_dashboard"), {"date": (timezone.localdate() - timezone.timedelta(days=1)).isoformat()})
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Elenco marcature del")
-		self.assertContains(response, "Luca Verdi")
+		self.assertContains(response, "Verdi Luca")
 
 	def test_today_markings_includes_overnight_exit_on_next_day(self):
 		WorkSession.objects.all().delete()
@@ -243,13 +243,13 @@ class TodayMarkingsAccessTests(TestCase):
 		self.client.force_login(self.owner_user)
 		response_today = self.client.get(reverse("today_markings_dashboard"))
 		self.assertEqual(response_today.status_code, 200)
-		self.assertContains(response_today, "Luca Verdi")
+		self.assertContains(response_today, "Verdi Luca")
 		self.assertContains(response_today, "01:00")
 		self.assertContains(response_today, "--:--")
 
 		response_yesterday = self.client.get(reverse("today_markings_dashboard"), {"date": yesterday.isoformat()})
 		self.assertEqual(response_yesterday.status_code, 200)
-		self.assertContains(response_yesterday, "Luca Verdi")
+		self.assertContains(response_yesterday, "Verdi Luca")
 		self.assertContains(response_yesterday, "17:00")
 
 
@@ -1453,7 +1453,7 @@ class VacationRequestFlowTests(TestCase):
 		employees_response = self.client.get(reverse("admin_employees"))
 		self.assertEqual(employees_response.status_code, 200)
 		employees_html = employees_response.content.decode()
-		self.assertLess(employees_html.index("Anna Zulu"), employees_html.index("Zeno Alfa"))
+		self.assertLess(employees_html.index("Zulu Anna"), employees_html.index("Alfa Zeno"))
 
 		timekeeping_response = self.client.get(
 			reverse("admin_timekeeping"),
@@ -1465,7 +1465,7 @@ class VacationRequestFlowTests(TestCase):
 		)
 		self.assertEqual(timekeeping_response.status_code, 200)
 		timekeeping_html = timekeeping_response.content.decode()
-		self.assertLess(timekeeping_html.index("Anna Zulu"), timekeeping_html.index("Zeno Alfa"))
+		self.assertLess(timekeeping_html.index("Zulu Anna"), timekeeping_html.index("Alfa Zeno"))
 		self.assertEqual(Employee.objects.get(id=first_employee.id).last_name, "Alfa")
 		self.assertEqual(Employee.objects.get(id=second_employee.id).last_name, "Zulu")
 

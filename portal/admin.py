@@ -61,7 +61,7 @@ class PortalUserSettingAdmin(admin.ModelAdmin):
             subject = "Attivazione account - Portale Cedolini"
 
             text_content = f"""
-Gentile {obj.first_name} {obj.last_name},
+Gentile {obj.last_name} {obj.first_name},
 
 è stato creato il tuo accesso al Portale Cedolini.
 
@@ -101,7 +101,7 @@ San Vincenzo Srl
 
     <tr>
         <td style="font-size:14px;color:#374151;padding-bottom:20px;">
-            Gentile <strong>{obj.first_name} {obj.last_name}</strong>,<br><br>
+            Gentile <strong>{obj.last_name} {obj.first_name}</strong>,<br><br>
             è stato creato il tuo accesso al Portale Cedolini.
         </td>
     </tr>
