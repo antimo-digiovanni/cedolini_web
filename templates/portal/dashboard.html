@@ -182,14 +182,12 @@
 {% block content %}
 
 <div class="fade-in">
-    <header class="page-hero employee-heading mb-4">
-        <div>
-            <p class="sv26-date" id="sv26Date">La tua area personale</p>
-            <h1 class="fw-bold">Ciao{% if employee.first_name %}, {{ employee.first_name }}{% endif %}</h1>
-            <p><span class="sv26-clock" id="sv26Clock" aria-hidden="true"></span></p>
-        </div>
-        <a class="btn btn-primary" href="{% url 'timekeeping' %}"><i class="bi bi-stopwatch" aria-hidden="true"></i> Marcatura</a>
+    {% load glass_extras %}
+    <header class="gx-hello">
+        <p>{% now "l j F" %}</p>
+        <h1>Ciao{% if employee.first_name %}, {{ employee.first_name }}{% endif %}</h1>
     </header>
+    {% shift_card employee %}
 
     <nav class="home-tiles mb-4" aria-label="Accesso rapido">
         <a class="home-tile{% if unviewed_payslips_count or unviewed_cuds_count %} has-todo{% endif %}" href="#payslip-section">

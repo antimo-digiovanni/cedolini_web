@@ -85,7 +85,7 @@ class PortalThemeTests(TestCase):
                 self.assertContains(response, "portal/portal-theme.")
                 self.assertNotContains(response, 'href="/portal/admin-employees/"')
         response = self.client.get(reverse("dashboard"))
-        self.assertContains(response, "La tua area personale")
+        self.assertContains(response, "Il tuo turno")
 
     def test_recovery_pages_do_not_fall_back_to_django_admin(self):
         for name in ("password_reset", "password_reset_done", "password_reset_complete"):

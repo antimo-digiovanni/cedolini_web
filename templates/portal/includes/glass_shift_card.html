@@ -1,0 +1,22 @@
+<section class="gx-shift gx-glass" aria-label="Il tuo turno">
+    {% if state == 'open' %}
+    <span class="gx-pill gx-pill-ok">In turno dalle {{ since|time:"H:i" }}</span>
+    <div class="gx-clock"><span class="gx-num">{{ worked }}</span><small>ore<br>lavorate</small></div>
+    {% if zone %}<p class="gx-zone">{% if within %}Sei dentro la zona{% else %}Entrata fuori zona, vicino a{% endif %} <b>{{ zone }}</b></p>{% endif %}
+    <a class="gx-btn" href="{% url 'timekeeping' %}"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Marca l'uscita</a>
+    {% elif state == 'done' %}
+    <span class="gx-pill">Turno concluso{% if since %}: {{ since|time:"H:i" }} – {{ until|time:"H:i" }}{% endif %}</span>
+    <div class="gx-clock"><span class="gx-num">{{ worked }}</span><small>ore<br>lavorate oggi</small></div>
+    <a class="gx-btn gx-btn-soft" href="{% url 'timekeeping' %}"><i class="bi bi-stopwatch" aria-hidden="true"></i> Apri la marcatura</a>
+    {% else %}
+    <span class="gx-pill">Non hai ancora marcato oggi</span>
+    <div class="gx-clock"><span class="gx-num" id="gxNow">--:--</span><small>ora<br>attuale</small></div>
+    <a class="gx-btn" href="{% url 'timekeeping' %}"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Marca l'entrata</a>
+    {% endif %}
+    <div class="gx-band" aria-hidden="true">
+        {% if state == 'open' %}<i class="gx-band-done" style="left:{{ band_left }}%;width:{{ band_width }}%"></i>{% endif %}
+        <i class="gx-band-now" style="left:{{ now_left }}%"></i>
+    </div>
+    <div class="gx-band-l" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+</section>
+{% if state == 'none' %}<script>(function(){var e=document.getElementById('gxNow');if(!e)return;function t(){var n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}t();setInterval(t,15000);})();</script>{% endif %}

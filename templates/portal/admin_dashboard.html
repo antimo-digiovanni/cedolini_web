@@ -173,10 +173,19 @@
 
 <div class="container admin-dashboard">
 
-    <header class="dashboard-header mb-4">
-        <h1 class="fw-bold mb-0">Dashboard Admin</h1>
-        <div class="dashboard-date"><i class="bi bi-calendar3" aria-hidden="true"></i> <time datetime="{{ today|date:'Y-m-d' }}">{{ today|date:"l d F Y" }}</time></div>
+    {% load glass_extras %}
+    <header class="gx-hello d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+        <div>
+            <p>{% now "l j F Y" %}</p>
+            <h1 id="gxGreet">Buongiorno{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'admin_announcements' %}" class="btn btn-outline-secondary"><i class="bi bi-megaphone" aria-hidden="true"></i> Nuova comunicazione</a>
+            <a href="{% url 'admin_lul_import' %}" class="btn btn-primary"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i> Carica i cedolini</a>
+        </div>
     </header>
+    <script>(function(){var g=document.getElementById('gxGreet');if(!g)return;var h=new Date().getHours();g.textContent=g.textContent.replace(/^[^,]+/,h<13?'Buongiorno':(h<18?'Buon pomeriggio':'Buonasera'));})();</script>
+    {% today_board %}
 
     {% if user.employee %}
     {# Admin che è anche dipendente: può attivare le notifiche e firmare le proprie consegne DPI. #}
@@ -188,94 +197,6 @@
     </div>
     {% endif %}
     {% endif %}
-
-    <div class="row g-4 dashboard-kpis">
-        <div class="col-lg-3 col-md-6">
-            <div class="card-modern kpi-card kpi-primary position-relative">
-                <div class="kpi-icon">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                </div>
-                <div class="display-6 fw-bold">{{ entered_today_count }}</div>
-                <div class="fw-semibold">Dipendenti con entrata oggi</div>
-                <div class="kpi-meta mt-2">Su {{ employee_count }} dipendenti registrati</div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="card-modern kpi-card kpi-success position-relative">
-                <div class="kpi-icon">
-                    <i class="bi bi-check2-circle"></i>
-                </div>
-                <div class="display-6 fw-bold">{{ completed_today_count }}</div>
-                <div class="fw-semibold">Giornate complete oggi</div>
-                <div class="kpi-meta mt-2">Marcature complete ingresso e uscita</div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="card-modern kpi-card kpi-warning position-relative">
-                <div class="kpi-icon">
-                    <i class="bi bi-exclamation-triangle"></i>
-                </div>
-                <div class="display-6 fw-bold">{{ outside_today_count }}</div>
-                <div class="fw-semibold">Marcature fuori zona oggi</div>
-                <div class="kpi-meta mt-2">Da verificare o giustificare rapidamente</div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="card-modern kpi-card kpi-danger position-relative">
-                <div class="kpi-icon">
-                    <i class="bi bi-bell"></i>
-                </div>
-                <div class="display-6 fw-bold">{{ pending_mark_requests_count|add:pending_vacation_requests_count }}</div>
-                <div class="fw-semibold">Richieste pendenti</div>
-                <div class="kpi-meta mt-2">{{ pending_mark_requests_count }} fuori zona · {{ pending_vacation_requests_count }} ferie</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row dashboard-summary">
-        <div class="col-lg-3 col-md-6">
-            <div class="kpi-soft h-100">
-                <div class="kpi-icon"><i class="bi bi-calendar2-check"></i></div>
-                <div class="fs-4 fw-bold">{{ approved_month_count }}</div>
-                <div class="fw-semibold">Richieste del mese approvate</div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="kpi-soft h-100">
-                <div class="kpi-icon"><i class="bi bi-calendar2-x"></i></div>
-                <div class="fs-4 fw-bold">{{ rejected_month_count }}</div>
-                <div class="fw-semibold">Richieste del mese rifiutate</div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="kpi-soft h-100">
-                <div class="kpi-icon"><i class="bi bi-geo-alt"></i></div>
-                <div class="fs-4 fw-bold">{{ active_zone_count }}</div>
-                <div class="fw-semibold">Zone attive</div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="kpi-soft h-100">
-                <div class="kpi-icon"><i class="bi bi-diagram-3"></i></div>
-                <div class="fs-4 fw-bold">{{ active_assignment_count }}</div>
-                <div class="fw-semibold">Assegnazioni attive</div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="kpi-soft h-100">
-                <div class="kpi-icon"><i class="bi bi-airplane"></i></div>
-                <div class="fs-4 fw-bold">{{ approved_vacation_month_count }}</div>
-                <div class="fw-semibold">Ferie richieste nel mese e approvate</div>
-            </div>
-        </div>
-    </div>
 
     <div class="row g-4 mt-1">
         <div class="col-12">

@@ -1,0 +1,30 @@
+<section class="gx-board gx-glass mb-4" aria-label="Tabellone di oggi">
+    <div class="gx-board-head">
+        <h2>Il tabellone di oggi</h2>
+        <div class="gx-board-k">
+            <span><b>{{ counts.live }}</b> in servizio</span>
+            <span><b>{{ counts.done }}</b> usciti</span>
+            {% if counts.out %}<span class="gx-k-out"><b>{{ counts.out }}</b> fuori zona</span>{% endif %}
+        </div>
+    </div>
+    {% if lanes %}
+    <div class="gx-board-scroll">
+        <div class="gx-board-grid">
+            <div class="gx-hours" aria-hidden="true">{% for h in hours %}<span style="left:{{ h.left }}%">{{ h.h }}</span>{% endfor %}<b class="gx-now-tag" style="left:{{ now_left }}%">{{ now_label }}</b></div>
+            {% for lane in lanes %}
+            <div class="gx-lane">
+                <div class="gx-lane-name"><b>{{ lane.zone }}</b><span>{{ lane.live }} in servizio</span></div>
+                <div class="gx-lane-track" style="height:{{ lane.height }}px">
+                    <i class="gx-shade" style="left:0;width:25%"></i><i class="gx-shade" style="left:91.66%;width:8.34%"></i>
+                    {% for b in lane.bars %}<span class="gx-bar gx-bar-{{ b.kind }}" title="{{ b.title }}" style="left:{{ b.left }}%;width:{{ b.width }}%;top:{{ b.top }}px">{{ b.label }}{% if b.kind == 'out' %} · fuori zona{% endif %}</span>{% endfor %}
+                    <i class="gx-now" style="left:{{ now_left }}%"></i>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <script>(function(){var b=document.currentScript.previousElementSibling;if(!b||b.scrollWidth<=b.clientWidth)return;b.scrollLeft=Math.max(0,b.scrollWidth*{{ now_left }}/100-b.clientWidth*0.75);})();</script>
+    {% else %}
+    <p class="text-muted mb-0">Nessuna marcatura ancora oggi.</p>
+    {% endif %}
+</section>
