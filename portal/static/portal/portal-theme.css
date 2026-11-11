@@ -1877,8 +1877,15 @@ html.sv-glass .sidebar a.active { background: rgba(255,255,255,.85); color: var(
 html.sv-glass .sidebar a.active i { color: var(--gx-blu); }
 html.sv-glass .sidebar a:hover, html.sv-glass .sidebar button:hover { background: rgba(255,255,255,.55); }
 html.sv-glass .topbar {
-    background: rgba(255,255,255,.45) !important; border-bottom: 1px solid rgba(255,255,255,.7) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6);
+    /* barra in alto sospesa come la barra laterale: due pannelli in vetro allineati, senza giunture */
+    top: 12px; margin: 12px 16px 0 16px; border-radius: 22px; padding-left: 22px; padding-right: 14px;
+    background: var(--gx-glass) !important; border: 1px solid var(--gx-edge) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(1.6); backdrop-filter: blur(26px) saturate(1.6);
+    box-shadow: var(--gx-shadow) !important;
+}
+html.sv-glass .topbar.is-scrolled { background: linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.74)) !important; }
+@media (max-width: 991.98px) {
+    html.sv-glass .topbar { top: 8px; margin: 8px 10px 0; border-radius: 20px; padding-left: 10px; padding-right: 10px; }
 }
 html.sv-glass .mobile-tabbar {
     left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
