@@ -50,6 +50,7 @@ urlpatterns = [
     path('documenti/anteprima/', identity_views.employee_document_preview, name='employee_document_preview'),
     path('documenti/foto/<int:doc_id>/<str:side>/', identity_views.document_image, name='document_image'),
     path('admin-documenti/', identity_views.admin_documents, name='admin_documents'),
+    path('admin-documenti/nuovo/', identity_views.admin_document_add, name='admin_document_add'),
     path('admin-documenti/<int:doc_id>/', identity_views.admin_document_detail, name='admin_document_detail'),
     path('admin-documenti/<int:doc_id>/pdf/', identity_views.admin_document_pdf, name='admin_document_pdf'),
     path('comunicazioni/', announcement_views.employee_announcements, name='employee_announcements'),

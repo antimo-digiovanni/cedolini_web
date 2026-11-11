@@ -406,3 +406,37 @@ class PreviewEndpointTests(GuidedUploadTests):
         r = self.client.post(reverse('employee_document_preview'), {'photo': SimpleUploadedFile('f.jpg', phone_photo(with_card=False), 'image/jpeg')})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r['X-Doc-Cropped'], '0')
+
+
+class AdminDocumentAddTests(TestCase):
+    def setUp(self):
+        self.media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media, True)
+        ov = override_settings(MEDIA_ROOT=self.media, STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage', 'OPTIONS': {'location': self.media}},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        })
+        ov.enable()
+        self.addCleanup(ov.disable)
+        self.admin = User.objects.create_user('ufficio', password='x', is_staff=True)
+        self.emp = Employee.objects.create(user=User.objects.create_user('nicola'), first_name='Nicola', last_name='Napolitano')
+        self.client.force_login(self.admin)
+
+    def test_single_photo_with_both_sides(self):
+        a = Image.open(io.BytesIO(phone_photo())); w, h = a.size
+        both = Image.new('RGB', (w, h * 2)); both.paste(a, (0, 0)); both.paste(a, (0, h))
+        buf = io.BytesIO(); both.save(buf, 'JPEG')
+        expiry = (timezone.localdate() + timedelta(days=900)).isoformat()
+        r = self.client.post(reverse('admin_document_add'), {'employee': self.emp.id, 'kind': 'ci', 'expiry_date': expiry,
+                                                              'both': SimpleUploadedFile('d.jpg', buf.getvalue(), 'image/jpeg')})
+        doc = IdentityDocument.objects.get()
+        self.assertRedirects(r, reverse('admin_document_detail', args=[doc.id]), fetch_redirect_response=False)
+        self.assertEqual(doc.status, IdentityDocument.STATUS_APPROVED)
+        self.assertTrue(doc.front_cropped and doc.back_cropped)
+        self.assertEqual(doc.employee, self.emp)
+
+    def test_requires_photos_and_staff(self):
+        r = self.client.post(reverse('admin_document_add'), {'employee': self.emp.id, 'kind': 'ci', 'expiry_date': '2030-01-01'})
+        self.assertContains(r, 'Carica una foto')
+        self.client.force_login(self.emp.user)
+        self.assertEqual(self.client.get(reverse('admin_document_add')).status_code, 302)

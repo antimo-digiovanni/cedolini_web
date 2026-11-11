@@ -1,0 +1,54 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Carica documento{% endblock %}
+
+{% block content %}
+<div class="page-hero mb-4">
+    <h2 class="fw-bold mb-1">Carica documento per un dipendente</h2>
+    <p class="mb-0 opacity-75">Per una foto ricevuta su WhatsApp o una fotocopia: il documento viene ritagliato e salvato già approvato.</p>
+</div>
+
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card-modern mb-4" style="max-width:720px">
+    {% csrf_token %}
+    <div class="row g-3">
+        <div class="col-md-7">
+            <label class="form-label fw-semibold" for="docEmployee">Dipendente</label>
+            <select id="docEmployee" name="employee" class="form-select" required>
+                <option value="">Scegli…</option>
+                {% for e in employees %}<option value="{{ e.id }}" {% if form.employee == e.id|stringformat:"s" %}selected{% endif %}>{{ e.last_name }} {{ e.first_name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label fw-semibold" for="docKind">Documento</label>
+            <select id="docKind" name="kind" class="form-select">
+                {% for k, label in kinds %}<option value="{{ k }}" {% if form.kind == k %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label fw-semibold" for="docExpiry">Scadenza</label>
+            <input type="date" id="docExpiry" name="expiry_date" class="form-control" value="{{ form.expiry }}" required>
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold" for="docBoth">Una sola foto con fronte e retro</label>
+            <input type="file" id="docBoth" name="both" accept="image/*" class="form-control">
+            <div class="form-text">Fronte sopra e retro sotto (oppure affiancati): la foto viene divisa a metà da sola.</div>
+        </div>
+        <div class="col-12"><div class="text-muted small fw-semibold">oppure due foto separate</div></div>
+        <div class="col-md-6">
+            <label class="form-label" for="docFront">Fronte</label>
+            <input type="file" id="docFront" name="front" accept="image/*" class="form-control">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="docBack">Retro</label>
+            <input type="file" id="docBack" name="back" accept="image/*" class="form-control">
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-upload" aria-hidden="true"></i> Carica documento</button>
+        <a href="{% url 'admin_documents' %}" class="btn btn-outline-secondary">Annulla</a>
+    </div>
+    <p class="small text-muted mt-3 mb-0">Dopo il caricamento si apre il documento: se il ritaglio non è perfetto puoi usare «Ritaglia a mano».</p>
+</form>
+{% endblock %}

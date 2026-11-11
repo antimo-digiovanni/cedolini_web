@@ -331,3 +331,70 @@ def admin_document_detail(request, doc_id):
         'doc': doc, 'state': identity_docs.describe(doc, doc.kind), 'history': history,
         'error': error, 'esito': esito, 'stamp': int(timezone.now().timestamp()),
     })
+
+
+def _split_both_sides(data):
+    """Una sola foto con fronte e retro (es. fotocopia): la divide a metà, sopra/sotto o sinistra/destra."""
+    import io
+    from PIL import Image, ImageOps
+    img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert('RGB')
+    w, h = img.size
+    boxes = [(0, 0, w, h // 2), (0, h // 2, w, h)] if h >= w else [(0, 0, w // 2, h), (w // 2, 0, w, h)]
+    parts = []
+    for box in boxes:
+        buf = io.BytesIO()
+        img.crop(box).save(buf, 'JPEG', quality=95)
+        parts.append(buf.getvalue())
+    return parts
+
+
+@login_required
+def admin_document_add(request):
+    """L'ufficio carica il documento al posto del dipendente (foto ricevuta su WhatsApp, fotocopia…)."""
+    if not request.user.is_staff:
+        return redirect('dashboard')
+    employees = Employee.objects.select_related('user').order_by('last_name', 'first_name')
+    error = None
+    form = {'employee': request.POST.get('employee') or request.GET.get('employee') or '',
+            'kind': request.POST.get('kind') or 'ci', 'expiry': request.POST.get('expiry_date') or ''}
+    if request.method == 'POST':
+        employee = employees.filter(id=form['employee']).first() if str(form['employee']).isdigit() else None
+        both, front, back = request.FILES.get('both'), request.FILES.get('front'), request.FILES.get('back')
+        try:
+            expiry = date.fromisoformat(form['expiry'])
+        except ValueError:
+            expiry = None
+        if not employee:
+            error = 'Scegli il dipendente.'
+        elif form['kind'] not in identity_docs.KIND_LABELS:
+            error = 'Scegli il tipo di documento.'
+        elif not expiry:
+            error = 'Inserisci la data di scadenza.'
+        elif not both and not (front and back):
+            error = 'Carica una foto con fronte e retro insieme, oppure le due foto separate.'
+        elif any(f and f.size > MAX_UPLOAD_BYTES for f in (both, front, back)):
+            error = 'Foto troppo grande.'
+        else:
+            try:
+                raw = _split_both_sides(both.read()) if both else [front.read(), back.read()]
+                (front_jpg, front_cropped), (back_jpg, back_cropped) = [doc_scan.process_photo(d) for d in raw]
+            except Exception:
+                logger.exception('documento caricato dall\'ufficio: foto non leggibile')
+                error = 'Non riesco ad aprire la foto: prova con un\'altra immagine (JPG o PNG).'
+            else:
+                stamp = timezone.now().strftime('%Y%m%d%H%M%S')
+                kind = form['kind']
+                doc = IdentityDocument(employee=employee, kind=kind, expiry_date=expiry,
+                                       front_cropped=front_cropped, back_cropped=back_cropped,
+                                       status=IdentityDocument.STATUS_APPROVED, reviewed_by=request.user,
+                                       reviewed_at=timezone.now(), review_note='Caricato dall\'ufficio')
+                doc.front_image.save(f'{kind}-{employee.id}-{stamp}-fronte.jpg', ContentFile(front_jpg), save=False)
+                doc.back_image.save(f'{kind}-{employee.id}-{stamp}-retro.jpg', ContentFile(back_jpg), save=False)
+                doc.save()
+                _create_audit_event(request, 'identity_document_uploaded', employee=employee,
+                                    metadata={'document_id': doc.id, 'kind': kind, 'expiry': str(expiry), 'via': 'ufficio',
+                                              'cropped': [front_cropped, back_cropped]})
+                return redirect('admin_document_detail', doc_id=doc.id)
+    return render(request, 'portal/admin_document_add.html', {
+        'employees': employees, 'kinds': identity_docs.KINDS, 'form': form, 'error': error,
+    })
