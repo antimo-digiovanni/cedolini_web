@@ -37,6 +37,15 @@
                 <button type="button" id="forgotEntryCancel" class="btn btn-link btn-sm px-0 mt-1">Annulla</button>
             </div>
             {% endwith %}
+            <div id="gpsPanel" class="alert alert-warning mt-3 mb-0" role="alert" hidden>
+                <p class="fw-semibold mb-1" id="gpsTitle"></p>
+                <p class="small mb-2" id="gpsText"></p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" id="gpsRetry" class="btn btn-primary flex-grow-1"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Riprova</button>
+                    <button type="button" id="gpsForce" class="btn btn-outline-secondary">Marca lo stesso</button>
+                </div>
+                <p class="small text-muted mt-2 mb-0">Con «Marca lo stesso» la marcatura viene registrata, ma può risultare fuori zona.</p>
+            </div>
             <div id="timekeepingFeedback" class="alert mt-3 d-none" role="status" aria-live="polite"></div>
             <h3 class="h6 mt-4 mb-2">Ingressi e uscite</h3>
             <div class="table-responsive">
@@ -111,26 +120,79 @@
         feedback.className = `alert mt-3 alert-${level}`;
         feedback.textContent = text;
     }
+    // ---- Lettura della posizione: più tentativi in pochi secondi, si tiene la più precisa ----
+    const GOOD_ACCURACY = 35, WEAK_ACCURACY = 150, MAX_WAIT_MS = 10000;
+    function readPosition() {
+        return new Promise(resolve => {
+            if (!navigator.geolocation) return resolve({position: null, reason: 'non supportata'});
+            let best = null, done = false, watchId = null, reason = '';
+            function finish() {
+                if (done) return; done = true;
+                if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+                clearTimeout(timer);
+                resolve({position: best, reason});
+            }
+            const timer = setTimeout(finish, MAX_WAIT_MS);
+            watchId = navigator.geolocation.watchPosition(pos => {
+                if (!best || pos.coords.accuracy < best.coords.accuracy) best = pos;
+                showFeedback('info', 'Ricerca della posizione… precisione ±' + Math.round(best.coords.accuracy) + ' m');
+                if (best.coords.accuracy <= GOOD_ACCURACY) finish();
+            }, err => {
+                reason = err.code === 1 ? 'posizione bloccata' : (err.code === 3 ? 'tempo scaduto' : 'posizione non disponibile');
+                if (err.code === 1) finish();
+            }, {enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0});
+        });
+    }
+    const gpsPanel = document.getElementById('gpsPanel');
+    function askGps(action, extra, fix) {
+        const pos = fix.position, acc = pos ? Math.round(pos.coords.accuracy) : null;
+        let title, text;
+        if (!pos && fix.reason === 'posizione bloccata') {
+            title = 'La posizione è bloccata su questo telefono';
+            text = 'Il portale non può sapere dove sei. Apri le impostazioni del telefono, cerca questo sito o l\'app del portale e consenti la Posizione. Poi riprova.';
+        } else if (!pos) {
+            title = 'Non riesco a leggere la posizione';
+            text = 'Controlla che il GPS (Localizzazione) sia acceso, avvicinati a una finestra o esci all\'aperto e riprova.';
+        } else if (acc > 1000) {
+            title = 'Posizione troppo approssimativa (±' + (acc / 1000).toFixed(1).replace('.', ',') + ' km)';
+            text = 'Il telefono sta dando solo una posizione indicativa. Su iPhone attiva «Posizione esatta» per questo sito; su Android scegli posizione «Precisa». Poi riprova.';
+        } else {
+            title = 'Segnale GPS debole (precisione ±' + acc + ' m)';
+            text = 'Avvicinati a una finestra o esci all\'aperto e riprova: bastano pochi secondi.';
+        }
+        document.getElementById('gpsTitle').textContent = title;
+        document.getElementById('gpsText').textContent = text;
+        gpsPanel.hidden = false;
+        feedback.classList.add('d-none');
+        gpsPanel.dataset.action = action;
+        gpsPanel._extra = extra || {};
+        startButton.disabled = gpsPanel._startDisabled; endButton.disabled = gpsPanel._endDisabled;
+        busy = false;
+        gpsPanel.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+    }
+    document.getElementById('gpsRetry').addEventListener('click', () => { gpsPanel.hidden = true; mark(gpsPanel.dataset.action, gpsPanel._extra); });
+    document.getElementById('gpsForce').addEventListener('click', () => { gpsPanel.hidden = true; mark(gpsPanel.dataset.action, Object.assign({}, gpsPanel._extra, {gps_forced: '1'})); });
     async function mark(action, extra) {
         if (busy) return;
         busy = true;
         const startDisabled = startButton.disabled;
         const endDisabled = endButton.disabled;
+        gpsPanel._startDisabled = startDisabled; gpsPanel._endDisabled = endDisabled;
+        gpsPanel.hidden = true;
         startButton.disabled = true;
         endButton.disabled = true;
         showFeedback('info', 'Ricerca della posizione...');
         try {
-            const position = await new Promise(resolve => {
-                if (!navigator.geolocation) return resolve(null);
-                navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), {
-                    enableHighAccuracy: true, timeout: 8000, maximumAge: 0,
-                });
-            });
+            const fix = await readPosition();
+            const position = fix.position;
+            const weak = position && position.coords.accuracy > WEAK_ACCURACY;
             const payload = new URLSearchParams(Object.assign({action, session_id: '{{ today_session.pk }}'}, extra || {}));
             if (position) {
                 payload.set('latitude', position.coords.latitude);
                 payload.set('longitude', position.coords.longitude);
+                payload.set('accuracy', Math.round(position.coords.accuracy));
             }
+            payload.set('gps_note', !position ? (fix.reason || 'nessuna posizione') : (weak ? 'posizione imprecisa' : 'ok'));
             showFeedback('info', 'Registrazione in corso...');
             const response = await fetch("{% url 'timekeeping' %}", {
                 method: 'POST',
@@ -142,6 +204,7 @@
                 throw new Error('Impossibile confermare la marcatura. Ricarica la pagina per verificare lo stato.');
             }
             const data = await response.json();
+            if (data.gps_weak) { askGps(action, extra, fix); return; }  // fuori zona con posizione assente o imprecisa: si può riprovare
             if (!response.ok || !data.ok) throw new Error(data.error || 'Marcatura non registrata.');
             showFeedback('success', action === 'start' ? 'Entrata registrata.' : (action === 'end_forgot' ? 'Uscita registrata. L\'orario di entrata è stato inviato all\'ufficio.' : 'Uscita registrata.'));
             window.location.reload();

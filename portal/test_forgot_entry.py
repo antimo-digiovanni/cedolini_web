@@ -146,3 +146,44 @@ class CorrectAnomaliesTests(TestCase):
         s.refresh_from_db()
         self.assertEqual(s.effective_started_at(), self.at(self.day, 6, 31))
         self.assertEqual(s.effective_ended_at(), self.at(self.day, 15, 3))
+
+
+class GpsToleranceTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="gps")
+        self.employee = Employee.objects.create(user=self.user, first_name="Gino", last_name="Gps")
+        self.zone = WorkZone.objects.create(name="Sede", latitude=40, longitude=14, radius_meters=100)
+        EmployeeWorkZone.objects.create(employee=self.employee, zone=self.zone, valid_from=timezone.localdate() - timedelta(days=5))
+        self.client.force_login(self.user)
+
+    def post(self, **data):
+        return self.client.post(reverse("timekeeping"), {"action": "start", **data})
+
+    # 0.0018° di latitudine ≈ 200 m dal centro: 100 m fuori dal cerchio
+    def test_weak_fix_just_outside_counts_as_inside(self):
+        r = self.post(latitude="40.0018", longitude="14", accuracy="120", gps_note="ok")
+        self.assertTrue(r.json()["ok"])
+        self.assertTrue(WorkSession.objects.get(employee=self.employee).start_within_zone)
+
+    def test_precise_fix_outside_stays_outside(self):
+        r = self.post(latitude="40.0018", longitude="14", accuracy="15", gps_note="ok")
+        self.assertTrue(r.json()["ok"])
+        self.assertFalse(WorkSession.objects.get(employee=self.employee).start_within_zone)
+
+    def test_far_or_missing_position_asks_to_retry_then_can_force(self):
+        r = self.post(latitude="40.02", longitude="14", accuracy="2500", gps_note="posizione imprecisa")  # ~2 km
+        self.assertEqual(r.status_code, 409)
+        self.assertTrue(r.json()["gps_weak"])
+        r = self.post(gps_note="posizione bloccata")
+        self.assertTrue(r.json()["gps_weak"])
+        self.assertFalse(WorkSession.objects.filter(employee=self.employee, started_at__isnull=False).exists())
+        r = self.post(gps_note="posizione bloccata", gps_forced="1")
+        self.assertTrue(r.json()["ok"])
+        self.assertFalse(WorkSession.objects.get(employee=self.employee, started_at__isnull=False).start_within_zone)
+
+    def test_tolerance_is_capped_and_old_app_still_works(self):
+        r = self.post(latitude="40.02", longitude="14", accuracy="5000", gps_note="x", gps_forced="1")
+        self.assertFalse(WorkSession.objects.get(employee=self.employee, started_at__isnull=False).start_within_zone)
+        WorkSession.objects.all().delete()
+        r = self.post()  # pagina vecchia in cache: nessun dato GPS nuovo, si comporta come prima
+        self.assertTrue(r.json()["ok"])

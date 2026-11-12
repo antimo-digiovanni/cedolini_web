@@ -4452,7 +4452,12 @@ def _active_zones_for_employee(employee, on_date):
     return [assignment.zone for assignment in assignments if assignment.zone_id]
 
 
-def _evaluate_location_for_employee_zone(employee, lat, lon, on_date):
+GPS_TOLERANCE_MAX_METERS = 150  # margine massimo concesso quando il telefono dichiara una posizione imprecisa
+
+
+def _evaluate_location_for_employee_zone(employee, lat, lon, on_date, accuracy=None):
+    """Zona più vicina alla posizione. Se il telefono dichiara un'imprecisione (accuracy, in metri),
+    chi risulta appena fuori ma entro quel margine (al massimo GPS_TOLERANCE_MAX_METERS) è considerato dentro."""
     assignments = _active_assignments_for_employee(employee, on_date)
     if lat is None or lon is None:
         return {
@@ -4504,11 +4509,17 @@ def _evaluate_location_for_employee_zone(employee, lat, lon, on_date):
             best_distance = distance
             best_within = within
 
+    by_tolerance = False
+    if not best_within and best_distance is not None and accuracy:
+        if best_distance <= min(float(accuracy), GPS_TOLERANCE_MAX_METERS):
+            best_within = True
+            by_tolerance = True
     return {
         'assignment': best_assignment,
         'zone': best_zone,
         'distance_meters': round(best_distance, 1) if best_distance is not None else None,
         'within': best_within,
+        'by_tolerance': by_tolerance,
     }
 
 
@@ -5021,8 +5032,19 @@ def timekeeping(request):
             return JsonResponse({'ok': False, 'error': 'Uscita gia marcata oggi.'}, status=400)
 
         now_ts = timezone.now()
-        zone_check = _evaluate_location_for_employee_zone(employee, latitude, longitude, today)
+        try:
+            gps_accuracy = float(request.POST.get('accuracy') or 0)
+        except ValueError:
+            gps_accuracy = 0
+        gps_accuracy = gps_accuracy if 0 < gps_accuracy < 100000 else None
+        zone_check = _evaluate_location_for_employee_zone(employee, latitude, longitude, today, accuracy=gps_accuracy)
         strict_mode = any(a.strict_geofence for a in active_assignments)
+
+        # Telefono senza posizione o con posizione imprecisa che risulta fuori zona: non si registra subito
+        # «fuori zona», si chiede di riprovare (il dipendente può comunque scegliere «Marca lo stesso»).
+        if ('gps_note' in request.POST and not request.POST.get('gps_forced') and not zone_check['within']
+                and (latitude is None or longitude is None or not gps_accuracy or gps_accuracy > GPS_TOLERANCE_MAX_METERS)):
+            return JsonResponse({'ok': False, 'gps_weak': True, 'error': 'Posizione assente o imprecisa.'}, status=409)
 
         if strict_mode and (latitude is None or longitude is None):
             return JsonResponse(
@@ -5057,6 +5079,8 @@ def timekeeping(request):
                     'zone': zone_check['zone'].name if zone_check['zone'] else None,
                     'within_zone': zone_check['within'],
                     'distance_meters': zone_check['distance_meters'],
+                    'gps_accuracy': round(gps_accuracy) if gps_accuracy else None,
+                    'gps_note': (request.POST.get('gps_note') or '')[:40] or None,
                 },
             )
 
@@ -5089,6 +5113,8 @@ def timekeeping(request):
                     'zone': zone_check['zone'].name if zone_check['zone'] else None,
                     'within_zone': zone_check['within'],
                     'distance_meters': zone_check['distance_meters'],
+                    'gps_accuracy': round(gps_accuracy) if gps_accuracy else None,
+                    'gps_note': (request.POST.get('gps_note') or '')[:40] or None,
                     'forgot_entry': True,
                 },
             )
@@ -5116,6 +5142,8 @@ def timekeeping(request):
                     'zone': zone_check['zone'].name if zone_check['zone'] else None,
                     'within_zone': zone_check['within'],
                     'distance_meters': zone_check['distance_meters'],
+                    'gps_accuracy': round(gps_accuracy) if gps_accuracy else None,
+                    'gps_note': (request.POST.get('gps_note') or '')[:40] or None,
                 },
             )
 
