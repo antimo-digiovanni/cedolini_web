@@ -1911,7 +1911,7 @@ html.sv-glass .btn-outline-primary, html.sv-glass .btn-outline-secondary, html.s
 html.sv-glass .btn-outline-primary:hover, html.sv-glass .btn-outline-secondary:hover, html.sv-glass .btn-outline-dark:hover, html.sv-glass .btn-light:hover {
     background: rgba(255,255,255,.9); color: var(--gx-blu-2); border-color: #fff;
 }
-html.sv-glass .form-control, html.sv-glass .form-select { background-color: rgba(255,255,255,.75); border-color: rgba(28,39,66,.12); }
+:where(html.sv-glass) .form-control, :where(html.sv-glass) .form-select { background-color: rgba(255,255,255,.75); border-color: rgba(28,39,66,.12); }
 html.sv-glass .form-control:focus, html.sv-glass .form-select:focus { border-color: var(--gx-blu); box-shadow: 0 0 0 4px rgba(66,104,200,.16); }
 html.sv-glass .table { --bs-table-bg: transparent; }
 html.sv-glass .table thead th { background: rgba(255,255,255,.55) !important; }
