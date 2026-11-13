@@ -3948,6 +3948,10 @@ def personal_asset_dashboard(request):
         return _corporate_card_pdf_response(request)
     if request.method == 'GET' and request.GET.get('report') == 'planned_corporate_card_pdf':
         return _planned_corporate_card_expenses_pdf_response(request)
+    if request.method == 'GET' and request.GET.get('report') == 'richiesta_ricarica':
+        from .card_cycle import request_pdf_response
+        _create_audit_event(request, 'corporate_card_topup_request_pdf', employee=getattr(request.user, 'employee', None))
+        return request_pdf_response(request)
 
     toggle_param = request.GET.get('show_reimbursement_in_assets')
     if toggle_param is not None:
@@ -4001,6 +4005,8 @@ def personal_asset_dashboard(request):
     elif status == 'corporate_card_expenses_pdf_missing':
         feedback = 'Seleziona almeno una spesa fatta da inserire nel PDF.'
         feedback_level = 'danger'
+    elif status == 'planned_expense_bought':
+        feedback = 'Comprato: ora è tra le spese fatte.'
     elif status == 'corporate_card_bank_check_saved':
         feedback = 'Controllo banca aggiornato correttamente.'
 
@@ -4073,6 +4079,31 @@ def personal_asset_dashboard(request):
                         planned_expense.paid_entry = card_entry
                         planned_expense.save(update_fields=['paid_entry'])
                 return redirect(f'{request.path}?status=planned_expenses_paid')
+
+        elif action == 'buy_planned_expense':
+            # «Comprato»: la voce della lista diventa una spesa fatta, con l'importo vero e lo scontrino
+            planned_expense = PlannedCorporateCardExpense.objects.filter(
+                id=request.POST.get('planned_expense_id'), user=request.user, paid_entry__isnull=True).first()
+            buy_form = CorporateCardEntryForm(request.POST, request.FILES)
+            if planned_expense is None:
+                feedback, feedback_level = 'Voce da comprare non trovata o già comprata.', 'danger'
+            elif buy_form.is_valid() and buy_form.cleaned_data['amount'] > _corporate_card_balance(request.user):
+                feedback, feedback_level = 'La spesa supera il saldo disponibile della carta: registra prima la ricarica ricevuta.', 'danger'
+            elif buy_form.is_valid():
+                card_entry = buy_form.save(commit=False)
+                card_entry.user = request.user
+                card_entry.operation_type = CorporateCardEntry.TYPE_EXPENSE
+                if not card_entry.receipt_image and planned_expense.receipt_image:
+                    card_entry.receipt_image = planned_expense.receipt_image
+                with transaction.atomic():
+                    card_entry.save()
+                    planned_expense.paid_entry = card_entry
+                    planned_expense.save(update_fields=['paid_entry'])
+                _create_audit_event(request, 'corporate_card_planned_bought', employee=getattr(request.user, 'employee', None),
+                                    metadata={'planned_expense_id': planned_expense.id, 'amount': str(card_entry.amount)})
+                return redirect(f'{request.path}?status=planned_expense_bought')
+            else:
+                feedback, feedback_level = 'Inserisci quanto hai speso e riprova.', 'danger'
 
         elif action == 'delete_planned_corporate_card_expense':
             PlannedCorporateCardExpense.objects.filter(
@@ -4375,7 +4406,11 @@ def personal_asset_dashboard(request):
     category_suggestions = _personal_asset_category_suggestions(request.user)
     reimbursement_toggle_query = '0' if show_reimbursement_in_assets else '1'
 
+    from .card_cycle import current_cycle
+    card_cycle = current_cycle(request.user)
     return render(request, 'portal/personal_asset_dashboard.html', {
+        'card_cycle': card_cycle,
+        'today': timezone.localdate(),
         'finance_form': form,
         'adjustment_form': adjustment_form,
         'corporate_card_form': corporate_card_form,

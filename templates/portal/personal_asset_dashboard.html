@@ -126,19 +126,66 @@
     .corporate-card-panel .form-label { margin-top: 4px; }
     .corporate-card-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* --- Carta per giri di ricarica --- */
+.cc-head h2{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;margin:0 0 1rem}
+.cc{display:grid;gap:1rem;margin-bottom:1.5rem}
+.cc-balance{border-radius:22px;padding:1.25rem 1.35rem;background:linear-gradient(150deg,#1f3b73 0%,#2c5aa8 60%,#3d7bd1 100%);color:#fff;box-shadow:0 14px 34px rgba(31,59,115,.28)}
+.cc-balance-top{display:flex;justify-content:space-between;align-items:center;gap:.75rem;font-size:.9rem;opacity:.92}
+.cc-link{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:999px;padding:.3rem .8rem;font-size:.82rem;font-weight:600;white-space:nowrap}
+.cc-link:hover{background:rgba(255,255,255,.26)}
+.cc-remaining{margin-top:.9rem;display:flex;align-items:baseline;flex-wrap:wrap;gap:.5rem}
+.cc-remaining-value{font-size:2.6rem;font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.cc-remaining-label{font-size:.95rem;opacity:.85}
+.cc-bar{height:10px;border-radius:999px;background:rgba(255,255,255,.22);margin-top:1rem;overflow:hidden}
+.cc-bar span{display:block;height:100%;border-radius:999px;background:#ffd36b}
+.cc-bar-legend{display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap;font-size:.85rem;margin-top:.5rem;opacity:.92}
+.cc-actions{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.cc-btn{border:0;border-radius:18px;padding:1rem .75rem;font-weight:700;font-size:1.02rem;display:flex;align-items:center;justify-content:center;gap:.5rem;min-height:64px}
+.cc-btn i{font-size:1.3rem}
+.cc-btn-spent{background:#fff;color:#1f3b73;box-shadow:0 6px 18px rgba(28,39,66,.1);border:1px solid #dfe5f0}
+.cc-btn-buy{background:#e9f6ee;color:#1d6b3f;border:1px solid #cbe9d6}
+.cc-btn:active{transform:scale(.98)}
+.cc-lists{display:grid;gap:1rem}
+@media (min-width:992px){.cc-lists{grid-template-columns:1fr 1fr}}
+.cc-list{background:rgba(255,255,255,.78);border:1px solid #e3e8f1;border-radius:20px;padding:1rem}
+.cc-list h3{font-size:1rem;font-weight:700;margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem}
+.cc-list h3 span{background:#eef2fb;color:#1f3b73;border-radius:999px;font-size:.75rem;padding:.1rem .55rem}
+.cc-row{display:flex;align-items:center;gap:.75rem;width:100%;text-align:left;background:none;border:0;border-top:1px solid #edf0f5;padding:.7rem .15rem;color:inherit}
+.cc-list h3+.cc-row{border-top:0}
+button.cc-row:hover,.cc-plain:hover{background:#f6f8fc}
+.cc-row-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.cc-plain{background:none;border:0;text-align:left;padding:0;color:inherit;border-radius:8px}
+.cc-row-title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc-row-meta{font-size:.82rem;color:#6a7488;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc-row-amount{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cc-row-icon{color:#2c8a55}.cc-row-icon .cc-missing{color:#c9cfd9}
+.cc-tick{width:34px;height:34px;flex:none;border-radius:50%;border:2px solid #9fd2b3;background:#fff;color:#2c8a55;display:flex;align-items:center;justify-content:center;font-size:1.05rem}
+.cc-tick:hover{background:#2c8a55;color:#fff;border-color:#2c8a55}
+.cc-empty{color:#6a7488;font-size:.9rem;margin:.25rem 0 0}
+.cc-ask{background:#fff;border:1px solid #e3e8f1;border-radius:22px;padding:1.1rem;display:grid;gap:.6rem;box-shadow:0 8px 24px rgba(28,39,66,.08)}
+.cc-ask-calc{display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;color:#6a7488;font-size:.9rem;font-variant-numeric:tabular-nums}
+.cc-ask-btn{border:0;border-radius:18px;background:#1d7a47;color:#fff;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;font-size:1.1rem;font-weight:600;min-height:64px;box-shadow:0 10px 24px rgba(29,122,71,.28)}
+.cc-ask-btn strong{font-size:1.45rem;font-variant-numeric:tabular-nums}
+.cc-ask-btn:disabled{opacity:.7}
+.cc-ask-preview{text-align:center;font-size:.9rem}
+.cc-ask-note{text-align:center;color:#6a7488;font-size:.8rem;margin:0}
+.cc-photo{display:flex;align-items:center;justify-content:center;gap:.5rem;border:2px dashed #c7d0df;border-radius:14px;padding:.9rem;color:#1f3b73;font-weight:600;cursor:pointer;margin:0}
+.cc-photo.is-set{border-style:solid;border-color:#2c8a55;color:#1d6b3f;background:#eef8f2}
+.cc-photo input{position:absolute;width:1px;height:1px;opacity:0}
+.cc-more{margin-top:.5rem}
+.cc-more>summary{cursor:pointer;font-weight:600;color:#1f3b73;padding:.9rem 1rem;border:1px solid #e3e8f1;border-radius:16px;background:rgba(255,255,255,.7);list-style:none;margin-bottom:1rem}
+.cc-more>summary::-webkit-details-marker{display:none}
+.cc-more>summary::before{content:"\F285";font-family:bootstrap-icons;margin-right:.5rem;display:inline-block;transition:transform .2s}
+.cc-more[open]>summary::before{transform:rotate(90deg)}
+@media (max-width:575.98px){.cc-sheet .modal-dialog{margin:0;position:fixed;bottom:0;left:0;right:0;max-width:none;min-height:auto;align-items:flex-end}.cc-sheet .modal-content{border-radius:22px 22px 0 0}}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="corporate-card-page">
-    <div class="page-hero mb-4">
-        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-            <div>
-                <h2 class="h3 mb-2">Gestione carta di credito aziendale</h2>
-                <p class="mb-0">Registra le ricariche del datore, controlla le spese e stampa il riepilogo da consegnare.</p>
-            </div>
-            <div class="finance-pill">Carta aziendale</div>
-        </div>
+    <div class="cc-head">
+        <h2>Carta aziendale</h2>
     </div>
 
     {% if feedback %}
@@ -147,6 +194,10 @@
     </div>
     {% endif %}
 
+    {% include "portal/includes/card_cycle.html" %}
+
+    <details class="cc-more">
+    <summary>Storico, controllo banca e strumenti</summary>
     <div class="corporate-card-panel">
         <div class="row g-3 align-items-stretch mb-4">
             <div class="col-lg-5">
@@ -535,6 +586,7 @@
         <div class="alert alert-light border mb-0">Nessun movimento della carta aziendale. Inserisci la prima ricarica del datore per iniziare.</div>
         {% endif %}
     </div>
+    </details>
 </div>
 
 <script>
@@ -832,6 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
 {% endblock %}
 
 {% block modals %}
+{% include "portal/includes/card_cycle_modals.html" %}
 <template id="chargeRefundRowTemplate">
     <div class="row g-2 align-items-end corporate-card-detail-row" data-charge-refund-row="1">
         <div class="col-md-2">

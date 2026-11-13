@@ -1,0 +1,67 @@
+{% load l10n %}
+<section class="cc" aria-label="Carta aziendale">
+    <div class="cc-balance">
+        <div class="cc-balance-top">
+            <span>{{ card_cycle.top_label }}</span>
+            <button type="button" class="cc-link" data-bs-toggle="modal" data-bs-target="#ccTopUpModal">Ricarica ricevuta</button>
+        </div>
+        <div class="cc-remaining"><span class="cc-remaining-value">{{ card_cycle.balance|floatformat:2 }} €</span> <span class="cc-remaining-label">ancora sulla carta</span></div>
+        <div class="cc-bar" role="img" aria-label="Speso {{ card_cycle.pct_spent }} per cento"><span style="width: {{ card_cycle.pct_spent|unlocalize }}%"></span></div>
+        <div class="cc-bar-legend">
+            <span>Speso <strong>{{ card_cycle.spent|floatformat:2 }} €</strong></span>
+            {% if card_cycle.carry_over > 0 and card_cycle.top %}<span>+ {{ card_cycle.carry_over|floatformat:2 }} € avanzati prima</span>{% endif %}
+        </div>
+    </div>
+
+    <div class="cc-actions">
+        <button type="button" class="cc-btn cc-btn-spent" data-bs-toggle="modal" data-bs-target="#ccSpentModal"><i class="bi bi-receipt" aria-hidden="true"></i> Spesa fatta</button>
+        <button type="button" class="cc-btn cc-btn-buy" data-bs-toggle="modal" data-bs-target="#ccBuyModal"><i class="bi bi-cart-plus" aria-hidden="true"></i> Da comprare</button>
+    </div>
+
+    <div class="cc-lists">
+        <div class="cc-list">
+            <h3>Spese dall'ultima ricarica <span>{{ card_cycle.expenses|length }}</span></h3>
+            {% for e in card_cycle.expenses %}
+            <button type="button" class="cc-row" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ e.id }}">
+                <span class="cc-row-main">
+                    <span class="cc-row-title">{% if e.operation_type == 'withdrawal' %}Prelievo{% if e.category %} · {{ e.category }}{% endif %}{% else %}{{ e.category }}{% endif %}</span>
+                    <span class="cc-row-meta">{{ e.occurred_on|date:"j M" }}{% if e.description %} · {{ e.description|truncatechars:40 }}{% endif %}</span>
+                </span>
+                <span class="cc-row-icon" title="{% if e.receipt_image %}Scontrino caricato{% else %}Manca lo scontrino{% endif %}"><i class="bi {% if e.receipt_image %}bi-image{% else %}bi-image cc-missing{% endif %}" aria-hidden="true"></i></span>
+                <span class="cc-row-amount">{{ e.amount|floatformat:2 }} €</span>
+            </button>
+            {% empty %}
+            <p class="cc-empty">Nessuna spesa da quando hai ricevuto la ricarica. Tocca «Spesa fatta» quando paghi qualcosa.</p>
+            {% endfor %}
+        </div>
+
+        <div class="cc-list">
+            <h3>Da comprare <span>{{ card_cycle.planned|length }}</span></h3>
+            {% for p in card_cycle.planned %}
+            <div class="cc-row cc-row-planned">
+                <button type="button" class="cc-tick" data-bs-toggle="modal" data-bs-target="#ccBoughtModal{{ p.id }}" aria-label="Segna come comprato: {{ p.category }}"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
+                <button type="button" class="cc-row-main cc-plain" data-bs-toggle="modal" data-bs-target="#editPlannedExpenseModal{{ p.id }}">
+                    <span class="cc-row-title">{{ p.category }}</span>
+                    {% if p.description %}<span class="cc-row-meta">{{ p.description|truncatechars:40 }}</span>{% endif %}
+                </button>
+                <span class="cc-row-amount">{{ p.amount|floatformat:2 }} €</span>
+            </div>
+            {% empty %}
+            <p class="cc-empty">Lista vuota. Aggiungi qui le cose da acquistare: finiranno nella richiesta di ricarica.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="cc-ask">
+        <div class="cc-ask-calc">
+            <span>Da comprare {{ card_cycle.planned_total|floatformat:2 }} €</span>
+            <span>− sulla carta {% if card_cycle.balance > 0 %}{{ card_cycle.balance|floatformat:2 }}{% else %}0,00{% endif %} €</span>
+        </div>
+        <button type="button" class="cc-ask-btn" data-cc-share="{{ request.path }}?report=richiesta_ricarica&amp;scarica=1">
+            <span>Chiedi ricarica</span>
+            <strong>{{ card_cycle.request_amount|floatformat:2 }} €</strong>
+        </button>
+        <a class="cc-ask-preview" href="{{ request.path }}?report=richiesta_ricarica" target="_blank" rel="noopener">Vedi il documento prima di inviarlo</a>
+        <p class="cc-ask-note">Il PDF contiene le spese con gli scontrini e la lista delle cose da comprare. Dal telefono si apre la condivisione per WhatsApp o mail.</p>
+    </div>
+</section>

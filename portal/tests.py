@@ -1147,7 +1147,7 @@ class PersonalAssetDashboardTests(TestCase):
 		)
 		self.client.force_login(self.user)
 		response = self.client.get(reverse("personal_asset_dashboard"))
-		self.assertContains(response, "Gestione carta di credito aziendale")
+		self.assertContains(response, "Chiedi ricarica")
 		self.assertNotContains(response, 'data-category-value="Farmacia bimbo"')
 
 	def test_dashboard_no_longer_renders_personal_asset_history(self):
@@ -1169,7 +1169,7 @@ class PersonalAssetDashboardTests(TestCase):
 		)
 		self.client.force_login(self.user)
 		response = self.client.get(reverse("personal_asset_dashboard"))
-		self.assertContains(response, "Gestione carta di credito aziendale")
+		self.assertContains(response, "Chiedi ricarica")
 		self.assertNotContains(response, "Storico operazioni")
 		self.assertNotContains(response, "Luglio 2026")
 		self.assertNotContains(response, "Giugno 2026")

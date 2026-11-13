@@ -1,0 +1,132 @@
+{% load l10n %}
+<div class="modal fade cc-sheet" id="ccSpentModal" tabindex="-1" aria-labelledby="ccSpentTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_corporate_card_entry">
+            <input type="hidden" name="operation_type" value="expense">
+            <div class="modal-header"><h5 class="modal-title" id="ccSpentTitle">Spesa fatta</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+            <div class="modal-body">
+                <label class="form-label" for="ccSpentAmount">Quanto hai speso</label>
+                <div class="input-group input-group-lg mb-3"><input id="ccSpentAmount" class="form-control" type="number" name="amount" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required><span class="input-group-text">€</span></div>
+                <label class="form-label" for="ccSpentWhat">Cosa</label>
+                <input id="ccSpentWhat" class="form-control mb-3" type="text" name="category" list="ccWhatList" placeholder="Es. carburante, materiale, pranzo" required>
+                <div class="row g-2 mb-3">
+                    <div class="col-6"><label class="form-label" for="ccSpentDate">Data</label><input id="ccSpentDate" class="form-control" type="date" name="occurred_on" value="{{ today|date:'Y-m-d' }}"></div>
+                    <div class="col-6"><label class="form-label" for="ccSpentMethod">Pagato con</label>
+                        <select id="ccSpentMethod" class="form-select" name="payment_method"><option value="company_card" selected>Carta</option><option value="cash_withdrawn">Contanti</option><option value="bank_transfer_other">Bonifico/altro</option></select></div>
+                </div>
+                <label class="cc-photo"><input type="file" name="receipt_image" accept="image/*,.pdf,application/pdf" capture="environment" data-cc-photo><i class="bi bi-camera" aria-hidden="true"></i> <span data-cc-photo-label>Foto dello scontrino</span></label>
+                <input class="form-control mt-3" type="text" name="description" placeholder="Nota (facoltativa)">
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary btn-lg w-100">Salva spesa</button></div>
+        </form>
+    </div></div>
+</div>
+
+<div class="modal fade cc-sheet" id="ccBuyModal" tabindex="-1" aria-labelledby="ccBuyTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_planned_corporate_card_expense">
+            <input type="hidden" name="planned_on" value="{{ today|date:'Y-m-d' }}">
+            <div class="modal-header"><h5 class="modal-title" id="ccBuyTitle">Da comprare</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+            <div class="modal-body">
+                <label class="form-label" for="ccBuyWhat">Cosa devi comprare</label>
+                <input id="ccBuyWhat" class="form-control mb-3" type="text" name="category" list="ccWhatList" placeholder="Es. guanti, detergente, gasolio" required>
+                <label class="form-label" for="ccBuyAmount">Costo previsto</label>
+                <div class="input-group input-group-lg mb-3"><input id="ccBuyAmount" class="form-control" type="number" name="amount" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required><span class="input-group-text">€</span></div>
+                <input class="form-control" type="text" name="description" placeholder="Dettagli (facoltativi)">
+                <label class="cc-photo mt-3"><input type="file" name="receipt_image" accept="image/*,.pdf,application/pdf" data-cc-photo><i class="bi bi-paperclip" aria-hidden="true"></i> <span data-cc-photo-label>Allega preventivo o foto (facoltativo)</span></label>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary btn-lg w-100">Aggiungi alla lista</button></div>
+        </form>
+    </div></div>
+</div>
+
+<div class="modal fade cc-sheet" id="ccTopUpModal" tabindex="-1" aria-labelledby="ccTopUpTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_corporate_card_entry">
+            <input type="hidden" name="operation_type" value="top_up">
+            <input type="hidden" name="category" value="Ricarica datore">
+            <div class="modal-header"><h5 class="modal-title" id="ccTopUpTitle">Ricarica ricevuta</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+            <div class="modal-body">
+                <label class="form-label" for="ccTopUpAmount">Quanto ha caricato il datore</label>
+                <div class="input-group input-group-lg mb-3"><input id="ccTopUpAmount" class="form-control" type="number" name="amount" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required><span class="input-group-text">€</span></div>
+                <label class="form-label" for="ccTopUpDate">Data</label>
+                <input id="ccTopUpDate" class="form-control" type="date" name="occurred_on" value="{{ today|date:'Y-m-d' }}">
+                <p class="small text-muted mt-3 mb-0">Da qui riparte il conteggio: le nuove spese saranno quelle di questa ricarica.</p>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary btn-lg w-100">Registra ricarica</button></div>
+        </form>
+    </div></div>
+</div>
+
+{% for p in card_cycle.planned %}
+<div class="modal fade cc-sheet" id="ccBoughtModal{{ p.id }}" tabindex="-1" aria-labelledby="ccBoughtTitle{{ p.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="buy_planned_expense">
+            <input type="hidden" name="planned_expense_id" value="{{ p.id }}">
+            <input type="hidden" name="operation_type" value="expense">
+            <input type="hidden" name="category" value="{{ p.category }}">
+            <input type="hidden" name="description" value="{{ p.description }}">
+            <div class="modal-header"><h5 class="modal-title" id="ccBoughtTitle{{ p.id }}">Comprato: {{ p.category }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+            <div class="modal-body">
+                <label class="form-label" for="ccBoughtAmount{{ p.id }}">Quanto hai speso davvero</label>
+                <div class="input-group input-group-lg mb-3"><input id="ccBoughtAmount{{ p.id }}" class="form-control" type="number" name="amount" step="0.01" min="0.01" inputmode="decimal" value="{{ p.amount|unlocalize }}" required><span class="input-group-text">€</span></div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6"><label class="form-label" for="ccBoughtDate{{ p.id }}">Data</label><input id="ccBoughtDate{{ p.id }}" class="form-control" type="date" name="occurred_on" value="{{ today|date:'Y-m-d' }}"></div>
+                    <div class="col-6"><label class="form-label" for="ccBoughtMethod{{ p.id }}">Pagato con</label>
+                        <select id="ccBoughtMethod{{ p.id }}" class="form-select" name="payment_method"><option value="company_card" selected>Carta</option><option value="cash_withdrawn">Contanti</option><option value="bank_transfer_other">Bonifico/altro</option></select></div>
+                </div>
+                <label class="cc-photo"><input type="file" name="receipt_image" accept="image/*,.pdf,application/pdf" capture="environment" data-cc-photo><i class="bi bi-camera" aria-hidden="true"></i> <span data-cc-photo-label>Foto dello scontrino</span></label>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary btn-lg w-100">Sposta nelle spese fatte</button></div>
+        </form>
+    </div></div>
+</div>
+{% endfor %}
+
+<datalist id="ccWhatList">
+    <option value="Carburante"><option value="Materiale pulizia"><option value="Attrezzatura"><option value="Pranzo"><option value="Autostrada"><option value="Parcheggio"><option value="Ferramenta"><option value="Cancelleria">
+</datalist>
+
+<script>
+(function () {
+    document.querySelectorAll('[data-cc-photo]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            var label = input.parentElement.querySelector('[data-cc-photo-label]');
+            if (label && input.files.length) { label.textContent = input.files[0].name; input.parentElement.classList.add('is-set'); }
+        });
+    });
+    var btn = document.querySelector('[data-cc-share]');
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+        var url = btn.getAttribute('data-cc-share');
+        btn.disabled = true;
+        try {
+            var resp = await fetch(url, { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('pdf');
+            var blob = await resp.blob();
+            var name = 'richiesta-ricarica.pdf';
+            var file = new File([blob], name, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try { await navigator.share({ files: [file], title: 'Richiesta di ricarica carta aziendale' }); } catch (e) { /* condivisione annullata */ }
+            } else {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob); a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+            }
+        } catch (e) {
+            window.location.href = url;
+        } finally {
+            btn.disabled = false;
+        }
+    });
+})();
+</script>
