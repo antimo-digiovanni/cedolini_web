@@ -1979,3 +1979,8 @@ html.sv-glass .home-tile.has-todo { border-color: rgba(224,118,74,.55) !importan
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     html.sv-glass .gx-glass, html.sv-glass .card-modern, html.sv-glass .home-tile, html.sv-glass .sidebar-desktop, html.sv-glass .mobile-tabbar, html.sv-glass .topbar { background: rgba(250,251,254,.94) !important; }
 }
+
+/* iPhone: sotto i 16px Safari ingrandisce la pagina quando tocchi un campo e la lascia ingrandita */
+@media (max-width: 767.98px) {
+  input:not([type=checkbox]):not([type=radio]), select, textarea, .form-control, .form-select, .form-control-sm, .form-select-sm { font-size: 16px !important; }
+}
