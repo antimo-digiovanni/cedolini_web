@@ -129,9 +129,15 @@
 
 /* --- Carta per giri di ricarica --- */
 .cc-head h2{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;margin:0 0 1rem}
-.cc{display:grid;gap:1rem;margin-bottom:1.5rem}
+.cc{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;margin-bottom:1.5rem;min-width:0}
+.cc>*,.cc-list,.cc-ask,.cc-balance{min-width:0}
+.cc-list,.cc-balance{overflow:hidden}
+.cc-row{max-width:100%}
+.cc-row-main{width:0}
+.corporate-card-page{max-width:100%;overflow-x:clip}
 .cc-balance{border-radius:22px;padding:1.25rem 1.35rem;background:linear-gradient(150deg,#1f3b73 0%,#2c5aa8 60%,#3d7bd1 100%);color:#fff;box-shadow:0 14px 34px rgba(31,59,115,.28)}
 .cc-balance-top{display:flex;justify-content:space-between;align-items:center;gap:.75rem;font-size:.9rem;opacity:.92}
+.cc-balance-top>span{min-width:0}
 .cc-link{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:999px;padding:.3rem .8rem;font-size:.82rem;font-weight:600;white-space:nowrap}
 .cc-link:hover{background:rgba(255,255,255,.26)}
 .cc-remaining{margin-top:.9rem;display:flex;align-items:baseline;flex-wrap:wrap;gap:.5rem}
@@ -140,18 +146,18 @@
 .cc-bar{height:10px;border-radius:999px;background:rgba(255,255,255,.22);margin-top:1rem;overflow:hidden}
 .cc-bar span{display:block;height:100%;border-radius:999px;background:#ffd36b}
 .cc-bar-legend{display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap;font-size:.85rem;margin-top:.5rem;opacity:.92}
-.cc-actions{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.cc-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.75rem}
 .cc-btn{border:0;border-radius:18px;padding:1rem .75rem;font-weight:700;font-size:1.02rem;display:flex;align-items:center;justify-content:center;gap:.5rem;min-height:64px}
 .cc-btn i{font-size:1.3rem}
 .cc-btn-spent{background:#fff;color:#1f3b73;box-shadow:0 6px 18px rgba(28,39,66,.1);border:1px solid #dfe5f0}
 .cc-btn-buy{background:#e9f6ee;color:#1d6b3f;border:1px solid #cbe9d6}
 .cc-btn:active{transform:scale(.98)}
-.cc-lists{display:grid;gap:1rem}
-@media (min-width:992px){.cc-lists{grid-template-columns:1fr 1fr}}
+.cc-lists{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem}
+@media (min-width:992px){.cc-lists{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 .cc-list{background:rgba(255,255,255,.78);border:1px solid #e3e8f1;border-radius:20px;padding:1rem}
 .cc-list h3{font-size:1rem;font-weight:700;margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem}
 .cc-list h3 span{background:#eef2fb;color:#1f3b73;border-radius:999px;font-size:.75rem;padding:.1rem .55rem}
-.cc-row{display:flex;align-items:center;gap:.75rem;width:100%;text-align:left;background:none;border:0;border-top:1px solid #edf0f5;padding:.7rem .15rem;color:inherit}
+.cc-row{min-width:0;display:flex;align-items:center;gap:.75rem;width:100%;text-align:left;background:none;border:0;border-top:1px solid #edf0f5;padding:.7rem .15rem;color:inherit}
 .cc-list h3+.cc-row{border-top:0}
 button.cc-row:hover,.cc-plain:hover{background:#f6f8fc}
 .cc-row-main{flex:1;min-width:0;display:flex;flex-direction:column}
