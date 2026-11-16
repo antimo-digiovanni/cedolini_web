@@ -12,7 +12,7 @@ class PayslipUploadForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields["employee"].queryset = Employee.objects.order_by("full_name")
+        self.fields["employee"].queryset = Employee.objects.order_by("last_name", "first_name")
         self.fields["employee"].widget.attrs.update({"class": "form-select"})
 
         self.fields["year"].widget.attrs.update({"class": "form-control", "min": "2000", "max": "2100"})

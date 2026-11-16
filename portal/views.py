@@ -2494,7 +2494,7 @@ def _employee_name_sort_key(employee):
     first_name = (employee.first_name or '').strip().casefold()
     last_name = (employee.last_name or '').strip().casefold()
     username = (getattr(getattr(employee, 'user', None), 'username', '') or '').strip().casefold()
-    return (first_name, last_name, username, employee.id)
+    return (last_name, first_name, username, employee.id)
 
 
 def _decorate_employee_display_names(employees):

@@ -1418,7 +1418,7 @@ class VacationRequestFlowTests(TestCase):
 		self.assertContains(today_response, "40.123456, 14.654321")
 		self.assertContains(today_response, "40.123400, 14.654300")
 
-	def test_admin_views_order_employees_by_first_name_without_changing_data(self):
+	def test_admin_views_order_employees_by_last_name_without_changing_data(self):
 		first_user = get_user_model().objects.create_user(
 			username="zeno.alfa",
 			password="Password123!",
@@ -1453,7 +1453,7 @@ class VacationRequestFlowTests(TestCase):
 		employees_response = self.client.get(reverse("admin_employees"))
 		self.assertEqual(employees_response.status_code, 200)
 		employees_html = employees_response.content.decode()
-		self.assertLess(employees_html.index("Zulu Anna"), employees_html.index("Alfa Zeno"))
+		self.assertLess(employees_html.index("Alfa Zeno"), employees_html.index("Zulu Anna"))
 
 		timekeeping_response = self.client.get(
 			reverse("admin_timekeeping"),
@@ -1465,7 +1465,7 @@ class VacationRequestFlowTests(TestCase):
 		)
 		self.assertEqual(timekeeping_response.status_code, 200)
 		timekeeping_html = timekeeping_response.content.decode()
-		self.assertLess(timekeeping_html.index("Zulu Anna"), timekeeping_html.index("Alfa Zeno"))
+		self.assertLess(timekeeping_html.index("Alfa Zeno"), timekeeping_html.index("Zulu Anna"))
 		self.assertEqual(Employee.objects.get(id=first_employee.id).last_name, "Alfa")
 		self.assertEqual(Employee.objects.get(id=second_employee.id).last_name, "Zulu")
 
