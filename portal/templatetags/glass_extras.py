@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from django import template
+from django.urls import reverse
 from django.utils import timezone
 
 register = template.Library()
@@ -108,6 +109,7 @@ def today_board():
         if emp.last_name and emp.first_name:
             label = f'{emp.last_name} {emp.first_name[0]}.'
         lanes.setdefault(zone, []).append({'start': start, 'end': max(end, start + 0.25), 'label': label, 'kind': kind,
+                                           'url': f"{reverse('admin_timekeeping')}?employee={emp.id}&month={today.month}&year={today.year}",
                                            'title': f'{emp.full_name}: {timezone.localtime(a):%H:%M}'
                                                     + (f' – {timezone.localtime(b):%H:%M}' if b else ' – in servizio')})
     out = []

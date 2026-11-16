@@ -1966,6 +1966,9 @@ html.sv-glass .home-tile.has-todo { border-color: rgba(224,118,74,.55) !importan
 .gx-bar-live { background: linear-gradient(180deg, #5C80D8, #4268C8); color: #fff; box-shadow: 0 4px 10px -5px rgba(66,104,200,.7); }
 .gx-bar-done { background: rgba(28,39,66,.10); color: #4A5672; }
 .gx-bar-out { background: rgba(255,255,255,.75); color: #A8502B; box-shadow: inset 0 0 0 1.5px #E0764A; }
+a.gx-bar { text-decoration: none; cursor: pointer; transition: filter .15s, box-shadow .15s; }
+a.gx-bar:hover, a.gx-bar:focus-visible { filter: brightness(1.08); box-shadow: 0 0 0 2px rgba(66,104,200,.45); outline: none; z-index: 2; }
+a.gx-bar-live:hover { color: #fff; } a.gx-bar-done:hover { color: #1C2742; } a.gx-bar-out:hover { color: #A8502B; }
 @media (max-width: 575.98px) {
     .gx-board { padding: 14px 12px 12px; }
     .gx-board-grid { min-width: 680px; }
