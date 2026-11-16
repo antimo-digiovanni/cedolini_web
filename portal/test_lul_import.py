@@ -120,6 +120,10 @@ class LulImportTests(TestCase):
         self.assertEqual(self.b.fiscal_code, self.cf_b)
         self.assertFalse(Payslip.objects.filter(employee=self.other).exists())
         self.assertEqual(Payslip.objects.count(), 2)
+        from .models import ImportJob
+        job = ImportJob.objects.get()
+        self.assertEqual(job.created_payslips, 2)
+        self.assertEqual(job.status, 'completed')
 
     def test_existing_payslip_is_not_replaced_unless_asked(self):
         old = Payslip(employee=self.a, year=2026, month=9)

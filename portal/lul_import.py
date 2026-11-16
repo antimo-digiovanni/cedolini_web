@@ -264,6 +264,10 @@ def admin_lul_import(request):
                     payslip.pdf.save(f'{fname}_{MONTHS[r["month"] - 1]}_{r["year"]}.pdf', ContentFile(extract_pdf(data, r['pages'])), save=True)
                     notify_payslip(payslip)
                     saved += 1
+            from .models import ImportJob
+            ImportJob.objects.create(total_files=len(rows), processed_files=saved + skipped_existing, created_payslips=saved,
+                                     skipped=len(rows) - saved, status='completed',
+                                     error_message=f"File del consulente: {state.get('name') or ''}".strip())
             _create_audit_event(request, 'payslips_imported_from_lul', metadata={
                 'file': state.get('name'), 'saved': saved, 'already_present': skipped_existing,
                 'left_out': len(rows) - saved - skipped_existing, 'loose_pages': [p['page'] for p in analysis['loose']]})
