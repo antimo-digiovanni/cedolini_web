@@ -260,7 +260,7 @@ def admin_lul_import(request):
                             logger.exception('lul: vecchio cedolino non eliminato')
                         existing.delete()
                     payslip = Payslip(employee=emp, year=r['year'], month=r['month'])
-                    fname = re.sub(r'[^A-Za-z0-9_]+', '_', f'{emp.last_name or ""}_{emp.first_name or ""}').strip('_') or f'dipendente_{emp.id}'
+                    fname = re.sub(r'_+', '_', re.sub(r'[^A-Za-z0-9_]+', '_', f'{(emp.last_name or "").strip()}_{(emp.first_name or "").strip()}')).strip('_') or f'dipendente_{emp.id}'
                     payslip.pdf.save(f'{fname}_{MONTHS[r["month"] - 1]}_{r["year"]}.pdf', ContentFile(extract_pdf(data, r['pages'])), save=True)
                     notify_payslip(payslip)
                     saved += 1

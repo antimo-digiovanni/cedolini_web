@@ -65,6 +65,12 @@
         }
         return filePromise;
     }
+    function saveBlob(f) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(f); a.download = fileName;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+    }
     function showError(msg) {
         errBox.textContent = msg;
         errBox.classList.remove('d-none');
@@ -73,7 +79,7 @@
     function shareFile() {
         errBox.classList.add('d-none');
         if (!canShareApi) {
-            showError('Questo telefono non permette la condivisione dall\'app. Apri il portale da Safari per scaricare il documento.');
+            window.location.href = downloadBtn.getAttribute('href');
             return;
         }
         // Un solo menu di condivisione alla volta: un secondo tocco (o Scarica + Condividi) lo farebbe fallire su iPhone.
@@ -81,7 +87,7 @@
         sharing = true;
         var go = function (f, retried) {
             if (navigator.canShare && !navigator.canShare({ files: [f] })) {
-                showError('Questo telefono non permette di condividere il PDF dall\'app.');
+                saveBlob(f);  // il telefono non condivide file: lo scarichiamo
                 return;
             }
             return navigator.share({ files: [f], title: title }).catch(function (err) {
@@ -105,8 +111,10 @@
         getFile().catch(function () {});  // prepara il file in anticipo
     }
     shareBtn.addEventListener('click', shareFile);
+    // Solo su iPhone il PDF scaricato resta bloccato a tutto schermo: lì Scarica apre la condivisione («Salva su File»).
+    // Su Android (anche app installata, Samsung Internet compreso) Scarica resta un download normale.
     downloadBtn.addEventListener('click', function (e) {
-        if (isIos || standalone) {
+        if (isIos && canShareApi) {
             e.preventDefault();
             shareFile();
         }
