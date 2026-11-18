@@ -69,25 +69,35 @@
         errBox.textContent = msg;
         errBox.classList.remove('d-none');
     }
+    var sharing = false;
     function shareFile() {
         errBox.classList.add('d-none');
         if (!canShareApi) {
             showError('Questo telefono non permette la condivisione dall\'app. Apri il portale da Safari per scaricare il documento.');
             return;
         }
-        var go = function (f) {
+        // Un solo menu di condivisione alla volta: un secondo tocco (o Scarica + Condividi) lo farebbe fallire su iPhone.
+        if (sharing) return;
+        sharing = true;
+        var go = function (f, retried) {
             if (navigator.canShare && !navigator.canShare({ files: [f] })) {
                 showError('Questo telefono non permette di condividere il PDF dall\'app.');
                 return;
             }
-            return navigator.share({ files: [f], title: title });
+            return navigator.share({ files: [f], title: title }).catch(function (err) {
+                // iPhone a volte considera ancora aperto il menu appena chiuso: si riprova una volta da soli.
+                if (err && err.name === 'InvalidStateError' && !retried) {
+                    return new Promise(function (res) { setTimeout(res, 900); }).then(function () { return go(f, true); });
+                }
+                throw err;
+            });
         };
         // File già pronto: il menu si apre subito (iPhone lo richiede al tocco).
-        var p = file ? Promise.resolve(go(file)) : getFile().then(go);
+        var p = file ? Promise.resolve(go(file)) : getFile().then(function (f) { return go(f); });
         p.catch(function (err) {
-            if (err && err.name === 'AbortError') return;  // l'utente ha chiuso il menu
+            if (err && (err.name === 'AbortError' || err.name === 'InvalidStateError')) return;  // menu chiuso o già aperto
             showError('Condivisione non riuscita (' + ((err && (err.name + ': ' + err.message)) || 'errore') + '). Riprova tra qualche secondo.');
-        });
+        }).then(function () { sharing = false; }, function () { sharing = false; });
     }
 
     if (canShareApi) {
