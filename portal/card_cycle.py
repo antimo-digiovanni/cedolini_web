@@ -51,7 +51,7 @@ def current_cycle(user):
         'expenses': expenses,
         'planned': planned,
         'planned_total': planned_total,
-        'request_amount': max(ZERO, planned_total - max(balance, ZERO)),
+        'request_amount': max(ZERO, planned_total - balance),  # se il saldo è sotto zero, il buco si aggiunge alla richiesta
     }
 
 
@@ -172,8 +172,9 @@ def request_pdf_response(request):
     ask.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#EEF2FB')), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                              ('TOPPADDING', (0, 0), (-1, -1), 10), ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
                              ('LEFTPADDING', (0, 0), (-1, -1), 10), ('RIGHTPADDING', (0, 0), (-1, -1), 10)]))
-    story += [Spacer(1, 8 * mm), ask, Spacer(1, 2 * mm),
-              Paragraph(f"{_euro(c['planned_total'])} da comprare − {_euro(max(c['balance'], ZERO))} ancora sulla carta.", st['m'])]
+    formula = (f"{_euro(c['planned_total'])} da comprare − {_euro(c['balance'])} ancora sulla carta." if c['balance'] >= 0
+               else f"{_euro(c['planned_total'])} da comprare + {_euro(-c['balance'])} anticipati (saldo carta sotto zero).")
+    story += [Spacer(1, 8 * mm), ask, Spacer(1, 2 * mm), Paragraph(formula, st['m'])]
 
     receipts = [(e.occurred_on, e.category, e.amount, e.receipt_image) for e in sorted(c['expenses'], key=lambda e: e.occurred_on) if e.receipt_image]
     receipts += [(p.planned_on, f'{p.category} (preventivo)', p.amount, p.receipt_image) for p in c['planned'] if p.receipt_image]

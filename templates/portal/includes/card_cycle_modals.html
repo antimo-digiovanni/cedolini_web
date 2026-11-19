@@ -5,6 +5,7 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="create_corporate_card_entry">
             <input type="hidden" name="operation_type" value="expense">
+            <input type="hidden" name="allow_negative" value="" data-cc-allow>
             <div class="modal-header"><h5 class="modal-title" id="ccSpentTitle">Spesa fatta</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
             <div class="modal-body">
                 <label class="form-label" for="ccSpentAmount">Quanto hai speso</label>
@@ -19,6 +20,7 @@
                 <label class="cc-photo"><input type="file" name="receipt_image" accept="image/*,.pdf,application/pdf" capture="environment" data-cc-photo><i class="bi bi-camera" aria-hidden="true"></i> <span data-cc-photo-label>Foto dello scontrino</span></label>
                 <input class="form-control mt-3" type="text" name="description" placeholder="Nota (facoltativa)">
             </div>
+            <div class="cc-authorize d-none mx-3" data-cc-authorize></div>
             <div class="modal-footer"><button type="submit" class="btn btn-primary btn-lg w-100">Salva spesa</button></div>
         </form>
     </div></div>
@@ -70,6 +72,7 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="action" value="buy_planned_expense">
+            <input type="hidden" name="allow_negative" value="" data-cc-allow>
             <input type="hidden" name="planned_expense_id" value="{{ p.id }}">
             <input type="hidden" name="operation_type" value="expense">
             <input type="hidden" name="category" value="{{ p.category }}">
@@ -85,6 +88,7 @@
                 </div>
                 <label class="cc-photo"><input type="file" name="receipt_image" accept="image/*,.pdf,application/pdf" capture="environment" data-cc-photo><i class="bi bi-camera" aria-hidden="true"></i> <span data-cc-photo-label>Foto dello scontrino</span></label>
             </div>
+            <div class="cc-authorize d-none mx-3" data-cc-authorize></div>
             <div class="modal-footer"><button type="submit" class="btn btn-primary btn-lg w-100">Sposta nelle spese fatte</button></div>
         </form>
     </div></div>
@@ -101,6 +105,28 @@
         input.addEventListener('change', function () {
             var label = input.parentElement.querySelector('[data-cc-photo-label]');
             if (label && input.files.length) { label.textContent = input.files[0].name; input.parentElement.classList.add('is-set'); }
+        });
+    });
+
+    // Spesa oltre il saldo: chiede «Autorizza» e il saldo può andare sotto zero.
+    var section = document.querySelector('[data-cc-balance]');
+    var balance = section ? parseFloat(section.getAttribute('data-cc-balance')) : NaN;
+    var euro = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+    document.querySelectorAll('[data-cc-allow]').forEach(function (flag) {
+        var form = flag.form, box = form.querySelector('[data-cc-authorize]');
+        var amount = form.querySelector('input[name=amount]');
+        function reset() { flag.value = ''; box.classList.add('d-none'); }
+        amount.addEventListener('input', reset);
+        form.addEventListener('submit', function (e) {
+            var v = parseFloat(String(amount.value).replace(',', '.'));
+            if (isNaN(balance) || isNaN(v) || v <= balance || flag.value === '1') return;
+            e.preventDefault();
+            var after = balance - v;
+            box.innerHTML = '<p class="mb-2">La spesa supera il saldo della carta di <b>' + euro.format(v - balance) + '</b>. ' +
+                'Se la autorizzi il saldo andrà a <b>' + euro.format(after) + '</b> e la differenza finirà nella prossima richiesta di ricarica.</p>' +
+                '<button type="button" class="btn btn-warning w-100 fw-semibold" data-cc-ok>Autorizza e salva</button>';
+            box.classList.remove('d-none');
+            box.querySelector('[data-cc-ok]').addEventListener('click', function () { flag.value = '1'; form.requestSubmit ? form.requestSubmit() : form.submit(); });
         });
     });
     var btn = document.querySelector('[data-cc-share]');

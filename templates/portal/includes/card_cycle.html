@@ -1,11 +1,11 @@
 {% load l10n %}
-<section class="cc" aria-label="Carta aziendale">
+<section class="cc" aria-label="Carta aziendale" data-cc-balance="{{ card_cycle.balance|unlocalize }}">
     <div class="cc-balance">
         <div class="cc-balance-top">
             <span>{{ card_cycle.top_label }}</span>
             <button type="button" class="cc-link" data-bs-toggle="modal" data-bs-target="#ccTopUpModal">Ricarica ricevuta</button>
         </div>
-        <div class="cc-remaining"><span class="cc-remaining-value">{{ card_cycle.balance|floatformat:2 }} €</span> <span class="cc-remaining-label">ancora sulla carta</span></div>
+        <div class="cc-remaining{% if card_cycle.balance < 0 %} is-negative{% endif %}"><span class="cc-remaining-value">{{ card_cycle.balance|floatformat:2 }} €</span> <span class="cc-remaining-label">{% if card_cycle.balance < 0 %}anticipati da te (saldo sotto zero){% else %}ancora sulla carta{% endif %}</span></div>
         <div class="cc-bar" role="img" aria-label="Speso {{ card_cycle.pct_spent }} per cento"><span style="width: {{ card_cycle.pct_spent|unlocalize }}%"></span></div>
         <div class="cc-bar-legend">
             <span>Speso <strong>{{ card_cycle.spent|floatformat:2 }} €</strong></span>
@@ -55,7 +55,7 @@
     <div class="cc-ask">
         <div class="cc-ask-calc">
             <span>Da comprare {{ card_cycle.planned_total|floatformat:2 }} €</span>
-            <span>− sulla carta {% if card_cycle.balance > 0 %}{{ card_cycle.balance|floatformat:2 }}{% else %}0,00{% endif %} €</span>
+            {% if card_cycle.balance < 0 %}<span>+ anticipati {{ card_cycle.balance|floatformat:2|cut:"-" }} €</span>{% else %}<span>− sulla carta {{ card_cycle.balance|floatformat:2 }} €</span>{% endif %}
         </div>
         <button type="button" class="cc-ask-btn" data-cc-share="{{ request.path }}?report=richiesta_ricarica&amp;scarica=1">
             <span>Chiedi ricarica</span>

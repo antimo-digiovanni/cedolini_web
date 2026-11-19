@@ -95,3 +95,20 @@ class CardCycleTests(TestCase):
                                     'category': 'Guanti', 'amount': '10'})
         p.refresh_from_db()
         self.assertIsNone(p.paid_entry)
+
+    def test_authorized_buy_can_go_negative(self):
+        p = PlannedCorporateCardExpense.objects.get()
+        r = self.client.post(self.url, {'action': 'buy_planned_expense', 'planned_expense_id': p.id, 'operation_type': 'expense',
+                                        'category': 'Guanti', 'amount': '351', 'occurred_on': '2026-11-12', 'allow_negative': '1'})
+        self.assertEqual(r.status_code, 302)
+        c = current_cycle(self.user)
+        self.assertEqual(c['balance'], Decimal('-1'))
+        PlannedCorporateCardExpense.objects.create(user=self.user, planned_on=datetime.date(2026, 11, 13), category='Gasolio', amount=Decimal('50'))
+        self.assertEqual(current_cycle(self.user)['request_amount'], Decimal('51'))
+        self.assertContains(self.client.get(self.url), 'anticipati da te')
+
+    def test_authorized_spent_can_go_negative(self):
+        r = self.client.post(self.url, {'action': 'create_corporate_card_entry', 'operation_type': 'expense', 'category': 'Pranzo',
+                                        'amount': '400', 'occurred_on': '2026-11-12', 'allow_negative': '1'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(current_cycle(self.user)['balance'], Decimal('-50'))

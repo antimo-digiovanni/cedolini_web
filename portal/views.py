@@ -4087,7 +4087,7 @@ def personal_asset_dashboard(request):
             buy_form = CorporateCardEntryForm(request.POST, request.FILES)
             if planned_expense is None:
                 feedback, feedback_level = 'Voce da comprare non trovata o già comprata.', 'danger'
-            elif buy_form.is_valid() and buy_form.cleaned_data['amount'] > _corporate_card_balance(request.user):
+            elif buy_form.is_valid() and request.POST.get('allow_negative') != '1' and buy_form.cleaned_data['amount'] > _corporate_card_balance(request.user):
                 feedback, feedback_level = 'La spesa supera il saldo disponibile della carta: registra prima la ricarica ricevuta.', 'danger'
             elif buy_form.is_valid():
                 card_entry = buy_form.save(commit=False)
@@ -4121,6 +4121,7 @@ def personal_asset_dashboard(request):
                 if (
                     card_entry.operation_type == CorporateCardEntry.TYPE_EXPENSE
                     and card_entry.amount > _corporate_card_balance(request.user)
+                    and request.POST.get('allow_negative') != '1'
                 ):
                     corporate_card_form.add_error('amount', 'La spesa supera il saldo disponibile della carta aziendale.')
                 else:
