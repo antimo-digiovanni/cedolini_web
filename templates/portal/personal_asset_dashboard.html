@@ -187,6 +187,36 @@ button.cc-row:hover,.cc-plain:hover{background:#f6f8fc}
 .cc-more>summary::before{content:"\F285";font-family:bootstrap-icons;margin-right:.5rem;display:inline-block;transition:transform .2s}
 .cc-more[open]>summary::before{transform:rotate(90deg)}
 @media (max-width:575.98px){.cc-sheet .modal-dialog{margin:0;position:fixed;bottom:0;left:0;right:0;max-width:none;min-height:auto;align-items:flex-end}.cc-sheet .modal-content{border-radius:22px 22px 0 0}}
+
+.cc-sec-title{font-size:1.15rem;font-weight:700;margin:0 0 .75rem}
+.cc-hist{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;margin-top:.5rem}
+.cc-hist>*{min-width:0}
+.cc-cycle{background:rgba(255,255,255,.78);border:1px solid #e3e8f1;border-radius:20px;overflow:hidden}
+.cc-cycle>summary{list-style:none;display:flex;align-items:center;gap:.75rem;padding:1rem;cursor:pointer}
+.cc-cycle>summary::-webkit-details-marker{display:none}
+.cc-cycle-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.cc-cycle-title{font-weight:700}
+.cc-cycle-meta{font-size:.85rem;color:#6a7488;font-variant-numeric:tabular-nums}
+.cc-cycle-arrow{color:#6a7488;transition:transform .2s}
+.cc-cycle[open] .cc-cycle-arrow{transform:rotate(180deg)}
+.cc-cycle-body{padding:0 1rem 1rem}
+.cc-cycle-body .cc-row:first-child{border-top:1px solid #edf0f5}
+.cc-cycle-foot{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding-top:.75rem;border-top:1px solid #edf0f5}
+.cc-chip{display:inline-flex;align-items:center;gap:.25rem;border-radius:999px;padding:.2rem .65rem;font-size:.78rem;font-weight:600;background:#eef2fb;color:#1f3b73;white-space:nowrap}
+.cc-chip-warn{background:#fff3df;color:#8a5a00}
+.cc-chip-ok{background:#e6f5ec;color:#1d6b3f}
+.cc-bank{background:#fff;border:1px solid #e3e8f1;border-radius:22px;padding:1.1rem;box-shadow:0 8px 24px rgba(28,39,66,.06)}
+.cc-bank-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap}
+.cc-bank-help{color:#6a7488;font-size:.9rem;margin:.4rem 0 .9rem}
+.cc-bank-compare{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.9rem}
+.cc-bank-compare>div{background:#f5f7fb;border-radius:14px;padding:.7rem .85rem;display:flex;flex-direction:column}
+.cc-bank-compare span{font-size:.8rem;color:#6a7488}
+.cc-bank-compare strong{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.cc-bank-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.6rem}
+@media (max-width:420px){.cc-bank-form{grid-template-columns:minmax(0,1fr)}}
+.cc-danger{border:1px dashed #e6c3c3;border-radius:16px;padding:.8rem 1rem;color:#7a3434;font-size:.9rem}
+.cc-danger>summary{cursor:pointer;font-weight:600}
+.cc-danger p{margin:.5rem 0 .75rem;color:#6a7488}
 </style>
 {% endblock %}
 
@@ -202,399 +232,92 @@ button.cc-row:hover,.cc-plain:hover{background:#f6f8fc}
     </div>
     {% endif %}
 
+    {% if corporate_card_form.errors or planned_expense_form.errors %}
+    <div class="alert alert-danger mb-4" role="alert">
+        Non salvato:
+        {% for f in corporate_card_form %}{% for e in f.errors %} {{ e }}{% endfor %}{% endfor %}{% for e in corporate_card_form.non_field_errors %} {{ e }}{% endfor %}
+        {% for f in planned_expense_form %}{% for e in f.errors %} {{ e }}{% endfor %}{% endfor %}{% for e in planned_expense_form.non_field_errors %} {{ e }}{% endfor %}
+    </div>
+    {% endif %}
     {% include "portal/includes/card_cycle.html" %}
 
-    <details class="cc-more">
-    <summary>Storico, controllo banca e strumenti</summary>
-    <div class="corporate-card-panel">
-        <div class="row g-3 align-items-stretch mb-4">
-            <div class="col-lg-5">
-                <div class="corporate-card-balance h-100">
-                    <div class="corporate-card-balance-label">Saldo disponibile</div>
-                    <div class="corporate-card-balance-value mt-2">{{ corporate_card_balance|floatformat:2 }} €</div>
-                    <div class="small mt-2">Ricariche del datore meno spese registrate.</div>
+    <section class="cc-hist" aria-label="Storico e controlli">
+        <h2 class="cc-sec-title">Ricariche precedenti</h2>
+        {% for g in card_history %}
+        <details class="cc-cycle"{% if forloop.first %} open{% endif %}>
+            <summary>
+                <span class="cc-cycle-main">
+                    <span class="cc-cycle-title">{{ g.label }}</span>
+                    <span class="cc-cycle-meta">{% if g.top %}{{ g.amount|floatformat:2 }} € caricati · {% endif %}speso {{ g.spent|floatformat:2 }} € · {% if g.balance < 0 %}anticipati {{ g.balance|floatformat:2|cut:"-" }} €{% else %}avanzati {{ g.balance|floatformat:2 }} €{% endif %}</span>
+                    {% if g.missing_receipts %}<span class="cc-chip cc-chip-warn mt-1 align-self-start" title="Spese senza foto dello scontrino">{{ g.missing_receipts }} senza scontrino</span>{% endif %}
+                </span>
+                <i class="bi bi-chevron-down cc-cycle-arrow" aria-hidden="true"></i>
+            </summary>
+            <div class="cc-cycle-body">
+                {% for e in g.expenses %}
+                <button type="button" class="cc-row" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ e.id }}">
+                    <span class="cc-row-main">
+                        <span class="cc-row-title">{% if e.operation_type == 'withdrawal' %}Prelievo{% if e.category %} · {{ e.category }}{% endif %}{% else %}{{ e.category }}{% endif %}</span>
+                        <span class="cc-row-meta">{{ e.occurred_on|date:"j M Y" }}{% if e.description %} · {{ e.description|truncatechars:40 }}{% endif %}</span>
+                    </span>
+                    <span class="cc-row-icon" title="{% if e.receipt_image %}Scontrino caricato{% else %}Manca lo scontrino{% endif %}"><i class="bi {% if e.receipt_image %}bi-image{% else %}bi-image cc-missing{% endif %}" aria-hidden="true"></i></span>
+                    <span class="cc-row-amount">{{ e.amount|floatformat:2 }} €</span>
+                </button>
+                {% empty %}
+                <p class="cc-empty">Nessuna spesa con questa ricarica.</p>
+                {% endfor %}
+                <div class="cc-cycle-foot">
+                    <a class="btn btn-outline-primary btn-sm" href="{{ request.path }}?report=richiesta_ricarica&amp;giro={{ g.key }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF con gli scontrini</a>
+                    {% if g.top %}<button type="button" class="btn btn-link btn-sm" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ g.top.id }}">Correggi la ricarica</button>{% endif %}
                 </div>
             </div>
-            <div class="col-lg-7">
-                <div class="corporate-card-actions h-100 align-items-center">
-                    {% if corporate_card_entries %}
-                    <form method="post" class="m-0" data-confirm-corporate-card-reset="1">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="reset_corporate_card">
-                        <button type="submit" class="btn btn-outline-danger">Azzera carta aziendale</button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+        </details>
+        {% empty %}
+        <p class="cc-empty cc-list">Qui finiranno le ricariche passate: quando registri la prossima ricarica, quella di adesso si sposta qui con tutte le sue spese.</p>
+        {% endfor %}
 
-        <div class="border rounded-3 p-3 mb-4">
-            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                <div>
-                    <h4 class="h6 fw-semibold mb-1">Riepilogo ricariche e spese</h4>
-                    <p class="text-muted small mb-0">Quadro informativo del periodo corrente, senza creare movimenti automatici.</p>
-                </div>
-                <span class="finance-pill">{{ corporate_card_current_period_label }}</span>
+        <div class="cc-bank">
+            <div class="cc-bank-head">
+                <h2 class="cc-sec-title mb-0">Controllo con la banca</h2>
+                {% if corporate_card_bank_difference is None %}
+                <span class="cc-chip">Mai controllato</span>
+                {% elif corporate_card_bank_matches %}
+                <span class="cc-chip cc-chip-ok"><i class="bi bi-check-lg" aria-hidden="true"></i> Tutto torna</span>
+                {% else %}
+                <span class="cc-chip cc-chip-warn">Differenza {{ corporate_card_bank_difference|floatformat:2 }} €</span>
+                {% endif %}
             </div>
-            <div class="corporate-card-summary-grid">
-                <div class="corporate-card-summary-item">
-                    <div class="corporate-card-summary-label">Totale spese da fare selezionate</div>
-                    <div class="corporate-card-summary-value" data-planned-selected-total>{{ corporate_card_overview.planned_selected_total|floatformat:2 }} €</div>
-                </div>
-                <div class="corporate-card-summary-item">
-                    <div class="corporate-card-summary-label">Importo da ricaricare</div>
-                    <div class="corporate-card-summary-value">{{ corporate_card_overview.planned_total_to_recharge|floatformat:2 }} €</div>
-                </div>
-                <div class="corporate-card-summary-item">
-                    <div class="corporate-card-summary-label">Ricariche ricevute nel periodo</div>
-                    <div class="corporate-card-summary-value">{{ corporate_card_overview.period_top_up_total|floatformat:2 }} €</div>
-                </div>
-                <div class="corporate-card-summary-item">
-                    <div class="corporate-card-summary-label">Spese pagate nel periodo</div>
-                    <div class="corporate-card-summary-value">{{ corporate_card_overview.period_expense_total|floatformat:2 }} €</div>
-                </div>
-                <div class="corporate-card-summary-item">
-                    <div class="corporate-card-summary-label">Prelievi allo sportello nel periodo</div>
-                    <div class="corporate-card-summary-value">{{ corporate_card_overview.period_withdrawal_total|floatformat:2 }} €</div>
-                </div>
-                <div class="corporate-card-summary-item">
-                    <div class="corporate-card-summary-label">Saldo calcolato attuale</div>
-                    <div class="corporate-card-summary-value">{{ corporate_card_overview.current_balance|floatformat:2 }} €</div>
-                </div>
+            <p class="cc-bank-help">Guarda il saldo nell'app della banca e scrivilo qui: lo confronto con quello del portale.</p>
+            <div class="cc-bank-compare">
+                <div><span>Portale</span><strong>{{ corporate_card_balance|floatformat:2 }} €</strong></div>
+                <div><span>Banca{% if corporate_card_bank_check.corporate_card_bank_balance_date %} · {{ corporate_card_bank_check.corporate_card_bank_balance_date|date:"j M" }}{% endif %}</span><strong>{% if corporate_card_bank_check.corporate_card_bank_balance is not None %}{{ corporate_card_bank_check.corporate_card_bank_balance|floatformat:2 }} €{% else %}—{% endif %}</strong></div>
             </div>
-        </div>
-
-        <div class="border rounded-3 p-3 mb-4">
-            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                <div>
-                    <h4 class="h5 fw-semibold mb-1">Controllo con banca</h4>
-                    <p class="text-muted small mb-0">Verifica manuale non bloccante del saldo carta rispetto a quanto vedi su banca/carta.</p>
-                </div>
-            </div>
-            <div class="row g-3 align-items-start">
-                <div class="col-lg-6">
-                    <form method="post" class="row g-3" novalidate>
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="save_corporate_card_bank_check">
-                        <div class="col-md-6">
-                            <label class="form-label" for="{{ corporate_card_bank_check_form.corporate_card_bank_balance.id_for_label }}">{{ corporate_card_bank_check_form.corporate_card_bank_balance.label }}</label>
-                            {{ corporate_card_bank_check_form.corporate_card_bank_balance }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="{{ corporate_card_bank_check_form.corporate_card_bank_balance_date.id_for_label }}">{{ corporate_card_bank_check_form.corporate_card_bank_balance_date.label }}</label>
-                            {{ corporate_card_bank_check_form.corporate_card_bank_balance_date }}
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="{{ corporate_card_bank_check_form.corporate_card_bank_note.id_for_label }}">{{ corporate_card_bank_check_form.corporate_card_bank_note.label }}</label>
-                            {{ corporate_card_bank_check_form.corporate_card_bank_note }}
-                        </div>
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-outline-success">Salva controllo banca</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="col-lg-6">
-                    <div class="corporate-card-summary-grid">
-                        <div class="corporate-card-summary-item">
-                            <div class="corporate-card-summary-label">Saldo calcolato dal portale</div>
-                            <div class="corporate-card-summary-value">{{ corporate_card_balance|floatformat:2 }} €</div>
-                        </div>
-                        <div class="corporate-card-summary-item">
-                            <div class="corporate-card-summary-label">Saldo banca inserito manualmente</div>
-                            <div class="corporate-card-summary-value">{% if corporate_card_bank_check.corporate_card_bank_balance is not None %}{{ corporate_card_bank_check.corporate_card_bank_balance|floatformat:2 }} €{% else %}<span class="corporate-card-empty-value">Non specificato</span>{% endif %}</div>
-                            {% if corporate_card_bank_check.corporate_card_bank_balance_date %}<div class="corporate-card-inline-note">Verificato il {{ corporate_card_bank_check.corporate_card_bank_balance_date|date:"d/m/Y" }}</div>{% endif %}
-                        </div>
-                        <div class="corporate-card-summary-item">
-                            <div class="corporate-card-summary-label">Differenza portale - banca</div>
-                            <div class="corporate-card-summary-value">{% if corporate_card_bank_difference is not None %}{{ corporate_card_bank_difference|floatformat:2 }} €{% else %}<span class="corporate-card-empty-value">Non specificato</span>{% endif %}</div>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        {% if corporate_card_bank_difference is None %}
-                        <div class="alert alert-light border mb-0">Inserisci il saldo banca per confrontarlo con il saldo calcolato dal portale.</div>
-                        {% elif corporate_card_bank_matches %}
-                        <div class="alert alert-success mb-0">Tutto torna.</div>
-                        {% else %}
-                        <div class="alert alert-warning mb-0">Attenzione: il saldo banca non coincide con il saldo calcolato dal portale.</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="border rounded-3 p-3 mb-4">
-            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                <div>
-                    <h4 class="h5 fw-semibold mb-1">Spese da fare</h4>
-                    <p class="text-muted small mb-0">Prepara l'elenco da inviare al titolare e chiedi la ricarica necessaria.</p>
-                </div>
-                <div class="text-end">
-                    <div class="small text-muted">Da ricaricare</div>
-                    <div class="h5 mb-0 fw-bold">{{ planned_expenses_total|floatformat:2 }} €</div>
-                </div>
-            </div>
-
-            <form method="post" class="row g-3 mb-3" enctype="multipart/form-data" novalidate>
+            <form method="post" class="cc-bank-form">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="create_planned_corporate_card_expense">
-                <div class="col-md-2">
-                    <label class="form-label" for="{{ planned_expense_form.planned_on.id_for_label }}">{{ planned_expense_form.planned_on.label }}</label>
-                    {{ planned_expense_form.planned_on }}
+                <input type="hidden" name="action" value="save_corporate_card_bank_check">
+                <input type="hidden" name="corporate_card_bank_balance_date" value="{{ today|date:'Y-m-d' }}">
+                <input type="hidden" name="corporate_card_bank_note" value="{{ corporate_card_bank_check.corporate_card_bank_note|default:'' }}">
+                <label class="visually-hidden" for="ccBankBalance">Saldo in banca oggi</label>
+                <div class="input-group input-group-lg">
+                    <input id="ccBankBalance" class="form-control" type="number" step="0.01" inputmode="decimal" name="corporate_card_bank_balance" placeholder="Saldo in banca oggi" required>
+                    <span class="input-group-text">€</span>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="{{ planned_expense_form.amount.id_for_label }}">{{ planned_expense_form.amount.label }}</label>
-                    {{ planned_expense_form.amount }}
-                    {% for error in planned_expense_form.amount.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="{{ planned_expense_form.category.id_for_label }}">{{ planned_expense_form.category.label }}</label>
-                    {{ planned_expense_form.category }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="{{ planned_expense_form.payment_method.id_for_label }}">{{ planned_expense_form.payment_method.label }}</label>
-                    {{ planned_expense_form.payment_method }}
-                </div>
-                <div class="col-md-3" data-cash-note-wrapper="1" hidden>
-                    <label class="form-label" for="{{ planned_expense_form.cash_delivery_note.id_for_label }}">{{ planned_expense_form.cash_delivery_note.label }}</label>
-                    {{ planned_expense_form.cash_delivery_note }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="{{ planned_expense_form.description.id_for_label }}">{{ planned_expense_form.description.label }}</label>
-                    {{ planned_expense_form.description }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="{{ planned_expense_form.receipt_image.id_for_label }}">{{ planned_expense_form.receipt_image.label }}</label>
-                    {{ planned_expense_form.receipt_image }}
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-outline-success">Aggiungi spesa da fare</button>
-                </div>
+                <button type="submit" class="btn btn-primary btn-lg">Confronta</button>
             </form>
-
-            {% if planned_expenses %}
-            <form method="post" novalidate>
-                {% csrf_token %}
-                <input type="hidden" name="action" id="plannedExpensesAction" value="mark_planned_expenses_paid">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <label class="form-check mb-0 d-inline-flex align-items-center gap-2">
-                        <input class="form-check-input" type="checkbox" id="selectAllPlannedExpensesDesktop">
-                        <span>Seleziona tutte</span>
-                    </label>
-                    <div class="small text-muted">Voci selezionate: <strong data-planned-selected-count>0</strong> · Totale: <strong data-planned-selected-total-inline>0,00 €</strong></div>
-                </div>
-                <div class="table-responsive d-none d-md-block">
-                    <table class="table align-middle mb-3">
-                        <thead>
-                            <tr>
-                                <th>Seleziona tutte</th><th>Data</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for expense in planned_expenses %}
-                            <tr>
-                                <td><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}" data-planned-expense-checkbox="1" data-amount="{{ expense.amount|unlocalize }}" aria-label="Seleziona per PDF o segna pagata"></td>
-                                <td>{{ expense.planned_on|date:"d/m/Y" }}</td>
-                                <td>{{ expense.category }}</td>
-                                <td>
-                                    {{ expense.description|default:"-" }}
-                                    <div class="corporate-card-inline-note">Metodo: {{ expense.get_payment_method_display|default:"Non specificato" }}</div>
-                                    {% if expense.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ expense.cash_delivery_note }}</div>{% endif %}
-                                </td>
-                                <td class="text-end">{{ expense.amount|floatformat:2 }} €</td>
-                                <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editPlannedExpenseModal{{ expense.id }}">Modifica</button>
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="preparePlannedExpenseDelete(this, '{{ expense.id }}');">Elimina</button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <input type="hidden" name="planned_expense_id" value="">
-                <div class="d-md-none mb-3">
-                    <label class="form-check mb-3 d-inline-flex align-items-center gap-2">
-                        <input class="form-check-input" type="checkbox" id="selectAllPlannedExpensesMobile">
-                        <span>Seleziona tutte</span>
-                    </label>
-                    {% for expense in planned_expenses %}
-                    <div class="corporate-card-mobile-entry">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div><div class="fw-semibold">{{ expense.category }}</div><div class="corporate-card-mobile-meta">{{ expense.planned_on|date:"d/m/Y" }}</div></div>
-                            <div class="fw-semibold">{{ expense.amount|floatformat:2 }} €</div>
-                        </div>
-                        <div class="small mt-2">{{ expense.description|default:"Nessuna descrizione" }}</div>
-                        <div class="corporate-card-inline-note">Metodo: {{ expense.get_payment_method_display|default:"Non specificato" }}</div>
-                        {% if expense.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ expense.cash_delivery_note }}</div>{% endif %}
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="planned_expense_ids" value="{{ expense.id }}" data-planned-expense-checkbox="1" data-amount="{{ expense.amount|unlocalize }}"> <span>PDF / pagata</span></label>
-                            <div>
-                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editPlannedExpenseModal{{ expense.id }}">Modifica</button>
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="preparePlannedExpenseDelete(this, '{{ expense.id }}');">Elimina</button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <button type="submit" class="btn btn-outline-success me-2" onclick="prepareSelectedPlannedExpensesPdf(this);">PDF selezionate</button>
-                <button type="submit" class="btn btn-success" onclick="preparePlannedExpensesPaid(this);">Segna selezionate come pagate</button>
-            </form>
-            {% else %}
-            <div class="alert alert-light border mb-0">Nessuna spesa da fare inserita.</div>
-            {% endif %}
-        </div>
-
-        <div class="border rounded-3 p-3 mb-4">
-            <h4 class="h6 fw-semibold mb-3">Nuovo movimento</h4>
-            <form method="post" class="row g-3" enctype="multipart/form-data" novalidate>
-                {% csrf_token %}
-                <input type="hidden" name="action" value="create_corporate_card_entry">
-                <div class="col-md-3">
-                    <label class="form-label" for="{{ corporate_card_form.operation_type.id_for_label }}">{{ corporate_card_form.operation_type.label }}</label>
-                    {{ corporate_card_form.operation_type }}
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="{{ corporate_card_form.amount.id_for_label }}">{{ corporate_card_form.amount.label }}</label>
-                    {{ corporate_card_form.amount }}
-                    {% for error in corporate_card_form.amount.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="{{ corporate_card_form.occurred_on.id_for_label }}">{{ corporate_card_form.occurred_on.label }}</label>
-                    {{ corporate_card_form.occurred_on }}
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="{{ corporate_card_form.category.id_for_label }}">{{ corporate_card_form.category.label }}</label>
-                    {{ corporate_card_form.category }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="{{ corporate_card_form.payment_method.id_for_label }}">{{ corporate_card_form.payment_method.label }}</label>
-                    {{ corporate_card_form.payment_method }}
-                </div>
-                <div class="col-md-3" data-cash-note-wrapper="1" hidden>
-                    <label class="form-label" for="{{ corporate_card_form.cash_delivery_note.id_for_label }}">{{ corporate_card_form.cash_delivery_note.label }}</label>
-                    {{ corporate_card_form.cash_delivery_note }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="{{ corporate_card_form.description.id_for_label }}">{{ corporate_card_form.description.label }}</label>
-                    {{ corporate_card_form.description }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="{{ corporate_card_form.receipt_image.id_for_label }}">{{ corporate_card_form.receipt_image.label }}</label>
-                    {{ corporate_card_form.receipt_image }}
-                    <div class="form-text">Scegli una foto oppure un PDF dal telefono.</div>
-                    {% for error in corporate_card_form.receipt_image.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <div class="col-12" data-expense-only-section="1">
-                    <div class="corporate-card-detail-box" data-charge-refund-section="1">
-                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                            <div>
-                                <div class="fw-semibold">Dettagli addebiti/rimborsi</div>
-                                <div class="small text-muted">Facoltativo per Amazon o spese raggruppate. Non modifica automaticamente l'importo principale.</div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-detail-add="1">Aggiungi riga</button>
-                        </div>
-                        <div data-charge-refund-container="1">
-                            <div class="row g-2 align-items-end corporate-card-detail-row" data-charge-refund-row="1">
-                                <div class="col-md-2">
-                                    <label class="form-label">Tipo</label>
-                                    <select class="form-select" name="detail_type" data-detail-type="1">
-                                        <option value="">Seleziona</option>
-                                        <option value="charge">Addebito</option>
-                                        <option value="refund">Rimborso</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">Importo</label>
-                                    <input type="number" step="0.01" min="0.01" inputmode="decimal" class="form-control" name="detail_amount" data-detail-amount="1">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Data</label>
-                                    <input type="date" class="form-control" name="detail_date" data-detail-date="1">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Nota / riferimento ordine Amazon</label>
-                                    <input type="text" class="form-control" name="detail_note" data-detail-note="1">
-                                </div>
-                                <div class="col-md-1">
-                                    <button type="button" class="btn btn-outline-danger w-100" data-detail-remove="1" aria-label="Rimuovi riga"><i class="bi bi-trash3" aria-hidden="true"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="small text-muted mt-3">Totale addebiti: <strong data-charge-total="1">0,00 €</strong> · Totale rimborsi: <strong data-refund-total="1">0,00 €</strong> · Spesa netta: <strong data-net-total="1">0,00 €</strong></div>
-                    </div>
-                </div>
-                <div class="col-12">
-                    {% for error in corporate_card_form.non_field_errors %}
-                    <div class="text-danger small mb-2">{{ error }}</div>
-                    {% endfor %}
-                    <button type="submit" class="btn btn-success">Salva movimento carta</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-            <div>
-                <h4 class="h5 fw-semibold mb-1">Spese fatte e movimenti carta</h4>
-                <p class="text-muted small mb-0">Flagga le voci da inserire nel PDF, comprese le ricariche del datore.</p>
-            </div>
-            <span class="finance-pill">{{ corporate_card_entries|length }} movimenti recenti</span>
         </div>
 
         {% if corporate_card_entries %}
-        <div class="accordion" id="corporateCardMonths">
-            {% for month_group in corporate_card_month_groups %}
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="corporateCardMonthHeading{{ month_group.key }}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#corporateCardMonth{{ month_group.key }}" aria-expanded="false" aria-controls="corporateCardMonth{{ month_group.key }}">
-                        <span class="fw-semibold">{{ month_group.label }}</span><span class="ms-2 text-muted small">{{ month_group.count }} movimenti · {{ month_group.total_amount|floatformat:2 }} €</span>
-                    </button>
-                </h2>
-                <div id="corporateCardMonth{{ month_group.key }}" class="accordion-collapse collapse" aria-labelledby="corporateCardMonthHeading{{ month_group.key }}" data-bs-parent="#corporateCardMonths">
-                    <div class="accordion-body p-2 p-md-3">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                            <label class="form-check mb-0 d-inline-flex align-items-center gap-2">
-                                <input class="form-check-input" type="checkbox" data-select-all-card-month="{{ month_group.key }}" aria-label="Seleziona tutti i movimenti di {{ month_group.label }}">
-                                <span>Seleziona tutte</span>
-                            </label>
-                            <div class="small text-muted">{{ month_group.label }}: <strong data-card-month-selected-count="{{ month_group.key }}">0</strong> voci · Totale <strong data-card-month-selected-total="{{ month_group.key }}">0,00 €</strong></div>
-                        </div>
-                        <div class="table-responsive d-none d-md-block">
-                            <table class="table corporate-card-table align-middle mb-0">
-                                <thead><tr><th>PDF</th><th>Data</th><th>Movimento</th><th>Categoria</th><th>Descrizione</th><th class="text-end">Importo</th><th class="text-end">Saldo dopo</th><th class="text-end">Azioni</th></tr></thead>
-                                <tbody>{% for entry in month_group.entries %}<tr>
-                                    <td><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-card-month="{{ month_group.key }}" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}" aria-label="Seleziona movimento per PDF"></td>
-                                    <td>{{ entry.occurred_on|date:"d/m/Y" }}</td><td>{{ entry.get_operation_type_display }}</td><td>{{ entry.category }}</td><td>{{ entry.description|default:"-" }}
-                                        <div class="corporate-card-inline-note">Metodo: {{ entry.get_payment_method_display|default:"Non specificato" }}</div>
-                                        {% if entry.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ entry.cash_delivery_note }}</div>{% endif %}
-                                        {% if entry.planned_origin %}<div class="mt-1"><span class="corporate-card-badge-soft">Derivata da spesa prevista</span></div>{% endif %}
-                                        {% if entry.charge_refund_details_list %}<div class="corporate-card-inline-note">Addebiti: {{ entry.charge_total|floatformat:2 }} € · Rimborsi: {{ entry.refund_total|floatformat:2 }} € · Netto: {{ entry.net_detail_total|floatformat:2 }} €</div>{% endif %}
-                                    </td><td class="text-end">{{ entry.amount|floatformat:2 }} €</td><td class="text-end">{{ entry.balance_after|floatformat:2 }} €</td>
-                                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></td>
-                                </tr>{% endfor %}</tbody>
-                            </table>
-                        </div>
-                        <div class="d-md-none">{% for entry in month_group.entries %}
-                            <div class="corporate-card-mobile-entry"><div class="d-flex justify-content-between align-items-start gap-3"><div><div class="fw-semibold">{{ entry.get_operation_type_display }}</div><div class="corporate-card-mobile-meta">{{ entry.occurred_on|date:"d/m/Y" }} · {{ entry.category }}</div></div><div class="text-end fw-semibold">{{ entry.amount|floatformat:2 }} €</div></div><div class="small mt-2">{{ entry.description|default:"Nessuna descrizione" }}</div><div class="corporate-card-inline-note">Metodo: {{ entry.get_payment_method_display|default:"Non specificato" }}</div>{% if entry.cash_delivery_note %}<div class="corporate-card-inline-note">Consegnati a / motivo: {{ entry.cash_delivery_note }}</div>{% endif %}{% if entry.planned_origin %}<div class="mt-2"><span class="corporate-card-badge-soft">Derivata da spesa prevista</span></div>{% endif %}{% if entry.charge_refund_details_list %}<div class="corporate-card-inline-note mt-2">Addebiti: {{ entry.charge_total|floatformat:2 }} € · Rimborsi: {{ entry.refund_total|floatformat:2 }} € · Netto: {{ entry.net_detail_total|floatformat:2 }} €</div>{% endif %}<div class="d-flex justify-content-between align-items-center gap-2 mt-3"><span class="corporate-card-mobile-meta">Saldo dopo: <strong>{{ entry.balance_after|floatformat:2 }} €</strong></span><div><label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" form="selectedCardExpensesForm" name="corporate_card_entry_ids" value="{{ entry.id }}" data-corporate-card-checkbox="1" data-card-month="{{ month_group.key }}" data-entry-type="{{ entry.operation_type }}" data-amount="{{ entry.amount|unlocalize }}"> <span>PDF</span></label><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCardEntryModal{{ entry.id }}">Modifica</button><form method="post" class="m-0 d-inline" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button></form></div></div></div>
-                        {% endfor %}</div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        <form id="selectedCardExpensesForm" method="post" class="mt-3" data-current-balance="{{ corporate_card_balance|unlocalize }}" {% if corporate_card_bank_difference is not None %}data-bank-difference="{{ corporate_card_bank_difference|unlocalize }}"{% endif %}>
-            {% csrf_token %}
-            <input type="hidden" name="action" value="download_selected_corporate_card_expenses_pdf">
-            <div class="small text-muted mb-2">Selezionati: <strong data-card-selected-count>0</strong> voci · Totale importi: <strong data-card-selected-total>0,00 €</strong></div>
-            <button type="submit" class="btn btn-outline-success">PDF movimenti selezionati</button>
-        </form>
-        {% else %}
-        <div class="alert alert-light border mb-0">Nessun movimento della carta aziendale. Inserisci la prima ricarica del datore per iniziare.</div>
+        <details class="cc-danger">
+            <summary>Ricominciare da zero</summary>
+            <p>Cancella tutte le ricariche e le spese della carta. Serve solo se vuoi ripartire da capo: non si può annullare.</p>
+            <form method="post" class="m-0" data-confirm-corporate-card-reset="1">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reset_corporate_card">
+                <button type="submit" class="btn btn-outline-danger">Azzera la carta aziendale</button>
+            </form>
+        </details>
         {% endif %}
-    </div>
-    </details>
+    </section>
 </div>
 
 <script>
@@ -970,6 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="submit" form="ccDelPlanned{{ expense.id }}" class="btn btn-outline-danger me-auto"><i class="bi bi-trash3" aria-hidden="true"></i> Elimina</button>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
                     <button type="submit" class="btn btn-success">Salva modifiche</button>
                 </div>
@@ -1105,6 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="submit" form="ccDelEntry{{ entry.id }}" class="btn btn-outline-danger me-auto"><i class="bi bi-trash3" aria-hidden="true"></i> Elimina</button>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
                     <button type="submit" class="btn btn-success">Salva modifiche</button>
                 </div>
@@ -1113,4 +838,6 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
 </div>
 {% endfor %}
+{% for entry in corporate_card_entries %}<form id="ccDelEntry{{ entry.id }}" method="post" class="d-none" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_corporate_card_entry"><input type="hidden" name="entry_id" value="{{ entry.id }}"></form>{% endfor %}
+{% for expense in planned_expenses %}<form id="ccDelPlanned{{ expense.id }}" method="post" class="d-none" data-confirm-delete="1">{% csrf_token %}<input type="hidden" name="action" value="delete_planned_corporate_card_expense"><input type="hidden" name="planned_expense_id" value="{{ expense.id }}"></form>{% endfor %}
 {% endblock %}

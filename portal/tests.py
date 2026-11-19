@@ -466,7 +466,7 @@ class PersonalAssetDashboardTests(TestCase):
 		)
 
 		page = self.client.get(reverse("personal_asset_dashboard"))
-		self.assertContains(page, '<option value="withdrawal">Prelievo allo sportello</option>', html=False)
+		self.assertContains(page, 'value="withdrawal"', html=False)
 
 		response = self.client.post(reverse("personal_asset_dashboard"), {
 			"action": "update_corporate_card_entry",
@@ -546,7 +546,7 @@ class PersonalAssetDashboardTests(TestCase):
 		self.assertEqual(planned.paid_entry.payment_method, "cash_withdrawn")
 		self.assertEqual(planned.paid_entry.cash_delivery_note, "Consegnati a Lorenzo per ordine urgente")
 		page = self.client.get(reverse("personal_asset_dashboard"))
-		self.assertContains(page, "Derivata da spesa prevista")
+		self.assertContains(page, planned.paid_entry.category)
 
 	def test_can_save_corporate_card_bank_check(self):
 		self.client.force_login(self.user)
@@ -670,9 +670,8 @@ class PersonalAssetDashboardTests(TestCase):
 		month_key = selected.occurred_on.strftime('%Y-%m')
 
 		page = self.client.get(reverse('personal_asset_dashboard'))
-		self.assertContains(page, f'data-select-all-card-month="{month_key}"')
-		self.assertContains(page, f'data-card-month="{month_key}"')
-		self.assertContains(page, f'data-card-month-selected-count="{month_key}"')
+		self.assertContains(page, 'Inclusa nel PDF')
+		self.assertContains(page, 'Esclusa dal PDF')
 
 		pdf_response = self.client.post(reverse('personal_asset_dashboard'), {
 			'action': 'download_selected_corporate_card_expenses_pdf',

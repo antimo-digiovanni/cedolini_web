@@ -45,7 +45,9 @@ class CardCycleTests(TestCase):
         r = self.client.get(self.url)
         self.assertContains(r, 'Chiedi ricarica')
         self.assertContains(r, 'Spese dall\'ultima ricarica')
-        self.assertContains(r, 'Storico, controllo banca e strumenti')
+        self.assertContains(r, 'Ricariche precedenti')
+        self.assertContains(r, 'Controllo con la banca')
+        self.assertContains(r, 'Ricarica del 1 ottobre 2026')
 
     def test_request_pdf(self):
         e = CorporateCardEntry.objects.get(category='Carburante')
@@ -112,3 +114,17 @@ class CardCycleTests(TestCase):
                                         'amount': '400', 'occurred_on': '2026-11-12', 'allow_negative': '1'})
         self.assertEqual(r.status_code, 302)
         self.assertEqual(current_cycle(self.user)['balance'], Decimal('-50'))
+
+    def test_past_cycle_pdf(self):
+        top = CorporateCardEntry.objects.filter(operation_type='top_up').order_by('occurred_on').first()
+        r = self.client.get(self.url + f'?report=richiesta_ricarica&giro={top.id}')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.content.startswith(b'%PDF'))
+        self.assertEqual(self.client.get(self.url + '?report=richiesta_ricarica&giro=99999').status_code, 404)
+
+    def test_history_excludes_current_cycle(self):
+        from .card_cycle import cycle_history
+        h = cycle_history(self.user)
+        self.assertEqual(len(h), 1)
+        self.assertEqual(h[0]['spent'], Decimal('250'))
+        self.assertEqual(h[0]['balance'], Decimal('50'))

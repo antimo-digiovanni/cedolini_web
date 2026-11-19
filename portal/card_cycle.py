@@ -55,6 +55,45 @@ def current_cycle(user):
     }
 
 
+def cycle_history(user):
+    """Giri di ricarica già chiusi, dal più recente: ricarica, spese fatte con quella ricarica, cosa avanzava."""
+    from .models import CorporateCardEntry
+    entries = list(CorporateCardEntry.objects.filter(user=user).order_by('occurred_on', 'created_at', 'id'))
+    segments, cur, running = [], None, ZERO
+    for e in entries:
+        if e.operation_type == CorporateCardEntry.TYPE_TOP_UP:
+            if cur is not None:
+                segments.append(cur)
+            cur = {'top': e, 'start': running, 'expenses': []}
+        else:
+            if cur is None:
+                cur = {'top': None, 'start': running, 'expenses': []}
+            cur['expenses'].append(e)
+        running += e.balance_delta
+        cur['end'] = running
+    if cur is not None:
+        segments.append(cur)
+    # l'ultimo giro (con l'ultima ricarica) è quello in corso, mostrato in alto
+    if segments and (segments[-1]['top'] is not None or not any(s['top'] for s in segments)):
+        segments = segments[:-1]
+    out = []
+    for s in reversed(segments):
+        top = s['top']
+        exp = sorted(s['expenses'], key=lambda e: (e.occurred_on, e.created_at), reverse=True)
+        out.append({
+            'top': top,
+            'key': top.id if top else 0,
+            'label': f'Ricarica del {top.occurred_on.day} {MONTHS[top.occurred_on.month - 1]} {top.occurred_on.year}' if top else 'Prima della prima ricarica',
+            'amount': top.amount if top else ZERO,
+            'carry_over': s['start'],
+            'expenses': exp,
+            'spent': sum((e.amount for e in exp), ZERO),
+            'balance': s['end'],
+            'missing_receipts': sum(1 for e in exp if not e.receipt_image and e.operation_type == CorporateCardEntry.TYPE_EXPENSE),
+        })
+    return out
+
+
 def _image_bytes(field):
     """Byte PNG/JPG di uno scontrino (anche PDF: prima pagina), oppure None."""
     try:
@@ -86,7 +125,19 @@ def request_pdf_response(request):
     from reportlab.platypus import KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     user = request.user
-    c = current_cycle(user)
+    past = None
+    if request.GET.get('giro') is not None:
+        try:
+            key = int(request.GET.get('giro'))
+        except (TypeError, ValueError):
+            key = -1
+        past = next((g for g in cycle_history(user) if g['key'] == key), None)
+        if past is None:
+            return HttpResponse('Ricarica non trovata.', status=404)
+    if past:
+        c = dict(past, planned=[], planned_total=ZERO, request_amount=ZERO)
+    else:
+        c = current_cycle(user)
     emp = getattr(user, 'employee', None)
     name = (emp.full_name if emp else '') or user.get_full_name() or user.get_username()
     today = timezone.localdate()
@@ -110,7 +161,7 @@ def request_pdf_response(request):
             canvas.drawImage(str(logo), 18 * mm, top - 13 * mm, width=14 * mm, height=14 * mm, preserveAspectRatio=True, mask='auto')
         canvas.setFillColor(ink)
         canvas.setFont('Helvetica-Bold', 13)
-        canvas.drawString(36 * mm, top - 5 * mm, 'Richiesta di ricarica carta aziendale')
+        canvas.drawString(36 * mm, top - 5 * mm, 'Spese della carta aziendale' if past else 'Richiesta di ricarica carta aziendale')
         canvas.setFont('Helvetica', 9)
         canvas.setFillColor(muted)
         canvas.drawString(36 * mm, top - 10.5 * mm, f'{name} · {today.day} {MONTHS[today.month - 1]} {today.year}')
@@ -157,24 +208,28 @@ def request_pdf_response(request):
     else:
         story.append(Paragraph('Nessuna spesa registrata dall\'ultima ricarica.', st['c']))
 
-    story.append(Paragraph('2. Da comprare', st['h']))
-    if c['planned']:
-        rows = [[Paragraph('<b>Cosa</b>', st['m']), Paragraph('<b>Importo previsto</b>', st['m'])]]
-        for p in c['planned']:
-            rows.append([Paragraph(p.category + (f' – {p.description}' if p.description else ''), st['c']), Paragraph(_euro(p.amount), st['r'])])
-        rows.append([Paragraph('<b>Totale da comprare</b>', st['c']), Paragraph(f"<b>{_euro(c['planned_total'])}</b>", st['r'])])
-        story.append(table(rows, [138 * mm, 36 * mm]))
+    if past:
+        story.append(Spacer(1, 4 * mm))
+        story.append(Paragraph(f"Restavano sulla carta a fine giro: <b>{_euro(c['balance'])}</b>", st['c']))
     else:
-        story.append(Paragraph('Nessun acquisto in lista.', st['c']))
+        story.append(Paragraph('2. Da comprare', st['h']))
+        if c['planned']:
+            rows = [[Paragraph('<b>Cosa</b>', st['m']), Paragraph('<b>Importo previsto</b>', st['m'])]]
+            for p in c['planned']:
+                rows.append([Paragraph(p.category + (f' – {p.description}' if p.description else ''), st['c']), Paragraph(_euro(p.amount), st['r'])])
+            rows.append([Paragraph('<b>Totale da comprare</b>', st['c']), Paragraph(f"<b>{_euro(c['planned_total'])}</b>", st['r'])])
+            story.append(table(rows, [138 * mm, 36 * mm]))
+        else:
+            story.append(Paragraph('Nessun acquisto in lista.', st['c']))
 
-    ask = Table([[Paragraph('<b>Ricarica richiesta</b>', st['c']), Paragraph(f"<b>{_euro(c['request_amount'])}</b>", st['big'])]],
-                colWidths=[100 * mm, 74 * mm])
-    ask.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#EEF2FB')), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                             ('TOPPADDING', (0, 0), (-1, -1), 10), ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-                             ('LEFTPADDING', (0, 0), (-1, -1), 10), ('RIGHTPADDING', (0, 0), (-1, -1), 10)]))
-    formula = (f"{_euro(c['planned_total'])} da comprare − {_euro(c['balance'])} ancora sulla carta." if c['balance'] >= 0
-               else f"{_euro(c['planned_total'])} da comprare + {_euro(-c['balance'])} anticipati (saldo carta sotto zero).")
-    story += [Spacer(1, 8 * mm), ask, Spacer(1, 2 * mm), Paragraph(formula, st['m'])]
+        ask = Table([[Paragraph('<b>Ricarica richiesta</b>', st['c']), Paragraph(f"<b>{_euro(c['request_amount'])}</b>", st['big'])]],
+                    colWidths=[100 * mm, 74 * mm])
+        ask.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#EEF2FB')), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                 ('TOPPADDING', (0, 0), (-1, -1), 10), ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                                 ('LEFTPADDING', (0, 0), (-1, -1), 10), ('RIGHTPADDING', (0, 0), (-1, -1), 10)]))
+        formula = (f"{_euro(c['planned_total'])} da comprare − {_euro(c['balance'])} ancora sulla carta." if c['balance'] >= 0
+                   else f"{_euro(c['planned_total'])} da comprare + {_euro(-c['balance'])} anticipati (saldo carta sotto zero).")
+        story += [Spacer(1, 8 * mm), ask, Spacer(1, 2 * mm), Paragraph(formula, st['m'])]
 
     receipts = [(e.occurred_on, e.category, e.amount, e.receipt_image) for e in sorted(c['expenses'], key=lambda e: e.occurred_on) if e.receipt_image]
     receipts += [(p.planned_on, f'{p.category} (preventivo)', p.amount, p.receipt_image) for p in c['planned'] if p.receipt_image]
@@ -195,9 +250,10 @@ def request_pdf_response(request):
 
     out = io.BytesIO()
     doc = SimpleDocTemplate(out, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=38 * mm, bottomMargin=16 * mm,
-                            title='Richiesta di ricarica carta aziendale', author=name)
+                            title='Spese della carta aziendale' if past else 'Richiesta di ricarica carta aziendale', author=name)
     doc.build(story, onFirstPage=header, onLaterPages=header)
     resp = HttpResponse(out.getvalue(), content_type='application/pdf')
     disp = 'attachment' if request.GET.get('scarica') == '1' else 'inline'
-    resp['Content-Disposition'] = f'{disp}; filename="richiesta-ricarica-{today:%Y-%m-%d}.pdf"'
+    fname = (f"spese-carta-{c['top'].occurred_on:%Y-%m-%d}" if past and c['top'] else 'spese-carta') if past else f'richiesta-ricarica-{today:%Y-%m-%d}'
+    resp['Content-Disposition'] = f'{disp}; filename="{fname}.pdf"'
     return resp

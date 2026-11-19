@@ -4407,10 +4407,11 @@ def personal_asset_dashboard(request):
     category_suggestions = _personal_asset_category_suggestions(request.user)
     reimbursement_toggle_query = '0' if show_reimbursement_in_assets else '1'
 
-    from .card_cycle import current_cycle
+    from .card_cycle import current_cycle, cycle_history
     card_cycle = current_cycle(request.user)
     return render(request, 'portal/personal_asset_dashboard.html', {
         'card_cycle': card_cycle,
+        'card_history': cycle_history(request.user),
         'today': timezone.localdate(),
         'finance_form': form,
         'adjustment_form': adjustment_form,

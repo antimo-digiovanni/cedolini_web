@@ -15,7 +15,7 @@
                 <div class="row g-2 mb-3">
                     <div class="col-6"><label class="form-label" for="ccSpentDate">Data</label><input id="ccSpentDate" class="form-control" type="date" name="occurred_on" value="{{ today|date:'Y-m-d' }}"></div>
                     <div class="col-6"><label class="form-label" for="ccSpentMethod">Pagato con</label>
-                        <select id="ccSpentMethod" class="form-select" name="payment_method"><option value="company_card" selected>Carta</option><option value="cash_withdrawn">Contanti</option><option value="bank_transfer_other">Bonifico/altro</option></select></div>
+                        <select id="ccSpentMethod" class="form-select" name="payment_method" data-cc-method><option value="company_card" selected>Carta</option><option value="cash_withdrawn">Contanti</option><option value="bank_transfer_other">Bonifico/altro</option><option value="withdrawal">Prelievo al bancomat</option></select></div>
                 </div>
                 <label class="cc-photo"><input type="file" name="receipt_image" accept="image/*,.pdf,application/pdf" capture="environment" data-cc-photo><i class="bi bi-camera" aria-hidden="true"></i> <span data-cc-photo-label>Foto dello scontrino</span></label>
                 <input class="form-control mt-3" type="text" name="description" placeholder="Nota (facoltativa)">
@@ -108,6 +108,15 @@
         });
     });
 
+
+    // «Prelievo al bancomat»: lo stesso modulo registra un prelievo invece di una spesa.
+    var method = document.querySelector('[data-cc-method]');
+    if (method) {
+        method.form.addEventListener('submit', function () {
+            var op = method.form.querySelector('input[name=operation_type]');
+            if (method.value === 'withdrawal') { op.value = 'withdrawal'; method.value = 'cash_withdrawn'; }
+        }, true);
+    }
     // Spesa oltre il saldo: chiede «Autorizza» e il saldo può andare sotto zero.
     var section = document.querySelector('[data-cc-balance]');
     var balance = section ? parseFloat(section.getAttribute('data-cc-balance')) : NaN;
