@@ -87,6 +87,8 @@
             <div class="alert alert-danger" role="alert">L'orario indicato è nel futuro: controlla giorno e ora.</div>
             {% elif request_status == 'recovery_before_start' %}
             <div class="alert alert-danger" role="alert">L'uscita indicata è prima della tua entrata: controlla giorno e ora.</div>
+            {% elif request_status == 'recovery_need_start' %}
+            <div class="alert alert-warning" role="alert">Per quel giorno non risulta la tua <strong>entrata</strong>. Recupera prima l'entrata (scegli «Entrata» e l'ora in cui sei arrivato), poi invia l'uscita.</div>
             {% elif request_status == 'vacation' %}
             <div class="alert alert-warning" role="alert">Non puoi richiedere una marcatura durante le ferie approvate.</div>
             {% endif %}
@@ -105,7 +107,7 @@
             <form method="post" data-req-panel="recovery">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="request_recovery">
-                <p class="small text-muted mb-3">Hai dimenticato di marcare? Scrivi l'orario vero: quando l'ufficio approva, la marcatura viene salvata con quell'orario.</p>
+                <p class="small text-muted mb-3">Hai dimenticato di marcare? Scrivi l'orario vero: quando l'ufficio approva, la marcatura viene salvata con quell'orario. Se ti mancano sia l'entrata che l'uscita, manda prima l'entrata e poi l'uscita.</p>
                 <fieldset>
                     <legend class="form-label fs-6">Cosa hai dimenticato?</legend>
                     <div class="row g-2 mb-3">

@@ -5044,6 +5044,19 @@ def timekeeping(request):
                     target_work_date = session.work_date
                 elif open_start and mark_ts <= open_start:
                     return redirect(f"{request.path}?request_status=recovery_before_start#recupera")
+                else:
+                    # Uscita senza entrata: prima va recuperata l'entrata di quel giorno.
+                    has_open_entry = any(
+                        ws.effective_started_at() and not ws.effective_ended_at() and ws.effective_started_at() < mark_ts
+                        for ws in WorkSession.objects.filter(employee=employee, work_date=day)
+                    )
+                    pending_start = WorkMarkRequest.objects.filter(
+                        employee=employee, work_date=day, mark_type=WorkMarkRequest.MARK_TYPE_START,
+                        status__in=[WorkMarkRequest.STATUS_PENDING, WorkMarkRequest.STATUS_APPROVED],
+                        requested_at__lt=mark_ts, applied_at__isnull=True,
+                    ).exists()
+                    if not has_open_entry and not pending_start:
+                        return redirect(f"{request.path}?request_status=recovery_need_start#recupera")
             if WorkMarkRequest.objects.filter(employee=employee, work_date=target_work_date, mark_type=mark_type,
                                               status=WorkMarkRequest.STATUS_PENDING).exists():
                 return redirect(f"{request.path}?request_status=already_pending#recupera")

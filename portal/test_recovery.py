@@ -83,3 +83,18 @@ class RecoveryTests(TestCase):
         page = self.client.get(reverse("timekeeping"))
         self.assertContains(page, "Recupera marcatura")
         self.assertContains(page, "Sono fuori zona")
+
+    def test_exit_without_entry_needs_entry_first(self):
+        r = self.post(self.at(18), {"action": "request_recovery", "mark_type": "end", "day": "oggi", "time": "16:00"})
+        self.assertIn("recovery_need_start", r["Location"])
+        self.assertFalse(WorkMarkRequest.objects.exists())
+        # prima l'entrata, poi l'uscita: accettate entrambe
+        self.post(self.at(18), {"action": "request_recovery", "mark_type": "start", "day": "oggi", "time": "07:00"})
+        r = self.post(self.at(18, 1), {"action": "request_recovery", "mark_type": "end", "day": "oggi", "time": "16:00"})
+        self.assertIn("recovery_sent", r["Location"])
+        start, end = WorkMarkRequest.objects.order_by("id")
+        self.approve(start)
+        self.approve(end)
+        s = WorkSession.objects.get(employee=self.employee, started_at__isnull=False)
+        self.assertEqual(timezone.localtime(s.ended_at).strftime("%H:%M"), "16:00")
+        self.assertEqual(s.worked_minutes(), 540)
