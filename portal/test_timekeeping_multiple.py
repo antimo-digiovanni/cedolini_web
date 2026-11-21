@@ -62,8 +62,8 @@ class MultipleTimekeepingTests(TestCase):
         for page in ("dashboard", "timekeeping"):
             response = self.client.get(reverse(page))
             self.assertContains(response, "Marcatura ordinaria")
-            self.assertContains(response, "Marcatura fuori zona")
-            self.assertContains(response, "Usare solo se sei fuori zona")
+            self.assertContains(response, "Sono fuori zona")
+            self.assertContains(response, "Recupera marcatura")
             self.assertNotContains(response, '<th scope="col">Ore</th>')
             self.assertNotContains(response, '<th>Totale</th>')
             button = response.content.decode().split('id="btnStart"', 1)[1].split(">", 1)[0]

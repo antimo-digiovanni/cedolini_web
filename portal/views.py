@@ -2994,9 +2994,14 @@ def _send_out_of_zone_request_admin_notification(request_obj):
     app_base_url = getattr(settings, 'APP_BASE_URL', '').rstrip('/')
     admin_url = f"{app_base_url}/portal/admin-richieste-fuori-zona/" if app_base_url else '/portal/admin-richieste-fuori-zona/'
 
-    subject = f"Nuova richiesta fuori zona - {employee.full_name}"
+    if request_obj.is_recovery:
+        subject = f"Recupero marcatura da approvare - {employee.full_name}"
+        intro = "Un dipendente ha dimenticato di marcare e chiede di recuperare la marcatura.\n\n"
+    else:
+        subject = f"Nuova richiesta fuori zona - {employee.full_name}"
+        intro = "E' stata inviata una nuova richiesta di marcatura fuori zona.\n\n"
     body = (
-        "E' stata inviata una nuova richiesta di marcatura fuori zona.\n\n"
+        intro +
         f"Dipendente: {employee.full_name}\n"
         f"Data lavoro: {request_obj.work_date:%d/%m/%Y}\n"
         f"Tipo: {mark_type_label}\n"
@@ -5019,6 +5024,43 @@ def timekeeping(request):
             )
             return redirect(f"{request.path}?request_status=sent_{mark_type}")
 
+        if action == 'request_recovery':
+            # «Recupera marcatura»: ha dimenticato di marcare, indica giorno e ora veri; l'ufficio approva.
+            mark_type = (request.POST.get('mark_type') or '').strip()
+            if mark_type not in {WorkMarkRequest.MARK_TYPE_START, WorkMarkRequest.MARK_TYPE_END}:
+                return redirect(f"{request.path}?request_status=invalid_type#recupera")
+            day = today - timedelta(days=1) if request.POST.get('day') == 'ieri' else today
+            try:
+                hh, mm = [int(x) for x in (request.POST.get('time') or '').split(':')[:2]]
+                mark_ts = timezone.make_aware(datetime.combine(day, datetime.min.time()).replace(hour=hh, minute=mm))
+            except (ValueError, TypeError):
+                return redirect(f"{request.path}?request_status=recovery_time#recupera")
+            if mark_ts > timezone.now():
+                return redirect(f"{request.path}?request_status=recovery_future#recupera")
+            target_work_date = day
+            if mark_type == WorkMarkRequest.MARK_TYPE_END:
+                open_start = session.effective_started_at() if not session.effective_ended_at() else None
+                if open_start and mark_ts > open_start:
+                    target_work_date = session.work_date
+                elif open_start and mark_ts <= open_start:
+                    return redirect(f"{request.path}?request_status=recovery_before_start#recupera")
+            if WorkMarkRequest.objects.filter(employee=employee, work_date=target_work_date, mark_type=mark_type,
+                                              status=WorkMarkRequest.STATUS_PENDING).exists():
+                return redirect(f"{request.path}?request_status=already_pending#recupera")
+            note = (request.POST.get('reason') or '').strip()[:500]
+            label = 'Entrata' if mark_type == WorkMarkRequest.MARK_TYPE_START else 'Uscita'
+            local = timezone.localtime(mark_ts)
+            reason = f"{label} dimenticata: dichiara {'ieri' if day < today else 'oggi'} alle {local:%H:%M}." + (f" {note}" if note else '')
+            request_obj = WorkMarkRequest.objects.create(
+                employee=employee, work_date=target_work_date, mark_type=mark_type,
+                requested_at=mark_ts, reason=reason, is_recovery=True,
+            )
+            _send_out_of_zone_request_admin_notification(request_obj)
+            _create_audit_event(request, 'timekeeping_recovery_requested', employee=employee, metadata={
+                'work_date': str(target_work_date), 'mark_type': mark_type, 'requested_at': local.isoformat(), 'note': note,
+            })
+            return redirect(f"{request.path}?request_status=recovery_sent#recupera")
+
         if is_vacation_today:
             return JsonResponse(
                 {'ok': False, 'error': 'Marcatura non disponibile: la giornata e segnata come ferie approvate.'},
@@ -5138,6 +5180,7 @@ def timekeeping(request):
                 work_date=entry_local.date(),
                 mark_type=WorkMarkRequest.MARK_TYPE_START,
                 requested_at=forgot_entry_ts,
+                is_recovery=True,
                 reason=f"Entrata dimenticata: dichiara di essere entrato {'ieri' if entry_local.date() < today else 'oggi'} alle {entry_local:%H:%M} (uscita marcata alle {timezone.localtime(now_ts):%H:%M}).",
             )
             _send_out_of_zone_request_admin_notification(request_obj)

@@ -45,7 +45,7 @@
 
 <div class="card-modern bg-white mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="mb-0">Richieste marcatura fuori zona</h5>
+        <h5 class="mb-0">Richieste marcatura (fuori zona e recuperi)</h5>
         <div class="d-flex align-items-center gap-2">
             <span class="small text-muted">In attesa: {{ pending_mark_requests|length }}</span>
             <a href="{% url 'admin_out_of_zone_requests' %}" class="btn btn-sm btn-outline-primary">Apri storico</a>
@@ -68,13 +68,7 @@
                     <td>{{ req.employee.display_name }}</td>
                     <td>{{ req.work_date|date:"d/m/Y" }}</td>
                     <td>
-                        {% if req.mark_type == 'start' %}
-                            <span class="badge bg-info text-dark">Entrata</span>
-                        {% elif req.mark_type == 'end' %}
-                            <span class="badge bg-primary">Uscita</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Entrata/Uscita</span>
-                        {% endif %}
+                        {% include "portal/includes/mark_request_type.html" %}
                     </td>
                     <td class="small">{{ req.reason }}</td>
                     <td>
@@ -113,13 +107,7 @@
                     <div class="pending-request-meta">{{ req.work_date|date:"d/m/Y" }}</div>
                 </div>
                 <div>
-                    {% if req.mark_type == 'start' %}
-                        <span class="badge bg-info text-dark">Entrata</span>
-                    {% elif req.mark_type == 'end' %}
-                        <span class="badge bg-primary">Uscita</span>
-                    {% else %}
-                        <span class="badge bg-secondary">Entrata/Uscita</span>
-                    {% endif %}
+                    {% include "portal/includes/mark_request_type.html" %}
                 </div>
             </div>
             <div class="small mb-3">{{ req.reason }}</div>

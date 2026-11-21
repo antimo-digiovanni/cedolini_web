@@ -84,13 +84,7 @@
                     <td>{{ req.employee.full_name }}</td>
                     <td>{{ req.work_date|date:"d/m/Y" }}</td>
                     <td>
-                        {% if req.mark_type == 'start' %}
-                            <span class="badge bg-info text-dark">Entrata</span>
-                        {% elif req.mark_type == 'end' %}
-                            <span class="badge bg-primary">Uscita</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Entrata/Uscita</span>
-                        {% endif %}
+                        {% include "portal/includes/mark_request_type.html" %}
                     </td>
                     <td>
                         {% if req.status == 'pending' %}

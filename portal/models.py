@@ -504,6 +504,8 @@ class WorkMarkRequest(models.Model):
     reason = models.TextField()
     # Orario dichiarato dal dipendente (entrata dimenticata); se vuoto vale l'orario di invio.
     requested_at = models.DateTimeField(blank=True, null=True)
+    # «Recupera marcatura»: il dipendente ha dimenticato di marcare e indica l'orario vero.
+    is_recovery = models.BooleanField(default=False)
     applied_at = models.DateTimeField(blank=True, null=True)
     applied_session = models.ForeignKey(
         WorkSession, on_delete=models.SET_NULL, blank=True, null=True, related_name='mark_requests',

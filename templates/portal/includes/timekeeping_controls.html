@@ -68,28 +68,80 @@
             {% endif %}
         </div>
     </section>
-    <section class="col-lg-6" aria-labelledby="outsideMarkTitle">
-        <h2 id="outsideMarkTitle" class="h5 mb-3">Marcatura fuori zona</h2>
+    <section class="col-lg-6" aria-labelledby="outsideMarkTitle" id="recupera">
+        <h2 id="outsideMarkTitle" class="h5 mb-3">Richieste all'ufficio</h2>
         <div class="card-modern bg-white">
-            <p class="fw-semibold mb-3">Usare solo se sei fuori zona</p>
             {% if request_status == 'sent_start' or request_status == 'sent_end' %}
-            <div class="alert alert-success" role="status">Richiesta inviata. Se approvata, la marcatura avra l'orario di invio.</div>
+            <div class="alert alert-success" role="status">Richiesta fuori zona inviata. Se approvata, la marcatura avrà l'orario di invio.</div>
+            {% elif request_status == 'recovery_sent' %}
+            <div class="alert alert-success" role="status">Recupero inviato. Quando l'ufficio approva, la marcatura viene salvata con l'orario che hai indicato.</div>
             {% elif request_status == 'already_pending' %}
-            <div class="alert alert-warning" role="status">Hai gia una richiesta di questo tipo in attesa.</div>
+            <div class="alert alert-warning" role="status">Hai già una richiesta di questo tipo in attesa.</div>
             {% elif request_status == 'invalid' %}
             <div class="alert alert-danger" role="alert">Inserisci una motivazione di almeno 8 caratteri.</div>
             {% elif request_status == 'invalid_type' %}
             <div class="alert alert-danger" role="alert">Scegli entrata oppure uscita.</div>
+            {% elif request_status == 'recovery_time' %}
+            <div class="alert alert-danger" role="alert">Indica l'ora in cui sei entrato o uscito.</div>
+            {% elif request_status == 'recovery_future' %}
+            <div class="alert alert-danger" role="alert">L'orario indicato è nel futuro: controlla giorno e ora.</div>
+            {% elif request_status == 'recovery_before_start' %}
+            <div class="alert alert-danger" role="alert">L'uscita indicata è prima della tua entrata: controlla giorno e ora.</div>
             {% elif request_status == 'vacation' %}
             <div class="alert alert-warning" role="alert">Non puoi richiedere una marcatura durante le ferie approvate.</div>
             {% endif %}
-            <div class="d-flex flex-wrap gap-3 mb-3 small">
-                <span>Ultima entrata: <strong>{{ today_mark_request_start.get_status_display|default:"Nessuna richiesta" }}</strong></span>
-                <span>Ultima uscita: <strong>{{ today_mark_request_end.get_status_display|default:"Nessuna richiesta" }}</strong></span>
+
+            <div class="row g-2 mb-3" role="tablist" aria-label="Tipo di richiesta">
+                <div class="col-6">
+                    <input type="radio" class="btn-check" name="reqKind" id="reqKindRecovery" value="recovery" {% if request_status != 'sent_start' and request_status != 'sent_end' and request_status != 'invalid' %}checked{% endif %}>
+                    <label class="btn btn-outline-primary w-100 h-100 py-2 d-flex flex-column align-items-center justify-content-center gap-1" for="reqKindRecovery"><i class="bi bi-clock-history fs-5" aria-hidden="true"></i><strong>Recupera marcatura</strong><small class="opacity-75">Ho dimenticato di marcare</small></label>
+                </div>
+                <div class="col-6">
+                    <input type="radio" class="btn-check" name="reqKind" id="reqKindOutside" value="outside" {% if request_status == 'sent_start' or request_status == 'sent_end' or request_status == 'invalid' %}checked{% endif %}>
+                    <label class="btn btn-outline-secondary w-100 h-100 py-2 d-flex flex-column align-items-center justify-content-center gap-1" for="reqKindOutside"><i class="bi bi-geo-alt fs-5" aria-hidden="true"></i><strong>Sono fuori zona</strong><small class="opacity-75">Marco adesso da fuori</small></label>
+                </div>
             </div>
-            <form method="post">
+
+            <form method="post" data-req-panel="recovery">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="request_recovery">
+                <p class="small text-muted mb-3">Hai dimenticato di marcare? Scrivi l'orario vero: quando l'ufficio approva, la marcatura viene salvata con quell'orario.</p>
+                <fieldset>
+                    <legend class="form-label fs-6">Cosa hai dimenticato?</legend>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="mark_type" id="recTypeStart" value="start" required>
+                            <label class="btn btn-outline-success w-100" for="recTypeStart">Entrata</label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="mark_type" id="recTypeEnd" value="end" required>
+                            <label class="btn btn-outline-danger w-100" for="recTypeEnd">Uscita</label>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label" for="recDay">Quando</label>
+                            <select id="recDay" name="day" class="form-select"><option value="oggi">Oggi</option><option value="ieri">Ieri</option></select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="recTime">A che ora</label>
+                            <input type="time" id="recTime" name="time" class="form-control" required>
+                        </div>
+                    </div>
+                    <label class="form-label" for="recNote">Nota <span class="text-muted">(facoltativa)</span></label>
+                    <input id="recNote" name="reason" class="form-control" maxlength="500" placeholder="Es. telefono scarico">
+                    <button class="btn btn-primary mt-3 w-100" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Invia il recupero</button>
+                </fieldset>
+            </form>
+
+            <form method="post" data-req-panel="outside" hidden>
                 {% csrf_token %}
                 <input type="hidden" name="action" value="request_out_of_zone">
+                <p class="small text-muted mb-3">Solo se stai marcando adesso ma sei fuori dalla zona di lavoro.</p>
+                <div class="d-flex flex-wrap gap-3 mb-3 small">
+                    <span>Ultima entrata: <strong>{{ today_mark_request_start.get_status_display|default:"Nessuna richiesta" }}</strong></span>
+                    <span>Ultima uscita: <strong>{{ today_mark_request_end.get_status_display|default:"Nessuna richiesta" }}</strong></span>
+                </div>
                 <fieldset {% if is_vacation_today %}disabled{% endif %}>
                     <legend class="form-label fs-6">Quale marcatura vuoi richiedere?</legend>
                     <div class="row g-2 mb-3">
@@ -102,11 +154,22 @@
                             <label class="btn btn-outline-danger w-100" for="markTypeEnd">Uscita</label>
                         </div>
                     </div>
-                    <label class="form-label" for="outsideReason">Perche sei fuori zona?</label>
+                    <label class="form-label" for="outsideReason">Perché sei fuori zona?</label>
                     <textarea id="outsideReason" name="reason" rows="3" class="form-control" minlength="8" placeholder="Es. acquisto materiali per il cantiere" required></textarea>
-                    <button class="btn btn-outline-primary mt-3" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Invia al preposto</button>
+                    <button class="btn btn-outline-primary mt-3 w-100" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Invia al preposto</button>
                 </fieldset>
             </form>
+            <script>
+            (function () {
+                var panels = document.querySelectorAll('[data-req-panel]');
+                function show() {
+                    var v = (document.querySelector('input[name=reqKind]:checked') || {}).value || 'recovery';
+                    panels.forEach(function (p) { p.hidden = p.getAttribute('data-req-panel') !== v; });
+                }
+                document.querySelectorAll('input[name=reqKind]').forEach(function (r) { r.addEventListener('change', show); });
+                show();
+            })();
+            </script>
         </div>
     </section>
 </div>

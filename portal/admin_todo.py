@@ -27,6 +27,16 @@ def admin_todo_items():
     if dpi:
         items.append({'label': 'Consegne DPI non ancora firmate', 'count': dpi, 'icon': 'bi-shield-check',
                       'tone': 'warn', 'url': reverse('admin_dpi')})
+    from .models import WorkMarkRequest
+    pending = WorkMarkRequest.objects.filter(status=WorkMarkRequest.STATUS_PENDING)
+    recoveries = pending.filter(is_recovery=True).count()
+    if recoveries:
+        items.append({'label': 'Recuperi marcatura da approvare', 'count': recoveries, 'icon': 'bi-clock-history',
+                      'tone': 'warn', 'url': reverse('admin_timekeeping')})
+    outside = pending.filter(is_recovery=False).count()
+    if outside:
+        items.append({'label': 'Richieste fuori zona da approvare', 'count': outside, 'icon': 'bi-geo-alt',
+                      'tone': 'warn', 'url': reverse('admin_timekeeping')})
     try:
         from .mark_anomalies import find as mark_anomalies
         marks = len(mark_anomalies())
