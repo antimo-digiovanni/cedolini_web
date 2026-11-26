@@ -8,6 +8,7 @@ urlpatterns = [
     path('turni-planner/', views.turni_planner_home, name='turni_planner_home'),
     path('chi-ha-marcato-oggi/', views.today_markings_dashboard, name='today_markings_dashboard'),
     path('marcatura/', views.timekeeping, name='timekeeping'),
+    path('marcatura/avviso/<int:request_id>/visto/', views.dismiss_mark_request_notice, name='dismiss_mark_request_notice'),
     path('patrimonio/', views.personal_asset_dashboard, name='personal_asset_dashboard'),
     path('tutorial/', views.portal_tutorial, name='portal_tutorial'),
 

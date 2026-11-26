@@ -506,6 +506,8 @@ class WorkMarkRequest(models.Model):
     requested_at = models.DateTimeField(blank=True, null=True)
     # «Recupera marcatura»: il dipendente ha dimenticato di marcare e indica l'orario vero.
     is_recovery = models.BooleanField(default=False)
+    # Quando il dipendente ha chiuso l'avviso «approvata/rifiutata» (così non resta una lista che cresce).
+    employee_seen_at = models.DateTimeField(blank=True, null=True)
     applied_at = models.DateTimeField(blank=True, null=True)
     applied_session = models.ForeignKey(
         WorkSession, on_delete=models.SET_NULL, blank=True, null=True, related_name='mark_requests',

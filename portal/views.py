@@ -4812,6 +4812,29 @@ def _reconcile_overnight_sessions(employee=None, start_date=None, end_date=None)
         previous_by_employee[session.employee_id] = session
 
 
+def _mark_request_summary(request_obj):
+    """«Recupero uscita di ieri alle 16:00» / «Marcatura fuori zona (entrata) del 21/11»."""
+    kind = 'entrata' if request_obj.mark_type == WorkMarkRequest.MARK_TYPE_START else ('uscita' if request_obj.mark_type == WorkMarkRequest.MARK_TYPE_END else 'entrata e uscita')
+    when = timezone.localtime(request_obj.requested_at) if request_obj.requested_at else None
+    if request_obj.is_recovery:
+        return f"Recupero {kind} del {request_obj.work_date:%d/%m}" + (f" alle {when:%H:%M}" if when else '')
+    return f"Marcatura fuori zona ({kind}) del {request_obj.work_date:%d/%m}"
+
+
+def _notify_mark_request_reviewed(request_obj):
+    """Avvisa il dipendente (notifica sul telefono) che la richiesta è stata decisa."""
+    try:
+        from .push import notify_later
+        ok = request_obj.status == WorkMarkRequest.STATUS_APPROVED
+        body = _mark_request_summary(request_obj) + (': approvata.' if ok else ': rifiutata.')
+        if request_obj.review_note:
+            body += f' Nota: {request_obj.review_note}'
+        notify_later(request_obj.employee.user_id, title='Richiesta approvata' if ok else 'Richiesta rifiutata',
+                     body=body, url=reverse('timekeeping'), tag=f'richiesta-{request_obj.id}')
+    except Exception:
+        logger.exception('notifica esito richiesta %s non inviata', request_obj.id)
+
+
 @transaction.atomic
 def _apply_approved_mark_request_to_session(request_obj):
     """Trasforma una richiesta fuori zona approvata in marcatura effettiva.
@@ -5293,6 +5316,7 @@ def admin_timekeeping(request):
 
                 if request_obj.status == WorkMarkRequest.STATUS_APPROVED:
                     _apply_approved_mark_request_to_session(request_obj)
+                _notify_mark_request_reviewed(request_obj)
 
                 _create_audit_event(
                     request,
@@ -6440,6 +6464,7 @@ def admin_dashboard(request):
 
                 if request_obj.status == WorkMarkRequest.STATUS_APPROVED:
                     _apply_approved_mark_request_to_session(request_obj)
+                _notify_mark_request_reviewed(request_obj)
 
                 _create_audit_event(
                     request,
@@ -7812,3 +7837,14 @@ def admin_cancel_import(request):
     )
 
     return redirect('admin_upload_period_folder')
+
+
+@login_required
+def dismiss_mark_request_notice(request, request_id):
+    """Il dipendente chiude l'avviso «approvata/rifiutata»: non compare più."""
+    if request.method == 'POST':
+        WorkMarkRequest.objects.filter(id=request_id, employee__user=request.user, employee_seen_at__isnull=True)\
+            .exclude(status=WorkMarkRequest.STATUS_PENDING).update(employee_seen_at=timezone.now())
+    if request.headers.get('x-requested-with') == 'fetch':
+        return JsonResponse({'ok': True})
+    return redirect(request.POST.get('next') or 'dashboard')

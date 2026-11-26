@@ -131,3 +131,19 @@ def today_board():
     return {'lanes': out, 'counts': counts, 'now_left': _pct(now_h),
             'now_label': timezone.localtime(now).strftime('%H:%M'),
             'hours': [{'h': f'{h:02d}', 'left': _pct(h)} for h in range(0, 25, 2)]}
+
+
+@register.inclusion_tag('portal/includes/mark_request_notices.html', takes_context=True)
+def mark_request_notices(context, employee):
+    """Esito delle richieste (recupero / fuori zona) non ancora visto dal dipendente: un avviso da chiudere, niente liste."""
+    from ..models import WorkMarkRequest
+    from ..views import _mark_request_summary
+    items = []
+    if employee is not None:
+        since = timezone.now() - timedelta(days=30)
+        qs = (WorkMarkRequest.objects.filter(employee=employee, employee_seen_at__isnull=True, reviewed_at__gte=since)
+              .exclude(status=WorkMarkRequest.STATUS_PENDING).order_by('-reviewed_at')[:5])
+        for r in qs:
+            items.append({'id': r.id, 'ok': r.status == WorkMarkRequest.STATUS_APPROVED,
+                          'text': _mark_request_summary(r), 'note': r.review_note or ''})
+    return {'notices': items, 'request': context.get('request')}

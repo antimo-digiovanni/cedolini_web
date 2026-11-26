@@ -98,3 +98,27 @@ class RecoveryTests(TestCase):
         s = WorkSession.objects.get(employee=self.employee, started_at__isnull=False)
         self.assertEqual(timezone.localtime(s.ended_at).strftime("%H:%M"), "16:00")
         self.assertEqual(s.worked_minutes(), 540)
+
+    def test_review_notice_shown_once(self):
+        self.post(self.at(9), {"action": "request_recovery", "mark_type": "start", "day": "oggi", "time": "07:05"})
+        req = WorkMarkRequest.objects.get()
+        admin = get_user_model().objects.create_superuser(username="capo2", password="x")
+        self.client.force_login(admin)
+        self.client.post(reverse("admin_timekeeping"), {"action": "approve_mark_request", "request_id": req.id})
+        req.refresh_from_db()
+        self.assertEqual(req.status, WorkMarkRequest.STATUS_APPROVED)
+        self.client.force_login(self.user)
+        for page in ("dashboard", "timekeeping"):
+            self.assertContains(self.client.get(reverse(page)), "Recupero entrata del")
+        # un altro dipendente non può chiuderlo
+        other = get_user_model().objects.create_user(username="altro")
+        Employee.objects.create(user=other, first_name="A", last_name="B")
+        self.client.force_login(other)
+        self.client.post(reverse("dismiss_mark_request_notice", args=[req.id]))
+        req.refresh_from_db()
+        self.assertIsNone(req.employee_seen_at)
+        self.client.force_login(self.user)
+        r = self.client.post(reverse("dismiss_mark_request_notice", args=[req.id]), HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(r.json(), {"ok": True})
+        for page in ("dashboard", "timekeeping"):
+            self.assertNotContains(self.client.get(reverse(page)), "Recupero entrata del")

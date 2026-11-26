@@ -1,0 +1,27 @@
+{% for n in notices %}
+<div class="alert {% if n.ok %}alert-success{% else %}alert-danger{% endif %} d-flex align-items-start gap-2 mb-3" role="status" data-mr-notice>
+    <i class="bi {% if n.ok %}bi-check-circle-fill{% else %}bi-x-circle-fill{% endif %} fs-5" aria-hidden="true"></i>
+    <div class="flex-grow-1">
+        <strong>{% if n.ok %}Approvata{% else %}Rifiutata{% endif %}:</strong> {{ n.text }}.
+        {% if n.note %}<div class="small mt-1">Nota dell'ufficio: {{ n.note }}</div>{% endif %}
+    </div>
+    <form method="post" action="{% url 'dismiss_mark_request_notice' n.id %}" class="m-0" data-mr-dismiss>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn btn-sm {% if n.ok %}btn-success{% else %}btn-outline-danger{% endif %}">Ok</button>
+    </form>
+</div>
+{% endfor %}
+{% if notices %}
+<script>
+document.querySelectorAll('[data-mr-dismiss]').forEach(function (f) {
+    if (f.dataset.bound) return; f.dataset.bound = '1';
+    f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        fetch(f.action, { method: 'POST', body: new FormData(f), headers: { 'x-requested-with': 'fetch' }, credentials: 'same-origin' })
+            .then(function () { f.closest('[data-mr-notice]').remove(); })
+            .catch(function () { f.submit(); });
+    });
+});
+</script>
+{% endif %}

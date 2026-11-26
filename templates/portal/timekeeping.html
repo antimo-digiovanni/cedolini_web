@@ -1,9 +1,11 @@
 {% extends "portal/base.html" %}
+{% load glass_extras %}
 {% block title %}Marcatura{% endblock %}
 {% block body_data_attrs %}data-auto-refresh-on-return="1"{% endblock %}
 {% block content %}
 <div class="page-hero mb-4">
     <h1 class="h2 fw-bold mb-1">Marcatura</h1>
 </div>
+{% mark_request_notices employee %}
 {% include "portal/includes/timekeeping_controls.html" %}
 {% endblock %}

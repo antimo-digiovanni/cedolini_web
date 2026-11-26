@@ -188,6 +188,7 @@
         <h1>Ciao{% if employee.first_name %}, {{ employee.first_name }}{% endif %}</h1>
     </header>
     {% shift_card employee %}
+    {% mark_request_notices employee %}
 
     <nav class="home-tiles mb-4" aria-label="Accesso rapido">
         <a class="home-tile{% if unviewed_payslips_count or unviewed_cuds_count %} has-todo{% endif %}" href="#payslip-section">
